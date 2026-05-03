@@ -22,14 +22,23 @@ NAME_VALUE_WINDOWS = ((0.30, 0.42, 0.22, 0.84), (0.29, 0.44, 0.20, 0.86))
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
 
 
-def extract_visual_fields(file_path: str, page: object | None = None) -> dict[str, str]:
+def extract_visual_fields(
+    file_path: str,
+    page: object | None = None,
+    field_names: tuple[str, ...] | None = None,
+) -> dict[str, str]:
     if not configure_tesseract():
         return {}
     page = page if page is not None else extract_aligned_passport_page(file_path)
     if page is None:
         return {}
     extracted: dict[str, str] = {}
-    for field_name in FIELD_CONFIG:
+    requested_fields = (
+        tuple(FIELD_CONFIG)
+        if field_names is None
+        else tuple(field_name for field_name in field_names if field_name in FIELD_CONFIG)
+    )
+    for field_name in requested_fields:
         value = _extract_field(page, field_name)
         if value:
             extracted[field_name] = value

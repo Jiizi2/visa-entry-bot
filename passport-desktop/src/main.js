@@ -305,6 +305,7 @@ function bindActions() {
       state.passportListPage = 1;
       ensureVisibleActiveMember();
       renderAll();
+      scrollPassportListToTop();
     });
   }
 
@@ -1009,9 +1010,13 @@ function moveActiveMember(step) {
   const currentIndex = members.findIndex((member) => member.id === state.activeMemberId);
   const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
   const nextIndex = Math.max(0, Math.min(members.length - 1, safeCurrentIndex + step));
+  const previousPage = state.passportListPage;
   state.activeMemberId = members[nextIndex].id ?? "";
   syncPassportPageWithActiveMember();
   renderAll();
+  if (state.passportListPage !== previousPage) {
+    scrollPassportListToTop();
+  }
 }
 
 function setPage(page) {
@@ -1434,9 +1439,7 @@ function renderPassportList() {
       ? `Kelompok ${basenameFromPath(state.selectedDir)}`
       : "Siap diperiksa";
 
-  dom.passportListSummary.textContent = pagination.totalItems
-    ? `${pagination.startIndex}-${pagination.endIndex} dari ${allMembers.length} data`
-    : `0 dari ${allMembers.length} data`;
+  dom.passportListSummary.textContent = passportListSummaryText(pagination, allMembers.length);
 
   if (!allMembers.length) {
     dom.passportList.innerHTML = `<div class="friendly-empty">Belum ada data passport. Mulai proses dulu dari halaman Pilih Dokumen.</div>`;
@@ -1966,6 +1969,7 @@ function changePassportListPage(step) {
   const nextOffset = (nextPage - 1) * state.passportListPageSize;
   state.activeMemberId = members[nextOffset]?.id ?? state.activeMemberId;
   renderAll();
+  scrollPassportListToTop();
 }
 
 function renderPassportPagination(pagination) {
@@ -1976,6 +1980,29 @@ function renderPassportPagination(pagination) {
   dom.passportPageNextButton.disabled = !pagination.canMoveNext;
   dom.passportPagePrevButton.setAttribute("aria-disabled", dom.passportPagePrevButton.disabled ? "true" : "false");
   dom.passportPageNextButton.setAttribute("aria-disabled", dom.passportPageNextButton.disabled ? "true" : "false");
+}
+
+function passportListSummaryText(pagination, totalMembers) {
+  const pageText = pagination.totalPages > 1
+    ? ` | Halaman ${pagination.currentPage}/${pagination.totalPages}`
+    : "";
+  if (!pagination.totalItems) {
+    return totalMembers ? `0 dari ${totalMembers} data${pageText}` : "0 dari 0 data";
+  }
+  const rangeText = `${pagination.startIndex}-${pagination.endIndex}`;
+  if (pagination.totalItems === totalMembers) {
+    return `${rangeText} dari ${totalMembers} data${pageText}`;
+  }
+  return `${rangeText} dari ${pagination.totalItems} data terfilter (${totalMembers} total)${pageText}`;
+}
+
+function scrollPassportListToTop() {
+  if (!dom.passportList) {
+    return;
+  }
+  requestFrame(() => {
+    dom.passportList.scrollTop = 0;
+  });
 }
 
 function activeMember() {

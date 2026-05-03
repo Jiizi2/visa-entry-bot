@@ -27,6 +27,7 @@ from services.image_preprocessor import temporary_mrz_variants
 from services.ocr_result_cache import build_region_cache_key, get_cached_lines, store_cached_lines
 
 
+@lru_cache(maxsize=8)
 def extract_aligned_passport_page(file_path: str) -> object | None:
     if cv2 is None or MRZPipeline is None or not configure_tesseract():
         return None
@@ -39,6 +40,11 @@ def extract_aligned_passport_page(file_path: str) -> object | None:
             if page is not None:
                 return page
     return None
+
+
+def clear_passport_page_cache() -> None:
+    extract_aligned_passport_page.cache_clear()
+    _resolve_mrz_box.cache_clear()
 
 
 def build_mrz_relative_crops(file_path: str, windows: tuple[tuple[float, float, float, float], ...]) -> list[object]:

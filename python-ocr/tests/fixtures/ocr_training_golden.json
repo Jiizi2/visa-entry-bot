@@ -1,0 +1,47 @@
+[
+  {
+    "fileName": "Copy of Karim Alfarizi Ramadan.jpeg",
+    "expected": {
+      "status": "VALID",
+      "firstName": "KARIM ALFARIZI",
+      "familyName": "RAMADAN",
+      "passportNumber": "E8710852",
+      "nationality": "INDONESIA",
+      "dob": "2019-06-01",
+      "issueDate": "2025-01-08",
+      "expiryDate": "2030-01-08",
+      "gender": "MALE",
+      "birthCity": "BERAU",
+      "cityOfIssued": "TANJUNG REDEB"
+    }
+  },
+  {
+    "fileName": "Copy of Mawar Nurani La Rani.jpeg",
+    "expected": {
+      "status": "VALID",
+      "passportNumber": "X6725064",
+      "nationality": "INDONESIA",
+      "dob": "1995-01-28",
+      "issueDate": "2025-11-26",
+      "expiryDate": "2030-11-26",
+      "gender": "FEMALE",
+      "cityOfIssued": "TANJUNG REDEB"
+    }
+  },
+  {
+    "fileName": "Copy of Muhammad Dzaki 1.jpeg",
+    "expected": {
+      "status": "VALID",
+      "firstName": "MUHAMMAD",
+      "familyName": "DZAKI",
+      "passportNumber": "E8710843",
+      "nationality": "INDONESIA",
+      "dob": "2012-05-02",
+      "issueDate": "2025-01-07",
+      "expiryDate": "2030-01-07",
+      "gender": "MALE",
+      "birthCity": "BERAU",
+      "cityOfIssued": "TANJUNG REDEB"
+    }
+  }
+]

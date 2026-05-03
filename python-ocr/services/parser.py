@@ -176,8 +176,10 @@ def _extract_lines(data: dict[str, Any]) -> list[str]:
 
 def _split_name_section(value: str) -> tuple[str, str]:
     if "<<" not in value:
-        return value, ""
+        return value.split("<", 1)[0], ""
     family_name, first_name = value.split("<<", 1)
+    if "<" in family_name:
+        return family_name.split("<", 1)[0], ""
     return family_name, first_name.replace("<<", " ")
 
 
@@ -206,6 +208,12 @@ def _score_name(value: str, allow_multi: bool) -> int:
 
 def _normalize_name_token(token: str) -> str:
     normalized = re.sub(r"[^A-Z]", "", str(token or "").upper())
+    if normalized == "K" or (len(normalized) >= 3 and set(normalized) == {"K"}):
+        return ""
+    if len(normalized) >= 4 and set(normalized) <= {"S", "K"} and normalized.count("K") >= 3:
+        return ""
+    if len(normalized) >= 3 and set(normalized) <= {"E", "K"}:
+        return ""
     if normalized.startswith("DUI") and len(normalized) >= 6:
         normalized = "DJU" + normalized[3:]
     if normalized.startswith("DJUU") and len(normalized) >= 6:
@@ -229,7 +237,7 @@ def _looks_like_line1(value: str) -> bool:
 
 
 def _looks_like_line2(value: str) -> bool:
-    if len(value) != 44 or value.count("<") < 2:
+    if len(value) != 44 or value.count("<") < 1:
         return False
     return value[0].isalnum() and value[1:9].replace("<", "").isalnum() and value[10:13].isalpha()
 

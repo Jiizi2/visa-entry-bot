@@ -56,12 +56,11 @@ Yang tidak lagi menjadi tanggung jawab extension:
 Area penting yang ditemukan:
 
 - `passport-desktop/`: aplikasi Tauri/Rust dan frontend desktop.
-- `passport-desktop/src-tauri/src/lib.rs`: command Rust untuk scan, batch, automation, dan bridge.
+- `passport-desktop/src-tauri/src/lib.rs`: command Rust untuk scan, load manifest, dan export JSON.
 - `passport-desktop/src/`: frontend desktop vanilla JS.
 - `python-ocr/`: OCR worker dan generator manifest.
 - `chrome-extension/`: extension lama dengan panel upload JSON dan automation DOM.
-- `passport-desktop/browser-extension/nusuk-bridge-extension/`: extension bridge/native-host skeleton.
-- `passport-desktop/scripts/nusuk-automation/`: Playwright automation yang masih punya mode browser debug/CDP.
+- Cleanup 2026-05-03: jalur Playwright/CDP, native-host, bridge extension skeleton, dan `bridge-contract` sudah dihapus dari desktop app.
 
 ## Baseline Sebelum Refactor
 
@@ -105,7 +104,7 @@ Folder `chrome-extension/` lebih cocok dijadikan basis karena sudah memiliki:
 - Preview member.
 - Automation DOM yang cukup lengkap.
 
-Folder `passport-desktop/browser-extension/nusuk-bridge-extension/` akan dianggap legacy/skeleton bridge.
+Skeleton bridge di dalam desktop app sudah dihapus; extension utama tetap `chrome-extension/`.
 
 ### 3. Browser debug harus dihapus dari flow user
 
@@ -137,17 +136,15 @@ Alternatif lain adalah memasukkan file sebagai base64 di JSON, tetapi ini tidak 
 
 ### Fase 2: Ubah desktop app menjadi scan/export only
 
-- Ubah copy dan UI dari `Siapkan Data` menjadi export JSON untuk extension.
-- Stop pemanggilan `run_nusuk_automation` dari frontend.
-- Pertahankan `create_nusuk_batch` jika masih dipakai sebagai exporter.
-- Nonaktifkan command automation yang tidak lagi dipakai dari UI.
-- Update README desktop agar tidak mengarahkan user ke Playwright/CDP.
+- Selesai: UI mengarah ke export JSON untuk extension.
+- Selesai: command automation desktop sudah dilepas dari backend.
+- Selesai: exporter JSON tetap memakai command batch.
+- Selesai: README desktop tidak mengarahkan user ke Playwright/CDP.
 
 ### Fase 3: Bersihkan jalur bridge/native-host
 
-- Tandai `nusuk-bridge-extension` sebagai legacy atau pindahkan ke dokumentasi arsip.
-- Hapus instruksi native-host dari flow utama.
-- Jangan gunakan `contract_bridge_*` pada flow baru.
+- Selesai: skeleton bridge, native-host, dan runtime bridge contract dihapus.
+- Selesai: command bridge backend dihapus.
 
 ### Fase 4: Refactor extension agar tanpa debugger
 
@@ -189,13 +186,12 @@ Extension:
 - `chrome-extension/popup.html`
 - `chrome-extension/popup.js`
 
-Legacy/cleanup:
+Legacy/cleanup yang sudah dibersihkan:
 
-- `passport-desktop/scripts/nusuk-click-automation.mjs`
-- `passport-desktop/scripts/nusuk-automation/`
-- `passport-desktop/browser-extension/nusuk-bridge-extension/`
-- `passport-desktop/scripts/native-host/`
-- `passport-desktop/bridge-contract/`
+- Playwright/CDP automation desktop.
+- Native-host bridge.
+- Skeleton extension bridge.
+- Runtime JSON `bridge-contract`.
 
 ## Definition of Done
 
@@ -208,4 +204,3 @@ Project dianggap sesuai target ketika:
 - Extension tidak memakai `chrome.debugger`.
 - Tidak ada kewajiban menjalankan Chrome/Edge dengan remote debugging.
 - Dokumentasi utama menjelaskan alur manual app -> JSON -> extension.
-

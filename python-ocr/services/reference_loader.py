@@ -4,9 +4,9 @@ import re
 from datetime import date, timedelta
 
 try:
-    import pandas as pd
+    from openpyxl import load_workbook
 except ImportError:  # pragma: no cover - depends on local environment
-    pd = None
+    load_workbook = None
 
 COLUMN_MAP = {
     "NO": "rowNumber",
@@ -50,33 +50,42 @@ MONTHS = {
 
 
 def load_reference_workbook(path: str) -> list[dict[str, str]]:
-    if pd is None:
-        raise RuntimeError("pandas is not installed.")
-    dataframe = pd.read_excel(path, header=None)
-    header_index = _find_header_row(dataframe)
+    if load_workbook is None:
+        raise RuntimeError("openpyxl is not installed.")
+    rows = _load_workbook_rows(path)
+    header_index = _find_header_row(rows)
     if header_index >= 0:
-        return _load_standard_rows(dataframe, header_index)
-    header_index = _find_passenger_manifest_row(dataframe)
+        return _load_standard_rows(rows, header_index)
+    header_index = _find_passenger_manifest_row(rows)
     if header_index >= 0:
-        return _load_passenger_manifest_rows(dataframe, header_index)
+        return _load_passenger_manifest_rows(rows, header_index)
     raise ValueError("Reference header row not found.")
 
 
-def _load_standard_rows(dataframe: "pd.DataFrame", header_index: int) -> list[dict[str, str]]:
-    header = [_normalize_header(value) for value in dataframe.iloc[header_index].tolist()]
+def _load_workbook_rows(path: str) -> list[list[object]]:
+    workbook = load_workbook(path, data_only=True, read_only=True)
+    try:
+        worksheet = workbook.active
+        return [list(row) for row in worksheet.iter_rows(values_only=True)]
+    finally:
+        workbook.close()
+
+
+def _load_standard_rows(rows_data: list[list[object]], header_index: int) -> list[dict[str, str]]:
+    header = [_normalize_header(value) for value in rows_data[header_index]]
     rows: list[dict[str, str]] = []
-    for _, raw_row in dataframe.iloc[header_index + 1 :].iterrows():
-        record = _map_row(header, raw_row.tolist())
+    for raw_row in rows_data[header_index + 1 :]:
+        record = _map_row(header, raw_row)
         if not record.get("fullName") and not record.get("passportNumber"):
             continue
         rows.append(record)
     return rows
 
 
-def _load_passenger_manifest_rows(dataframe: "pd.DataFrame", header_index: int) -> list[dict[str, str]]:
+def _load_passenger_manifest_rows(rows_data: list[list[object]], header_index: int) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
-    for _, raw_row in dataframe.iloc[header_index + 1 :].iterrows():
-        record = _map_passenger_row(raw_row.tolist())
+    for raw_row in rows_data[header_index + 1 :]:
+        record = _map_passenger_row(raw_row)
         if record:
             rows.append(record)
     return rows
@@ -94,19 +103,19 @@ def normalize_reference_key(value: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", _normalize_text(value))
 
 
-def _find_header_row(dataframe: "pd.DataFrame") -> int:
-    for index, row in dataframe.iterrows():
-        values = {_normalize_header(value) for value in row.tolist()}
+def _find_header_row(rows_data: list[list[object]]) -> int:
+    for index, row in enumerate(rows_data):
+        values = {_normalize_header(value) for value in row}
         if "NAMA" in values and "PASSPORT" in values and "DOB" in values:
-            return int(index)
+            return index
     return -1
 
 
-def _find_passenger_manifest_row(dataframe: "pd.DataFrame") -> int:
-    for index, row in dataframe.iterrows():
-        values = {_normalize_header(value) for value in row.tolist()}
+def _find_passenger_manifest_row(rows_data: list[list[object]]) -> int:
+    for index, row in enumerate(rows_data):
+        values = {_normalize_header(value) for value in row}
         if "PASSENGER NAME" in values and "NO. PASPORT" in values and "ISSUING OFFICE" in values:
-            return int(index)
+            return index
     return -1
 
 

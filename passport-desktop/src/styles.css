@@ -2420,16 +2420,23 @@ tbody tr:hover {
   }
 
   #page-validation {
+    height: auto;
     min-height: 0;
+    overflow: visible;
   }
 
   #page-validation .review-shell {
     height: auto;
+    overflow: visible;
   }
 
   #page-validation .passport-panel,
   #page-validation .workspace-panel {
     height: auto;
+  }
+
+  #page-validation .passport-list {
+    max-height: min(520px, 62vh);
   }
 }
 
@@ -2760,21 +2767,49 @@ tbody tr:hover {
 
 /* Validation page should fully use vertical space with two full-height panels */
 #page-validation {
-  min-height: calc(100vh - 72px);
+  height: calc(100vh - 172px);
+  min-height: 480px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 #page-validation .review-shell {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 #page-validation .passport-panel,
 #page-validation .workspace-panel {
   min-height: 0;
   height: 100%;
+}
+
+#page-validation .passport-panel {
+  max-height: 100%;
+}
+
+#page-validation .passport-panel-head,
+#page-validation .passport-filter-row,
+#page-validation .passport-list-head,
+#page-validation .passport-panel-footer {
+  flex: 0 0 auto;
+}
+
+#page-validation .passport-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#page-validation .passport-panel-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  border-top: 1px solid var(--line);
 }
 
 .passport-panel-head h3,

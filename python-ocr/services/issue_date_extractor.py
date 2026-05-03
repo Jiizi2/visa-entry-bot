@@ -52,6 +52,8 @@ def extract_issue_date(
     current_value: str = "",
 ) -> str:
     current = _parse_iso_date(current_value)
+    if current and _is_trustworthy_current_issue(current, dob, expiry_date):
+        return current.isoformat()
     if not dob and not expiry_date:
         return current.isoformat() if current else ""
     page = page if page is not None else extract_aligned_passport_page(file_path)
@@ -224,6 +226,20 @@ def infer_issue_date(dob: str, expiry_date: str) -> str:
     if fallback is None or (dob_date and fallback <= dob_date):
         return ""
     return fallback.isoformat()
+
+
+def _is_trustworthy_current_issue(current: date, dob: str, expiry_date: str) -> bool:
+    dob_date = _parse_iso_date(dob)
+    expiry = _parse_iso_date(expiry_date)
+    if current > date.today():
+        return False
+    if dob_date and current <= dob_date:
+        return False
+    if expiry is None:
+        return False
+    if current >= expiry:
+        return False
+    return current in _expected_issue_dates(expiry)
 
 
 def _snap_to_expected_issue(candidate: date, expiry: date) -> date:

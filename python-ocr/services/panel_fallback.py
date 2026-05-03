@@ -6,8 +6,8 @@ from datetime import date
 from services.expiry_date_extractor import pick_expiry_date
 from services.image_preprocessor import _load_image, detect_document_crop
 from services.issue_date_extractor import infer_issue_date, pick_issue_date
-from services.location_normalizer import pick_best_location_value
-from services.name_support import salvage_family_hints, score_name_fields
+from services.location_normalizer import is_known_location_value, pick_best_location_value
+from services.name_support import salvage_family_hints, score_name_fields, token_matches_simple
 from services.panel_name_support import normalize_name_candidate, pick_best_name_candidate, score_full_name
 from services.passport_page import collect_ocr_lines, crop_relative
 
@@ -15,7 +15,15 @@ LOW_CONFIDENCE_THRESHOLD = 0.6
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 MODES = {
     "compact": {
-        "name": ((0.24, 0.34, 0.36, 0.82), (0.22, 0.30, 0.38, 0.80), (0.18, 0.30, 0.34, 0.86)),
+        "name": (
+            (0.18, 0.36, 0.20, 0.92),
+            (0.20, 0.36, 0.28, 0.95),
+            (0.22, 0.36, 0.30, 0.98),
+            (0.24, 0.38, 0.28, 0.98),
+            (0.24, 0.34, 0.36, 0.82),
+            (0.22, 0.30, 0.38, 0.80),
+            (0.18, 0.30, 0.34, 0.86),
+        ),
         "passportNumber": ((0.14, 0.26, 0.72, 0.98), (0.16, 0.28, 0.70, 0.98), (0.12, 0.24, 0.70, 0.98)),
         "nationality": ((0.34, 0.48, 0.34, 0.62),),
         "dob": ((0.48, 0.62, 0.30, 0.54),),
@@ -27,17 +35,28 @@ MODES = {
     },
     "panel": {
         "name": ((0.20, 0.30, 0.22, 0.82), (0.18, 0.28, 0.22, 0.82), (0.22, 0.32, 0.20, 0.84)),
-        "passportNumber": ((0.14, 0.28, 0.68, 0.98), (0.10, 0.24, 0.70, 0.98), (0.12, 0.26, 0.68, 0.98)),
+        "passportNumber": ((0.12, 0.30, 0.62, 1.00), (0.08, 0.28, 0.60, 1.00), (0.14, 0.28, 0.68, 0.98), (0.10, 0.24, 0.70, 0.98), (0.12, 0.26, 0.68, 0.98)),
         "nationality": ((0.32, 0.44, 0.22, 0.58),),
         "dob": ((0.44, 0.58, 0.22, 0.50),),
-        "gender": ((0.44, 0.58, 0.50, 0.62),),
-        "placeOfBirth": ((0.44, 0.58, 0.72, 0.98),),
-        "issueDate": ((0.58, 0.72, 0.22, 0.50),),
-        "expiryDate": ((0.58, 0.72, 0.72, 0.98),),
+        "gender": ((0.44, 0.58, 0.50, 0.62), (0.42, 0.58, 0.44, 0.68)),
+        "placeOfBirth": ((0.40, 0.54, 0.64, 0.99), (0.44, 0.58, 0.72, 0.98)),
+        "issueDate": ((0.52, 0.64, 0.20, 0.55), (0.50, 0.63, 0.18, 0.58), (0.46, 0.58, 0.20, 0.55), (0.43, 0.58, 0.20, 0.52), (0.58, 0.72, 0.22, 0.50)),
+        "expiryDate": ((0.52, 0.64, 0.64, 0.99), (0.50, 0.63, 0.62, 0.99), (0.46, 0.58, 0.66, 0.99), (0.43, 0.58, 0.68, 0.99), (0.58, 0.72, 0.72, 0.98)),
         "issuingOffice": ((0.58, 0.78, 0.68, 0.99), (0.72, 0.96, 0.70, 0.99)),
     },
 }
 TEXT_FIELDS = {"placeOfBirth", "issuingOffice", "nationality", "gender"}
+DEFAULT_PANEL_FIELDS = (
+    "fullName",
+    "passportNumber",
+    "nationality",
+    "dob",
+    "gender",
+    "placeOfBirth",
+    "issueDate",
+    "expiryDate",
+    "issuingOffice",
+)
 NOISE = {"COUNTRY", "FULL", "IDN", "INDONESIA", "JENIS", "KELAMIN", "KEWARGANEGARAAN", "KODE", "LENGKAP", "NAME", "NAMA", "NATIONALITY", "NEGARA", "NO", "PASPOR", "PASSPORT", "TYPE"}
 
 
@@ -45,20 +64,38 @@ def should_use_panel_fallback(extraction: dict[str, object] | None) -> bool:
     if not extraction:
         return True
     notes = str(extraction.get("notes", "") or "").upper()
-    return float(extraction.get("confidence", 0.0) or 0.0) < LOW_CONFIDENCE_THRESHOLD or "LOW PASSPORTEYE CONFIDENCE" in notes
+    return (
+        float(extraction.get("confidence", 0.0) or 0.0) < LOW_CONFIDENCE_THRESHOLD
+        or "LOW PASSPORTEYE CONFIDENCE" in notes
+        or "DIRECT LOWER-BAND OCR" in notes
+    )
 
 
-def extract_document_panel_fields(file_path: str, family_hint: str = "", given_hint: str = "") -> dict[str, str]:
+def extract_document_panel_fields(
+    file_path: str,
+    family_hint: str = "",
+    given_hint: str = "",
+    field_names: tuple[str, ...] | None = None,
+) -> dict[str, str]:
     panel, mode = _build_panel(file_path)
     if panel is None:
         return {}
+    requested = set(field_names or DEFAULT_PANEL_FIELDS)
     config = MODES[mode]
-    fields = {"fullName": _extract_name(panel, config["name"], family_hint, given_hint), "passportNumber": _extract_passport_number(panel, config["passportNumber"])}
+    fields: dict[str, str] = {}
+    if "fullName" in requested:
+        fields["fullName"] = _extract_name(panel, config["name"], family_hint, given_hint)
+    if "passportNumber" in requested:
+        fields["passportNumber"] = _extract_passport_number(panel, config["passportNumber"])
     for field_name in ("nationality", "dob", "gender", "placeOfBirth", "issuingOffice"):
+        if field_name not in requested:
+            continue
         value = _extract_simple_field(panel, config[field_name], field_name)
         if value:
             fields[field_name] = value
-    fields.update(_extract_date_fields(panel, mode, fields.get("dob", "")))
+    if {"issueDate", "expiryDate"} & requested:
+        date_fields = _extract_date_fields(panel, mode, fields.get("dob", ""))
+        fields.update({key: value for key, value in date_fields.items() if key in requested})
     return {key: value for key, value in fields.items() if value}
 
 
@@ -75,7 +112,10 @@ def fuse_panel_fields(parsed: dict[str, str], extraction: dict[str, object] | No
     full_name = panel_fields.get("fullName", "")
     if full_name:
         candidate = _split_full_name(full_name)
-        if score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.get("firstName", ""), updated.get("familyName", "")):
+        if (
+            _panel_name_matches_existing_hints(full_name, updated)
+            and score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.get("firstName", ""), updated.get("familyName", ""))
+        ):
             updated.update(candidate)
             notes.append("NAME RECOVERED FROM DOCUMENT PANEL")
     if panel_fields.get("nationality") == "INDONESIA" and updated.get("nationality") != "INDONESIA":
@@ -100,8 +140,8 @@ def _build_panel(file_path: str) -> tuple[object | None, str]:
 def _extract_name(panel: object, windows: tuple[tuple[float, float, float, float], ...], family_hint: str, given_hint: str) -> str:
     hints = salvage_family_hints(family_hint)
     candidates: list[tuple[int, str]] = []
-    for window in windows:
-        for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=(6, 7, 8), whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ", variant_mode="fast", max_lines=8):
+    for window in _prioritized_name_windows(windows, hints):
+        for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=(6,), whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ", variant_mode="fast", max_lines=8):
             cleaned = _clean_name_line(line)
             normalized = normalize_name_candidate(cleaned, hints)
             if not normalized:
@@ -109,26 +149,64 @@ def _extract_name(panel: object, windows: tuple[tuple[float, float, float, float
             tokens = cleaned.split()
             spaced_bonus = 14 if len(tokens) >= 2 and all(len(token) >= 4 for token in tokens[:-1]) else 0
             candidates.append((score_full_name(normalized, hints) + spaced_bonus + _given_hint_bonus(normalized, given_hint), normalized))
+    strong_candidate = _pick_strong_name_candidate(candidates, hints)
+    if strong_candidate:
+        return strong_candidate
     return pick_best_name_candidate(candidates, hints)
 
 
 def _extract_passport_number(panel: object, windows: tuple[tuple[float, float, float, float], ...]) -> str:
     candidates: list[str] = []
     for window in windows:
-        for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=(6, 7, 8), whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", variant_mode="fast", max_lines=8):
-            for token in re.findall(r"[A-Z0-9]{7,10}", re.sub(r"[^A-Z0-9]", "", line.upper())):
-                candidates.extend(_expand_passport_candidates(token))
+        lines = collect_ocr_lines(
+            crop_relative(panel, *window),
+            psm_values=(6, 7, 8, 11),
+            whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            variant_mode="fast",
+            max_lines=20,
+        )
+        candidates.extend(_extract_passport_candidates_from_lines(lines))
+        best_candidate = _best_passport_candidate(candidates)
+        if re.fullmatch(r"[EX]\d{7}", best_candidate):
+            return best_candidate
     return _best_passport_candidate(candidates)
+
+
+def _extract_passport_candidates_from_lines(lines: list[str]) -> list[str]:
+    cleaned_lines = [re.sub(r"[^A-Z0-9]", "", line.upper()) for line in lines]
+    candidates: list[str] = []
+    for index, cleaned in enumerate(cleaned_lines):
+        for token in re.findall(r"[A-Z0-9]{7,10}", cleaned):
+            candidates.extend(_expand_passport_candidates(token))
+            if re.fullmatch(r"\d{7}", token):
+                candidates.extend(_neighbor_prefixed_passports(cleaned_lines, index, token))
+            if re.fullmatch(r"\d{7}[EX]", token):
+                candidates.append(token[-1] + token[:7])
+    return candidates
+
+
+def _neighbor_prefixed_passports(lines: list[str], index: int, digits: str) -> list[str]:
+    candidates: list[str] = []
+    for neighbor_index in (index - 1, index + 1):
+        if not 0 <= neighbor_index < len(lines):
+            continue
+        if lines[neighbor_index] in {"E", "X"}:
+            candidates.append(lines[neighbor_index] + digits)
+    return candidates
 
 
 def _extract_simple_field(panel: object, windows: tuple[tuple[float, float, float, float], ...], field_name: str) -> str:
     whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ " if field_name in TEXT_FIELDS else "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ "
     candidates: list[str] = []
-    for window in windows:
-        for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=(6, 7), whitelist=whitelist, variant_mode="fast", max_lines=8):
-            value = _clean_field(field_name, line)
-            if value:
-                candidates.append(value)
+    for psm_values in _simple_field_psm_passes(field_name):
+        for window in windows:
+            for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=psm_values, whitelist=whitelist, variant_mode="fast", max_lines=8):
+                value = _clean_field(field_name, line)
+                if value:
+                    candidates.append(value)
+            stable_candidate = _pick_stable_simple_field(field_name, candidates)
+            if stable_candidate:
+                return stable_candidate
     if field_name == "dob":
         return min(candidates, default="")
     if field_name in {"placeOfBirth", "issuingOffice"}:
@@ -154,6 +232,8 @@ def _collect_date_candidates(panel: object, windows: tuple[tuple[float, float, f
             value = _clean_date(line)
             if value:
                 candidates.append(value)
+        if candidates:
+            return candidates
     return candidates
 
 
@@ -207,6 +287,53 @@ def _clean_date(value: str) -> str:
 def _split_full_name(full_name: str) -> dict[str, str]:
     tokens = full_name.split()
     return {"firstName": tokens[0], "familyName": tokens[0]} if len(tokens) == 1 else {"firstName": " ".join(tokens[:-1]), "familyName": tokens[-1]}
+
+
+def _panel_name_matches_existing_hints(full_name: str, parsed: dict[str, str]) -> bool:
+    family_hints = salvage_family_hints(parsed.get("familyName", ""))
+    if not family_hints:
+        return True
+    tokens = re.sub(r"[^A-Z\s]", " ", full_name.upper()).split()
+    return any(token_matches_simple(token, hint) for token in tokens for hint in family_hints)
+
+
+def _prioritized_name_windows(windows: tuple[tuple[float, float, float, float], ...], hints: list[str]) -> tuple[tuple[float, float, float, float], ...]:
+    if not hints or len(windows) < 3:
+        return windows
+    return (windows[-1], *windows[:-1])
+
+
+def _pick_strong_name_candidate(candidates: list[tuple[int, str]], hints: list[str]) -> str:
+    if not candidates or not hints:
+        return ""
+    candidate = pick_best_name_candidate(candidates, hints)
+    tokens = candidate.split()
+    if len(tokens) < 2:
+        return candidate if tokens and any(token_matches_simple(tokens[-1], hint) for hint in hints) else ""
+    if not any(token_matches_simple(tokens[-1], hint) for hint in hints):
+        return ""
+    best_score = max((score for score, name in candidates if name == candidate), default=-10_000)
+    threshold = 70 if len(tokens) == 1 else 160
+    return candidate if best_score >= threshold else ""
+
+
+def _pick_stable_simple_field(field_name: str, candidates: list[str]) -> str:
+    if not candidates:
+        return ""
+    if field_name in {"placeOfBirth", "issuingOffice"}:
+        value = pick_best_location_value(field_name, candidates)
+        return value if value and is_known_location_value(field_name, value) else ""
+    if field_name == "nationality" and "INDONESIA" in candidates:
+        return "INDONESIA"
+    if field_name == "gender":
+        return candidates[0] if candidates.count(candidates[0]) >= 2 else ""
+    return ""
+
+
+def _simple_field_psm_passes(field_name: str) -> tuple[tuple[int, ...], ...]:
+    if field_name in {"placeOfBirth", "issuingOffice"}:
+        return ((6,), (7,))
+    return ((6, 7),)
 
 
 def _repair_passport_number(current: str, extraction: dict[str, object] | None, visual: str) -> str:
@@ -266,7 +393,11 @@ def _expand_ambiguous_digits(value: str) -> list[str]:
 
 
 def _best_passport_candidate(candidates: list[str]) -> str:
-    scored = [(20 if re.fullmatch(r"[EX]\d{7}", candidate) else 10, candidate) for candidate in candidates if re.fullmatch(r"[EX]?\d{7,8}", candidate)]
+    scored = [
+        ((20 if re.fullmatch(r"[EX]\d{7}", candidate) else 10) + min(candidates.count(candidate), 5), candidate)
+        for candidate in candidates
+        if re.fullmatch(r"[EX]?\d{7,8}", candidate)
+    ]
     return max(scored, default=(0, ""), key=lambda item: item[0])[1]
 
 
@@ -302,7 +433,12 @@ def _given_hint_bonus(value: str, given_hint: str) -> int:
     if not given_hint:
         return 0
     first_token = value.split()[0]
-    return 22 if first_token == given_hint else 10 if first_token.startswith(given_hint[:4]) or given_hint.startswith(first_token[:4]) else 0
+    scores = []
+    for hint in re.sub(r"[^A-Z\s]", " ", given_hint.upper()).split():
+        if len(hint) < 3:
+            continue
+        scores.append(22 if first_token == hint else 10 if first_token.startswith(hint[:4]) or hint.startswith(first_token[:4]) else 0)
+    return max(scores, default=0)
 
 
 def _unique_dates(values: list[str]) -> list[str]:

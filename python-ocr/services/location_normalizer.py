@@ -20,6 +20,10 @@ def normalize_location_value(field_name: str, value: str) -> str:
     return pick_best_location_value(field_name, [value])
 
 
+def is_known_location_value(field_name: str, value: str) -> bool:
+    return _clean_text(value) in _known_values(field_name)
+
+
 def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
     cleaned = [_clean_text(value) for value in candidates if _clean_text(value)]
     if not cleaned:

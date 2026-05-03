@@ -6,9 +6,13 @@ python-ocr/.venv/
 **/target/
 python-ocr/.tmp/
 *.log
+/package-lock.json
+.codex-target/
+.codex-write-test/
 
 data/*/manifest.json
 data/*/manifest.xlsx
 data/*/passports/*
 !data/*/passports/.gitkeep
 .edge-debug-profile/
+passport-desktop/bridge-contract/

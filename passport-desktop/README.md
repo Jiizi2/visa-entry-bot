@@ -15,7 +15,7 @@ Desktop shell berbasis `Tauri + Rust` yang memakai worker `Python OCR` dari repo
 ## Struktur
 
 - `src/`: frontend vanilla HTML/CSS/JS
-- `src-tauri/src/lib.rs`: command Rust, export JSON, dan pemanggilan worker Python
+- `src-tauri/src/lib.rs`: command Rust untuk scan, load manifest, dan export JSON
 - `../python-ocr/scan_worker.py`: worker OCR untuk Tauri
 - `../python-ocr/scan_session.py`: helper scan reusable
 - `../chrome-extension`: extension Nusuk Autofill berbasis upload JSON manual
@@ -57,12 +57,6 @@ npm run dev
 - User membuka Nusuk secara normal, lalu memakai extension `chrome-extension` untuk upload JSON dan menjalankan autofill.
 - Extension tidak memakai `chrome.debugger`. Untuk upload passport, user memilih folder/file passport dari panel extension, lalu extension mencocokkan file berdasarkan `fileName` atau `passportImagePath`.
 
-## Legacy
+## Cleanup
 
-Folder berikut masih ada sebagai referensi lama, tetapi bukan flow utama:
-
-- `scripts/nusuk-automation/`
-- `scripts/nusuk-click-automation.mjs`
-- `browser-extension/nusuk-bridge-extension/`
-- `scripts/native-host/`
-- `bridge-contract/`
+Flow lama berbasis Playwright/CDP, native-host, dan bridge command sudah dihapus dari desktop app. Flow utama sekarang tetap sederhana: scan, review, export JSON, lalu upload JSON ke extension.
