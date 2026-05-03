@@ -1,0 +1,285 @@
+{
+  "manifestPath": "C:\\visa-entry-bot\\data\\example-group\\manifest.json",
+  "referencePath": "C:\\visa-entry-bot\\data\\AYM_45 PAX_RAMADHAN 1447H.xlsx",
+  "summary": {
+    "scannedMembers": 17,
+    "references": 45,
+    "comparableMembers": 17,
+    "skippedMembers": 0,
+    "totalFieldMismatches": 11
+  },
+  "fieldStats": {
+    "firstName": {
+      "compared": 17,
+      "mismatched": 1
+    },
+    "familyName": {
+      "compared": 17,
+      "mismatched": 3
+    },
+    "passportNumber": {
+      "compared": 17,
+      "mismatched": 1
+    },
+    "nationality": {
+      "compared": 17,
+      "mismatched": 0
+    },
+    "dob": {
+      "compared": 17,
+      "mismatched": 0
+    },
+    "issueDate": {
+      "compared": 17,
+      "mismatched": 1
+    },
+    "expiryDate": {
+      "compared": 17,
+      "mismatched": 1
+    },
+    "gender": {
+      "compared": 17,
+      "mismatched": 1
+    },
+    "placeOfBirth": {
+      "compared": 17,
+      "mismatched": 2
+    },
+    "issuingOffice": {
+      "compared": 17,
+      "mismatched": 1
+    }
+  },
+  "comparisons": [
+    {
+      "fileName": "Copy of Arif Maulana.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6725072",
+      "referencePassportNumber": "X6725072",
+      "referenceFullName": "ARIF MAULANA",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Djumadi Yusuf.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E6696037",
+      "referencePassportNumber": "E6696037",
+      "referenceFullName": "DJUMADI YUSUF",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Faith Ghaisan 1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6725077",
+      "referencePassportNumber": "X6725077",
+      "referenceFullName": "FAITH GHAISAN",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of IMG_4530.jpg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E2657616",
+      "referencePassportNumber": "E2657616",
+      "referenceFullName": "ACHMAD MUSLIMIN",
+      "mismatches": [
+        {
+          "field": "placeOfBirth",
+          "actual": "",
+          "expected": "KEDIRI"
+        },
+        {
+          "field": "issuingOffice",
+          "actual": "",
+          "expected": "TANJUNG REDEB"
+        }
+      ]
+    },
+    {
+      "fileName": "Copy of IMG_4531.jpg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E2657615",
+      "referencePassportNumber": "E2657615",
+      "referenceFullName": "YUNITA ARIYANTI",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Jumarni Cagga 1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E8520980",
+      "referencePassportNumber": "E8520980",
+      "referenceFullName": "JUMARNI CAGGA",
+      "mismatches": [
+        {
+          "field": "familyName",
+          "actual": "JUMARNI",
+          "expected": "CAGGA"
+        }
+      ]
+    },
+    {
+      "fileName": "Copy of Karim Alfarizi Ramadan.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E8710852",
+      "referencePassportNumber": "E8710852",
+      "referenceFullName": "KARIM ALFARIZI RAMADAN",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Margono1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6725059",
+      "referencePassportNumber": "X6725059",
+      "referenceFullName": "MARGONO MINHAR",
+      "mismatches": [
+        {
+          "field": "familyName",
+          "actual": "MARGONO",
+          "expected": "MINHAR"
+        }
+      ]
+    },
+    {
+      "fileName": "Copy of Mawar Nurani La Rani.jpeg",
+      "status": "ERROR",
+      "matched": true,
+      "matchBy": "name",
+      "passportNumber": "",
+      "referencePassportNumber": "X6725064",
+      "referenceFullName": "MAWAR NURANI LA RANI",
+      "mismatches": [
+        {
+          "field": "firstName",
+          "actual": "MAWARNUR",
+          "expected": "MAWAR NURANI LA"
+        },
+        {
+          "field": "familyName",
+          "actual": "ANILARANI",
+          "expected": "RANI"
+        },
+        {
+          "field": "passportNumber",
+          "actual": "",
+          "expected": "X6725064"
+        },
+        {
+          "field": "issueDate",
+          "actual": "",
+          "expected": "2025-11-26"
+        },
+        {
+          "field": "expiryDate",
+          "actual": "",
+          "expected": "2030-11-26"
+        },
+        {
+          "field": "gender",
+          "actual": "",
+          "expected": "FEMALE"
+        },
+        {
+          "field": "placeOfBirth",
+          "actual": "",
+          "expected": "PINRANG"
+        }
+      ]
+    },
+    {
+      "fileName": "Copy of Meysi Salsahbilla.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6724875",
+      "referencePassportNumber": "X6724875",
+      "referenceFullName": "MEYSI SALSAHBILLA",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Dzaki 1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E8710843",
+      "referencePassportNumber": "E8710843",
+      "referenceFullName": "MUHAMMAD DZAKI",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Fauzi Azka Fradilah 1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E8710961",
+      "referencePassportNumber": "E8710961",
+      "referenceFullName": "MUHAMMAD FAUZI AZKA FRADILAH",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Ihsan.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6725378",
+      "referencePassportNumber": "X6725378",
+      "referenceFullName": "MUHAMMAD IHSAN",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Mugni zar Gifari1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6724876",
+      "referencePassportNumber": "X6724876",
+      "referenceFullName": "MUHAMMAD MUGNI ZAR GIFARI",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Nur Fitriana Ibrahim.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6724982",
+      "referencePassportNumber": "X6724982",
+      "referenceFullName": "NUR FITRIANA IBRAHIM",
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Rasyddiq Mauliddhan1.jpeg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X4068853",
+      "referencePassportNumber": "X4068853",
+      "referenceFullName": "RASYDDIQ MAULIDDHAN",
+      "mismatches": []
+    },
+    {
+      "fileName": "IMG_4532.jpg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E9229500",
+      "referencePassportNumber": "E9229500",
+      "referenceFullName": "MUHAMMAD FADIL HAZIQ",
+      "mismatches": []
+    }
+  ],
+  "skipped": []
+}

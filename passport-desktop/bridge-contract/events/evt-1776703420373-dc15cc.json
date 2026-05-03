@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "id": "evt-1776703420373-dc15cc",
+  "createdAtMs": 1776703420373,
+  "type": "client_registered",
+  "source": "extension_background",
+  "clientId": "ext-1776702861665-42681049",
+  "payload": {
+    "tabs": [
+      {
+        "id": 2053724990,
+        "title": "Masar Nusuk | نسك مسار",
+        "url": "https://masar.nusuk.sa/umrah/mutamer/add-mutamer"
+      }
+    ]
+  }
+}

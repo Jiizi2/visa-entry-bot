@@ -1,0 +1,19 @@
+{
+  "name": "passport-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/tauri-runner.mjs dev",
+    "build": "node scripts/tauri-runner.mjs build",
+    "tauri": "node scripts/tauri-runner.mjs",
+    "test": "node --test scripts/nusuk-automation/engine.test.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "flatpickr": "^4.6.13",
+    "playwright": "^1.54.2"
+  }
+}

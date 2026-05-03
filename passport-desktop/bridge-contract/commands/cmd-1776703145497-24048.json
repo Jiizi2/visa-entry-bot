@@ -1,0 +1,11 @@
+{
+  "createdAtMs": 1776703145497,
+  "id": "cmd-1776703145497-24048",
+  "payload": {},
+  "status": "in_progress",
+  "targetClientId": null,
+  "type": "ping",
+  "version": "1.0",
+  "pickedAtMs": 1776703273973,
+  "pickedByClientId": "ext-1776702861665-42681049"
+}

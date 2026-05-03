@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "id": "evt-1776769082378-158387",
+  "createdAtMs": 1776769082378,
+  "type": "content_ready",
+  "source": "extension_background",
+  "clientId": "ext-1776702861665-42681049",
+  "payload": {
+    "href": "https://masar.nusuk.sa/umrah",
+    "title": "Masar Nusuk | نسك مسار"
+  }
+}

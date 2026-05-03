@@ -1,0 +1,411 @@
+﻿<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Passport Assistant</title>
+    <link rel="stylesheet" href="https://fonts.xz.style/serve/inter.css" />
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #f9f9fd; color: #191c1e; }
+    </style>
+    <link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/vendor/flatpickr/flatpickr.min.js" defer></script>
+    <script src="/vendor/flatpickr/id.js" defer></script>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigasi utama">
+        <div class="top-nav-left">
+          <div class="brand-block">
+            <h1 class="brand-title">Passport Authority</h1>
+          </div>
+
+          <nav class="nav-stack" aria-label="Progress tahapan">
+            <button class="nav-link is-active" data-page="import" type="button">
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">1</span>
+              <span class="nav-text">
+                <strong>Import &amp; Scan</strong>
+                <small data-step-subtitle>Upload and run OCR</small>
+              </span>
+            </button>
+            <span class="nav-connector" data-step-connector aria-hidden="true"></span>
+            <button class="nav-link" data-page="validation" type="button">
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">2</span>
+              <span class="nav-text">
+                <strong>Review Data</strong>
+                <small data-step-subtitle>Validate extracted info</small>
+              </span>
+            </button>
+            <span class="nav-connector" data-step-connector aria-hidden="true"></span>
+            <button class="nav-link" data-page="entry" type="button">
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">3</span>
+              <span class="nav-text">
+                <strong>Export JSON</strong>
+                <small data-step-subtitle>Generate records</small>
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="top-nav-right">
+          <label class="top-nav-search">
+            <span class="top-nav-search-icon" aria-hidden="true"></span>
+            <input type="text" placeholder="Cari..." aria-label="Cari" />
+          </label>
+          <button class="top-nav-icon" type="button" aria-label="Notifikasi"></button>
+          <button class="top-nav-icon" type="button" aria-label="Pengaturan"></button>
+          <div class="top-nav-avatar" aria-hidden="true">PA</div>
+        </div>
+      </aside>
+
+      <main class="app-main">
+        <header class="topbar">
+          <div class="topbar-copy">
+            <p id="topbar-eyebrow" class="topbar-eyebrow">Halaman 1</p>
+            <h2 id="topbar-title" class="topbar-title">Pilih Dokumen</h2>
+          </div>
+          <div class="topbar-actions">
+            <span id="topbar-status" class="status-chip neutral">Menunggu</span>
+          </div>
+        </header>
+
+        <section id="global-notice" class="global-notice is-hidden" role="status" aria-live="polite">
+          <strong id="global-notice-title">Informasi</strong>
+          <p id="global-notice-detail"></p>
+        </section>
+
+        <div class="mobile-nav" aria-label="Navigasi ringkas"></div>
+
+        <section id="page-import" class="page-section">
+          <div class="import-layout">
+            <article
+              id="folder-dropzone"
+              class="dropzone-card"
+              tabindex="0"
+              role="button"
+              aria-describedby="dropzone-description selected-folder-caption"
+            >
+              <div class="dropzone-mark" aria-hidden="true">
+                <span class="dropzone-folder-icon"></span>
+              </div>
+              <h4>Pilih Folder</h4>
+              <p id="dropzone-description" class="dropzone-copy">
+                Klik area ini atau gunakan browse untuk memilih folder passport atau folder grup yang ingin diproses.
+              </p>
+
+              <div class="selected-folder">
+                <strong id="selected-folder-name">Belum ada folder dipilih</strong>
+                <span id="selected-folder-caption">Pilih folder passport atau folder grup untuk mulai memproses data.</span>
+              </div>
+
+              <div class="dropzone-actions">
+                <button id="choose-folder-button" class="primary-action" type="button">Pilih Folder</button>
+              </div>
+
+              <label class="field-label" for="folder-path">Lokasi Folder</label>
+              <input id="folder-path" type="text" placeholder="Pilih folder passport atau folder grup..." />
+            </article>
+
+            <div class="import-side">
+              <article class="side-card">
+                <div class="card-head compact">
+                  <div>
+                    <p class="eyebrow">Status Aplikasi</p>
+                    <h4>Status Sistem</h4>
+                  </div>
+                </div>
+
+                <div class="status-row-list">
+                  <div class="status-row">
+                    <span>Mesin baca data</span>
+                    <span id="system-ocr-status" class="mini-status idle">Menunggu</span>
+                  </div>
+                  <div class="status-row">
+                    <span>Pemeriksaan data</span>
+                    <span id="system-validation-status" class="mini-status ready">Siap</span>
+                  </div>
+                  <div class="status-row">
+                    <span>Penyimpanan lokal</span>
+                    <span id="system-runtime-status" class="mini-status ready">Tersedia</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="side-card recent-card">
+                <div class="card-head compact">
+                  <div>
+                  <p class="eyebrow">Folder Terakhir</p>
+                  <h4>Riwayat Pilihan</h4>
+                  </div>
+                </div>
+
+                <div id="recent-batches-list" class="recent-list">
+                  <div class="friendly-empty">Belum ada folder yang pernah dipakai.</div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <section class="scan-console-card" aria-label="Ringkasan proses">
+            <div class="scan-console-head" role="status" aria-live="polite">
+              <div class="scan-console-titles">
+                <p class="eyebrow">Ringkasan Proses</p>
+                <h4 id="progress-title">Belum ada proses aktif</h4>
+              </div>
+              <span id="scan-console-state" class="status-chip neutral">Menunggu</span>
+            </div>
+
+            <div class="scan-console-stats" aria-label="Ringkasan jumlah dokumen">
+              <article class="scan-stat">
+                <span>Total</span>
+                <strong id="scan-stat-total">0</strong>
+              </article>
+              <article class="scan-stat">
+                <span>Selesai</span>
+                <strong id="scan-stat-done">0</strong>
+              </article>
+              <article class="scan-stat">
+                <span>Sisa</span>
+                <strong id="scan-stat-left">0</strong>
+              </article>
+            </div>
+
+            <div class="scan-console-progress">
+              <div
+                class="progress-track"
+                role="progressbar"
+                aria-label="Kemajuan proses"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div id="progress-fill" class="progress-fill"></div>
+              </div>
+              <div class="scan-console-meta">
+                <span id="progress-caption">Progress akan tampil di sini saat proses berjalan.</span>
+                <span id="log-counter" class="monitor-log-counter">0 log</span>
+              </div>
+            </div>
+
+            <div class="scan-console-log-wrap">
+              <pre id="scan-log-box" class="scan-log-box" aria-live="polite">Menunggu proses dimulai...</pre>
+              <button id="scan-log-toggle" class="ghost-button scan-log-toggle" type="button">Detail</button>
+            </div>
+          </section>
+
+          <div class="import-action-bar">
+            <p id="import-footer-text"></p>
+            <div class="import-action-buttons">
+              <button id="scan-button" class="secondary-button" type="button">Mulai Proses</button>
+              <button id="import-next-button" class="primary-action is-hidden" type="button">Next</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-validation" class="page-section is-hidden">
+          <section class="review-shell">
+            <aside class="passport-panel">
+              <div class="passport-panel-head">
+                <div>
+                  <h3>Daftar Passport</h3>
+                </div>
+                <span id="batch-badge" class="batch-badge">Siap diperiksa</span>
+              </div>
+
+              <div class="passport-filter-row">
+                <button id="filter-all-button" class="filter-chip is-active" data-validation-filter="all" type="button">
+                  Semua <span id="filter-all-count">0</span>
+                </button>
+                <button id="filter-error-button" class="filter-chip" data-validation-filter="error" type="button">
+                  Perlu Dicek <span id="filter-error-count">0</span>
+                </button>
+                <button id="filter-valid-button" class="filter-chip" data-validation-filter="valid" type="button">
+                  Siap <span id="filter-valid-count">0</span>
+                </button>
+              </div>
+
+              <div class="passport-list-head">
+                <div class="passport-list-head-main">Data Passport</div>
+                <div class="passport-list-head-confidence">Akurasi</div>
+              </div>
+
+              <div id="passport-list" class="passport-list">
+                <div class="friendly-empty">Belum ada data passport.</div>
+              </div>
+
+              <div class="passport-panel-footer">
+                <span id="passport-list-summary">0 dari 0 data</span>
+                <div class="passport-panel-nav">
+                  <button id="passport-page-prev-button" class="nav-arrow" type="button" aria-label="Halaman daftar sebelumnya">&larr;</button>
+                  <button id="passport-page-next-button" class="nav-arrow" type="button" aria-label="Halaman daftar berikutnya">&rarr;</button>
+                </div>
+              </div>
+            </aside>
+
+            <section class="workspace-panel">
+              <div class="workspace-head">
+                <div class="workspace-copy">
+                  <div class="workspace-chip-row">
+                    <span id="detail-status" class="status-pill neutral">-</span>
+                    <span id="workspace-passport-code" class="passport-code-chip">-</span>
+                  </div>
+                  <h3 id="detail-title">Belum ada data dipilih</h3>
+                  <div id="detail-summary" class="detail-summary">
+                    Pilih salah satu data di panel kiri untuk mulai memeriksa dan memperbaiki hasil bacaan.
+                  </div>
+                  <div id="workspace-issue-box" class="issue-box issue-box-neutral">
+                    Belum ada catatan pemeriksaan.
+                  </div>
+                </div>
+
+                <div class="workspace-head-actions">
+                  <button id="workspace-prev-button-top" class="nav-arrow" type="button" aria-label="Passport sebelumnya atas">&larr;</button>
+                  <button id="workspace-next-button-top" class="nav-arrow" type="button" aria-label="Passport berikutnya atas">&rarr;</button>
+                </div>
+              </div>
+
+              <div id="field-category-tabs" class="field-category-tabs" aria-label="Kategori data"></div>
+
+              <div class="field-review-head">
+                  <div>Label - Hasil</div>
+                  <div>Label - Hasil</div>
+              </div>
+
+              <div id="field-review-rows" class="field-review-rows">
+                <div class="friendly-empty">Belum ada data untuk ditampilkan.</div>
+              </div>
+
+              <div class="workspace-support-grid is-secondary">
+                <section class="detail-section">
+                  <h4>Catatan</h4>
+                  <div id="review-flags-box" class="detail-panel detail-panel-placeholder">
+                    Belum ada catatan.
+                  </div>
+                </section>
+
+                <section class="detail-section">
+                  <h4>Tingkat Keyakinan</h4>
+                  <div id="field-confidence-box" class="detail-panel detail-panel-placeholder">
+                    Belum ada nilai keyakinan.
+                  </div>
+                </section>
+              </div>
+
+              <div class="workspace-footer">
+                <button id="reset-fields-button" class="footer-link-button" type="button">Reset Perubahan</button>
+                <div class="workspace-footer-actions">
+                  <button id="save-next-button" class="primary-action" type="button">Lanjut</button>
+                </div>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="page-entry" class="page-section is-hidden">
+          <section class="entry-shell">
+            <article class="entry-panel">
+              <div class="entry-panel-head">
+                <div>
+                  <p class="eyebrow">Tahap 3</p>
+                  <h3>Lanjutkan ke Nusuk</h3>
+                </div>
+                <span id="entry-status-pill" class="status-pill neutral">Menunggu proses</span>
+              </div>
+
+              <div class="entry-summary-grid">
+                <article class="entry-summary-card">
+                  <span>Kelompok Data</span>
+                  <strong id="entry-batch-name">Belum ada data</strong>
+                </article>
+                <article class="entry-summary-card">
+                  <span>Siap Dipakai</span>
+                  <strong id="entry-valid-count">0 data</strong>
+                </article>
+                <article class="entry-summary-card">
+                  <span>Dipilih</span>
+                  <strong id="entry-selected-count">0 data</strong>
+                </article>
+              </div>
+
+              <section class="entry-progress-card" aria-label="Status export JSON">
+                <div class="entry-progress-head">
+                  <div>
+                    <p class="eyebrow">Export JSON</p>
+                    <h4 id="entry-progress-title">Belum ada export JSON</h4>
+                  </div>
+                  <span id="entry-progress-count" class="status-chip neutral">0 file</span>
+                </div>
+                <div class="progress-track" role="progressbar" aria-label="Status export JSON" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <div id="entry-progress-fill" class="progress-fill"></div>
+                </div>
+                <p id="entry-progress-caption" class="entry-helper-copy">Export JSON lalu upload file tersebut ke extension Nusuk Autofill.</p>
+              </section>
+
+              <section class="entry-flow-card" aria-label="Tahapan export JSON">
+                <div class="entry-flow-head">
+                  <p class="eyebrow">Alur Cepat</p>
+                  <h4>Tahapan Export</h4>
+                </div>
+                <div id="entry-flow-steps" class="entry-flow-steps"></div>
+              </section>
+
+              <div class="entry-field-block">
+                <label for="nusuk-url">Halaman Nusuk</label>
+                <input id="nusuk-url" type="text" value="https://masar.nusuk.sa/umrah/mutamer/add-mutamer" />
+                <p class="entry-helper-copy">
+                  Buka halaman tambah mutamer Nusuk secara normal. Desktop app hanya membuat JSON; autofill dijalankan dari extension.
+                </p>
+              </div>
+
+              <div class="entry-action-grid">
+                <button id="open-nusuk-button" class="primary-action" type="button">Buka Halaman Nusuk</button>
+                <button id="prepare-entry-button" class="secondary-button" type="button">Export JSON</button>
+                <button id="terminate-entry-button" class="danger-button is-hidden" type="button">Automation Nonaktif</button>
+              </div>
+
+              <section class="entry-log-card" aria-label="Log export JSON">
+                <div class="entry-log-head">
+                  <div>
+                    <p class="eyebrow">Monitoring</p>
+                    <h4>Log Export</h4>
+                  </div>
+                  <div class="entry-log-head-actions">
+                    <span id="entry-log-counter" class="monitor-log-counter">0 log</span>
+                    <button id="entry-log-clear-button" class="ghost-button" type="button">Bersihkan</button>
+                  </div>
+                </div>
+                <pre id="entry-log-box" class="entry-log-box">Belum ada aktivitas export.</pre>
+              </section>
+
+            </article>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div
+      id="rescan-confirm-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rescan-modal-title"
+      aria-describedby="rescan-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card">
+        <h4 id="rescan-modal-title">Scan ulang data?</h4>
+        <p id="rescan-modal-desc">
+          Hasil scan sebelumnya akan diganti dengan proses baru dari folder yang sama. Lanjutkan?
+        </p>
+        <div class="confirm-modal-actions">
+          <button id="rescan-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="rescan-confirm-button" class="primary-action" type="button">Ya, Scan Ulang</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

@@ -1,0 +1,368 @@
+{
+  "manifestPath": "C:\\visa-entry-bot\\data\\firstTest\\manifest.json",
+  "referencePath": "C:\\visa-entry-bot\\data\\GARUDA 25 FEB 2026 MANIFEST ROFIQ TOUR.xlsx",
+  "summary": {
+    "scannedMembers": 21,
+    "references": 20,
+    "comparableMembers": 20,
+    "skippedMembers": 1,
+    "totalFieldMismatches": 13,
+    "suspectedReferenceConflicts": 3
+  },
+  "fieldStats": {
+    "firstName": {
+      "compared": 20,
+      "mismatched": 5
+    },
+    "familyName": {
+      "compared": 20,
+      "mismatched": 6
+    },
+    "passportNumber": {
+      "compared": 20,
+      "mismatched": 0
+    },
+    "nationality": {
+      "compared": 0,
+      "mismatched": 0
+    },
+    "dob": {
+      "compared": 20,
+      "mismatched": 0
+    },
+    "issueDate": {
+      "compared": 20,
+      "mismatched": 1
+    },
+    "expiryDate": {
+      "compared": 20,
+      "mismatched": 1
+    },
+    "gender": {
+      "compared": 20,
+      "mismatched": 0
+    },
+    "placeOfBirth": {
+      "compared": 20,
+      "mismatched": 0
+    },
+    "issuingOffice": {
+      "compared": 20,
+      "mismatched": 0
+    }
+  },
+  "comparisons": [
+    {
+      "fileName": "AHMAD.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X8490523",
+      "referencePassportNumber": "X8490523",
+      "referenceFullName": "AHMAD ISRADI",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "ARIFIN.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E3668886",
+      "referencePassportNumber": "E3668886",
+      "referenceFullName": "ARIFIN ABAU GAFUR",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "DESY.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X7602191",
+      "referencePassportNumber": "X7602191",
+      "referenceFullName": "DESY MESALINA",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "ETTY.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6179551",
+      "referencePassportNumber": "X6179551",
+      "referenceFullName": "ETTY YULIANA",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "FENDY.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X8489076",
+      "referencePassportNumber": "X8489076",
+      "referenceFullName": "FENDY RAKHMAT ARDIANSYAH",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "HALIMAH 1.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X7028437",
+      "referencePassportNumber": "X7028437",
+      "referenceFullName": "HALIMAH ABDUL RAFIK HASIAN",
+      "mismatches": [
+        {
+          "field": "firstName",
+          "actual": "HALIMAH",
+          "expected": "HALIMAH ABDUL RAFIK"
+        },
+        {
+          "field": "familyName",
+          "actual": "HALIMAH",
+          "expected": "HASIAN"
+        },
+        {
+          "field": "issueDate",
+          "actual": "2026-01-21",
+          "expected": "1992-05-17"
+        }
+      ],
+      "referenceConflicts": [
+        {
+          "field": "issueDate",
+          "reason": "reference issue/expiry pair looks unusual (-1Y term)"
+        },
+        {
+          "field": "issueDate",
+          "reason": "reference issueDate matches DOB"
+        }
+      ]
+    },
+    {
+      "fileName": "KAMILA.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X7602193",
+      "referencePassportNumber": "X7602193",
+      "referenceFullName": "KAMILA FITRIANI",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "M HAMDI 1.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X8489774",
+      "referencePassportNumber": "X8489774",
+      "referenceFullName": "M HAMDI M LIMA ASTROE",
+      "mismatches": [
+        {
+          "field": "firstName",
+          "actual": "M",
+          "expected": "M HAMDI M LIMA"
+        },
+        {
+          "field": "familyName",
+          "actual": "HAMDI",
+          "expected": "ASTROE"
+        }
+      ],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "MAULANA.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E3668831",
+      "referencePassportNumber": "E3668831",
+      "referenceFullName": "MAULANA MALIK",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "MUH DAKRUN.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E6360891",
+      "referencePassportNumber": "E6360891",
+      "referenceFullName": "MUHAMMAD DAKRUN",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "MUH DARIAN.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X7602192",
+      "referencePassportNumber": "X7602192",
+      "referenceFullName": "MUHAMMAD DARIAN HALIM",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "NORDAM.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X5422909",
+      "referencePassportNumber": "X5422909",
+      "referenceFullName": "NORDAM VALENTINO",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "NUR.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E3668575",
+      "referencePassportNumber": "E3668575",
+      "referenceFullName": "NUR FIQIH SAPUTRI",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "NURHIDAYAH 1.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X8489715",
+      "referencePassportNumber": "X8489715",
+      "referenceFullName": "NURHIDAYAH M ISHAK ASMAPA",
+      "mismatches": [
+        {
+          "field": "firstName",
+          "actual": "NURHIDAYAH",
+          "expected": "NURHIDAYAH M ISHAK"
+        },
+        {
+          "field": "familyName",
+          "actual": "NURHIDAYAH",
+          "expected": "ASMAPA"
+        }
+      ],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "PATHUL.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X6179533",
+      "referencePassportNumber": "X6179533",
+      "referenceFullName": "PATHUL JANNAH IMAN",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "RATNA 1.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "C9877086",
+      "referencePassportNumber": "C9877086",
+      "referenceFullName": "RATNA JELITA DATUK KIRAP",
+      "mismatches": [
+        {
+          "field": "firstName",
+          "actual": "RATNA",
+          "expected": "RATNA JELITA DATUK"
+        },
+        {
+          "field": "familyName",
+          "actual": "JELITA",
+          "expected": "KIRAP"
+        }
+      ],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "RONY.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X7601987",
+      "referencePassportNumber": "X7601987",
+      "referenceFullName": "RONY HERSANDI ABDURACHMAN",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "SAKDILLAH 1.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "C9876981",
+      "referencePassportNumber": "C9876981",
+      "referenceFullName": "SAKDILLAH ABDUL MUIN",
+      "mismatches": [
+        {
+          "field": "firstName",
+          "actual": "SAKDILLAH",
+          "expected": "SAKDILLAH ABDUL"
+        },
+        {
+          "field": "familyName",
+          "actual": "SAKDILLAH",
+          "expected": "MUIN"
+        },
+        {
+          "field": "expiryDate",
+          "actual": "2027-07-11",
+          "expected": "2026-07-11"
+        }
+      ],
+      "referenceConflicts": [
+        {
+          "field": "expiryDate",
+          "reason": "reference issue/expiry pair looks unusual (4Y term)"
+        }
+      ]
+    },
+    {
+      "fileName": "SITI.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "E3668579",
+      "referencePassportNumber": "E3668579",
+      "referenceFullName": "SITI HADIJAH",
+      "mismatches": [],
+      "referenceConflicts": []
+    },
+    {
+      "fileName": "SUDARWATI 1.png",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X8489039",
+      "referencePassportNumber": "X8489039",
+      "referenceFullName": "SUDARWATI LEGIRUN",
+      "mismatches": [
+        {
+          "field": "familyName",
+          "actual": "SUDARWATI",
+          "expected": "LEGIRUN"
+        }
+      ],
+      "referenceConflicts": []
+    }
+  ],
+  "skipped": [
+    {
+      "fileName": "HALIMAH 2.png",
+      "status": "ERROR",
+      "passportNumber": ""
+    }
+  ]
+}

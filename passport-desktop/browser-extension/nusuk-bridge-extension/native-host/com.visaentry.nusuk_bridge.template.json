@@ -1,0 +1,9 @@
+{
+  "name": "com.visaentry.nusuk_bridge",
+  "description": "Nusuk contract bridge native host",
+  "path": "C:\\visa-entry-bot\\passport-desktop\\scripts\\native-host\\run-nusuk-native-host.cmd",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://__EXTENSION_ID__/"
+  ]
+}

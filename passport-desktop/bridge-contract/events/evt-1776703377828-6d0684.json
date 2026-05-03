@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "id": "evt-1776703377828-6d0684",
+  "createdAtMs": 1776703377828,
+  "type": "native_host_error",
+  "source": "extension_background",
+  "clientId": "ext-1776702861665-42681049",
+  "payload": {
+    "message": "Could not establish connection. Receiving end does not exist."
+  }
+}

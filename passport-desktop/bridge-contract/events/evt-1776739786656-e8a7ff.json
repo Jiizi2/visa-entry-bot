@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "id": "evt-1776739786656-e8a7ff",
+  "createdAtMs": 1776739786656,
+  "type": "client_registered",
+  "source": "extension_background",
+  "clientId": "ext-1776702861665-42681049",
+  "payload": {
+    "tabs": []
+  }
+}

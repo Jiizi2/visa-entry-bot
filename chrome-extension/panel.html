@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nusuk Autofill Panel</title>
+    <link rel="stylesheet" href="panel.css">
+  </head>
+  <body>
+    <div class="panel-shell">
+      <header class="panel-header">
+        <div>
+          <p class="eyebrow">Nusuk Autofill</p>
+          <h1>Asisten Entry</h1>
+        </div>
+        <div class="header-actions">
+          <span id="state-pill" class="state-pill idle">Menunggu</span>
+          <button id="minimize-btn" class="ghost-btn panel-window-btn" type="button" aria-label="Minimize panel">Minimize</button>
+          <button id="close-btn" class="ghost-btn panel-window-btn" type="button" aria-label="Tutup panel">Tutup</button>
+        </div>
+      </header>
+
+      <section class="panel-card">
+        <div class="section-head">
+          <div>
+            <h2>Manifest</h2>
+            <p>JSON hasil export desktop.</p>
+          </div>
+          <button id="upload-btn" class="primary-btn" type="button">Upload JSON</button>
+          <input id="json-input" type="file" accept=".json,application/json" hidden>
+        </div>
+
+        <div class="member-select-wrap">
+          <label for="member-select">Jamaah Dipilih</label>
+          <select id="member-select" disabled></select>
+        </div>
+      </section>
+
+      <section class="panel-card">
+        <div class="section-head">
+          <div>
+            <h2>File Passport</h2>
+            <p>Sumber file untuk upload.</p>
+          </div>
+          <div class="file-action-row">
+            <button id="passport-folder-btn" class="primary-btn" type="button">Pilih Folder</button>
+            <button id="passport-files-btn" class="ghost-btn" type="button">Pilih File</button>
+          </div>
+          <input id="passport-folder-input" type="file" accept="image/*,.pdf" multiple webkitdirectory hidden>
+          <input id="passport-files-input" type="file" accept="image/*,.pdf" multiple hidden>
+        </div>
+        <div id="passport-files-summary" class="file-summary">Belum ada file passport dipilih.</div>
+      </section>
+
+      <section class="panel-card">
+        <div class="section-head compact">
+          <div>
+            <h2>Pratinjau</h2>
+            <p>Ringkasan data jamaah.</p>
+          </div>
+        </div>
+
+        <div id="preview-empty" class="empty-state">Upload manifest untuk melihat detail jamaah.</div>
+        <div id="preview-grid" class="preview-grid hidden">
+          <div class="preview-group">
+            <h3>Identitas</h3>
+            <dl id="preview-identity"></dl>
+          </div>
+          <div class="preview-group">
+            <h3>Passport</h3>
+            <dl id="preview-passport"></dl>
+          </div>
+          <div class="preview-group">
+            <h3>Perjalanan</h3>
+            <dl id="preview-travel"></dl>
+          </div>
+          <div class="preview-group">
+            <h3>Kontak</h3>
+            <dl id="preview-contact"></dl>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-card">
+        <div class="section-head compact">
+          <div>
+            <h2>Jalankan</h2>
+            <p>Tab Nusuk aktif.</p>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <button id="start-btn" class="primary-btn" type="button">Mulai</button>
+          <button id="pause-btn" class="ghost-btn" type="button">Pause</button>
+          <button id="reset-btn" class="ghost-btn danger-btn" type="button">Reset</button>
+        </div>
+
+        <div class="progress-block">
+          <div class="progress-meta">
+            <span>Progress</span>
+            <span id="progress-text">0 / 0</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
+        </div>
+
+        <div id="status-banner" class="status-banner neutral">Siap.</div>
+      </section>
+
+      <section class="panel-card logs-card">
+        <div class="section-head compact">
+          <div>
+            <h2>Log</h2>
+            <p>Aktivitas terbaru.</p>
+          </div>
+        </div>
+        <div id="log-list" class="log-list" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <script src="panel.js"></script>
+  </body>
+  </html>

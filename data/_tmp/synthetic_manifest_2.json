@@ -1,0 +1,45 @@
+{
+  "groupId": "synthetic-check",
+  "members": [
+    {
+      "id": "1",
+      "fileName": "matched.jpg",
+      "firstName": "MUHAMMAD",
+      "familyName": "YUSUP",
+      "passportNumber": "X2533299",
+      "nationality": "INDONESIA",
+      "dob": "1978-01-08",
+      "issueDate": "2023-11-08",
+      "expiryDate": "",
+      "gender": "MALE",
+      "arabic": {
+        "firstName": "",
+        "familyName": ""
+      },
+      "status": "VALID",
+      "confidence": 1.0,
+      "notes": "VISUAL PLACE OF BIRTH: PARE-PARE; VISUAL ISSUING OFFICE: TANJUNG REDEB",
+      "submitted": false
+    },
+    {
+      "id": "2",
+      "fileName": "unmatched.jpg",
+      "firstName": "TEST",
+      "familyName": "USER",
+      "passportNumber": "ZZ999999",
+      "nationality": "INDONESIA",
+      "dob": "1990-01-01",
+      "issueDate": "",
+      "expiryDate": "2030-01-01",
+      "gender": "MALE",
+      "arabic": {
+        "firstName": "",
+        "familyName": ""
+      },
+      "status": "VALID",
+      "confidence": 1.0,
+      "notes": "",
+      "submitted": false
+    }
+  ]
+}

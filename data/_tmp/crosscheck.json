@@ -1,0 +1,72 @@
+{
+  "manifestPath": "C:\\visa-entry-bot\\data\\_tmp\\synthetic_manifest_2.json",
+  "referencePath": "C:\\visa-entry-bot\\data\\AYM_45 PAX_RAMADHAN 1447H.xlsx",
+  "summary": {
+    "scannedMembers": 2,
+    "references": 45,
+    "comparableMembers": 1,
+    "skippedMembers": 1,
+    "totalFieldMismatches": 0
+  },
+  "fieldStats": {
+    "firstName": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "familyName": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "passportNumber": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "nationality": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "dob": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "issueDate": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "expiryDate": {
+      "compared": 0,
+      "mismatched": 0
+    },
+    "gender": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "placeOfBirth": {
+      "compared": 1,
+      "mismatched": 0
+    },
+    "issuingOffice": {
+      "compared": 1,
+      "mismatched": 0
+    }
+  },
+  "comparisons": [
+    {
+      "fileName": "matched.jpg",
+      "status": "VALID",
+      "matched": true,
+      "matchBy": "passport",
+      "passportNumber": "X2533299",
+      "referencePassportNumber": "X2533299",
+      "referenceFullName": "MUHAMMAD YUSUP",
+      "mismatches": []
+    }
+  ],
+  "skipped": [
+    {
+      "fileName": "unmatched.jpg",
+      "status": "VALID",
+      "passportNumber": "ZZ999999"
+    }
+  ]
+}

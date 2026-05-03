@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nusuk Autofill</title>
+    <style>
+      :root {
+        --background: #f5f7fb;
+        --surface-soft: #f1f5f9;
+        --surface-card: #ffffff;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --line: rgba(100, 116, 139, 0.24);
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --danger: #b91c1c;
+        --shadow-soft: 0 8px 22px rgba(15, 23, 42, 0.06);
+        --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+        letter-spacing: 0 !important;
+      }
+
+      body {
+        margin: 0;
+        width: 360px;
+        min-height: 420px;
+        font: 13px/1.45 "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+        color: var(--ink);
+        background: var(--background);
+      }
+
+      .wrap {
+        padding: 16px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        line-height: 1.2;
+      }
+
+      .subtitle {
+        margin: 0 0 14px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .panel {
+        background: var(--surface-card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .row {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      button,
+      select {
+        width: 100%;
+        min-height: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        padding: 0 12px;
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+        color: white;
+        background: var(--primary);
+        border-color: var(--primary);
+        font-weight: 650;
+      }
+
+      button.secondary {
+        color: var(--ink);
+        background: var(--surface-card);
+        border: 1px solid var(--line);
+      }
+
+      button:hover:not(:disabled) {
+        background: var(--primary-dark);
+      }
+
+      button.secondary:hover:not(:disabled) {
+        background: var(--surface-soft);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      button:focus-visible,
+      select:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-ring);
+      }
+
+      pre {
+        margin: 0;
+        padding: 10px;
+        max-height: 180px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        border-radius: 8px;
+        background: var(--surface-soft);
+        border: 1px solid rgba(100, 116, 139, 0.18);
+        color: #334155;
+        font-family: "Consolas", "Courier New", monospace;
+      }
+
+      .status {
+        min-height: 36px;
+        margin-top: 12px;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Nusuk Autofill</h1>
+      <p class="subtitle">JSON OCR untuk tab Nusuk aktif.</p>
+
+      <div class="panel">
+        <div class="row">
+          <button id="upload-trigger" class="secondary" type="button">Upload JSON</button>
+          <input id="json-input" type="file" accept=".json,application/json" hidden>
+        </div>
+
+        <div class="row">
+          <label for="member-select">Jamaah</label>
+          <select id="member-select" disabled>
+            <option value="">Belum ada JSON</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="preview">Pratinjau</label>
+          <pre id="preview">Upload JSON untuk melihat data jamaah.</pre>
+        </div>
+
+        <div class="row">
+          <button id="autofill-btn" type="button" disabled>Autofill</button>
+        </div>
+      </div>
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+  </html>

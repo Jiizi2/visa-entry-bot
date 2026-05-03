@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "id": "evt-1776769024079-a60569",
+  "createdAtMs": 1776769024079,
+  "type": "client_registered",
+  "source": "extension_background",
+  "clientId": "ext-1776702861665-42681049",
+  "payload": {
+    "tabs": [
+      {
+        "id": 2053724990,
+        "title": "Masar Nusuk | نسك مسار",
+        "url": "https://masar.nusuk.sa/pub/login"
+      }
+    ]
+  }
+}

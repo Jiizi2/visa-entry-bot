@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "id": "evt-1776703274052-f0b0b0",
+  "createdAtMs": 1776703274052,
+  "type": "command_received",
+  "source": "extension_background",
+  "clientId": "ext-1776702861665-42681049",
+  "payload": {
+    "id": "cmd-1776703145497-24048",
+    "commandType": "ping"
+  }
+}

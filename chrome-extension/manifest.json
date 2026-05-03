@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Nusuk Autofill",
+  "version": "0.1.0",
+  "description": "Upload Nusuk JSON and autofill the selected member on the Nusuk website.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "https://masar.nusuk.sa/*",
+    "https://*.nusuk.sa/*"
+  ],
+  "action": {
+    "default_title": "Nusuk Autofill"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://masar.nusuk.sa/*",
+        "https://*.nusuk.sa/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "panel.html",
+        "panel.css",
+        "panel.js"
+      ],
+      "matches": [
+        "https://masar.nusuk.sa/*",
+        "https://*.nusuk.sa/*"
+      ]
+    }
+  ]
+}
