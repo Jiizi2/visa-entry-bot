@@ -210,7 +210,9 @@ function applyIncomingState(payload) {
     total: Number(payload.progress?.total || 0),
   };
   state.logs = Array.isArray(payload.logs) ? payload.logs.slice(-50) : state.logs;
-  state.uploadFileCount = Number(payload.uploadFileCount || state.uploadFileCount || 0);
+  state.uploadFileCount = Object.prototype.hasOwnProperty.call(payload, "uploadFileCount")
+    ? Number(payload.uploadFileCount || 0)
+    : Number(state.uploadFileCount || 0);
   state.uploadFileNames = Array.isArray(payload.uploadFileNames)
     ? payload.uploadFileNames.slice(0, 5)
     : state.uploadFileNames;
@@ -369,21 +371,22 @@ function appendLogEntry(entry) {
 }
 
 function buildLogElement(entry) {
-  const wrapper = document.createElement("article");
-  wrapper.className = `log-item ${entry.level || "info"}`;
+  const wrapper = document.createElement("div");
+  wrapper.className = `log-row ${entry.level || "info"}`;
 
-  const head = document.createElement("div");
-  head.className = "log-head";
   const level = document.createElement("span");
+  level.className = "log-level";
   level.textContent = String(entry.level || "info");
-  const time = document.createElement("span");
-  time.textContent = formatTime(entry.timestamp);
-  head.append(level, time);
 
-  const body = document.createElement("div");
+  const time = document.createElement("span");
+  time.className = "log-time";
+  time.textContent = formatTime(entry.timestamp);
+
+  const body = document.createElement("span");
+  body.className = "log-message";
   body.textContent = entry.message || "";
 
-  wrapper.append(head, body);
+  wrapper.append(level, time, body);
   return wrapper;
 }
 
@@ -457,8 +460,11 @@ function validateManifest(manifest) {
 }
 
 async function persistState() {
+  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const previous = stored?.[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object" ? stored[STORAGE_KEY] : {};
   await chrome.storage.local.set({
     [STORAGE_KEY]: {
+      ...previous,
       manifest: state.manifest,
       selectedMemberId: state.selectedMemberId,
       collapsed: state.collapsed,

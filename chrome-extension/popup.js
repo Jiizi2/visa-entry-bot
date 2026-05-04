@@ -176,8 +176,11 @@ function validateManifest(manifest) {
 }
 
 async function persistState() {
+  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const previous = stored?.[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object" ? stored[STORAGE_KEY] : {};
   await chrome.storage.local.set({
     [STORAGE_KEY]: {
+      ...previous,
       manifest: state.manifest,
       selectedMemberId: state.selectedMemberId,
     },

@@ -376,42 +376,50 @@ dd {
 
 .log-list {
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 0;
   min-height: 130px;
   max-height: 320px;
   overflow-y: auto;
-  padding-right: 3px;
+  padding: 2px 3px 2px 0;
 }
 
-.log-item {
-  padding: 10px;
-  border: 1px solid rgba(100, 116, 139, 0.18);
-  border-radius: var(--radius-md);
-  background: #ffffff;
+.log-row {
+  display: grid;
+  grid-template-columns: 52px 66px minmax(0, 1fr);
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.12);
+  color: #334155;
   overflow-wrap: anywhere;
 }
 
-.log-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 4px;
+.log-row:last-child {
+  border-bottom: 0;
+}
+
+.log-level,
+.log-time {
   color: var(--muted);
   font-size: 11px;
   font-weight: 650;
   text-transform: uppercase;
 }
 
-.log-item.success {
-  border-color: rgba(15, 118, 110, 0.22);
+.log-message {
+  min-width: 0;
 }
 
-.log-item.warning {
-  border-color: rgba(180, 83, 9, 0.22);
+.log-row.success .log-level {
+  color: var(--success);
 }
 
-.log-item.error {
-  border-color: rgba(185, 28, 28, 0.22);
+.log-row.warning .log-level {
+  color: var(--warning);
+}
+
+.log-row.error .log-level {
+  color: var(--danger);
 }
 
 .hidden {
