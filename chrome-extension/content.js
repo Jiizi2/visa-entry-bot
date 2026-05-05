@@ -123,6 +123,7 @@
     clickProceedButtonRobust,
     waitForEnabledNextButton,
     clickNextButtonRobust,
+    detectNusukStage,
     attemptFillRequiredFieldsForCurrentPage,
   } = createNusukNavigation({
     state,
@@ -266,6 +267,7 @@
     countsForProgress,
     sleep,
     waitUntil,
+    detectNusukStage,
   });
   const {
     startAutofillFromPanel,
@@ -313,7 +315,7 @@
     panelBridge.bindWindowBridge();
     panelBridge.bindRuntimeMessages();
     bindVisibilityStatus();
-    notifyResumeAvailableAfterReload();
+    resumeRunningAutofillAfterReload();
   }
 
   function bindVisibilityStatus() {
@@ -385,18 +387,23 @@
     }
   }
 
-  function notifyResumeAvailableAfterReload() {
+  function resumeRunningAutofillAfterReload() {
     if (!state.resumeAvailableAfterReload || !isRunnablePayload(state.currentRunPayload)) {
       return;
     }
-    state.executionState = "paused";
     state.resumeAvailableAfterReload = false;
+    state.executionState = "running";
+    state.closed = false;
+    state.collapsed = false;
     void persistState();
     postPanelState();
     postToPanel("NUSUK_PANEL_STATUS", {
       tone: "warning",
-      message: "Autofill sebelumnya terhenti. Klik Start/Lanjutkan untuk meneruskan dari checkpoint.",
+      message: "Halaman Nusuk refresh. Autofill akan lanjut otomatis dari checkpoint.",
     });
+    window.setTimeout(() => {
+      void resumeAutofillAfterReload();
+    }, 1200);
   }
 
   function isRunnablePayload(payload) {

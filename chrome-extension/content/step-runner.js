@@ -122,7 +122,9 @@
         return;
       }
 
-      await waitForPageReady(Math.min(timeoutMs, 5000), runId);
+      if (shouldWaitForPageBeforeAction(action)) {
+        await waitForPageReady(Math.min(timeoutMs, 5000), runId);
+      }
       await humanDelayBeforeAction(action, runId);
 
       if (action === "click") {
@@ -191,6 +193,19 @@
       }
 
       throw new Error(`Unsupported action: ${action}`);
+    }
+
+    function shouldWaitForPageBeforeAction(action) {
+      return [
+        "click",
+        "set_files",
+        "set_phone_fields",
+        "set_calendar_date",
+        "select_primeng_dropdown",
+        "select_labeled_dropdown",
+        "set_disclosure_all_no",
+        "click_success_popup_action",
+      ].includes(action);
     }
 
     return {

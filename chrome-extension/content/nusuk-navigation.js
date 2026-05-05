@@ -228,7 +228,55 @@
       return findFirstVisible([
         ".popup h3:has-text('Mutamer has been added successfully')",
         ".popup:has-text('Mutamer has been added successfully')",
-      ].join(", "));
+      ].join(", ")) || findMutamerListReadySignal();
+    }
+
+    function findMutamerListReadySignal() {
+      const title = queryAll(".mutamer-header-title h2, h1, h2, .title")
+        .find((node) => node instanceof HTMLElement
+          && isVisible(node)
+          && normalizeOption(node.textContent || "").includes("mutamer list"));
+      if (title) {
+        return title;
+      }
+      return queryAll([
+        ".mutamer-header-actions button",
+        ".mutamer-header-actions a",
+        ".mutamer-header-actions [role='button']",
+        ".mutamer-header button",
+        ".mutamer-header a",
+        ".mutamer-header [role='button']",
+        "button[class*='add' i]",
+        "a[class*='add' i]",
+        "[role='button'][class*='add' i]",
+        "[aria-label*='add' i]",
+        "[title*='add' i]",
+        ".btn",
+        "button",
+        "a",
+        "[role='button']",
+      ].join(", ")).find((element) => {
+        if (!(element instanceof HTMLElement) || !isVisible(element) || !isEnabled(element)) {
+          return false;
+        }
+        const text = normalizeOption([
+          element.textContent || "",
+          element.getAttribute("aria-label") || "",
+          element.getAttribute("title") || "",
+          element.getAttribute("data-testid") || "",
+          element.getAttribute("class") || "",
+        ].join(" "));
+        const hasAdd = text.includes("add") || text.includes("new") || text.includes("plus") || text.includes("+");
+        const hasMutamer = text.includes("mutamer")
+          || text.includes("pilgrim")
+          || text.includes("applicant")
+          || text.includes("member")
+          || text.includes("beneficiary");
+        return text.includes("add new mutamer")
+          || text.includes("add mutamer")
+          || text.includes("new mutamer")
+          || (hasAdd && hasMutamer);
+      }) || null;
     }
 
     async function waitForEnabledNextButton(timeoutMs, runId = state.runToken, context = {}) {
@@ -632,7 +680,7 @@
     }
 
     function isPageBusy() {
-      return queryAll(".p-component-overlay, .loading, .spinner, .ngx-spinner-overlay, .p-progress-spinner, .p-skeleton, [aria-busy='true']")
+      return queryAll(".loading-overlay, .loading-spinner, img[src*='ajaxloadingbar'], .p-component-overlay, .loading, .spinner, .ngx-spinner-overlay, .p-progress-spinner, .p-skeleton, [aria-busy='true']")
         .some((node) => isVisible(node));
     }
 

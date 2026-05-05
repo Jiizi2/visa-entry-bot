@@ -44,6 +44,7 @@
         collapsed: state.collapsed,
         closed: state.closed,
         executionState: state.executionState,
+        resumeAvailable: isRunnablePayload(state.currentRunPayload),
         panelWidth: state.panelWidth,
         uploadFileCount,
         uploadFileNames,
@@ -53,6 +54,10 @@
         },
         logs: state.logs,
       });
+    }
+
+    function isRunnablePayload(payload) {
+      return Array.isArray(payload?.members) && payload.members.some((member) => member && typeof member === "object");
     }
 
     function postToPanel(type, payload) {

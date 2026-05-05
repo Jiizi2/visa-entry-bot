@@ -40,6 +40,7 @@ const state = {
   logs: [],
   uploadFileCount: 0,
   uploadFileNames: [],
+  resumeAvailable: false,
 };
 
 const EXECUTION_LABELS = {
@@ -113,11 +114,13 @@ dom.closeBtn.addEventListener("click", async () => {
 });
 
 dom.startBtn.addEventListener("click", () => {
-  if (!getSelectedMember()) {
+  const stateName = normalizeExecutionState(state.executionState);
+  const isResume = stateName === "paused" && state.resumeAvailable;
+  if (!getSelectedMember() && !isResume) {
     setStatus("Pilih data jamaah sebelum menjalankan autofill.", "error");
     return;
   }
-  if (!state.uploadFileCount) {
+  if (!state.uploadFileCount && !isResume) {
     setStatus("Pilih folder/file passport sebelum mulai.", "error");
     return;
   }
@@ -216,6 +219,7 @@ function applyIncomingState(payload) {
   state.uploadFileNames = Array.isArray(payload.uploadFileNames)
     ? payload.uploadFileNames.slice(0, 5)
     : state.uploadFileNames;
+  state.resumeAvailable = Boolean(payload.resumeAvailable);
 
   renderManifestSection();
   renderPreview();
@@ -401,11 +405,12 @@ function updateRunControls() {
   const hasMember = Boolean(getSelectedMember());
   const hasUploadFiles = Number(state.uploadFileCount || 0) > 0;
   const stateName = normalizeExecutionState(state.executionState);
+  const canResume = stateName === "paused" && state.resumeAvailable;
   dom.statePill.textContent = EXECUTION_LABELS[stateName] || EXECUTION_LABELS.idle;
   dom.statePill.className = `state-pill ${stateName}`;
 
   dom.startBtn.textContent = stateName === "paused" ? "Lanjutkan" : "Mulai";
-  dom.startBtn.disabled = !hasMember || !hasUploadFiles || stateName === "running";
+  dom.startBtn.disabled = stateName === "running" || (!canResume && (!hasMember || !hasUploadFiles));
   dom.pauseBtn.disabled = stateName !== "running";
   dom.resetBtn.disabled = stateName === "idle" && state.progress.current === 0 && state.logs.length === 0;
   dom.minimizeBtn.disabled = state.collapsed;

@@ -42,6 +42,12 @@
         finishStep(step, selector);
         return;
       }
+      if (isMutamerSuccessSelector(selector)) {
+        await waitForNusukPageReady("success", timeoutMs, runId);
+        await waitForPageReady(Math.min(timeoutMs, 6000), runId);
+        finishStep(step, selector);
+        return;
+      }
       await waitForSelector(selector, {
         timeoutMs,
         state: String(step?.wait_state || "").trim().toLowerCase() || "visible",
@@ -77,10 +83,18 @@
       appendLog("info", "Checking mutamer form.");
       const deadline = Date.now() + Math.max(500, Number(timeoutMs || 0));
       let clicked = false;
+      let lastDiagnosticAt = 0;
 
       while (Date.now() < deadline) {
+        const passportInput = findAttachedPassportInput(selector);
+        if (passportInput) {
+          appendLog(clicked ? "success" : "info", clicked ? "Mutamer form opened." : "Mutamer form already open.");
+          finishStep(step, selector);
+          return;
+        }
+
         const addButton = findAddNewMutamerButton();
-        if (addButton && (isMutamerListVisible() || !findAttachedPassportInput(selector))) {
+        if (addButton) {
           markActiveElement(addButton);
           await clickElement(addButton);
           clicked = true;
@@ -88,11 +102,12 @@
           continue;
         }
 
-        const passportInput = findAttachedPassportInput(selector);
-        if (passportInput) {
-          appendLog(clicked ? "success" : "info", clicked ? "Mutamer form opened." : "Mutamer form already open.");
-          finishStep(step, selector);
-          return;
+        if (Date.now() - lastDiagnosticAt > 5000) {
+          const hint = describeVisibleMutamerOpenCandidates();
+          if (hint) {
+            appendLog("warning", `Belum menemukan tombol Add mutamer. Kandidat terlihat: ${hint}`);
+          }
+          lastDiagnosticAt = Date.now();
         }
 
         await sleep(160, runId);
@@ -170,6 +185,11 @@
     }
 
     async function handleClickSuccessPopupAction(step, context, selector, timeoutMs, runId) {
+      if (isMutamerListVisible() && !isSuccessPopupVisible()) {
+        appendLog("success", "Mutamer sudah masuk list; popup sukses tidak perlu diklik.");
+        finishStep(step, selector);
+        return;
+      }
       const action = resolveSuccessPopupAction(step, context);
       const button = await waitForSuccessPopupActionButton(action, timeoutMs, runId);
       markActiveElement(button);
@@ -247,6 +267,17 @@
       return context?.isLastMember === false ? "add_another" : "go_to_list";
     }
 
+    function isSuccessPopupVisible() {
+      return Boolean(findFirstVisible([
+        ".popup h3:has-text('Mutamer has been added successfully')",
+        ".popup:has-text('Mutamer has been added successfully')",
+      ].join(", ")));
+    }
+
+    function isMutamerSuccessSelector(selector) {
+      return String(selector || "").toLowerCase().includes("mutamer has been added successfully");
+    }
+
     function findAttachedPassportInput(selector) {
       return queryAll(selector).find((node) => node instanceof HTMLInputElement && node.type === "file") || null;
     }
@@ -254,24 +285,78 @@
     function findAddNewMutamerButton() {
       return queryAll([
         ".mutamer-header-actions button",
+        ".mutamer-header-actions a",
+        ".mutamer-header-actions [role='button']",
         ".mutamer-header button",
+        ".mutamer-header a",
+        ".mutamer-header [role='button']",
+        "button[class*='add' i]",
+        "a[class*='add' i]",
+        "[role='button'][class*='add' i]",
+        "[aria-label*='add' i]",
+        "[title*='add' i]",
+        ".btn",
         "button",
+        "a",
         "[role='button']",
       ].join(", "))
-        .find((button) => {
-          if (!(button instanceof HTMLElement) || !isVisible(button) || !isEnabled(button)) {
+        .find((element) => {
+          if (!(element instanceof HTMLElement) || !isVisible(element) || !isEnabled(element)) {
             return false;
           }
-          const text = normalizeOption(button.textContent || button.getAttribute("aria-label") || button.getAttribute("title") || "");
-          return text.includes("add new mutamer")
-            || text.includes("add mutamer")
-            || (text.includes("add new") && text.includes("mutamer"));
+          return looksLikeAddMutamerControl(element);
         }) || null;
+    }
+
+    function looksLikeAddMutamerControl(element) {
+      const text = normalizeOption([
+        element.textContent || "",
+        element.getAttribute("aria-label") || "",
+        element.getAttribute("title") || "",
+        element.getAttribute("data-testid") || "",
+        element.getAttribute("class") || "",
+      ].join(" "));
+      if (!text) {
+        return false;
+      }
+      const hasAdd = text.includes("add") || text.includes("new") || text.includes("plus") || text.includes("+");
+      const hasMutamer = text.includes("mutamer")
+        || text.includes("pilgrim")
+        || text.includes("applicant")
+        || text.includes("member")
+        || text.includes("beneficiary");
+      return text.includes("add new mutamer")
+        || text.includes("add mutamer")
+        || text.includes("new mutamer")
+        || (hasAdd && hasMutamer)
+        || (isMutamerListVisible() && hasAdd);
     }
 
     function isMutamerListVisible() {
       return queryAll(".mutamer-header-title h2, h1, h2, .title")
-        .some((node) => node instanceof HTMLElement && isVisible(node) && normalizeOption(node.textContent || "").includes("mutamer list"));
+        .some((node) => {
+          if (!(node instanceof HTMLElement) || !isVisible(node)) {
+            return false;
+          }
+          const text = normalizeOption(node.textContent || "");
+          return text.includes("mutamer list")
+            || text.includes("mutamers list")
+            || text.includes("pilgrim list")
+            || text.includes("applicant list");
+        });
+    }
+
+    function describeVisibleMutamerOpenCandidates() {
+      const candidates = queryAll("button, a, [role='button']")
+        .filter((element) => element instanceof HTMLElement && isVisible(element) && isEnabled(element))
+        .map((element) => compactText(element.textContent || element.getAttribute("aria-label") || element.getAttribute("title") || ""))
+        .filter(Boolean)
+        .slice(0, 6);
+      return candidates.join(" | ");
+    }
+
+    function compactText(text) {
+      return String(text || "").replace(/\s+/g, " ").trim();
     }
 
     return {

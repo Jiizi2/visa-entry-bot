@@ -267,6 +267,13 @@
   }
 
   function isUploadRequirementHint(normalized) {
+    if (
+      normalized.includes("allowed file size")
+      && normalized.includes("{{min size}}")
+      && normalized.includes("1024 kb")
+    ) {
+      return true;
+    }
     const isFormatHint = normalized.includes("supported format")
       || normalized.includes("supported formats")
       || normalized.includes("accepted format")

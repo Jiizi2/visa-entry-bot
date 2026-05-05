@@ -48,8 +48,8 @@
     AUTOFILL_RETRY_MAX_DELAY_MS: 15000,
     AUTOFILL_MEMBER_WATCHDOG_MS: 180000,
     AUTOFILL_SESSION_RECOVERY_WAIT_MS: 180000,
-    UPLOAD_MIN_TARGET_BYTES: 500 * 1024,
-    UPLOAD_MAX_BYTES: 900 * 1024,
+    UPLOAD_MIN_TARGET_BYTES: 0,
+    UPLOAD_MAX_BYTES: 1024 * 1024,
     PASSPORT_UPLOAD_SELECTOR: [
       ".container__notes__upload__button input[type='file']",
       ".upload-button input[type='file']",

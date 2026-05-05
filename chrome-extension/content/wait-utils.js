@@ -6,8 +6,6 @@
     STEP_AFTER_DELAY_MS,
     CLICK_SETTLE_DELAY_MS,
     FILL_SETTLE_DELAY_MS,
-    DROPDOWN_SETTLE_DELAY_MS,
-    UPLOAD_AFTER_DELAY_MS,
     WAIT_SETTLE_DELAY_MS,
     WAIT_POLL_INTERVAL_MS,
     PAGE_READY_POLL_INTERVAL_MS,
@@ -81,7 +79,7 @@
       while (Date.now() < deadline) {
         await checkpoint(runId);
         const ready = document.readyState === "interactive" || document.readyState === "complete";
-        const busy = queryAll(".p-component-overlay, .loading, .spinner, .ngx-spinner-overlay, .p-progress-spinner, .p-skeleton, [aria-busy='true']")
+        const busy = queryAll(".loading-overlay, .loading-spinner, img[src*='ajaxloadingbar'], .p-component-overlay, .loading, .spinner, .ngx-spinner-overlay, .p-progress-spinner, .p-skeleton, [aria-busy='true']")
           .some((node) => isVisible(node));
         const appStable = isAngularStable();
         if (ready && !busy && appStable) {
@@ -124,19 +122,29 @@
         return;
       }
       const action = String(step?.action || "").trim().toLowerCase();
+      if (actionHasInternalSettle(action)) {
+        return;
+      }
       let delayMs = STEP_AFTER_DELAY_MS;
-      if (action === "set_files") {
-        delayMs = Math.max(STEP_AFTER_DELAY_MS, Number(UPLOAD_AFTER_DELAY_MS || 900));
-      } else if (action === "click" || action === "click_success_popup_action") {
+      if (action === "click" || action === "click_success_popup_action") {
         delayMs = CLICK_SETTLE_DELAY_MS;
-      } else if (action === "fill" || action === "fill_arabic_minimal" || action === "set_phone_fields" || action === "set_calendar_date") {
+      } else if (action === "fill" || action === "fill_arabic_minimal") {
         delayMs = FILL_SETTLE_DELAY_MS;
-      } else if (action === "select_primeng_dropdown") {
-        delayMs = DROPDOWN_SETTLE_DELAY_MS;
       } else if (action === "wait_for_selector" || action === "wait_for_enabled") {
         delayMs = WAIT_SETTLE_DELAY_MS;
       }
       await sleep(delayMs, runId);
+    }
+
+    function actionHasInternalSettle(action) {
+      return [
+        "set_files",
+        "set_phone_fields",
+        "set_calendar_date",
+        "select_primeng_dropdown",
+        "select_labeled_dropdown",
+        "set_disclosure_all_no",
+      ].includes(action);
     }
 
     async function humanDelayBeforeAction(action, runId = state.runToken) {

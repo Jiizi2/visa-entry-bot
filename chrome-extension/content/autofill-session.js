@@ -20,24 +20,29 @@
     let previousTabAutoDiscardable = null;
 
     async function startAutofillFromPanel() {
-      const member = getSelectedMember();
-      if (!member) {
-        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Pilih data jamaah sebelum menjalankan autofill." });
-        return;
-      }
       if (state.executionState === "running") {
         postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Autofill sedang berjalan." });
         return;
       }
       if (state.executionState === "paused") {
+        if (!isRunnablePayload(state.currentRunPayload)) {
+          postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada checkpoint resume yang bisa dilanjutkan." });
+          return;
+        }
         state.executionState = "running";
         await persistState();
         appendLog("success", "Autofill dilanjutkan.");
         postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message: "Autofill dilanjutkan." });
         postPanelState();
+        await lockTabForBackgroundRun();
         if (!activeRunPromise && isRunnablePayload(state.currentRunPayload)) {
           await runCurrentPayload(countRunPayloadMembers(state.currentRunPayload));
         }
+        return;
+      }
+      const member = getSelectedMember();
+      if (!member) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Pilih data jamaah sebelum menjalankan autofill." });
         return;
       }
       if (!getUploadState().uploadFileCount) {
@@ -75,15 +80,17 @@
     }
 
     async function resumeAutofillAfterReload() {
-      if (state.executionState !== "running" || !isRunnablePayload(state.currentRunPayload) || activeRunPromise) {
+      if (!["running", "paused"].includes(state.executionState) || !isRunnablePayload(state.currentRunPayload) || activeRunPromise) {
         return false;
       }
       const remainingCount = countRunPayloadMembers(state.currentRunPayload);
-      state.executionState = "paused";
-      appendLog("warning", `Halaman Nusuk refresh. ${remainingCount} jamaah tersisa siap dilanjutkan manual.`);
-      postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: `Autofill terhenti dengan ${remainingCount} jamaah tersisa. Klik Start/Lanjutkan untuk meneruskan.` });
+      state.executionState = "running";
+      appendLog("warning", `Halaman Nusuk refresh. Melanjutkan otomatis dari checkpoint: ${remainingCount} jamaah tersisa.`);
+      postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: `Halaman refresh. Autofill lanjut otomatis dengan ${remainingCount} jamaah tersisa.` });
       await persistState();
       postPanelState();
+      await lockTabForBackgroundRun();
+      await runCurrentPayload(remainingCount);
       return true;
     }
 

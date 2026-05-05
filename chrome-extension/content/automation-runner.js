@@ -27,6 +27,7 @@
     countsForProgress,
     sleep,
     waitUntil,
+    detectNusukStage,
   }) {
     async function runAutomation(payload, runId = state.runToken) {
       const members = resolveAutomationMembers(payload);
@@ -117,15 +118,26 @@
 
     async function runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId }) {
       await ensureSessionStillUsable();
+      const resumeStage = resolveCurrentNusukStage();
+      const shouldSkipOpenForm = resumeStage > 0 && resumeStage < 5;
+      const firstPerMemberStepIndex = shouldSkipOpenForm
+        ? findResumeStepIndex(perMemberSteps, resumeStage)
+        : 0;
+      if (shouldSkipOpenForm) {
+        appendLog?.("warning", `Resume terdeteksi di ${stageLabel(resumeStage)}. Melanjutkan dari step halaman ini, bukan membuka Add Mutamer baru.`);
+      }
 
       for (let index = 0; index < globalSteps.length; index += 1) {
+        if (shouldSkipOpenForm) {
+          break;
+        }
         await checkpoint(runId);
         await ensureSessionStillUsable();
         await runStep(globalSteps[index], { ...context, index });
         await slowModeDelayAfterStep(globalSteps[index], runId);
       }
 
-      for (let index = 0; index < perMemberSteps.length; index += 1) {
+      for (let index = firstPerMemberStepIndex; index < perMemberSteps.length; index += 1) {
         await checkpoint(runId);
         await ensureSessionStillUsable();
         const step = perMemberSteps[index];
@@ -135,6 +147,49 @@
         }
         await slowModeDelayAfterStep(step, runId);
       }
+    }
+
+    function resolveCurrentNusukStage() {
+      if (typeof detectNusukStage !== "function") {
+        return 0;
+      }
+      try {
+        return Number(detectNusukStage() || 0);
+      } catch {
+        return 0;
+      }
+    }
+
+    function findResumeStepIndex(steps, stage) {
+      const pageNameByStage = {
+        1: "passport_details",
+        2: "member_form",
+        3: "disclosure",
+        4: "summary",
+      };
+      const pageName = pageNameByStage[stage] || "";
+      if (!pageName) {
+        return 0;
+      }
+      const index = steps.findIndex((step) => String(step?.action || "").trim().toLowerCase() === "wait_for_nusuk_page_ready"
+        && String(step?.page || "").trim().toLowerCase() === pageName);
+      return index >= 0 ? index : 0;
+    }
+
+    function stageLabel(stage) {
+      if (stage === 1) {
+        return "Passport Details";
+      }
+      if (stage === 2) {
+        return "Member Form";
+      }
+      if (stage === 3) {
+        return "Disclosure Form";
+      }
+      if (stage === 4) {
+        return "Summary";
+      }
+      return "halaman aktif";
     }
 
     async function markMemberAddedForResume(payload, members, startMemberIndex, memberOffset) {
@@ -234,7 +289,7 @@
         return;
       }
 
-      if (reason === "watchdog_timeout" || reason === "page_frozen" || reason === "navigation_failure") {
+      if (reason === "watchdog_timeout" || reason === "page_frozen" || reason === "navigation_failure" || reason === "missing_element") {
         appendLog?.("warning", "Halaman terlihat macet. Refresh halaman lalu lanjut dari checkpoint jamaah yang sama.");
         state.executionState = "running";
         await persistState?.();
