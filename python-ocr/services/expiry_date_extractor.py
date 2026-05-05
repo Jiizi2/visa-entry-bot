@@ -52,7 +52,7 @@ def extract_expiry_date(
     current_value: str = "",
 ) -> str:
     current = _parse_iso_date(current_value)
-    if current and not _parse_iso_date(issue_date):
+    if current and not _parse_iso_date(issue_date) and pick_expiry_date([current.isoformat()], dob=dob):
         return current.isoformat()
     page = page if page is not None else extract_aligned_passport_page(file_path)
     page_candidates = _collect_page_candidates(page)

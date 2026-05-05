@@ -19,6 +19,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "NUSUK_CAPTURE_FAILURE_SCREENSHOT") {
+    handleCaptureFailureScreenshot(sender, sendResponse);
+    return true;
+  }
+
   return false;
 });
 
@@ -36,6 +41,22 @@ function handleDebuggerSetFile(message, sender, sendResponse) {
     .catch((error) => {
       sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
     });
+}
+
+function handleCaptureFailureScreenshot(sender, sendResponse) {
+  const windowId = sender?.tab?.windowId;
+  if (!windowId) {
+    sendResponse({ ok: false, error: "Window Nusuk tidak terdeteksi." });
+    return;
+  }
+  chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 55 }, (dataUrl) => {
+    const error = chrome.runtime.lastError;
+    if (error) {
+      sendResponse({ ok: false, error: error.message });
+      return;
+    }
+    sendResponse({ ok: true, dataUrl });
+  });
 }
 
 function handleSetTabAutoDiscardable(message, sender, sendResponse) {

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from services.nusuk_manifest import build_error_record
+from services.nusuk_manifest import build_error_record, build_member_record
 from services.validator import validate_member
 
 
@@ -35,6 +35,30 @@ class ValidatorManifestTests(unittest.TestCase):
         self.assertIn("RECORD_ERROR", record["reviewFlags"]["record"])
         self.assertIn("passportExtracted", record["confidenceLevel"])
         self.assertIn("resolvedProfile", record["confidenceLevel"])
+
+    def test_country_of_issued_prefers_mrz_issuing_country(self) -> None:
+        record = build_member_record(
+            "passport.png",
+            "C:/visa-entry-bot/data/passport.png",
+            {
+                "firstName": "JOHN",
+                "familyName": "DOE",
+                "passportNumber": "A1234567",
+                "nationality": "INDIA",
+                "dob": "1990-01-01",
+                "issueDate": "2025-01-01",
+                "expiryDate": "2030-01-01",
+                "gender": "MALE",
+            },
+            {},
+            {"confidence": 0.9, "data": {"country": "USA"}},
+            "VALID",
+            0.95,
+            "",
+        )
+
+        self.assertEqual(record["passportExtracted"]["countryOfIssued"], "UNITED STATES")
+        self.assertEqual(record["resolvedProfile"]["birthCountry"], "INDIA")
 
 
 if __name__ == "__main__":

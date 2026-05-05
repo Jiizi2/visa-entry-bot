@@ -16,6 +16,7 @@ from services.issue_date_extractor import extract_issue_date
 from services.mrz_extractor import DirectMrzResult, _read_best_mrz, _repair_direct_line2, _score_direct_line2
 from services.ocr_result_cache import clear_ocr_result_cache
 from services.passport_page import clear_passport_page_cache, collect_ocr_lines, extract_aligned_passport_page
+from services.visual_region_scanner import scan_region_texts
 from main import _can_infer_missing_issue_date, _select_panel_field_names, _select_visual_field_names, _should_refine_names
 
 
@@ -41,6 +42,29 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(first, ["LINE 1"])
         self.assertEqual(second, ["LINE 1"])
         self.assertEqual(image_to_string.call_count, 1)
+
+    def test_collect_ocr_lines_continues_after_tesseract_error(self) -> None:
+        region = np.zeros((10, 10), dtype=np.uint8)
+        with (
+            patch("services.passport_page.configure_tesseract", return_value=True),
+            patch("services.passport_page._build_variants", return_value=[region, region]),
+            patch("services.passport_page.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "LINE 2\n"]),
+        ):
+            result = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
+
+        self.assertEqual(result, ["LINE 2"])
+
+    def test_scan_region_texts_continues_after_fallback_tesseract_error(self) -> None:
+        region = np.zeros((10, 10), dtype=np.uint8)
+        with (
+            patch("services.visual_region_scanner.collect_ocr_lines", return_value=[]),
+            patch("services.visual_region_scanner.cv2", object()),
+            patch("services.visual_region_scanner._build_variants", return_value=[region, region]),
+            patch("services.visual_region_scanner.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "TEXT"]),
+        ):
+            result = scan_region_texts(region, 7, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        self.assertEqual(result, ["TEXT"])
 
     def test_issue_date_skips_raw_scan_when_page_candidates_resolve(self) -> None:
         with (
@@ -80,6 +104,23 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             patch("services.expiry_date_extractor._collect_legacy_candidates") as legacy_candidates,
         ):
             result = extract_expiry_date("file.png", dob="1952-10-12", issue_date="2026-01-18", page=object())
+
+        self.assertEqual(result, "2031-01-18")
+        raw_candidates.assert_not_called()
+        legacy_candidates.assert_not_called()
+
+    def test_expiry_date_does_not_trust_implausible_current_value(self) -> None:
+        with (
+            patch("services.expiry_date_extractor._collect_page_candidates", return_value=["2031-01-18"]),
+            patch("services.expiry_date_extractor._collect_raw_candidates") as raw_candidates,
+            patch("services.expiry_date_extractor._collect_legacy_candidates") as legacy_candidates,
+        ):
+            result = extract_expiry_date(
+                "file.png",
+                dob="1990-01-01",
+                current_value="1980-01-18",
+                page=object(),
+            )
 
         self.assertEqual(result, "2031-01-18")
         raw_candidates.assert_not_called()
@@ -301,6 +342,42 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertIn("direct lower-band OCR", note)
         read_mrz.assert_not_called()
 
+    def test_weak_indonesian_direct_mrz_does_not_short_circuit_variant(self) -> None:
+        direct = DirectMrzResult(
+            line1="P<IDNRAMADAN<<KARIM<ALFARIZI<<<<<<<<<<<<<<<<",
+            line2="E8710852<5IDN1906017M30010866403050106000214",
+            valid_score=86,
+        )
+        passporteye = _FakeMrz(valid_score=98, valid=True)
+        with (
+            patch("services.mrz_extractor._read_direct_mrz", return_value=direct),
+            patch("services.mrz_extractor.temporary_mrz_variants", return_value=_FakeVariants()),
+            patch("services.mrz_extractor._read_mrz", return_value=passporteye) as read_mrz,
+        ):
+            mrz, note = _read_best_mrz("file.png")
+
+        self.assertIs(mrz, passporteye)
+        self.assertEqual(note, "variant")
+        self.assertEqual(read_mrz.call_count, 1)
+
+    def test_non_indonesian_direct_mrz_does_not_short_circuit_better_variant(self) -> None:
+        direct = DirectMrzResult(
+            line1="P<USADOE<<JOHN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<",
+            line2="A1234567<8USA9001011M3001012<<<<<<<<<<<<<<04",
+            valid_score=74,
+        )
+        passporteye = _FakeMrz(valid_score=98, valid=True)
+        with (
+            patch("services.mrz_extractor._read_direct_mrz", return_value=direct),
+            patch("services.mrz_extractor.temporary_mrz_variants", return_value=_FakeVariants()),
+            patch("services.mrz_extractor._read_mrz", return_value=passporteye) as read_mrz,
+        ):
+            mrz, note = _read_best_mrz("file.png")
+
+        self.assertIs(mrz, passporteye)
+        self.assertEqual(note, "variant")
+        self.assertEqual(read_mrz.call_count, 1)
+
 
 class _EmptyVariants:
     def __enter__(self) -> list[tuple[str, str]]:
@@ -308,6 +385,20 @@ class _EmptyVariants:
 
     def __exit__(self, *args: object) -> bool:
         return False
+
+
+class _FakeVariants:
+    def __enter__(self) -> list[tuple[str, str]]:
+        return [("variant.png", "variant")]
+
+    def __exit__(self, *args: object) -> bool:
+        return False
+
+
+class _FakeMrz:
+    def __init__(self, valid_score: int, valid: bool) -> None:
+        self.valid_score = valid_score
+        self.valid = valid
 
 
 if __name__ == "__main__":

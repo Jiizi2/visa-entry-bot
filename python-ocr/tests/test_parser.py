@@ -40,6 +40,29 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parsed["expiryDate"], "2030-01-08")
         self.assertEqual(parsed["gender"], "MALE")
 
+    def test_repairs_line2_nationality_confusion_before_parsing(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNRAMADAN<<KARIM<ALFARIZI<<<<<<<<<<<<<<<<",
+                "line2": "E8710852<51DN1906017L30010866403050106000214",
+            }
+        )
+
+        self.assertEqual(parsed["nationality"], "INDONESIA")
+        self.assertEqual(parsed["gender"], "MALE")
+
+    def test_rejects_line2_without_any_valid_check_digit(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNDOE<<JOHN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<",
+                "line2": "A1234567<0IDN9001010M3001010<<<<<<<<<<<<<<04",
+            }
+        )
+
+        self.assertEqual(parsed["passportNumber"], "")
+        self.assertEqual(parsed["dob"], "")
+        self.assertEqual(parsed["expiryDate"], "")
+
     def test_drops_direct_mrz_name_filler_tokens(self) -> None:
         parsed = parse_mrz_data(
             {

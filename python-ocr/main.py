@@ -252,7 +252,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "stagesMs": stage_durations_ms,
             "panelFallbackUsed": panel_fallback_used,
             "visualOcrUsed": visual_ocr_used,
-            "mrzFallbackUsed": False,
+            "mrzFallbackUsed": bool(locals().get("mrz_error", "")),
         }
         return record
     finally:

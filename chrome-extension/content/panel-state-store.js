@@ -71,6 +71,9 @@
           progressCurrent: state.progressCurrent,
           progressTotal: state.progressTotal,
           logs: state.logs,
+          autofillFailures: Array.isArray(state.autofillFailures) ? state.autofillFailures.slice(-100) : [],
+          autofillAttemptFailures: Array.isArray(state.autofillAttemptFailures) ? state.autofillAttemptFailures.slice(-100) : [],
+          autofillFailureScreenshots: Array.isArray(state.autofillFailureScreenshots) ? state.autofillFailureScreenshots.slice(-3) : [],
           currentRunPayload: state.currentRunPayload,
         },
       });

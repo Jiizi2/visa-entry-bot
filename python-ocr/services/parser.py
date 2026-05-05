@@ -143,13 +143,13 @@ def _parse_line_fields(data: dict[str, Any]) -> dict[str, str]:
 
 def _extract_mrz_line_pair(data: dict[str, Any]) -> tuple[str, str] | None:
     explicit_line1 = _clean_mrz_line(data.get("line1"))
-    explicit_line2 = _clean_mrz_line(data.get("line2"))
+    explicit_line2 = _repair_line2_ocr_confusions(_clean_mrz_line(data.get("line2")))
     if _looks_like_line1(explicit_line1) and _looks_like_line2(explicit_line2):
         return explicit_line1, explicit_line2
 
     lines = _extract_lines(data)
     for index in range(len(lines) - 1):
-        line1, line2 = lines[index], lines[index + 1]
+        line1, line2 = lines[index], _repair_line2_ocr_confusions(lines[index + 1])
         if _looks_like_line1(line1) and _looks_like_line2(line2):
             return line1, line2
     return None
@@ -232,6 +232,20 @@ def _clean_mrz_line(value: Any) -> str:
     return cleaned[:44].ljust(44, "<") if cleaned else ""
 
 
+def _repair_line2_ocr_confusions(value: str) -> str:
+    if len(value) != 44:
+        return value
+    chars = list(value)
+    nationality = "".join(chars[10:13]).translate(str.maketrans({"1": "I", "L": "I", "0": "D", "O": "D", "Q": "D"}))
+    if nationality == "IDN":
+        chars[10:13] = list("IDN")
+    if chars[20] in {"L", "I", "1"}:
+        chars[20] = "M"
+    if chars[20] in {"P"}:
+        chars[20] = "F"
+    return "".join(chars)
+
+
 def _looks_like_line1(value: str) -> bool:
     return len(value) == 44 and value.startswith(("P<", "I<", "A<", "C<")) and value.count("<") >= 4
 
@@ -239,7 +253,34 @@ def _looks_like_line1(value: str) -> bool:
 def _looks_like_line2(value: str) -> bool:
     if len(value) != 44 or value.count("<") < 1:
         return False
-    return value[0].isalnum() and value[1:9].replace("<", "").isalnum() and value[10:13].isalpha()
+    return (
+        value[0].isalnum()
+        and value[1:9].replace("<", "").isalnum()
+        and value[10:13].isalpha()
+        and _line2_check_score(value) >= 1
+    )
+
+
+def _line2_check_score(line2: str) -> int:
+    checks = 0
+    checks += _mrz_check_digit(line2[0:9]) == line2[9]
+    checks += _mrz_check_digit(line2[13:19]) == line2[19]
+    checks += _mrz_check_digit(line2[21:27]) == line2[27]
+    return int(checks)
+
+
+def _mrz_check_digit(value: str) -> str:
+    return str(sum(_mrz_char_value(char) * (7, 3, 1)[index % 3] for index, char in enumerate(value)) % 10)
+
+
+def _mrz_char_value(char: str) -> int:
+    if char == "<":
+        return 0
+    if char.isdigit():
+        return int(char)
+    if "A" <= char <= "Z":
+        return ord(char) - 55
+    return 0
 
 
 def _expand_date(value: str, date_type: str) -> str:

@@ -316,7 +316,7 @@ def _derived_source(values: dict[str, object], field_name: str, origin: str) -> 
 def _country_of_issued(nationality: str, extraction: dict[str, object]) -> str:
     data = extraction.get("data", {}) if extraction else {}
     country = clean_country(data.get("country", ""))
-    return nationality or country
+    return country or nationality
 
 
 def _marital_status(dob: str) -> str:

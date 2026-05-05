@@ -93,14 +93,14 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
 
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     direct_mrz = _read_direct_mrz(file_path)
-    if _is_indonesian_direct_mrz(direct_mrz):
+    if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
         return direct_mrz, "MRZ recovered from direct lower-band OCR."
 
-    best_mrz = None
-    best_note = ""
-    best_score = -1
+    best_mrz = direct_mrz
+    best_note = "MRZ recovered from direct lower-band OCR." if direct_mrz is not None else ""
+    best_score = getattr(direct_mrz, "valid_score", -1) if direct_mrz is not None else -1
     with temporary_mrz_variants(file_path) as variants:
-        for index, (variant_path, note) in enumerate(variants):
+        for variant_path, note in variants:
             mrz = None
             try:
                 mrz = _read_mrz(variant_path)
@@ -113,8 +113,6 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
                 best_score = score
             if mrz is not None and getattr(mrz, "valid", False):
                 return mrz, note
-            if index == 0 and direct_mrz is not None:
-                return direct_mrz, "MRZ recovered from direct lower-band OCR."
     return best_mrz, best_note
 
 
@@ -152,8 +150,8 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
     return None
 
 
-def _is_indonesian_direct_mrz(mrz: DirectMrzResult | None) -> bool:
-    return bool(mrz and mrz.line1.startswith("P<IDN"))
+def _is_high_confidence_indonesian_direct_mrz(mrz: DirectMrzResult | None) -> bool:
+    return bool(mrz and mrz.line1.startswith("P<IDN") and mrz.valid_score >= 98 and _score_direct_line2(mrz.line2) == 3)
 
 
 def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
@@ -161,25 +159,39 @@ def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
     if gray.shape[1] < 1600:
         scale = 1600.0 / max(gray.shape[1], 1)
         gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    try:
-        text = pytesseract.image_to_string(
-            gray,
-            config="--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<",
-        )
-    except Exception:  # noqa: BLE001
-        return None
-    lines = _clean_direct_mrz_lines(text)
+    config = "--oem 3 --psm {psm} -c user_defined_dpi=300 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+    candidates: list[DirectMrzResult] = []
+    for variant in _build_direct_mrz_variants(gray):
+        for psm in (6, 7, 13):
+            try:
+                text = pytesseract.image_to_string(variant, config=config.format(psm=psm))
+            except Exception:  # noqa: BLE001
+                continue
+            lines = _clean_direct_mrz_lines(text)
+            candidates.extend(_direct_mrz_candidates_from_lines(lines))
+    return max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+
+
+def _build_direct_mrz_variants(gray: object) -> list[object]:
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
+    sharpened = cv2.addWeighted(clahe, 1.6, cv2.GaussianBlur(clahe, (0, 0), 1.6), -0.6, 0)
+    denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
+    _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    adaptive = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
+    return [gray, clahe, otsu, adaptive]
+
+
+def _direct_mrz_candidates_from_lines(lines: list[str]) -> list[DirectMrzResult]:
+    candidates: list[DirectMrzResult] = []
     for index, line in enumerate(lines):
         if not line.startswith(("P<", "P1", "PI")):
             continue
         line1 = _repair_direct_line1(line)
-        line2 = _pick_direct_line2(lines[index + 1 :])
-        if not line2:
-            continue
-        score = _score_direct_mrz(line1, line2)
-        if score >= 70:
-            return DirectMrzResult(line1=line1, line2=line2, valid_score=score)
-    return None
+        for line2 in _direct_line2_candidates(lines[index + 1 :]):
+            score = _score_direct_mrz(line1, line2)
+            if score >= 70:
+                candidates.append(DirectMrzResult(line1=line1, line2=line2, valid_score=score))
+    return candidates
 
 
 def _clean_direct_mrz_lines(text: str) -> list[str]:
@@ -197,11 +209,16 @@ def _repair_direct_line1(value: str) -> str:
 
 
 def _pick_direct_line2(lines: list[str]) -> str:
-    for line in lines[:3]:
+    return next(iter(_direct_line2_candidates(lines)), "")
+
+
+def _direct_line2_candidates(lines: list[str]) -> list[str]:
+    candidates: list[str] = []
+    for line in lines[:4]:
         candidate = _repair_direct_line2(line)
         if _score_direct_line2(candidate) >= 2:
-            return candidate
-    return ""
+            candidates.append(candidate)
+    return sorted(set(candidates), key=_score_direct_line2, reverse=True)
 
 
 def _repair_direct_line2(value: str) -> str:

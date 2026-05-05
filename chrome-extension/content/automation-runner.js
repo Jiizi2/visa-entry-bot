@@ -3,6 +3,11 @@
   const {
     PASSPORT_UPLOAD_SELECTOR,
     NEXT_BUTTON_SELECTOR,
+    AUTOFILL_MAX_RETRIES_PER_MEMBER,
+    AUTOFILL_RETRY_BASE_DELAY_MS,
+    AUTOFILL_RETRY_MAX_DELAY_MS,
+    AUTOFILL_MEMBER_WATCHDOG_MS,
+    AUTOFILL_SESSION_RECOVERY_WAIT_MS,
   } = root.constants || {};
   const { normalizeDateToIso } = root.dateUtils || {};
   const { deepValue } = root.valueUtils || {};
@@ -20,6 +25,8 @@
     persistState,
     runStep,
     countsForProgress,
+    sleep,
+    waitUntil,
   }) {
     async function runAutomation(payload, runId = state.runToken) {
       const members = resolveAutomationMembers(payload);
@@ -60,23 +67,73 @@
         appendLog?.("info", `Memproses jamaah ${memberOffset + 1}/${members.length}: ${describeMember(member)}`);
         postPanelState();
 
-        for (let index = 0; index < globalSteps.length; index += 1) {
-          await checkpoint(runId);
-          await runStep(globalSteps[index], { ...context, index });
-          await slowModeDelayAfterStep(globalSteps[index], runId);
+        const result = await runMemberWithRetry({
+          payload,
+          members,
+          startMemberIndex,
+          memberOffset,
+          context,
+          globalSteps,
+          perMemberSteps,
+          runId,
+        });
+
+        if (result.success) {
+          appendLog?.("success", `Jamaah ${memberOffset + 1}/${members.length} berhasil dientry: ${describeMember(member)}`);
+          continue;
         }
 
-        for (let index = 0; index < perMemberSteps.length; index += 1) {
-          await checkpoint(runId);
-          const step = perMemberSteps[index];
-          await runStep(step, { ...context, index: globalSteps.length + index });
-          if (isMutamerSuccessPopupWaitStep(step)) {
-            await markMemberAddedForResume(payload, members, startMemberIndex, memberOffset);
+        appendLog?.("error", `Jamaah ${memberOffset + 1}/${members.length} dilewati setelah retry maksimal: ${describeMember(member)}. Alasan: ${result.reason}`);
+        await recordMemberFailure(payload, members, startMemberIndex, memberOffset, result.reason);
+      }
+    }
+
+    async function runMemberWithRetry({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId }) {
+      const maxRetries = Math.max(1, Number(AUTOFILL_MAX_RETRIES_PER_MEMBER || 3));
+      const memberStartProgress = Number(state.progressCurrent || 0);
+      for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+        await checkpoint(runId);
+        try {
+          await withWatchdog(
+            runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId }),
+            Number(AUTOFILL_MEMBER_WATCHDOG_MS || 180000),
+            `jamaah ${context.memberNumber}/${context.totalMembers}`
+          );
+          return { success: true };
+        } catch (error) {
+          throwIfControlError(error);
+          state.progressCurrent = Math.min(memberStartProgress, Number(state.progressTotal || memberStartProgress));
+          const reason = classifyAutomationFailure(error);
+          await recordAttemptFailure(context, attempt, maxRetries, reason, error);
+          if (attempt >= maxRetries) {
+            return { success: false, reason };
           }
-          await slowModeDelayAfterStep(step, runId);
+          await recoverAfterAttemptFailure(reason, runId);
+          await sleep(backoffDelay(attempt), runId);
         }
+      }
+      return { success: false, reason: "max_retries_exceeded" };
+    }
 
-        appendLog?.("success", `Jamaah ${memberOffset + 1}/${members.length} berhasil dientry: ${describeMember(member)}`);
+    async function runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId }) {
+      await ensureSessionStillUsable();
+
+      for (let index = 0; index < globalSteps.length; index += 1) {
+        await checkpoint(runId);
+        await ensureSessionStillUsable();
+        await runStep(globalSteps[index], { ...context, index });
+        await slowModeDelayAfterStep(globalSteps[index], runId);
+      }
+
+      for (let index = 0; index < perMemberSteps.length; index += 1) {
+        await checkpoint(runId);
+        await ensureSessionStillUsable();
+        const step = perMemberSteps[index];
+        await runStep(step, { ...context, index: globalSteps.length + index });
+        if (isMutamerSuccessPopupWaitStep(step)) {
+          await markMemberAddedForResume(payload, members, startMemberIndex, memberOffset);
+        }
+        await slowModeDelayAfterStep(step, runId);
       }
     }
 
@@ -94,6 +151,194 @@
         totalMembers: remainingMembers.length,
       };
       await persistState?.();
+    }
+
+    async function recordMemberFailure(payload, members, startMemberIndex, memberOffset, reason) {
+      const failedMember = members[memberOffset];
+      state.autofillFailures = [
+        ...(Array.isArray(state.autofillFailures) ? state.autofillFailures : []),
+        {
+          memberIndex: startMemberIndex + memberOffset,
+          memberId: String(failedMember?.id || ""),
+          reason: String(reason || "unknown"),
+          failedAt: new Date().toISOString(),
+        },
+      ].slice(-100);
+
+      const remainingMembers = members.slice(memberOffset + 1);
+      state.currentRunPayload = remainingMembers.length
+        ? {
+            ...payload,
+            members: remainingMembers,
+            startMemberIndex: startMemberIndex + memberOffset + 1,
+            totalMembers: remainingMembers.length,
+          }
+        : null;
+      await persistState?.();
+    }
+
+    async function recordAttemptFailure(context, attempt, maxRetries, reason, error) {
+      const member = context.member || {};
+      const report = {
+        memberIndex: context.memberIndex,
+        batchMemberIndex: context.batchMemberIndex,
+        memberId: String(member.id || ""),
+        passportNumber: String(member?.resolvedProfile?.passportNumber || member?.passportExtracted?.passportNumber || ""),
+        attempt,
+        maxRetries,
+        reason,
+        url: String(location.href || ""),
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      };
+      state.autofillAttemptFailures = [
+        ...(Array.isArray(state.autofillAttemptFailures) ? state.autofillAttemptFailures : []),
+        report,
+      ].slice(-100);
+      appendLog?.("warning", `Percobaan ${attempt}/${maxRetries} gagal untuk ${describeMember(member)}: ${reason}`);
+      await captureFailureScreenshot(report).catch(() => {});
+      await persistState?.();
+    }
+
+    async function captureFailureScreenshot(report) {
+      if (!chrome?.runtime?.sendMessage) {
+        return;
+      }
+      const response = await chrome.runtime.sendMessage({
+        type: "NUSUK_CAPTURE_FAILURE_SCREENSHOT",
+        payload: {
+          memberIndex: report.memberIndex,
+          attempt: report.attempt,
+          reason: report.reason,
+        },
+      });
+      if (!response?.ok || !response.dataUrl) {
+        return;
+      }
+      state.autofillFailureScreenshots = [
+        ...(Array.isArray(state.autofillFailureScreenshots) ? state.autofillFailureScreenshots : []),
+        {
+          memberIndex: report.memberIndex,
+          attempt: report.attempt,
+          reason: report.reason,
+          capturedAt: new Date().toISOString(),
+          dataUrl: response.dataUrl,
+        },
+      ].slice(-3);
+    }
+
+    async function recoverAfterAttemptFailure(reason, runId) {
+      if (reason === "session_expired") {
+        appendLog?.("warning", "Session terlihat expired. Silakan login ulang di tab ini; automation akan lanjut setelah halaman kembali siap.");
+        await waitForSessionRecovery(runId);
+        return;
+      }
+
+      if (reason === "watchdog_timeout" || reason === "page_frozen" || reason === "navigation_failure") {
+        appendLog?.("warning", "Halaman terlihat macet. Refresh halaman lalu lanjut dari checkpoint jamaah yang sama.");
+        state.executionState = "running";
+        await persistState?.();
+        window.location.reload();
+        await sleep(10000, runId);
+        return;
+      }
+
+      await dismissBlockingPopups();
+    }
+
+    async function waitForSessionRecovery(runId) {
+      const timeoutMs = Number(AUTOFILL_SESSION_RECOVERY_WAIT_MS || 180000);
+      if (typeof waitUntil !== "function") {
+        await sleep(Math.min(timeoutMs, 15000), runId);
+        return;
+      }
+      await waitUntil(
+        () => !isSessionExpired(),
+        timeoutMs,
+        "Session masih expired setelah menunggu login ulang.",
+        runId
+      );
+    }
+
+    async function dismissBlockingPopups() {
+      const candidates = Array.from(document.querySelectorAll(".popup button, .modal button, button"))
+        .filter((button) => button instanceof HTMLElement)
+        .filter((button) => /^(ok|close|cancel|back)$/i.test(String(button.textContent || "").trim()));
+      const button = candidates.find((item) => {
+        const rect = item.getBoundingClientRect();
+        const style = window.getComputedStyle(item);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+      });
+      button?.click?.();
+    }
+
+    async function ensureSessionStillUsable() {
+      if (isSessionExpired()) {
+        throw new Error("session_expired");
+      }
+    }
+
+    function isSessionExpired() {
+      const url = String(location.href || "").toLowerCase();
+      if (url.includes("/login") || url.includes("/auth") || url.includes("signin") || url.includes("sessionexpired")) {
+        return true;
+      }
+      const bodyText = String(document.body?.innerText || "").toLowerCase();
+      if (bodyText.includes("session expired") || bodyText.includes("please login") || bodyText.includes("sign in")) {
+        return true;
+      }
+      return Boolean(document.querySelector("input[type='password'], input[name='password'], input[formcontrolname='password']"));
+    }
+
+    function classifyAutomationFailure(error) {
+      const message = String(error?.message || error || "").toLowerCase();
+      if (message.includes("execution interrupted")) {
+        return "interrupted";
+      }
+      if (message.includes("watchdog_timeout")) {
+        return "watchdog_timeout";
+      }
+      if (message.includes("session_expired") || isSessionExpired()) {
+        return "session_expired";
+      }
+      if (message.includes("timed out") || message.includes("timeout")) {
+        return "timeout";
+      }
+      if (message.includes("navigation") || message.includes("halaman nusuk belum siap")) {
+        return "navigation_failure";
+      }
+      if (message.includes("selector") || message.includes("tidak ditemukan") || message.includes("not found") || message.includes("belum muncul")) {
+        return "missing_element";
+      }
+      if (document.hidden || document.readyState === "loading") {
+        return "page_frozen";
+      }
+      return "unknown";
+    }
+
+    function throwIfControlError(error) {
+      if (error && typeof error === "object" && error.name === "NusukControlError") {
+        throw error;
+      }
+    }
+
+    function backoffDelay(attempt) {
+      const base = Math.max(500, Number(AUTOFILL_RETRY_BASE_DELAY_MS || 2000));
+      const max = Math.max(base, Number(AUTOFILL_RETRY_MAX_DELAY_MS || 15000));
+      const jitter = Math.floor(Math.random() * 800);
+      return Math.min(max, base * Math.pow(2, Math.max(0, attempt - 1)) + jitter);
+    }
+
+    async function withWatchdog(promise, timeoutMs, label) {
+      let timer = 0;
+      const watchdog = new Promise((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(`watchdog_timeout:${label}`)), Math.max(5000, Number(timeoutMs || 0)));
+      });
+      try {
+        return await Promise.race([promise, watchdog]);
+      } finally {
+        window.clearTimeout(timer);
+      }
     }
 
     function getSelectedMember() {

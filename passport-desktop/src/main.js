@@ -72,6 +72,8 @@ const STORAGE_KEYS = {
   recentBatches: "passport-assistant-recent-batches-v1",
 };
 
+const CHILD_AGE_LIMIT = 18;
+
 const state = {
   currentPage: "import",
   validationFilter: "all",
@@ -321,6 +323,13 @@ function bindActions() {
   });
 
   dom.fieldReviewRows.addEventListener("change", (event) => {
+    const companionSelect = event.target.closest("select[data-companion-select]");
+    if (companionSelect) {
+      updateActiveMemberCompanion(companionSelect.value);
+      scheduleRenderAll();
+      return;
+    }
+
     const input = event.target.closest("input[data-field-key]");
     if (!input) {
       return;
@@ -701,6 +710,7 @@ async function loadManifest() {
 
   const { invoke } = tauriBindings();
   const manifest = await invoke("load_manifest", { manifestPath: state.manifestPath });
+  syncManifestChildMetadata(manifest);
   state.manifest = manifest;
   state.originalManifest = cloneJson(manifest);
   state.activeMemberId = firstMemberId(manifest);
@@ -869,6 +879,20 @@ async function handlePrepareEntry() {
     return;
   }
 
+  const companionValidation = validateCompanionsBeforeExport();
+  if (!companionValidation.ok) {
+    state.statusHeadline = "Companion belum lengkap";
+    state.statusDetail = companionValidation.message;
+    state.currentPage = "validation";
+    appendEntryLog(`Gagal export: ${companionValidation.message}`, "warn");
+    if (companionValidation.firstMemberId) {
+      state.activeMemberId = companionValidation.firstMemberId;
+      syncPassportPageWithActiveMember();
+    }
+    renderAll();
+    return;
+  }
+
   try {
     const { invoke } = tauriBindings();
     state.isEntryRunning = true;
@@ -876,10 +900,11 @@ async function handlePrepareEntry() {
     state.statusDetail = "Menyiapkan file JSON untuk diupload ke extension.";
     appendEntryLog("Membuat batch data Nusuk untuk extension...");
     renderAll();
+    const exportManifest = buildManifestForEntryExport();
     const batchPath = await invoke("create_nusuk_batch", {
       manifestPath: state.manifestPath,
       selectedIds: Array.from(state.selectedIds),
-      manifestData: state.manifest,
+      manifestData: exportManifest,
     });
     state.exportedBatchPath = batchPath;
     appendEntryLog(`JSON untuk extension dibuat: ${batchPath}`, "success");
@@ -905,6 +930,87 @@ function truncateForLog(value, maxLength = 500) {
     return text;
   }
   return `${text.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function validateCompanionsBeforeExport() {
+  const selectedIds = effectiveSelectedIdsForExport();
+  const members = manifestMembers();
+  const missingChildren = members
+    .filter((member) => selectedIds.has(String(member.id || "")))
+    .filter((member) => childInfoForMember(member).isChild)
+    .filter((member) => {
+      const companionId = String(member.companionMemberId || "").trim();
+      const companion = members.find((candidate) => String(candidate.id || "") === companionId);
+      return !companion || childInfoForMember(companion).isChild;
+    });
+
+  if (!missingChildren.length) {
+    return { ok: true, message: "", firstMemberId: "" };
+  }
+
+  const names = missingChildren.slice(0, 3).map(memberDisplayName).join(", ");
+  const suffix = missingChildren.length > 3 ? ` dan ${missingChildren.length - 3} lainnya` : "";
+  return {
+    ok: false,
+    message: `${missingChildren.length} jamaah anak belum memiliki companion dewasa: ${names}${suffix}.`,
+    firstMemberId: String(missingChildren[0]?.id || ""),
+  };
+}
+
+function buildManifestForEntryExport() {
+  const selectedIds = effectiveSelectedIdsForExport();
+  const source = cloneJson(state.manifest);
+  const members = Array.isArray(source?.members) ? source.members : [];
+  const enrichedMembers = members.map((member) => enrichMemberForEntry(member, members));
+  enrichedMembers.sort((left, right) => {
+    const leftChild = childInfoForMember(left).isChild ? 1 : 0;
+    const rightChild = childInfoForMember(right).isChild ? 1 : 0;
+    return leftChild - rightChild;
+  });
+  source.members = enrichedMembers;
+  for (const member of enrichedMembers) {
+    const companionId = String(member.companionMemberId || "").trim();
+    if (companionId) {
+      selectedIds.add(companionId);
+    }
+  }
+  state.selectedIds = selectedIds;
+  return source;
+}
+
+function enrichMemberForEntry(member, allMembers) {
+  const nextMember = cloneJson(member);
+  const info = childInfoForMember(nextMember);
+  nextMember.isChild = info.isChild;
+  nextMember.ageAtReview = Number.isFinite(info.age) ? info.age : null;
+  const companionId = String(nextMember.companionMemberId || "").trim();
+  if (info.isChild && companionId) {
+    const companion = allMembers.find((candidate) => String(candidate.id || "") === companionId);
+    if (companion) {
+      nextMember.companion = buildCompanionSnapshot(companion);
+    }
+  } else {
+    delete nextMember.companionMemberId;
+    delete nextMember.companion;
+  }
+  return nextMember;
+}
+
+function effectiveSelectedIdsForExport() {
+  const base = state.selectedIds.size
+    ? new Set(Array.from(state.selectedIds).map((id) => String(id || "")).filter(Boolean))
+    : new Set(defaultSelectedIds(state.manifest));
+  const members = manifestMembers();
+  for (const member of members) {
+    if (!base.has(String(member.id || ""))) {
+      continue;
+    }
+    const companionId = String(member.companionMemberId || "").trim();
+    if (companionId) {
+      base.add(companionId);
+    }
+  }
+  return base;
 }
 
 async function handleTerminateEntry() {
@@ -935,9 +1041,37 @@ function updateActiveMemberField(fieldKey, nextValue) {
 
   const resolved = ensureResolvedProfile(member);
   setValueByPath(resolved, fieldKey, normalizeInputValueForField(fieldKey, nextValue));
+  syncMemberChildMetadata(member);
   state.reviewedMemberIds.delete(member.id);
   state.statusHeadline = "Perubahan lokal tersimpan";
   state.statusDetail = `${humanizeFieldPath(`resolvedProfile.${fieldKey}`)} diperbarui di sesi review.`;
+}
+
+function updateActiveMemberCompanion(companionMemberId) {
+  const member = activeMember();
+  if (!member) {
+    return;
+  }
+
+  const normalizedId = String(companionMemberId || "").trim();
+  syncMemberChildMetadata(member);
+  if (normalizedId) {
+    const companion = manifestMembers().find((item) => String(item.id || "") === normalizedId);
+    if (!companion) {
+      return;
+    }
+    member.companionMemberId = normalizedId;
+    member.companion = buildCompanionSnapshot(companion);
+    state.selectedIds.add(normalizedId);
+    state.statusHeadline = "Companion dipilih";
+    state.statusDetail = `${memberDisplayName(companion)} dipilih sebagai companion untuk ${memberDisplayName(member)}.`;
+  } else {
+    delete member.companionMemberId;
+    delete member.companion;
+    state.statusHeadline = "Companion dikosongkan";
+    state.statusDetail = `${memberDisplayName(member)} belum memiliki companion.`;
+  }
+  state.reviewedMemberIds.delete(member.id);
 }
 
 function resetActiveMemberFields() {
@@ -1464,9 +1598,11 @@ function renderPassportListItem(member) {
   const active = state.activeMemberId === member.id ? " is-active" : "";
   const reviewed = state.reviewedMemberIds.has(member.id);
   const tone = memberTone(member);
-  const confidence = formatConfidence(member.confidence);
-  const confidenceWidth = Math.max(4, Math.round(Number(member.confidence ?? 0) * 100));
   const passportNumber = valueFrom(resolved, "passportNumber");
+  const childInfo = childInfoForMember(member);
+  const companionMissing = childInfo.isChild && !String(member.companionMemberId || "").trim();
+  const groupLabel = childInfo.isChild ? "Child" : "Adult";
+  const groupClass = childInfo.isChild ? "child" : "adult";
 
   return `
     <div class="passport-item${active}${reviewed ? " is-reviewed" : ""}" data-member-id="${escapeHtml(member.id ?? "")}">
@@ -1477,13 +1613,11 @@ function renderPassportListItem(member) {
         </div>
         <div class="passport-meta">
           <span class="mono">${escapeHtml(passportNumber)}</span>
+          ${childInfo.isChild ? `<span class="mini-pill ${companionMissing ? "warn" : "info"}">${companionMissing ? "Butuh companion" : "Anak"}</span>` : ""}
         </div>
       </div>
-      <div class="passport-item-confidence ${tone}">
-        <strong>${escapeHtml(confidence)}</strong>
-        <div class="passport-conf-bar">
-          <span class="passport-conf-fill ${tone}" style="width: ${confidenceWidth}%"></span>
-        </div>
+      <div class="passport-item-confidence passport-item-group">
+        <span class="member-group-pill ${groupClass}">${escapeHtml(groupLabel)}</span>
       </div>
     </div>
   `;
@@ -1561,7 +1695,7 @@ function renderEntryPage() {
       ? basenameFromPath(state.selectedDir)
       : "Belum ada data";
   const validCount = state.validCount || countMembersByStatus("VALID");
-  const selectedCount = state.selectedIds.size;
+  const selectedCount = effectiveSelectedIdsForExport().size;
   const totalEntryCount = totalEntryTargetCount();
   const flowSteps = buildEntryFlowSteps({
     url: String(dom.nusukUrl?.value ?? state.nusukUrl ?? "").trim().toLowerCase(),
@@ -1614,6 +1748,7 @@ function activeCategoryPair() {
 
 function renderFieldReviewRows(member) {
   const resolved = ensureResolvedProfile(member);
+  syncMemberChildMetadata(member);
   const extracted = passportExtractedOf(member);
   const pair = activeCategoryPair();
   const visibleFields = pair.categoryIds
@@ -1690,12 +1825,61 @@ function renderFieldReviewRows(member) {
     });
 
   const rows = [];
+  const companionPanel = renderCompanionReviewPanel(member);
+  if (companionPanel) {
+    rows.push(companionPanel);
+  }
   for (let index = 0; index < cells.length; index += 2) {
     const left = cells[index];
     const right = cells[index + 1] ?? `<div class="field-pair-cell is-empty" aria-hidden="true"></div>`;
     rows.push(`<div class="field-review-row">${left}${right}</div>`);
   }
   return rows.join("");
+}
+
+function renderCompanionReviewPanel(member) {
+  const childInfo = childInfoForMember(member);
+  if (!childInfo.isChild) {
+    return "";
+  }
+
+  const candidates = companionCandidatesFor(member);
+  const selectedId = String(member.companionMemberId || "");
+  const selectedCompanion = candidates.find((candidate) => String(candidate.id || "") === selectedId) || null;
+  const ageLabel = Number.isFinite(childInfo.age)
+    ? `${childInfo.age} tahun`
+    : "umur belum terbaca";
+  const options = [
+    `<option value="">Pilih companion...</option>`,
+    ...candidates.map((candidate) => {
+      const passport = memberPassport(candidate);
+      const label = `${memberDisplayName(candidate)}${passport ? ` | ${passport}` : ""}`;
+      const selected = String(candidate.id || "") === selectedId ? " selected" : "";
+      return `<option value="${escapeHtml(candidate.id || "")}"${selected}>${escapeHtml(label)}</option>`;
+    }),
+  ].join("");
+
+  return `
+    <div class="field-review-row companion-review-row">
+      <div class="companion-review-card${selectedCompanion ? " is-complete" : " is-missing"}">
+        <div class="companion-review-copy">
+          <span class="companion-pill">Anak - ${escapeHtml(ageLabel)}</span>
+          <strong>Companion wajib dipilih sebelum export</strong>
+          <small>${
+            selectedCompanion
+              ? `Companion: ${escapeHtml(memberDisplayName(selectedCompanion))} (${escapeHtml(memberPassport(selectedCompanion) || "-")})`
+              : "Pilih jamaah dewasa yang akan menjadi companion di Nusuk."
+          }</small>
+        </div>
+        <label class="companion-select-wrap">
+          <span>Companion</span>
+          <select data-companion-select aria-label="Pilih companion">
+            ${options}
+          </select>
+        </label>
+      </div>
+    </div>
+  `;
 }
 
 function renderFieldCategoryTabs(member) {
@@ -1847,12 +2031,19 @@ function manifestMembers() {
   return Array.isArray(state.manifest?.members) ? state.manifest.members : [];
 }
 
+function syncManifestChildMetadata(manifest = state.manifest) {
+  const members = Array.isArray(manifest?.members) ? manifest.members : [];
+  for (const member of members) {
+    syncMemberChildMetadata(member);
+  }
+}
+
 function reviewCompletionState() {
   return computeReviewCompletionState(manifestMembers(), state.reviewedMemberIds);
 }
 
 function totalEntryTargetCount() {
-  return computeTotalEntryTargetCount(state.selectedIds.size, countMembersByStatus("VALID"));
+  return computeTotalEntryTargetCount(effectiveSelectedIdsForExport().size, countMembersByStatus("VALID"));
 }
 
 function appendEntryLog(message, level = "info") {
@@ -2051,6 +2242,69 @@ function memberDisplayName(member) {
 
   const extracted = passportExtractedOf(member);
   return [extracted.firstName, extracted.familyName].filter(Boolean).join(" ") || member.fileName || "-";
+}
+
+function memberPassport(member) {
+  const resolved = resolvedProfileOf(member);
+  return resolved.passportNumber || passportExtractedOf(member).passportNumber || "";
+}
+
+function syncMemberChildMetadata(member) {
+  if (!member || typeof member !== "object") {
+    return { isChild: false, age: null };
+  }
+  const info = childInfoForMember(member);
+  member.isChild = info.isChild;
+  member.ageAtReview = Number.isFinite(info.age) ? info.age : null;
+  if (!info.isChild) {
+    delete member.companionMemberId;
+    delete member.companion;
+  }
+  return info;
+}
+
+function childInfoForMember(member) {
+  const resolved = resolvedProfileOf(member);
+  const dob = resolved.dob || passportExtractedOf(member).dob || "";
+  const age = ageFromDateValue(dob);
+  return {
+    age,
+    isChild: Number.isFinite(age) && age < CHILD_AGE_LIMIT,
+  };
+}
+
+function ageFromDateValue(value, now = new Date()) {
+  const normalized = normalizeDateToNusuk(value);
+  if (!normalized) {
+    return null;
+  }
+  const [year, month, day] = normalized.split("/").map((part) => Number(part));
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+  let age = now.getFullYear() - year;
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  if (currentMonth < month || (currentMonth === month && currentDay < day)) {
+    age -= 1;
+  }
+  return age >= 0 && age < 130 ? age : null;
+}
+
+function companionCandidatesFor(member) {
+  const activeId = String(member?.id || "");
+  return manifestMembers()
+    .filter((candidate) => String(candidate.id || "") !== activeId)
+    .filter((candidate) => !childInfoForMember(candidate).isChild)
+    .filter((candidate) => memberPassport(candidate) || memberDisplayName(candidate) !== "-");
+}
+
+function buildCompanionSnapshot(member) {
+  return {
+    id: String(member?.id || ""),
+    name: memberDisplayName(member),
+    passportNumber: memberPassport(member),
+  };
 }
 
 function resolvedProfileOf(member) {

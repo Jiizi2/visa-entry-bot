@@ -79,12 +79,11 @@
         return false;
       }
       const remainingCount = countRunPayloadMembers(state.currentRunPayload);
-      state.runToken += 1;
-      appendLog("warning", `Halaman Nusuk refresh. Melanjutkan otomatis ${remainingCount} jamaah tersisa...`);
-      postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: `Melanjutkan otomatis ${remainingCount} jamaah tersisa setelah refresh halaman.` });
+      state.executionState = "paused";
+      appendLog("warning", `Halaman Nusuk refresh. ${remainingCount} jamaah tersisa siap dilanjutkan manual.`);
+      postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: `Autofill terhenti dengan ${remainingCount} jamaah tersisa. Klik Start/Lanjutkan untuk meneruskan.` });
       await persistState();
       postPanelState();
-      await runCurrentPayload(remainingCount);
       return true;
     }
 
@@ -98,18 +97,23 @@
       }
 
       activeRunPromise = (async () => {
+        let completedSuccessfully = false;
+        let interruptedForResume = false;
         try {
           await runAutomation(payload, state.runToken);
           if (state.executionState === "running") {
             state.executionState = "completed";
+            completedSuccessfully = true;
             appendLog("success", `Autofill selesai untuk ${memberCount} jamaah.`);
             postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message: `Autofill selesai untuk ${memberCount} jamaah.` });
           }
         } catch (error) {
           if (isControlError(error, "reset")) {
+            interruptedForResume = true;
             return;
           }
           if (isControlError(error, "replaced")) {
+            interruptedForResume = true;
             return;
           }
           state.executionState = "idle";
@@ -121,7 +125,12 @@
         } finally {
           clearActiveHighlight();
           await unlockTabAfterBackgroundRun();
-          state.currentRunPayload = null;
+          if (completedSuccessfully || !isRunnablePayload(state.currentRunPayload)) {
+            state.currentRunPayload = null;
+          }
+          if (interruptedForResume && isRunnablePayload(state.currentRunPayload)) {
+            state.executionState = "paused";
+          }
           activeRunPromise = null;
           await persistState();
           postPanelState();

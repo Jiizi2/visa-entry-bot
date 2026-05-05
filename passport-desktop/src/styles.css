@@ -1620,45 +1620,31 @@ tbody tr:hover {
   align-self: center;
 }
 
-.passport-item-confidence strong {
-  font-size: 0.88rem;
+.passport-item-group {
+  justify-items: end;
 }
 
-.passport-item-confidence.valid strong {
-  color: #34a853;
-}
-
-.passport-item-confidence.warn strong {
-  color: #fbbc04;
-}
-
-.passport-item-confidence.error strong {
-  color: var(--danger);
-}
-
-.passport-conf-bar {
-  width: 100%;
-  height: 8px;
-  overflow: hidden;
+.member-group-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 6px 10px;
   border-radius: 999px;
-  background: var(--surface-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.passport-conf-fill {
-  display: block;
-  height: 100%;
+.member-group-pill.adult {
+  background: rgba(48, 122, 72, 0.1);
+  color: #307a48;
 }
 
-.passport-conf-fill.valid {
-  background: #34a853;
-}
-
-.passport-conf-fill.warn {
-  background: #fbbc04;
-}
-
-.passport-conf-fill.error {
-  background: var(--danger);
+.member-group-pill.child {
+  background: rgba(251, 188, 4, 0.16);
+  color: #9a5f00;
 }
 
 .passport-panel-footer {
@@ -1814,6 +1800,73 @@ tbody tr:hover {
 .field-review-row {
   padding: 0;
   background: transparent;
+}
+
+.companion-review-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.companion-review-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(126, 144, 170, 0.22);
+  background: #ffffff;
+}
+
+.companion-review-card.is-missing {
+  border-color: rgba(186, 26, 26, 0.28);
+  background: rgba(186, 26, 26, 0.04);
+}
+
+.companion-review-card.is-complete {
+  border-color: rgba(48, 122, 72, 0.24);
+  background: rgba(48, 122, 72, 0.05);
+}
+
+.companion-review-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.companion-review-copy strong {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.companion-review-copy small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.companion-pill {
+  width: max-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(17, 84, 204, 0.1);
+  color: #1154cc;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companion-select-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.companion-select-wrap span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.companion-select-wrap select {
+  width: 100%;
 }
 
 .field-pair-cell {
@@ -2561,6 +2614,10 @@ tbody tr:hover {
     align-items: stretch;
   }
 
+  .companion-review-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .toolbar-button-row {
     display: grid;
   }
@@ -3064,7 +3121,6 @@ td,
 table,
 th,
 td,
-.passport-item-confidence strong,
 .confidence-value,
 .scan-stat strong,
 .passport-code-chip {

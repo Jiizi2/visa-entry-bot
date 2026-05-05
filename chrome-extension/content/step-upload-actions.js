@@ -55,32 +55,46 @@
       upload.setFileInputFromFile(input, uploadFileForWebsite);
       upload.notifyUploadWidget(input);
       await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
-      let selectedFileName = input?.files?.[0]?.name || "";
+      let selectedFileName = await verifyUploadSelection({
+        step,
+        input,
+        file: uploadFileForWebsite,
+        selector,
+        appendLog,
+        finishStep,
+      });
+      if (selectedFileName === true) {
+        return;
+      }
       if (!selectedFileName) {
-        const uploadError = findVisibleUploadError(input);
-        if (uploadError) {
-          throw new Error(`Upload ditolak halaman: ${uploadError}`);
+        appendLog("warning", "Input upload belum menahan file; mencoba ulang lewat Chrome debugger.");
+        const debuggerResult = await upload.trySetFileInputWithDebugger(input, resolvedFilePath, runId);
+        if (debuggerResult?.ok) {
+          upload.notifyUploadWidget(input);
+          await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
+        } else {
+          appendLog("warning", `Debugger upload tidak berhasil: ${debuggerResult?.error || "unknown error"}`);
+          appendLog("warning", "Mencoba ulang upload langsung ke input.");
+          upload.setFileInputFromFile(input, uploadFileForWebsite);
+          upload.notifyUploadWidget(input);
+          await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
         }
-        if (isKnownUploadProcessedByPage(step, input, uploadFileForWebsite)) {
-          appendLog("success", `${uploadKindLabel(step)} diproses oleh halaman: ${uploadFileForWebsite.name}`);
-          finishStep(step, selector);
+        selectedFileName = await verifyUploadSelection({
+          step,
+          input,
+          file: uploadFileForWebsite,
+          selector,
+          appendLog,
+          finishStep,
+        });
+        if (selectedFileName === true) {
           return;
         }
-        appendLog("warning", "Input upload mengosongkan file; mencoba ulang file yang sudah dinormalisasi.");
-        upload.setFileInputFromFile(input, uploadFileForWebsite);
-        upload.notifyUploadWidget(input);
-        await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
-        selectedFileName = input?.files?.[0]?.name || "";
       }
       if (!selectedFileName) {
         const uploadError = findVisibleUploadError(input);
         if (uploadError) {
           throw new Error(`Upload ditolak halaman: ${uploadError}`);
-        }
-        if (isKnownUploadProcessedByPage(step, input, uploadFileForWebsite)) {
-          appendLog("success", `${uploadKindLabel(step)} diproses oleh halaman: ${uploadFileForWebsite.name}`);
-          finishStep(step, selector);
-          return;
         }
         throw new Error("File gagal terpasang ke input upload.");
       }
@@ -93,7 +107,24 @@
     };
   }
 
-  function isKnownUploadProcessedByPage(step, input, file) {
+  async function verifyUploadSelection({ step, input, file, selector, appendLog, finishStep }) {
+    const selectedFileName = input?.files?.[0]?.name || "";
+    if (selectedFileName) {
+      return selectedFileName;
+    }
+    const uploadError = findVisibleUploadError(input);
+    if (uploadError) {
+      throw new Error(`Upload ditolak halaman: ${uploadError}`);
+    }
+    if (isKnownUploadProcessedByPage(step, file)) {
+      appendLog("success", `${uploadKindLabel(step)} diproses oleh halaman: ${file.name}`);
+      finishStep(step, selector);
+      return true;
+    }
+    return "";
+  }
+
+  function isKnownUploadProcessedByPage(step, file) {
     const uploadKind = String(step?.upload_kind || "").trim().toLowerCase();
     if (uploadKind === "vaccination") {
       return true;
@@ -104,7 +135,7 @@
     if (isPassportUploadAcceptedOnPage(file)) {
       return true;
     }
-    return input instanceof HTMLInputElement && !input.files?.length;
+    return false;
   }
 
   function isPassportUploadAcceptedOnPage(file) {

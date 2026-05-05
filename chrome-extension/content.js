@@ -86,6 +86,10 @@
     progressTotal: 0,
     logs: [],
     currentRunPayload: null,
+    autofillFailures: [],
+    autofillAttemptFailures: [],
+    autofillFailureScreenshots: [],
+    resumeAvailableAfterReload: false,
     runToken: 0,
   };
   let backgroundRunNoticeActive = false;
@@ -260,6 +264,8 @@
     persistState,
     runStep,
     countsForProgress,
+    sleep,
+    waitUntil,
   });
   const {
     startAutofillFromPanel,
@@ -307,7 +313,7 @@
     panelBridge.bindWindowBridge();
     panelBridge.bindRuntimeMessages();
     bindVisibilityStatus();
-    scheduleResumeAfterReload();
+    notifyResumeAvailableAfterReload();
   }
 
   function bindVisibilityStatus() {
@@ -367,7 +373,11 @@
     state.progressCurrent = Number(saved.progressCurrent || 0);
     state.progressTotal = Number(saved.progressTotal || 0);
     state.logs = Array.isArray(saved.logs) ? saved.logs.slice(-50) : [];
+    state.autofillFailures = Array.isArray(saved.autofillFailures) ? saved.autofillFailures.slice(-100) : [];
+    state.autofillAttemptFailures = Array.isArray(saved.autofillAttemptFailures) ? saved.autofillAttemptFailures.slice(-100) : [];
+    state.autofillFailureScreenshots = Array.isArray(saved.autofillFailureScreenshots) ? saved.autofillFailureScreenshots.slice(-3) : [];
     state.currentRunPayload = isRunnablePayload(saved.currentRunPayload) ? saved.currentRunPayload : null;
+    state.resumeAvailableAfterReload = String(saved.executionState || "").trim().toLowerCase() === "running" && isRunnablePayload(state.currentRunPayload);
     state.executionState = normalizeHydratedExecutionState(saved.executionState, state.currentRunPayload);
     if (state.executionState === "running") {
       state.closed = false;
@@ -375,13 +385,18 @@
     }
   }
 
-  function scheduleResumeAfterReload() {
-    if (state.executionState !== "running" || !isRunnablePayload(state.currentRunPayload)) {
+  function notifyResumeAvailableAfterReload() {
+    if (!state.resumeAvailableAfterReload || !isRunnablePayload(state.currentRunPayload)) {
       return;
     }
-    window.setTimeout(() => {
-      void resumeAutofillAfterReload();
-    }, 1400);
+    state.executionState = "paused";
+    state.resumeAvailableAfterReload = false;
+    void persistState();
+    postPanelState();
+    postToPanel("NUSUK_PANEL_STATUS", {
+      tone: "warning",
+      message: "Autofill sebelumnya terhenti. Klik Start/Lanjutkan untuk meneruskan dari checkpoint.",
+    });
   }
 
   function isRunnablePayload(payload) {
@@ -391,7 +406,7 @@
   function normalizeHydratedExecutionState(value, payload) {
     const text = String(value || "").trim().toLowerCase();
     if (text === "running") {
-      return isRunnablePayload(payload) ? "running" : "completed";
+      return isRunnablePayload(payload) ? "paused" : "completed";
     }
     if (text === "paused") {
       return isRunnablePayload(payload) ? "paused" : "idle";

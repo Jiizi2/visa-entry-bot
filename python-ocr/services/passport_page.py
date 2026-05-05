@@ -96,12 +96,17 @@ def collect_ocr_lines(
     if cached is not None:
         return cached
 
-    config_suffix = f" -c tessedit_char_whitelist={whitelist}" if whitelist else ""
+    config_suffix = " -c user_defined_dpi=300 -c preserve_interword_spaces=1"
+    if whitelist:
+        config_suffix += f" -c tessedit_char_whitelist={whitelist}"
     seen: set[str] = set()
     lines: list[str] = []
     for variant in _build_variants(region, variant_mode):
         for psm in psm_values:
-            text = pytesseract.image_to_string(variant, config=f"--oem 3 --psm {psm}{config_suffix}")
+            try:
+                text = pytesseract.image_to_string(variant, config=f"--oem 3 --psm {psm}{config_suffix}")
+            except Exception:  # noqa: BLE001
+                continue
             for raw_line in text.splitlines():
                 cleaned = re.sub(r"\s+", " ", raw_line).strip()
                 if cleaned and cleaned not in seen:
@@ -124,12 +129,16 @@ def configure_tesseract() -> bool:
 
 def _build_variants(region: object, mode: str = "default") -> list[object]:
     gray = _to_gray(region)
-    scale = 2.2 if gray.shape[1] < 900 else 1.8
+    scale = _ocr_scale(gray)
     enlarged = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(enlarged)
-    sharpened = cv2.addWeighted(clahe, 1.5, cv2.GaussianBlur(clahe, (0, 0), 1.5), -0.5, 0)
-    denoised = cv2.medianBlur(sharpened, 3)
+    enlarged = _pad_for_tesseract(enlarged)
+    normalized = _normalize_background(enlarged)
+    deskewed = _deskew(normalized)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(deskewed)
+    sharpened = cv2.addWeighted(clahe, 1.55, cv2.GaussianBlur(clahe, (0, 0), 1.4), -0.55, 0)
+    denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
     _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, otsu_inv = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     adaptive = cv2.adaptiveThreshold(
         denoised,
         255,
@@ -138,13 +147,75 @@ def _build_variants(region: object, mode: str = "default") -> list[object]:
         31,
         9,
     )
+    local = cv2.adaptiveThreshold(
+        denoised,
+        255,
+        cv2.ADAPTIVE_THRESH_MEAN_C,
+        cv2.THRESH_BINARY,
+        41,
+        11,
+    )
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    opened = cv2.morphologyEx(otsu, cv2.MORPH_OPEN, kernel)
+    closed = cv2.morphologyEx(otsu, cv2.MORPH_CLOSE, kernel)
     if mode == "numeric":
-        return [otsu]
+        return _unique_variants([otsu, adaptive, local, closed])
     if mode == "hint":
-        return [clahe, otsu]
+        return _unique_variants([clahe, denoised, otsu, adaptive])
     if mode == "fast":
-        return [clahe, otsu]
-    return [clahe, otsu, adaptive]
+        return _unique_variants([clahe, denoised, otsu, adaptive])
+    return _unique_variants([clahe, denoised, otsu, adaptive, local, opened, closed, otsu_inv])
+
+
+def _ocr_scale(gray: object) -> float:
+    height, width = gray.shape[:2]
+    shortest = max(min(height, width), 1)
+    target_shortest = 220 if shortest < 140 else 320
+    scale = max(1.6, target_shortest / shortest)
+    if width < 700:
+        scale = max(scale, 2.6)
+    if width > 1600:
+        scale = min(scale, 1.4)
+    return min(scale, 4.0)
+
+
+def _pad_for_tesseract(gray: object) -> object:
+    border = max(12, min(gray.shape[:2]) // 16)
+    return cv2.copyMakeBorder(gray, border, border, border, border, cv2.BORDER_CONSTANT, value=255)
+
+
+def _normalize_background(gray: object) -> object:
+    kernel_size = max(15, (min(gray.shape[:2]) // 8) | 1)
+    background = cv2.medianBlur(gray, kernel_size)
+    normalized = cv2.divide(gray, background, scale=255)
+    return cv2.normalize(normalized, None, 0, 255, cv2.NORM_MINMAX)
+
+
+def _deskew(gray: object) -> object:
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    coordinates = np.column_stack(np.where(binary > 0))
+    if len(coordinates) < 20:
+        return gray
+    angle = cv2.minAreaRect(coordinates)[-1]
+    if angle < -45:
+        angle = 90 + angle
+    if abs(angle) > 8:
+        return gray
+    height, width = gray.shape[:2]
+    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
+    return cv2.warpAffine(gray, matrix, (width, height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+
+def _unique_variants(variants: list[object]) -> list[object]:
+    unique: list[object] = []
+    seen: set[str] = set()
+    for variant in variants:
+        array = np.ascontiguousarray(variant)
+        key = f"{array.shape}:{array.dtype}:{hash(array.tobytes())}"
+        if key not in seen:
+            seen.add(key)
+            unique.append(variant)
+    return unique
 
 
 def _extract_page_from_path(file_path: str) -> object | None:

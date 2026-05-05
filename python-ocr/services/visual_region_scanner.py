@@ -28,7 +28,10 @@ def scan_region_texts(region: object, psm: int, whitelist: str, variant_mode: st
         return store_cached_lines(cache_key, _unique(texts))
     config = f"--oem 3 --psm {psm} -c tessedit_char_whitelist={whitelist}"
     for variant in _build_variants(region):
-        text = pytesseract.image_to_string(variant, config=config).strip()
+        try:
+            text = pytesseract.image_to_string(variant, config=config).strip()
+        except Exception:  # noqa: BLE001
+            continue
         if text:
             texts.append(text)
     return store_cached_lines(cache_key, _unique(texts))
