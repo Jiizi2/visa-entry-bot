@@ -137,6 +137,49 @@
       finishStep(step, selector);
     }
 
+    async function handleClickAddCompanion(step, context, selector, timeoutMs, runId) {
+      if (step?.minor_only && !isMinorMember(context?.member)) {
+        appendLog("info", "Add Companion dilewati: jamaah bukan anak-anak.");
+        finishStep(step, selector || "Add Companion");
+        return;
+      }
+      appendLog("info", "Checking Add Companion action.");
+      const deadline = Date.now() + Math.max(500, Number(timeoutMs || 0));
+      let sawCompanionControl = false;
+      while (Date.now() < deadline) {
+        const button = findAddCompanionButton(selector);
+        if (button) {
+          sawCompanionControl = true;
+          if (!isEnabled(button)) {
+            await sleep(160, runId);
+            continue;
+          }
+          markActiveElement(button);
+          await clickElement(button);
+          await sleep(650, runId);
+          appendLog("success", "Add Companion clicked.");
+          const selected = await selectCompanionFromPicker(context, timeoutMs, runId);
+          if (selected) {
+            appendLog("success", "Companion selected.");
+          }
+          const relation = await selectCompanionRelation(context, timeoutMs, runId);
+          if (relation) {
+            appendLog("success", `Companion relation selected: ${relation}.`);
+          }
+          finishStep(step, selector || "Add Companion");
+          return;
+        }
+        await sleep(160, runId);
+      }
+
+      if (step?.optional_selector && !sawCompanionControl) {
+        appendLog("info", "Add Companion tidak muncul, dilewati.");
+        finishStep(step, selector || "Add Companion");
+        return;
+      }
+      throw new Error(sawCompanionControl ? "Tombol Add Companion belum aktif." : "Tombol Add Companion tidak ditemukan.");
+    }
+
     async function handleFill(step, context, selector, timeoutMs, skipWhenEmpty, runId) {
       const value = interpolate(step?.value || "", context).trim();
       if (!value && skipWhenEmpty) {
@@ -332,6 +375,532 @@
         || (isMutamerListVisible() && hasAdd);
     }
 
+    function findAddCompanionButton(selector) {
+      const candidates = [
+        ...(selector ? queryAll(selector) : []),
+        ...findCompanionSectionButtons(),
+        ...queryAll([
+          ".companion button",
+          ".companion a",
+          ".companion [role='button']",
+          "[class*='companion' i] button",
+          "[class*='companion' i] a",
+          "[class*='companion' i] [role='button']",
+          "button",
+          "a",
+          "[role='button']",
+        ].join(", ")),
+      ];
+      return candidates.find((element) => {
+        if (!(element instanceof HTMLElement) || !isVisible(element)) {
+          return false;
+        }
+        return looksLikeAddCompanionControl(element);
+      }) || null;
+    }
+
+    function findCompanionSectionButtons() {
+      const sections = queryAll(".card, section, .form-group, .row, div")
+        .filter((node) => node instanceof HTMLElement && isVisible(node))
+        .filter((node) => isCompanionSection(node));
+      const buttons = [];
+      for (const section of sections) {
+        buttons.push(...Array.from(section.querySelectorAll("button, a, [role='button']")));
+      }
+      return buttons;
+    }
+
+    function isCompanionSection(node) {
+      const text = normalizeOption(node.textContent || "");
+      if (!text.includes("companion")) {
+        return false;
+      }
+      return text.includes("companion information")
+        || text.includes("companion is required")
+        || text.includes("add companion")
+        || text.includes("please add the companion");
+    }
+
+    async function selectCompanionFromPicker(context, timeoutMs, runId) {
+      const deadline = Date.now() + Math.max(1200, Math.min(Math.max(5000, Number(timeoutMs || 10000)), 20000));
+      const target = preferredCompanionTarget(context);
+      if (!target.tokens.length) {
+        throw new Error("Data companion tidak ditemukan di JSON untuk jamaah anak-anak ini.");
+      }
+      let selectedControl = null;
+      while (Date.now() < deadline) {
+        const rootNode = findCompanionPickerRoot();
+        if (!rootNode) {
+          await sleep(160, runId);
+          continue;
+        }
+
+        await filterCompanionPicker(rootNode, target, runId);
+
+        const row = findPreferredCompanionRow(rootNode, target);
+        const control = row ? findSelectableRowRadio(row) || findSelectableRowCheckbox(row) : null;
+        if (control && control !== selectedControl) {
+          selectedControl = control;
+          markActiveElement(control);
+          await clickElement(control);
+          await sleep(350, runId);
+        }
+
+        const confirmButton = findCompanionPickerConfirmButton(rootNode);
+        if (selectedControl && confirmButton) {
+          markActiveElement(confirmButton);
+          await clickElement(confirmButton);
+          await sleep(700, runId);
+          return true;
+        }
+
+        if (selectedControl && isControlSelected(selectedControl) && !confirmButton) {
+          return true;
+        }
+
+        if (selectedControl && isCompanionPickerClosedOrSettled(rootNode)) {
+          return true;
+        }
+
+        await sleep(180, runId);
+      }
+      throw new Error(`Companion tidak ditemukan di list Nusuk: ${target.label}.`);
+    }
+
+    function findCompanionPickerRoot() {
+      return queryAll([
+        ".modal",
+        ".popup",
+        ".p-dialog",
+        ".cdk-overlay-pane",
+        ".overlay",
+        ".page",
+        "body",
+      ].join(", ")).find((node) => node instanceof HTMLElement
+        && isVisible(node)
+        && looksLikeCompanionPicker(node)) || null;
+    }
+
+    function looksLikeCompanionPicker(node) {
+      const text = normalizeOption(node.textContent || "");
+      return text.includes("mutamer list")
+        && (text.includes("passport number") || text.includes("mutamer name") || Boolean(node.querySelector?.("tbody tr input[type='checkbox']")));
+    }
+
+    async function filterCompanionPicker(rootNode, target, runId) {
+      const value = target.searchValue;
+      if (!value || rootNode.getAttribute("data-nusuk-companion-filtered") === value) {
+        return;
+      }
+      appendLog("info", `Filter companion: ${value}`);
+      const trigger = findCompanionFilterTrigger(rootNode, value);
+      if (trigger) {
+        markActiveElement(trigger);
+        await clickElement(trigger);
+        await sleep(250, runId);
+      }
+      const filterRoot = findCompanionFilterOverlay() || rootNode;
+      const input = findCompanionFilterInput(filterRoot) || findCompanionFilterInput(document.body);
+      if (!input) {
+        return;
+      }
+      markActiveElement(input);
+      setInputValue(input, value);
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true }));
+      const applyButton = findCompanionFilterApplyButton(filterRoot) || findCompanionFilterApplyButton(document.body);
+      if (applyButton) {
+        markActiveElement(applyButton);
+        await clickElement(applyButton);
+      }
+      rootNode.setAttribute("data-nusuk-companion-filtered", value);
+      await sleep(900, runId);
+    }
+
+    function findCompanionFilterTrigger(rootNode, value) {
+      const headers = Array.from(rootNode.querySelectorAll("th, .column-header"))
+        .filter((node) => node instanceof HTMLElement && isVisible(node));
+      const passportLike = looksLikePassportNumber(value);
+      const targetHeader = headers.find((header) => {
+        const text = normalizeOption(header.textContent || "");
+        return passportLike ? text.includes("passport number") : text.includes("mutamer name");
+      }) || headers.find((header) => {
+        const text = normalizeOption(header.textContent || "");
+        return text.includes("passport number") || text.includes("mutamer name");
+      });
+      return targetHeader?.querySelector?.(".filter-trigger, .filter button")
+        || targetHeader?.querySelector?.("[class*='filter' i] button")
+        || null;
+    }
+
+    function looksLikePassportNumber(value) {
+      return /^[a-z][0-9]{5,}$/i.test(String(value || "").trim());
+    }
+
+    function findCompanionFilterInput(rootNode) {
+      return Array.from(rootNode.querySelectorAll([
+        "input[type='text']",
+        "input[type='search']",
+        "input:not([type])",
+        ".p-column-filter input",
+        ".p-column-filter-menu input",
+        ".p-column-filter-constraints input",
+      ].join(", "))).find((input) => input instanceof HTMLInputElement && isVisible(input) && isEnabled(input)) || null;
+    }
+
+    function findCompanionFilterOverlay() {
+      return queryAll([
+        ".p-column-filter-overlay",
+        ".p-column-filter-menu",
+        ".p-column-filter-constraints",
+        ".p-overlaypanel",
+        ".p-connected-overlay",
+        ".cdk-overlay-pane",
+      ].join(", ")).find((node) => node instanceof HTMLElement
+        && isVisible(node)
+        && Boolean(node.querySelector?.("input"))) || null;
+    }
+
+    function findCompanionFilterApplyButton(rootNode) {
+      return Array.from(rootNode.querySelectorAll([
+        ".p-column-filter-buttonbar button",
+        "button",
+        "[role='button']",
+      ].join(", "))).find((button) => {
+        if (!(button instanceof HTMLElement) || !isVisible(button) || !isEnabled(button)) {
+          return false;
+        }
+        const text = normalizeOption(button.textContent || button.getAttribute("aria-label") || "");
+        return text === "apply" || text.includes("apply");
+      }) || null;
+    }
+
+    function findPreferredCompanionRow(rootNode, target) {
+      const rows = Array.from(rootNode.querySelectorAll("tbody tr"))
+        .filter((row) => row instanceof HTMLElement && isVisible(row));
+      return rows.find((row) => rowMatchesPreferredCompanion(row, target)) || null;
+    }
+
+    function findSelectableRowRadio(row) {
+      return Array.from(row.querySelectorAll([
+        "p-radiobutton",
+        "p-radioButton",
+        ".p-radiobutton",
+        ".p-radiobutton-box",
+        "[role='radio']",
+        "input[type='radio']",
+      ].join(", "))).find((radio) => radio instanceof HTMLElement && isVisible(radio) && isEnabled(radio)) || null;
+    }
+
+    function rowMatchesPreferredCompanion(row, target) {
+      if (!target.tokens.length) {
+        return false;
+      }
+      const rowText = normalizeOption(row.textContent || "");
+      return target.tokens.some((token) => token && rowText.includes(token));
+    }
+
+    function preferredCompanionTarget(context) {
+      const member = context?.member || {};
+      const explicit = explicitCompanionTokens(member);
+      if (explicit.tokens.length) {
+        return explicit;
+      }
+      const members = Array.isArray(context?.members) ? context.members : [];
+      const currentId = String(context?.member?.id || "");
+      const candidates = members.filter((member) => String(member?.id || "") !== currentId && !isMinorMember(member));
+      if (candidates.length !== 1) {
+        return { searchValue: "", label: "companion tidak unik", tokens: [] };
+      }
+      return memberToCompanionTarget(candidates[0], "adult companion dari batch");
+    }
+
+    function explicitCompanionTokens(member) {
+      const source = member?.companion || member?.companionProfile || member?.guardian || member?.mahram || member?.resolvedProfile?.companion || {};
+      const directTokens = [
+        member?.companionId,
+        member?.companionMemberId,
+        member?.companionPassportNumber,
+        member?.companionName,
+        member?.guardianPassportNumber,
+        member?.guardianName,
+        source?.id,
+        source?.memberId,
+        source?.passportNumber,
+        source?.name,
+        [source?.firstName, source?.familyName].filter(Boolean).join(" "),
+      ].map((item) => normalizeOption(item || "")).filter(Boolean);
+      const searchValue = [
+        member?.companionPassportNumber,
+        member?.guardianPassportNumber,
+        source?.passportNumber,
+        member?.companionName,
+        member?.guardianName,
+        source?.name,
+      ].find(Boolean) || "";
+      return {
+        searchValue: String(searchValue || "").trim(),
+        label: String(searchValue || directTokens[0] || "companion JSON").trim(),
+        tokens: Array.from(new Set(directTokens)),
+      };
+    }
+
+    function memberToCompanionTarget(member, label) {
+      const resolved = member?.resolvedProfile || {};
+      const extracted = member?.passportExtracted || {};
+      const fullName = [resolved.firstName || extracted.firstName, resolved.familyName || extracted.familyName].filter(Boolean).join(" ");
+      const tokens = [
+        resolved.passportNumber,
+        extracted.passportNumber,
+        fullName,
+      ].map((item) => normalizeOption(item || "")).filter(Boolean);
+      const searchValue = String(resolved.passportNumber || extracted.passportNumber || fullName || "").trim();
+      return {
+        searchValue,
+        label: searchValue || label,
+        tokens: Array.from(new Set(tokens)),
+      };
+    }
+
+    function findSelectableRowCheckbox(row) {
+      return Array.from(row.querySelectorAll("input[type='checkbox']"))
+        .find((checkbox) => checkbox instanceof HTMLInputElement && isVisible(checkbox) && isEnabled(checkbox)) || null;
+    }
+
+    function findCompanionPickerConfirmButton(rootNode) {
+      const footer = Array.from(rootNode.querySelectorAll(".p-dialog-footer, .modal-footer, .popup-actions"))
+        .find((node) => node instanceof HTMLElement && isVisible(node));
+      const searchRoot = footer || rootNode;
+      const candidates = Array.from(searchRoot.querySelectorAll("button, a, [role='button']"))
+        .filter((button) => button instanceof HTMLElement && isVisible(button) && isEnabled(button));
+      return candidates.find((button) => {
+        if (isOriginalCompanionActionButton(button)) {
+          return false;
+        }
+        const text = normalizeOption(button.textContent || button.getAttribute("aria-label") || button.getAttribute("title") || "");
+        return text === "add"
+          || text === "select"
+          || text === "save"
+          || text === "confirm"
+          || text === "done"
+          || text.includes("add companion")
+          || text.includes("select companion")
+          || text.includes("save companion");
+      }) || null;
+    }
+
+    function isOriginalCompanionActionButton(button) {
+      const card = button.closest?.(".companion-card, .card");
+      return card instanceof HTMLElement && isCompanionSection(card);
+    }
+
+    function isControlSelected(control) {
+      if (control instanceof HTMLInputElement && control.checked) {
+        return true;
+      }
+      const row = control?.closest?.("tr");
+      const className = String(control?.className || "").toLowerCase();
+      return className.includes("p-radiobutton-checked")
+        || className.includes("p-highlight")
+        || String(control?.querySelector?.(".p-radiobutton-box")?.className || "").toLowerCase().includes("p-highlight")
+        || (row instanceof HTMLElement && String(row.className || "").toLowerCase().includes("selected"));
+    }
+
+    function isCompanionPickerClosedOrSettled(rootNode) {
+      return !(rootNode instanceof HTMLElement) || !document.contains(rootNode) || !isVisible(rootNode);
+    }
+
+    async function selectCompanionRelation(context, timeoutMs, runId) {
+      const relation = resolveCompanionRelation(context);
+      const deadline = Date.now() + Math.max(1200, Math.min(Math.max(5000, Number(timeoutMs || 10000)), 20000));
+      while (Date.now() < deadline) {
+        const rootNode = findCompanionRelationRoot();
+        if (!rootNode) {
+          await sleep(160, runId);
+          continue;
+        }
+        if (companionRelationAlreadySelected(rootNode, relation)) {
+          return relation;
+        }
+        const trigger = findCompanionRelationTrigger(rootNode);
+        if (!trigger) {
+          await sleep(160, runId);
+          continue;
+        }
+        markActiveElement(trigger);
+        await clickElement(trigger);
+        await sleep(250, runId);
+        const option = findCompanionRelationOption(relation);
+        if (!option) {
+          await sleep(160, runId);
+          continue;
+        }
+        markActiveElement(option);
+        await clickElement(option);
+        await sleep(500, runId);
+        if (companionRelationAlreadySelected(rootNode, relation)) {
+          return relation;
+        }
+        return relation;
+      }
+      throw new Error(`Relation companion belum terpilih: ${relation}.`);
+    }
+
+    function resolveCompanionRelation(context) {
+      const member = context?.member || {};
+      const companion = member?.companion || member?.companionProfile || member?.guardian || member?.mahram || {};
+      const explicit = [
+        member?.companionRelation,
+        member?.guardianRelation,
+        member?.mahramRelation,
+        companion?.relation,
+        companion?.relationship,
+      ].find(Boolean);
+      if (explicit) {
+        return normalizeCompanionRelation(explicit);
+      }
+      const companionMember = preferredCompanionMemberFromContext(context);
+      const gender = normalizeOption(companionMember?.resolvedProfile?.gender || companionMember?.passportExtracted?.gender || companion?.gender || "");
+      if (gender.includes("female") || gender === "f") {
+        return "Mother";
+      }
+      return "Mother";
+    }
+
+    function normalizeCompanionRelation(value) {
+      const normalized = normalizeOption(value);
+      const options = [
+        "Mother",
+        "Daughter",
+        "Sister",
+        "Grandmother",
+        "Granddaughter",
+        "Maternal Aunt",
+        "Niece (Sister side)",
+        "Nephew (Brother side)",
+        "Nephew (Sister side)",
+        "Mother in law",
+        "Women Set",
+        "Daughter in law",
+        "Step Mother",
+        "Paternal Aunt",
+        "Wife",
+        "Husband's mother",
+        "Husband's father",
+      ];
+      return options.find((option) => normalizeOption(option) === normalized)
+        || options.find((option) => normalizeOption(option).includes(normalized) || normalized.includes(normalizeOption(option)))
+        || "Mother";
+    }
+
+    function preferredCompanionMemberFromContext(context) {
+      const target = preferredCompanionTarget(context);
+      const members = Array.isArray(context?.members) ? context.members : [];
+      return members.find((member) => {
+        const candidate = memberToCompanionTarget(member, "");
+        return candidate.tokens.some((token) => target.tokens.includes(token));
+      }) || null;
+    }
+
+    function findCompanionRelationRoot() {
+      const cards = queryAll(".companion-card, .card, section, div")
+        .filter((node) => node instanceof HTMLElement && isVisible(node))
+        .filter((node) => {
+          const text = normalizeOption(node.textContent || "");
+          return text.includes("companion information") && text.includes("relation");
+        });
+      return cards.find((node) => findCompanionRelationTrigger(node)) || null;
+    }
+
+    function findCompanionRelationTrigger(rootNode) {
+      const relationBlocks = Array.from(rootNode.querySelectorAll(".companion-relation, .form-group, .field, .row, div"))
+        .filter((node) => node instanceof HTMLElement && isVisible(node))
+        .filter((node) => normalizeOption(node.textContent || "").includes("relation"));
+      for (const block of relationBlocks) {
+        const trigger = block.querySelector([
+          ".dropdown-trigger",
+          ".p-dropdown",
+          "p-dropdown",
+          "[role='combobox']",
+          ".dropdown",
+          "button",
+        ].join(", "));
+        if (trigger instanceof HTMLElement && isVisible(trigger) && isEnabled(trigger)) {
+          return trigger;
+        }
+      }
+      return null;
+    }
+
+    function findCompanionRelationOption(relation) {
+      const expected = normalizeOption(relation);
+      return queryAll([
+        ".dropdown-menu .dropdown-item",
+        ".dropdown-list .dropdown-item",
+        ".p-dropdown-panel .p-dropdown-item",
+        ".p-select-panel .p-select-option",
+        "[role='listbox'] [role='option']",
+        "li",
+      ].join(", ")).find((node) => node instanceof HTMLElement
+        && isVisible(node)
+        && normalizeOption(node.textContent || "") === expected) || null;
+    }
+
+    function companionRelationAlreadySelected(rootNode, relation) {
+      const expected = normalizeOption(relation);
+      const labels = Array.from(rootNode.querySelectorAll(".dropdown-label, .p-dropdown-label, .p-select-label, [aria-selected='true']"))
+        .filter((node) => node instanceof HTMLElement && isVisible(node));
+      return labels.some((node) => normalizeOption(node.textContent || "") === expected);
+    }
+
+    function looksLikeAddCompanionControl(element) {
+      const text = normalizeOption([
+        element.textContent || "",
+        element.getAttribute("aria-label") || "",
+        element.getAttribute("title") || "",
+        element.getAttribute("data-testid") || "",
+        element.getAttribute("class") || "",
+      ].join(" "));
+      if (!text) {
+        return false;
+      }
+      const hasCompanion = text.includes("companion")
+        || text.includes("accompany")
+        || text.includes("accompanying")
+        || text.includes("dependent");
+      const hasAdd = text.includes("add") || text.includes("new") || text.includes("+");
+      return text.includes("add companion")
+        || text.includes("add new companion")
+        || text.includes("add accompanying")
+        || text.includes("add dependent")
+        || (hasCompanion && hasAdd);
+    }
+
+    function isMinorMember(member) {
+      const dob = String(member?.resolvedProfile?.dob || member?.passportExtracted?.dob || "").trim();
+      const birthDate = parseIsoDate(dob);
+      if (!birthDate) {
+        return true;
+      }
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const beforeBirthday = today.getMonth() < birthDate.getMonth()
+        || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+      if (beforeBirthday) {
+        age -= 1;
+      }
+      return age < 18;
+    }
+
+    function parseIsoDate(value) {
+      const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) {
+        return null;
+      }
+      const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     function isMutamerListVisible() {
       return queryAll(".mutamer-header-title h2, h1, h2, .title")
         .some((node) => {
@@ -366,6 +935,7 @@
       handleWaitForNusukPageReady,
       handleOpenMutamerForm,
       handleClick,
+      handleClickAddCompanion,
       handleFill,
       handleFillArabicMinimal,
       handleClickSuccessPopupAction,

@@ -230,8 +230,11 @@ function applyIncomingState(payload) {
 }
 
 async function handlePassportFileSelection(event) {
-  const files = Array.from(event.target?.files || []);
+  const selectedFiles = Array.from(event.target?.files || []);
+  const files = selectedFiles.filter(isPassportUploadCandidate);
   if (!files.length) {
+    setStatus("Tidak ada file passport yang valid. Pilih file gambar atau PDF.", "error");
+    event.target.value = "";
     return;
   }
 
@@ -239,9 +242,21 @@ async function handlePassportFileSelection(event) {
   state.uploadFileNames = files.slice(0, 5).map((file) => file.webkitRelativePath || file.name);
   renderPassportFilesSummary();
   updateRunControls();
-  setStatus(`${files.length} file passport siap dipakai untuk upload.`, "success");
+  const ignoredCount = selectedFiles.length - files.length;
+  setStatus(`${files.length} file passport siap dipakai untuk upload.${ignoredCount > 0 ? ` ${ignoredCount} file non-passport dilewati.` : ""}`, "success");
   postToParent("NUSUK_PANEL_UPLOAD_FILES", { files });
   event.target.value = "";
+}
+
+function isPassportUploadCandidate(file) {
+  const name = String(file?.name || "").toLowerCase();
+  const type = String(file?.type || "").toLowerCase();
+  if (!name || name.endsWith(".json")) {
+    return false;
+  }
+  return type.startsWith("image/")
+    || type === "application/pdf"
+    || /\.(png|jpe?g|webp|bmp|gif|pdf)$/i.test(name);
 }
 
 function renderManifestSection() {

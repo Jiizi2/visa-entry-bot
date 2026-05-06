@@ -31,6 +31,7 @@
       "wait_for_enabled",
       "wait_for_nusuk_page_ready",
       "click",
+      "click_add_companion",
       "open_mutamer_form",
       "fill",
       "fill_arabic_minimal",

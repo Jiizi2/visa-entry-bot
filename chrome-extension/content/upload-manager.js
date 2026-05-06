@@ -52,7 +52,7 @@
         }
         return file;
       }
-      if (isUploadFileWithinBounds(file)) {
+      if (isUploadFileWithinBounds(file) && !shouldConvertImageFormatToJpeg(file)) {
         return file;
       }
       try {
@@ -77,6 +77,15 @@
       const name = String(file.name || "").toLowerCase();
       const type = String(file.type || "").toLowerCase();
       return type.startsWith("image/") || /\.(png|jpe?g)$/i.test(name);
+    }
+
+    function shouldConvertImageFormatToJpeg(file) {
+      if (!(file instanceof File)) {
+        return false;
+      }
+      const name = String(file.name || "").toLowerCase();
+      const type = String(file.type || "").toLowerCase();
+      return type === "image/png" || /\.png$/i.test(name);
     }
 
     function isUploadFileWithinBounds(file) {

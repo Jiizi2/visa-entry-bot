@@ -54,6 +54,7 @@
         const member = members[memberOffset];
         const context = {
           member,
+          members,
           memberIndex: startMemberIndex + memberOffset,
           batchMemberIndex: memberOffset,
           memberNumber: memberOffset + 1,
@@ -361,6 +362,9 @@
       }
       if (message.includes("navigation") || message.includes("halaman nusuk belum siap")) {
         return "navigation_failure";
+      }
+      if (message.includes("tombol next belum siap") || message.includes("next button is not enabled") || message.includes("form belum siap")) {
+        return "validation_blocked";
       }
       if (message.includes("selector") || message.includes("tidak ditemukan") || message.includes("not found") || message.includes("belum muncul")) {
         return "missing_element";

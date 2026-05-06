@@ -132,6 +132,11 @@
         return;
       }
 
+      if (action === "click_add_companion") {
+        await basicActions.handleClickAddCompanion(step, context, selector, timeoutMs, runId);
+        return;
+      }
+
       if (action === "fill") {
         await basicActions.handleFill(step, context, selector, timeoutMs, skipWhenEmpty, runId);
         return;
@@ -198,6 +203,7 @@
     function shouldWaitForPageBeforeAction(action) {
       return [
         "click",
+        "click_add_companion",
         "set_files",
         "set_phone_fields",
         "set_calendar_date",

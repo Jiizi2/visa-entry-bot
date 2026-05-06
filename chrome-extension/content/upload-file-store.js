@@ -65,12 +65,25 @@
       if (!value || typeof value !== "object") {
         return false;
       }
-      if (value instanceof File) {
-        return true;
+      const looksLikeFile = value instanceof File
+        || (Object.prototype.toString.call(value) === "[object File]"
+          && typeof value.name === "string"
+          && typeof value.size === "number");
+      if (!looksLikeFile) {
+        return false;
       }
-      return Object.prototype.toString.call(value) === "[object File]"
-        && typeof value.name === "string"
-        && typeof value.size === "number";
+      return isPassportUploadCandidate(value);
+    }
+
+    function isPassportUploadCandidate(file) {
+      const name = String(file?.name || "").toLowerCase();
+      const type = String(file?.type || "").toLowerCase();
+      if (!name || name.endsWith(".json")) {
+        return false;
+      }
+      return type.startsWith("image/")
+        || type === "application/pdf"
+        || /\.(png|jpe?g|webp|bmp|gif|pdf)$/i.test(name);
     }
 
     function toUploadEntry(file, fallback = {}) {

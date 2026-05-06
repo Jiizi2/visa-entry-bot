@@ -69,7 +69,8 @@
         }
         await sleep(waitPollMs, runId);
       }
-      throw new Error(errorMessage || "Timed out waiting for condition.");
+      const message = typeof errorMessage === "function" ? errorMessage() : errorMessage;
+      throw new Error(message || "Timed out waiting for condition.");
     }
 
     async function waitForPageReady(timeoutMs, runId = state.runToken) {

@@ -80,7 +80,7 @@
 
     function findNusukPageReadySignal(pageKey) {
       if (pageKey === "upload" || pageKey === "passport_upload") {
-        return findAttachedPassportInput(PASSPORT_UPLOAD_SELECTOR) || findProceedButton() || null;
+        return findPassportUploadReadySignal() || findProceedButton() || null;
       }
       if (pageKey === "passport_details" || pageKey === "passport") {
         return findPassportDetailsReadySignal();
@@ -111,6 +111,16 @@
         "p-calendar[formcontrolname='passportIssueDate'] input[type='text']",
         "input[formcontrolname='issueCityName']",
       ].join(", "));
+    }
+
+    function findPassportUploadReadySignal() {
+      return findAttachedPassportInput(PASSPORT_UPLOAD_SELECTOR)
+        || findFirstVisible([
+          ".container__notes__upload__button",
+          ".upload-button",
+          ".upload-box",
+          "div[class*='upload' i]",
+        ].join(", "));
     }
 
     function findMemberFormReadySignal() {
@@ -192,10 +202,10 @@
     }
 
     function findSummaryReadySignal() {
-      if (findDisclosureReadySignal()) {
+      if (findPassportUploadReadySignal() || findPassportDetailsReadySignal() || findMemberFormStageSignal() || findDisclosureReadySignal()) {
         return null;
       }
-      const marker = findFirstVisible([
+      const marker = queryAll([
         ".card .title:has-text('Summary')",
         ".card .title:has-text('Review')",
         ".title:has-text('Summary')",
@@ -206,9 +216,9 @@
         "h1:has-text('Review')",
         "h2:has-text('Review')",
         "h3:has-text('Review')",
-        ".card:has-text('Summary')",
-        ".card:has-text('Review')",
-      ].join(", "));
+      ].join(", ")).find((node) => node instanceof HTMLElement
+        && isVisible(node)
+        && !isLikelyStepperOrNavigationText(node));
       if (marker) {
         return marker;
       }
@@ -218,7 +228,7 @@
       if (submitLike && isVisible(submitLike) && isEnabled(submitLike)) {
         return submitLike;
       }
-      if (!findPassportDetailsReadySignal() && !findMemberFormStageSignal() && !findDisclosureReadySignal()) {
+      if (!findPassportUploadReadySignal() && !findPassportDetailsReadySignal() && !findMemberFormStageSignal() && !findDisclosureReadySignal()) {
         return findUsableNextButton();
       }
       return null;
@@ -285,11 +295,15 @@
           return null;
         }
         await attemptFillRequiredFieldsForCurrentPage(context);
+        const enabledButton = findUsableNextButton();
+        if (enabledButton) {
+          return enabledButton;
+        }
         if (!isCurrentPageReadyForNext()) {
           return null;
         }
-        return findUsableNextButton();
-      }, timeoutMs, "Form belum siap untuk tombol Next.", runId);
+        return enabledButton;
+      }, timeoutMs, () => buildNextButtonWaitFailureMessage(), runId);
       if (!button) {
         throw new Error("Next button is not enabled.");
       }
@@ -335,7 +349,7 @@
 
       while (Date.now() < deadline) {
         await attemptFillRequiredFieldsForCurrentPage(context);
-        if (isPageBusy() || !isCurrentPageReadyForNext()) {
+        if (isPageBusy()) {
           await sleep(160, runId);
           continue;
         }
@@ -359,7 +373,7 @@
         }
       }
 
-      return false;
+      throw new Error(buildNextButtonWaitFailureMessage());
     }
 
     async function waitForNextPageAfterClick({ beforeStage, beforeUrl, clickedButton, timeoutMs, runId }) {
@@ -424,7 +438,7 @@
       if (findMemberFormStageSignal()) {
         return 2;
       }
-      if (findFirstVisible(".container__notes__upload__button input[type='file'], p-dropdown[formcontrolname='passportTypeId'], input[formcontrolname='issueCityName']")) {
+      if (findPassportDetailsReadySignal()) {
         return 1;
       }
       if (findSummaryReadySignal()) {
@@ -445,6 +459,133 @@
         return isDisclosureCompleteForNext();
       }
       return true;
+    }
+
+    function buildNextButtonWaitFailureMessage() {
+      const stage = detectNusukStage();
+      const blockers = describeCurrentPageNextBlockers(stage);
+      const buttons = describeVisibleNextButtons();
+      const details = [
+        stage ? `stage=${stage}` : "stage=unknown",
+        blockers ? `kurang: ${blockers}` : "",
+        buttons ? `tombol: ${buttons}` : "",
+      ].filter(Boolean).join("; ");
+      return `Tombol Next belum siap${details ? ` (${details})` : ""}.`;
+    }
+
+    function describeCurrentPageNextBlockers(stage) {
+      if (stage === 1) {
+        return describeMissingPassportDetailsFields().join(", ");
+      }
+      if (stage === 2) {
+        return describeMissingMemberFormFields().join(", ");
+      }
+      if (stage === 3) {
+        return isDisclosureCompleteForNext() ? "" : "disclosure belum dipilih";
+      }
+      return "";
+    }
+
+    function describeMissingPassportDetailsFields() {
+      const missing = [];
+      if (!visibleDropdownHasSelection([
+        "select[formcontrolname='passportTypeId']",
+        "p-dropdown[formcontrolname='passportTypeId']",
+        "p-dropdown[formcontrolname='passportTypeId'] .p-dropdown",
+      ].join(", "))) {
+        missing.push("passport type");
+      }
+      if (!visibleInputHasValue([
+        "p-calendar[formcontrolname='passportIssueDate'] input[type='text']",
+        "input[formcontrolname='passportIssueDate']",
+      ].join(", "))) {
+        missing.push("passport issue date");
+      }
+      if (!visibleInputHasValue("input[formcontrolname='issueCityName']")) {
+        missing.push("issue city");
+      }
+      return missing;
+    }
+
+    function describeMissingMemberFormFields() {
+      const checks = [
+        ["arabic first name", [
+          "div[formgroupname='firstName'] input[formcontrolname='ar']",
+          "input[formcontrolname='firstName.ar']",
+          "input[name='firstName.ar']",
+          "input[placeholder='First Name (Arabic)']",
+          "input[placeholder='First name (Arabic)']",
+          "input[placeholder*='Arabic'][placeholder*='First']",
+        ].join(", ")],
+        ["arabic family name", [
+          "div[formgroupname='familyName'] input[formcontrolname='ar']",
+          "input[formcontrolname='familyName.ar']",
+          "input[name='familyName.ar']",
+          "input[placeholder='Family Name (Arabic)']",
+          "input[placeholder*='Arabic'][placeholder*='Family']",
+        ].join(", ")],
+        ["english first name", [
+          "div[formgroupname='firstName'] input[formcontrolname='en']",
+          "input[formcontrolname='firstName.en']",
+          "input[name='firstName.en']",
+          "input[placeholder='First name']",
+          "input[placeholder='First Name']",
+          "input[placeholder*='First'][placeholder]:not([placeholder*='Arabic'])",
+        ].join(", ")],
+        ["english family name", [
+          "div[formgroupname='familyName'] input[formcontrolname='en']",
+          "input[formcontrolname='familyName.en']",
+          "input[name='familyName.en']",
+          "input[placeholder='Family Name']",
+          "input[placeholder*='Family'][placeholder]:not([placeholder*='Arabic'])",
+        ].join(", ")],
+        ["profession", [
+          "input[formcontrolname='profession']",
+          "input[name='profession']",
+          "input[placeholder='Profession']",
+        ].join(", ")],
+        ["birth city", [
+          "input[formcontrolname='birthCityName']",
+          "input[name='birthCityName']",
+          "input[placeholder='Birth City']",
+        ].join(", ")],
+        ["email", [
+          "input[formcontrolname='email']",
+          "input[name='email']",
+          "input[placeholder='Email']",
+          "input[type='email'][placeholder='Email']",
+        ].join(", ")],
+      ];
+      const missing = checks
+        .filter(([, selector]) => !visibleInputHasValue(selector))
+        .map(([label]) => label);
+      if (!visibleDropdownHasSelection([
+        "select[formcontrolname='birthCountryId']",
+        "p-dropdown[formcontrolname='birthCountryId']",
+        "p-dropdown[formcontrolname='birthCountryId'] .p-dropdown",
+      ].join(", "))) {
+        missing.push("birth country");
+      }
+      if (!visiblePhoneInputHasValue()) {
+        missing.push("phone");
+      }
+      if (!visibleLabeledDropdownHasSelection("Marital Status")) {
+        missing.push("marital status");
+      }
+      return missing;
+    }
+
+    function describeVisibleNextButtons() {
+      const buttons = [];
+      for (const selector of NEXT_BUTTON_CANDIDATE_SELECTORS) {
+        const button = findFirstVisible(selector);
+        if (!button) {
+          continue;
+        }
+        const text = compactText(button.textContent || button.getAttribute?.("aria-label") || "");
+        buttons.push(`${text || "Next"} ${isEnabled(button) ? "enabled" : "disabled"}`);
+      }
+      return Array.from(new Set(buttons)).slice(0, 3).join(", ");
     }
 
     function isPassportDetailsCompleteForNext() {
@@ -684,6 +825,24 @@
         .some((node) => isVisible(node));
     }
 
+    function isLikelyStepperOrNavigationText(node) {
+      const container = node.closest([
+        ".stepper",
+        ".steps",
+        ".wizard",
+        ".breadcrumb",
+        ".nav",
+        ".navbar",
+        ".sidebar",
+        ".progress",
+        "[role='navigation']",
+        "[class*='step' i]",
+        "[class*='wizard' i]",
+        "[class*='breadcrumb' i]",
+      ].join(", "));
+      return Boolean(container instanceof HTMLElement && isVisible(container));
+    }
+
     async function attemptFillRequiredFieldsForCurrentPage(context) {
       if (detectNusukStage() !== 2) {
         return;
@@ -706,6 +865,21 @@
         "input[name='familyName.ar']",
         "input[placeholder='Family Name (Arabic)']",
       ], pickFirstNonEmpty(rs?.arabic?.familyName, rs?.familyName, pe?.familyName));
+
+      setFirstVisibleInputIfEmpty([
+        "div[formgroupname='firstName'] input[formcontrolname='en']",
+        "input[formcontrolname='firstName.en']",
+        "input[name='firstName.en']",
+        "input[placeholder='First name']",
+        "input[placeholder='First Name']",
+      ], pickFirstNonEmpty(rs?.firstName, pe?.firstName));
+
+      setFirstVisibleInputIfEmpty([
+        "div[formgroupname='familyName'] input[formcontrolname='en']",
+        "input[formcontrolname='familyName.en']",
+        "input[name='familyName.en']",
+        "input[placeholder='Family Name']",
+      ], pickFirstNonEmpty(rs?.familyName, pe?.familyName));
 
       setFirstVisibleInputIfEmpty([
         "input[formcontrolname='profession']",
@@ -741,6 +915,10 @@
       }
       markActiveElement(input);
       setInputValue(input, value);
+    }
+
+    function compactText(text) {
+      return String(text || "").replace(/\s+/g, " ").trim();
     }
 
     return {
