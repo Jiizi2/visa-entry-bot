@@ -95,6 +95,10 @@ Toolchain tersedia:
 
 File JSON menjadi satu-satunya kontrak antara desktop app dan extension. Tidak ada API lokal, native host, WebSocket, HTTP bridge, atau polling command.
 
+### OCR production readiness
+
+Rencana peningkatan OCR passport Indonesia dicatat di `python-ocr/PARTIAL_REFACTOR_PLAN.md`. Dokumen tersebut menjadi acuan untuk refactor bertahap: mulai dari golden dataset dan benchmark, lalu MRZ validation, field evidence, mode OCR hemat resource, layout profile Indonesia, dan failure handling production.
+
 ### 2. Extension utama memakai `chrome-extension`
 
 Folder `chrome-extension/` lebih cocok dijadikan basis karena sudah memiliki:
