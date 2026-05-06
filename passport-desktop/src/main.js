@@ -39,6 +39,8 @@ import {
 } from "./main-review-panels.js";
 import {
   countMembersByStatus as countMembersByStatusFromMembers,
+  isMemberReadyForEntry,
+  memberReviewStatus,
   computeReviewCompletionState,
   computeTotalEntryTargetCount,
   buildEntryFlowSteps,
@@ -73,6 +75,26 @@ const STORAGE_KEYS = {
 };
 
 const CHILD_AGE_LIMIT = 18;
+const COMPANION_RELATION_OPTIONS = [
+  "Mother",
+  "Daughter",
+  "Sister",
+  "Grandmother",
+  "Granddaughter",
+  "Maternal Aunt",
+  "Niece (Sister side)",
+  "Nephew (Brother side)",
+  "Nephew (Sister side)",
+  "Mother in law",
+  "Women Set",
+  "Daughter in law",
+  "Step Mother",
+  "Paternal Aunt",
+  "Wife",
+  "Husband's mother",
+  "Husband's father",
+];
+const DEFAULT_COMPANION_RELATION = "Mother";
 
 const state = {
   currentPage: "import",
@@ -93,6 +115,7 @@ const state = {
   totalFiles: 0,
   validCount: 0,
   errorCount: 0,
+  reviewCount: 0,
   progressCurrent: 0,
   progressTotal: 0,
   progressFileName: "",
@@ -330,6 +353,13 @@ function bindActions() {
       return;
     }
 
+    const companionRelationSelect = event.target.closest("select[data-companion-relation-select]");
+    if (companionRelationSelect) {
+      updateActiveMemberCompanionRelation(companionRelationSelect.value);
+      scheduleRenderAll();
+      return;
+    }
+
     const input = event.target.closest("input[data-field-key]");
     if (!input) {
       return;
@@ -465,12 +495,13 @@ async function setupEventBridge() {
         state.totalFiles = Number(payload.totalFiles ?? 0);
         state.validCount = Number(payload.validCount ?? 0);
         state.errorCount = Number(payload.errorCount ?? 0);
+        state.reviewCount = Number(payload.reviewCount ?? 0);
         state.progressCurrent = state.totalFiles;
         state.progressTotal = state.totalFiles;
         state.progressStageLabel = "Semua file selesai";
         state.statusHeadline = "Scan selesai";
         state.statusDetail = `Manifest dibuat di ${state.resultDir || "-"}.`;
-        appendScanLog(`Scan selesai | VALID ${payload.validCount ?? 0} | ERROR ${payload.errorCount ?? 0}`);
+        appendScanLog(`Scan selesai | VALID ${payload.validCount ?? 0} | ERROR ${payload.errorCount ?? 0} | REVIEW ${payload.reviewCount ?? 0}`);
         rememberRecentBatch(state.selectedDir || state.resultDir, state.totalFiles, state.manifestPath);
         await loadManifest();
         renderAll();
@@ -572,6 +603,7 @@ async function startScan() {
   state.totalFiles = 0;
   state.validCount = 0;
   state.errorCount = 0;
+  state.reviewCount = 0;
   state.progressCurrent = 0;
   state.progressTotal = 0;
   state.progressFileName = "";
@@ -717,6 +749,7 @@ async function loadManifest() {
   state.selectedIds = new Set(defaultSelectedIds(manifest));
   state.reviewedMemberIds = new Set();
   state.exportedBatchPath = "";
+  recalculateMetrics();
   ensureVisibleActiveMember();
 }
 
@@ -987,10 +1020,13 @@ function enrichMemberForEntry(member, allMembers) {
   if (info.isChild && companionId) {
     const companion = allMembers.find((candidate) => String(candidate.id || "") === companionId);
     if (companion) {
-      nextMember.companion = buildCompanionSnapshot(companion);
+      const relation = normalizeCompanionRelation(nextMember.companionRelation || nextMember.companion?.relation || inferDefaultCompanionRelation(nextMember, companion));
+      nextMember.companionRelation = relation;
+      nextMember.companion = buildCompanionSnapshot(companion, relation);
     }
   } else {
     delete nextMember.companionMemberId;
+    delete nextMember.companionRelation;
     delete nextMember.companion;
   }
   return nextMember;
@@ -1061,16 +1097,37 @@ function updateActiveMemberCompanion(companionMemberId) {
       return;
     }
     member.companionMemberId = normalizedId;
-    member.companion = buildCompanionSnapshot(companion);
+    const relation = normalizeCompanionRelation(member.companionRelation || member.companion?.relation || inferDefaultCompanionRelation(member, companion));
+    member.companionRelation = relation;
+    member.companion = buildCompanionSnapshot(companion, relation);
     state.selectedIds.add(normalizedId);
     state.statusHeadline = "Companion dipilih";
-    state.statusDetail = `${memberDisplayName(companion)} dipilih sebagai companion untuk ${memberDisplayName(member)}.`;
+    state.statusDetail = `${memberDisplayName(companion)} dipilih sebagai companion untuk ${memberDisplayName(member)} dengan relation ${relation}.`;
   } else {
     delete member.companionMemberId;
+    delete member.companionRelation;
     delete member.companion;
     state.statusHeadline = "Companion dikosongkan";
     state.statusDetail = `${memberDisplayName(member)} belum memiliki companion.`;
   }
+  state.reviewedMemberIds.delete(member.id);
+}
+
+function updateActiveMemberCompanionRelation(value) {
+  const member = activeMember();
+  if (!member) {
+    return;
+  }
+  const companionId = String(member.companionMemberId || "").trim();
+  const companion = manifestMembers().find((item) => String(item.id || "") === companionId);
+  if (!companion) {
+    return;
+  }
+  const relation = normalizeCompanionRelation(value);
+  member.companionRelation = relation;
+  member.companion = buildCompanionSnapshot(companion, relation);
+  state.statusHeadline = "Relation companion diperbarui";
+  state.statusDetail = `${relation} dipilih sebagai relation untuk companion ${memberDisplayName(companion)}.`;
   state.reviewedMemberIds.delete(member.id);
 }
 
@@ -1099,6 +1156,9 @@ function markActiveMemberValid() {
   }
 
   member.status = "VALID";
+  member.reviewStatus = "VALID";
+  member.requiresReview = false;
+  member.reviewReasons = [];
   state.selectedIds.add(member.id);
   state.reviewedMemberIds.add(member.id);
   state.statusHeadline = "Passport ditandai valid";
@@ -1126,6 +1186,9 @@ function handleSaveAndNext() {
   }
 
   member.status = "VALID";
+  member.reviewStatus = "VALID";
+  member.requiresReview = false;
+  member.reviewReasons = [];
   state.selectedIds.add(member.id);
   state.reviewedMemberIds.add(member.id);
   state.statusHeadline = "Review data selesai";
@@ -1381,7 +1444,7 @@ function currentTopbarStatus() {
   if (/gagal/i.test(state.statusHeadline)) {
     return { label: "Perlu Perhatian", tone: "danger" };
   }
-  if (state.manifestPath && state.errorCount > 0) {
+  if (state.manifestPath && (state.errorCount > 0 || state.reviewCount > 0)) {
     return { label: "Perlu Dicek", tone: "warn" };
   }
   if (state.manifestPath) {
@@ -1436,7 +1499,7 @@ function importFooterMessage() {
     return `Data aktif saat ini berasal dari folder ${activeFolder}. Jika lanjut, proses akan mengganti data dengan folder ${selectedFolder}.`;
   }
   if (hasScanResultForSelectedDir()) {
-    return `Proses terakhir sudah selesai. ${state.validCount} data siap dipakai dan ${state.errorCount} perlu dicek.`;
+    return `Proses terakhir sudah selesai. ${state.validCount} data siap dipakai, ${state.reviewCount} perlu review, dan ${state.errorCount} error.`;
   }
   return "";
 }
@@ -1560,8 +1623,8 @@ function renderPassportList() {
   const pagedMembers = paginateMembers(visibleMembers);
 
   dom.filterAllCount.textContent = String(allMembers.length);
-  dom.filterErrorCount.textContent = String(allMembers.filter((member) => member.status === "ERROR").length);
-  dom.filterValidCount.textContent = String(allMembers.filter((member) => member.status === "VALID").length);
+  dom.filterErrorCount.textContent = String(allMembers.filter((member) => memberReviewStatus(member) === "ERROR").length);
+  dom.filterValidCount.textContent = String(allMembers.filter((member) => memberReviewStatus(member) === "VALID").length);
 
   for (const button of dom.filterButtons) {
     button.classList.toggle("is-active", button.dataset.validationFilter === state.validationFilter);
@@ -1846,6 +1909,7 @@ function renderCompanionReviewPanel(member) {
   const candidates = companionCandidatesFor(member);
   const selectedId = String(member.companionMemberId || "");
   const selectedCompanion = candidates.find((candidate) => String(candidate.id || "") === selectedId) || null;
+  const selectedRelation = normalizeCompanionRelation(member.companionRelation || member.companion?.relation || (selectedCompanion ? inferDefaultCompanionRelation(member, selectedCompanion) : ""));
   const ageLabel = Number.isFinite(childInfo.age)
     ? `${childInfo.age} tahun`
     : "umur belum terbaca";
@@ -1858,6 +1922,9 @@ function renderCompanionReviewPanel(member) {
       return `<option value="${escapeHtml(candidate.id || "")}"${selected}>${escapeHtml(label)}</option>`;
     }),
   ].join("");
+  const relationOptions = COMPANION_RELATION_OPTIONS
+    .map((relation) => `<option value="${escapeHtml(relation)}"${relation === selectedRelation ? " selected" : ""}>${escapeHtml(relation)}</option>`)
+    .join("");
 
   return `
     <div class="field-review-row companion-review-row">
@@ -1875,6 +1942,12 @@ function renderCompanionReviewPanel(member) {
           <span>Companion</span>
           <select data-companion-select aria-label="Pilih companion">
             ${options}
+          </select>
+        </label>
+        <label class="companion-select-wrap">
+          <span>Relation</span>
+          <select data-companion-relation-select aria-label="Pilih relation companion"${selectedCompanion ? "" : " disabled"}>
+            ${relationOptions}
           </select>
         </label>
       </div>
@@ -1915,8 +1988,12 @@ function renderFieldCategoryTabs(member) {
 }
 
 function workspaceStatusLabel(member) {
-  if (member.status === "ERROR") {
+  const status = memberReviewStatus(member);
+  if (status === "ERROR") {
     return "Perlu perhatian";
+  }
+  if (status === "NEEDS_REVIEW") {
+    return "Perlu review";
   }
   if (Number(member.confidence ?? 0) < 0.85) {
     return "Perlu dicek";
@@ -1925,8 +2002,12 @@ function workspaceStatusLabel(member) {
 }
 
 function workspaceStatusTone(member) {
-  if (member.status === "ERROR") {
+  const status = memberReviewStatus(member);
+  if (status === "ERROR") {
     return "error";
+  }
+  if (status === "NEEDS_REVIEW") {
+    return "warn";
   }
   if (Number(member.confidence ?? 0) < 0.85) {
     return "warn";
@@ -2089,10 +2170,10 @@ function isEntryAccessible() {
 function filteredMembers() {
   const members = manifestMembers();
   if (state.validationFilter === "error") {
-    return members.filter((member) => member.status === "ERROR");
+    return members.filter((member) => memberReviewStatus(member) === "ERROR" || memberReviewStatus(member) === "NEEDS_REVIEW");
   }
   if (state.validationFilter === "valid") {
-    return members.filter((member) => member.status === "VALID");
+    return members.filter((member) => memberReviewStatus(member) === "VALID");
   }
   return members;
 }
@@ -2219,7 +2300,7 @@ function defaultSelectedIds(manifest) {
     return [];
   }
   return manifest.members
-    .filter((member) => member.status === "VALID" && member.id)
+    .filter((member) => isMemberReadyForEntry(member) && member.id)
     .map((member) => member.id);
 }
 
@@ -2258,6 +2339,7 @@ function syncMemberChildMetadata(member) {
   member.ageAtReview = Number.isFinite(info.age) ? info.age : null;
   if (!info.isChild) {
     delete member.companionMemberId;
+    delete member.companionRelation;
     delete member.companion;
   }
   return info;
@@ -2299,12 +2381,28 @@ function companionCandidatesFor(member) {
     .filter((candidate) => memberPassport(candidate) || memberDisplayName(candidate) !== "-");
 }
 
-function buildCompanionSnapshot(member) {
+function buildCompanionSnapshot(member, relation = "") {
   return {
     id: String(member?.id || ""),
     name: memberDisplayName(member),
     passportNumber: memberPassport(member),
+    relation: normalizeCompanionRelation(relation),
   };
+}
+
+function inferDefaultCompanionRelation(_childMember, companionMember) {
+  const gender = normalizeText(resolvedProfileOf(companionMember).gender || passportExtractedOf(companionMember).gender || "");
+  if (gender === "female" || gender === "f") {
+    return DEFAULT_COMPANION_RELATION;
+  }
+  return DEFAULT_COMPANION_RELATION;
+}
+
+function normalizeCompanionRelation(value) {
+  const normalized = normalizeText(value);
+  return COMPANION_RELATION_OPTIONS.find((option) => normalizeText(option) === normalized)
+    || COMPANION_RELATION_OPTIONS.find((option) => normalizeText(option).includes(normalized) || normalized.includes(normalizeText(option)))
+    || DEFAULT_COMPANION_RELATION;
 }
 
 function resolvedProfileOf(member) {
@@ -2372,8 +2470,12 @@ function valueFrom(section, key) {
 }
 
 function memberTone(member) {
-  if (member.status === "ERROR") {
+  const status = memberReviewStatus(member);
+  if (status === "ERROR") {
     return "error";
+  }
+  if (status === "NEEDS_REVIEW") {
+    return "warn";
   }
   if (Number(member.confidence ?? 0) < 0.9) {
     return "warn";
@@ -2406,8 +2508,9 @@ function confidenceValueForMember(member, key) {
 function recalculateMetrics() {
   const members = manifestMembers();
   state.totalFiles = members.length;
-  state.validCount = members.filter((member) => member.status === "VALID").length;
-  state.errorCount = members.filter((member) => member.status === "ERROR").length;
+  state.validCount = members.filter((member) => memberReviewStatus(member) === "VALID").length;
+  state.errorCount = members.filter((member) => memberReviewStatus(member) === "ERROR").length;
+  state.reviewCount = members.filter((member) => memberReviewStatus(member) === "NEEDS_REVIEW").length;
 }
 
 function originalMemberById(memberId) {
@@ -2460,7 +2563,7 @@ function refreshCompactLogs() {
   }
 
   if (!state.isScanning && state.manifestPath) {
-    lines.push(`Hasil akhir | VALID ${state.validCount} | ERROR ${state.errorCount}`);
+    lines.push(`Hasil akhir | VALID ${state.validCount} | REVIEW ${state.reviewCount} | ERROR ${state.errorCount}`);
   }
 
   state.scanLogs = lines.slice(-3);

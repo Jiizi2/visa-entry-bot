@@ -207,7 +207,7 @@ fn create_nusuk_batch(
         .iter()
         .filter(|member| match member {
             Value::Object(map) if selected_id_set.is_empty() => {
-                map.get("status").and_then(Value::as_str) == Some("VALID")
+                member_review_status(map) == "VALID"
             }
             Value::Object(map) => map
                 .get("id")
@@ -241,6 +241,14 @@ fn create_nusuk_batch(
         .map_err(|err| format!("Gagal menulis batch Nusuk {}: {err}", output_path.display()))?;
 
     Ok(output_path.to_string_lossy().to_string())
+}
+
+fn member_review_status(map: &serde_json::Map<String, Value>) -> String {
+    map.get("reviewStatus")
+        .or_else(|| map.get("status"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_uppercase()
 }
 
 fn run_worker_process(
@@ -418,6 +426,32 @@ fn ancestor_chain(path: &Path) -> Vec<PathBuf> {
         current = value.parent();
     }
     paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Map;
+
+    #[test]
+    fn member_review_status_prefers_review_status() {
+        let mut member = Map::new();
+        member.insert("status".to_string(), Value::String("VALID".to_string()));
+        member.insert(
+            "reviewStatus".to_string(),
+            Value::String("NEEDS_REVIEW".to_string()),
+        );
+
+        assert_eq!(member_review_status(&member), "NEEDS_REVIEW");
+    }
+
+    #[test]
+    fn member_review_status_falls_back_to_legacy_status() {
+        let mut member = Map::new();
+        member.insert("status".to_string(), Value::String("VALID".to_string()));
+
+        assert_eq!(member_review_status(&member), "VALID");
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

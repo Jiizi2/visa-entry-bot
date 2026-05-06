@@ -1,13 +1,22 @@
 import { escapeHtml } from "./main-utils.js";
 
+export function memberReviewStatus(member) {
+  return String(member?.reviewStatus ?? member?.status ?? "").toUpperCase();
+}
+
+export function isMemberReadyForEntry(member) {
+  return memberReviewStatus(member) === "VALID";
+}
+
 export function countMembersByStatus(members, status) {
-  return members.filter((member) => member.status === status).length;
+  const expectedStatus = String(status ?? "").toUpperCase();
+  return members.filter((member) => memberReviewStatus(member) === expectedStatus).length;
 }
 
 export function computeReviewCompletionState(members, reviewedMemberIds) {
   const total = members.length;
   const reviewed = members.filter((member) =>
-    reviewedMemberIds.has(member.id) || String(member?.status ?? "").toUpperCase() === "VALID"
+    reviewedMemberIds.has(member.id) || isMemberReadyForEntry(member)
   ).length;
   return {
     total,
