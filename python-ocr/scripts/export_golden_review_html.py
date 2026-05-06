@@ -141,6 +141,11 @@ def build_review_html(candidate_report: dict[str, Any], *, output: Path | None =
       width: 100%;
       border-collapse: collapse;
       font-size: 14px;
+      min-width: 520px;
+    }}
+    .table-wrap {{
+      width: 100%;
+      overflow-x: auto;
     }}
     th, td {{
       padding: 9px 10px;
@@ -154,7 +159,8 @@ def build_review_html(candidate_report: dict[str, Any], *, output: Path | None =
       font-weight: 700;
     }}
     td {{
-      overflow-wrap: anywhere;
+      white-space: nowrap;
+      overflow-wrap: normal;
       font-weight: 700;
     }}
     .reasons {{
@@ -215,9 +221,11 @@ def _candidate_section(candidate: dict[str, Any], *, output: Path | None) -> str
       <div class="layout">
         <a href="{image_src}"><img src="{image_src}" alt="{_escape(str(candidate.get('fileName', '') or 'passport image'))}"></a>
         <div>
+          <div class="table-wrap">
           <table>
 {field_rows}
           </table>
+          </div>
           <div class="reasons">Review reasons: {_escape(_join_reason_list(candidate.get("reviewReasons", [])))}</div>
           <div class="reasons">Record reasons: {_escape(_join_reason_list(candidate.get("recordReviewReasons", [])))}</div>
           <div class="reasons">Notes: {_escape(str(candidate.get("reviewNotes", "") or ""))}</div>

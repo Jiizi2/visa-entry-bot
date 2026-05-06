@@ -94,7 +94,7 @@ def _write_invalid_golden_report(args: argparse.Namespace, target: Any, golden_v
             "maxTotalMs": 0,
             "stageTotalsMs": {},
             "ocrCacheTotals": {"hitCount": 0, "missCount": 0, "storeCount": 0},
-            "tesseractTotals": {"callCount": 0, "errorCount": 0, "totalMs": 0, "maxMs": 0},
+            "tesseractTotals": {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0},
             "fieldAccuracy": {},
             "ocrModeCounts": {},
             "panelFallbackUsed": 0,
@@ -187,7 +187,8 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     field_totals: dict[str, int] = {}
     field_mismatches: dict[str, int] = {}
     ocr_mode_counts: dict[str, int] = {}
-    tesseract_totals = {"callCount": 0, "errorCount": 0, "totalMs": 0, "maxMs": 0}
+    tesseract_totals = {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0}
+    tesseract_total_ms_values: list[int] = []
     ocr_cache_totals = {"hitCount": 0, "missCount": 0, "storeCount": 0}
     for record in records:
         stages = record.get("stagesMs", {})
@@ -213,15 +214,19 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             ocr_mode_counts[ocr_mode] = ocr_mode_counts.get(ocr_mode, 0) + 1
         tesseract = record.get("tesseract", {})
         if isinstance(tesseract, dict):
+            record_tesseract_total = int(tesseract.get("totalMs", 0) or 0)
             tesseract_totals["callCount"] += int(tesseract.get("callCount", 0) or 0)
             tesseract_totals["errorCount"] += int(tesseract.get("errorCount", 0) or 0)
-            tesseract_totals["totalMs"] += int(tesseract.get("totalMs", 0) or 0)
+            tesseract_totals["totalMs"] += record_tesseract_total
             tesseract_totals["maxMs"] = max(tesseract_totals["maxMs"], int(tesseract.get("maxMs", 0) or 0))
+            tesseract_total_ms_values.append(record_tesseract_total)
         ocr_cache = record.get("ocrCache", {})
         if isinstance(ocr_cache, dict):
             ocr_cache_totals["hitCount"] += int(ocr_cache.get("hitCount", 0) or 0)
             ocr_cache_totals["missCount"] += int(ocr_cache.get("missCount", 0) or 0)
             ocr_cache_totals["storeCount"] += int(ocr_cache.get("storeCount", 0) or 0)
+    tesseract_totals["avgMs"] = int(statistics.fmean(tesseract_total_ms_values)) if tesseract_total_ms_values else 0
+    tesseract_totals["p95Ms"] = _percentile(tesseract_total_ms_values, 0.95)
     return {
         "validCount": sum(1 for record in records if record.get("status") == "VALID"),
         "errorCount": sum(1 for record in records if record.get("status") != "VALID"),
@@ -348,6 +353,8 @@ def _project_latency(summary: dict[str, Any], assumption: dict[str, Any]) -> dic
         "p95TotalMs": _scale_ms(summary.get("p95TotalMs", 0), multiplier),
         "maxTotalMs": _scale_ms(summary.get("maxTotalMs", 0), multiplier),
         "tesseractTotalMs": _scale_ms(tesseract_totals.get("totalMs", 0), multiplier),
+        "tesseractAvgMs": _scale_ms(tesseract_totals.get("avgMs", 0), multiplier),
+        "tesseractP95Ms": _scale_ms(tesseract_totals.get("p95Ms", 0), multiplier),
         "tesseractMaxMs": _scale_ms(tesseract_totals.get("maxMs", 0), multiplier),
         "tesseractCallCount": int(tesseract_totals.get("callCount", 0) or 0),
     }
@@ -376,7 +383,7 @@ def _evaluate_assumed_hardware_targets(
             }
         )
         return
-    for metric in ("avgTotalMs", "p95TotalMs", "maxTotalMs", "tesseractTotalMs", "tesseractMaxMs"):
+    for metric in ("avgTotalMs", "p95TotalMs", "maxTotalMs", "tesseractTotalMs", "tesseractAvgMs", "tesseractP95Ms", "tesseractMaxMs"):
         if metric in assumed_targets:
             actual = int(assumed_summary.get(metric, 0) or 0)
             target = int(assumed_targets[metric])

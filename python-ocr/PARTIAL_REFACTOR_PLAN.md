@@ -41,17 +41,20 @@ The goal is not to use the heaviest OCR stack. The goal is to make extraction ac
 
 The implementation is now aligned back to the partial-refactor plan:
 
-- Phase 1 is complete for the current 17-sample human-reviewed `trainingData` baseline. Stricter auto-submit gates still need additional optimization because the expanded set includes low-quality/glare images that correctly remain `NEEDS_REVIEW`.
+- Phase 1 is complete for the current 17-sample human-reviewed `trainingData` baseline. The current baseline passes the normal production benchmark.
+- The 3.0x low-power assumption gate now passes the configured latency targets. Performance validation on the actual target laptop remains open.
+- Additional reviewed packs now exist for `FirstTest`, `thirdTest`, and `SecondTest`; they are kept as separate fixtures because duplicate `fileName` values occur across folders.
 - Phases 2, 3, 4, 5, 6, and 7 are complete for the current lightweight production path.
 - Phase 8 is complete as an evaluation harness only. Modern OCR is not adopted and remains blocked until it passes target-laptop dependency, latency, memory, and accuracy gates.
 - Because the target laptop is not available yet, `tests/fixtures/ocr_low_power_assumption_targets.json` is the temporary hardware assumption gate. It uses a 3.0x latency multiplier and should be replaced or recalibrated once the laptop can be tested.
 
 Next implementation should follow this order:
 
-1. Optimize the 3 low-quality `NEEDS_REVIEW` images in the expanded golden dataset without weakening review safety.
-2. Run production benchmark plus low-power assumption gate.
-3. Run the same benchmark on the actual target laptop when available.
-4. Only then tighten acceptance gates or consider optional modern OCR fallback.
+1. Run the current 17-sample benchmark on the actual target laptop when available.
+2. Continue adding real Indonesian passport samples through the reviewed per-folder fixture workflow.
+3. Re-run production benchmark plus low-power assumption gate after every OCR behavior change.
+4. Run the same benchmark on the actual target laptop when available.
+5. Only then tighten acceptance gates or consider optional modern OCR fallback.
 
 ## Phase 1: Baseline And Safety Net
 
@@ -138,6 +141,11 @@ Tasks:
   - generated candidates are marked `reviewRequired: true` and `reviewApproved: false`
   - generated candidates include a per-field `reviewChecklist`
   - active fixture validation: 17 records, 0 errors, 0 duplicate file names
+  - additional reviewed fixtures:
+    - `tests/fixtures/ocr_firsttest_golden.json`: 20 approved passport pages, 1 endorsement page skipped
+    - `tests/fixtures/ocr_thirdtest_golden.json`: 2 approved passport pages
+    - `tests/fixtures/ocr_secondtest_golden.json`: 45 approved passport pages, 22 endorsement pages skipped
+  - remaining targeted mismatches from the reviewed `FirstTest`, `thirdTest`, and `SecondTest` packs are currently 0
   - candidates must be checked against the actual passport image before setting `reviewApproved: true`
   - approved candidates must pass core validation for status, passport number, nationality, dates, gender, and date ordering
   - user-confirmed name regressions now covered:
@@ -427,32 +435,36 @@ Tasks:
 - Panel date OCR can skip expiry-window scanning when MRZ checksum validation already supports a current expiry date and only issue date is requested.
 - OCR result cache now has an explicit per-passport session scope via `services/ocr_result_cache.py`.
 - `processingMetrics.ocrCache` and benchmark `summary.ocrCacheTotals` expose cache hits, misses, and stores.
-- Latest full reviewed-fixture benchmark after this optimization:
+- Latest `trainingData` reviewed-fixture benchmark after this optimization:
   - 17 valid records
-  - 3 review records
+  - 0 review records
   - 0 mismatches
-  - target failures: review count and latency only; field accuracy passed
+  - target failures: 0
   - golden validation errors: 0
-  - average total time: 5345 ms
-  - p95 total time: 21681 ms
-  - max total time: 33599 ms
+  - average total time: 2188 ms
+  - p95 total time: 4414 ms
+  - max total time: 4992 ms
   - assumed low-power multiplier: 3.0
-  - assumed low-power average total time: 15852 ms
-  - assumed low-power p95 total time: 58164 ms
-  - assumed low-power max total time: 103854 ms
-  - assumed low-power Tesseract total time: 143268 ms
+  - assumed low-power average total time: 6606 ms
+  - assumed low-power p95 total time: 13320 ms
+  - assumed low-power max total time: 14814 ms
+  - assumed low-power Tesseract average time: 3234 ms
+  - assumed low-power Tesseract p95 time: 7632 ms
   - OCR cache hits: 0
-  - Tesseract calls: 419 in the low-power report
+  - Tesseract calls: 142 in the low-power report
   - Tesseract errors: 0
-  - baseline Tesseract total time: captured in `.review/ocr-baseline-report.json`
-  - main bottlenecks: `Copy of IMG_4530.jpg`, `Copy of IMG_4531.jpg`, and `IMG_4532.jpg`
+  - baseline Tesseract total time: 18340 ms
+- Expanded reviewed fixtures after this optimization:
+  - `FirstTest`: 20 valid, 0 review, 0 mismatches
+  - `thirdTest`: 2 valid, 0 review, 0 mismatches
+  - `SecondTest`: 45 valid, 0 review, 0 mismatches
 - Make caches scan-session scoped rather than broad global state where practical. Current state: completed for OCR text-result cache.
 
 Exit criteria:
 
 - OCR timeout cannot hang a full scan indefinitely.
 - Benchmark shows equal or better accuracy with lower average/p95 latency.
-- Current small-fixture benchmark meets the production and low-power assumption gates.
+- Current reviewed-fixture benchmark meets the production and low-power assumption gates.
 - More aggressive optimization should wait for an expanded golden dataset.
 
 ## Phase 7: Production Status And Failure Handling
@@ -573,11 +585,10 @@ Completed implementation order:
 
 Required next order:
 
-1. Optimize the low-quality `IMG_*` recovery path to reduce visual/date OCR cost.
-2. Decide whether `NEEDS_REVIEW` records should be allowed in expanded benchmark targets or kept as a strict auto-submit gate.
-3. Re-run Phase 6 production and low-power benchmarks.
-4. Run Phase 8 only if modern OCR is intentionally installed for evaluation.
-5. Do not change the production OCR engine until the benchmark gates pass on the target laptop.
+1. Run the benchmark on the actual target laptop and recalibrate `ocr_low_power_assumption_targets.json` if the 3.0x assumption is too optimistic or too conservative.
+2. Continue adding new real Indonesian passport samples through the same review workflow.
+3. Run Phase 8 only if modern OCR is intentionally installed for evaluation.
+4. Do not change the production OCR engine until the benchmark gates pass on the target laptop.
 
 ## Working Rule
 
