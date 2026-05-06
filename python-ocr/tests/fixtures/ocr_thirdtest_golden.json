@@ -1,0 +1,34 @@
+[
+  {
+    "fileName": "ABDULLAH.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "ABDULLAH KYAZID AL",
+      "familyName": "FATIH",
+      "passportNumber": "X4980079",
+      "nationality": "INDONESIA",
+      "dob": "2020-05-11",
+      "issueDate": "2025-07-14",
+      "expiryDate": "2030-07-14",
+      "gender": "MALE",
+      "birthCity": "SEMARANG",
+      "cityOfIssued": "TANJUNG REDEB"
+    }
+  },
+  {
+    "fileName": "HERLINES 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "HERLINES",
+      "familyName": "HERLINES",
+      "passportNumber": "E6697226",
+      "nationality": "INDONESIA",
+      "dob": "1979-04-24",
+      "issueDate": "2024-05-31",
+      "expiryDate": "2034-05-31",
+      "gender": "FEMALE",
+      "birthCity": "PACITAN",
+      "cityOfIssued": "TANJUNG REDEB"
+    }
+  }
+]

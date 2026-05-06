@@ -41,6 +41,8 @@ class ExportGoldenReviewHtmlTests(unittest.TestCase):
         self.assertIn("NEEDS_REVIEW: 1", html)
         self.assertIn("E1234567", html)
         self.assertIn("NAME_NORMALIZED_FROM_VISUAL", html)
+        self.assertIn("table-wrap", html)
+        self.assertIn("white-space: nowrap", html)
 
 
 if __name__ == "__main__":

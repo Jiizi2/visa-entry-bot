@@ -163,7 +163,7 @@ class BenchmarkOcrTests(unittest.TestCase):
         self.assertEqual(result["maxTotalMs"], 300)
         self.assertEqual(result["stageTotalsMs"], {"mrz": 180, "panel": 80})
         self.assertEqual(result["ocrCacheTotals"], {"hitCount": 4, "missCount": 6, "storeCount": 6})
-        self.assertEqual(result["tesseractTotals"], {"callCount": 7, "errorCount": 1, "totalMs": 170, "maxMs": 90})
+        self.assertEqual(result["tesseractTotals"], {"callCount": 7, "errorCount": 1, "totalMs": 170, "avgMs": 85, "p95Ms": 50, "maxMs": 90})
         self.assertEqual(
             result["fieldAccuracy"]["passportNumber"],
             {"expectedCount": 2, "matchCount": 1, "mismatchCount": 1, "accuracy": 0.5},
@@ -222,7 +222,7 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "avgTotalMs": 100,
                 "p95TotalMs": 200,
                 "maxTotalMs": 300,
-                "tesseractTotals": {"totalMs": 80, "maxMs": 30, "callCount": 7},
+                "tesseractTotals": {"totalMs": 80, "avgMs": 40, "p95Ms": 30, "maxMs": 30, "callCount": 7},
             },
             {"name": "low_power", "latencyMultiplier": 3.0},
         )
@@ -236,6 +236,8 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "p95TotalMs": 600,
                 "maxTotalMs": 900,
                 "tesseractTotalMs": 240,
+                "tesseractAvgMs": 120,
+                "tesseractP95Ms": 90,
                 "tesseractMaxMs": 90,
                 "tesseractCallCount": 7,
             },

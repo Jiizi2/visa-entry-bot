@@ -10,7 +10,8 @@
     "avgTotalMs": 12000,
     "p95TotalMs": 18000,
     "maxTotalMs": 25000,
-    "tesseractTotalMs": 18000,
+    "tesseractAvgMs": 6000,
+    "tesseractP95Ms": 15000,
     "tesseractMaxMs": 3000
   },
   "fieldAccuracy": {

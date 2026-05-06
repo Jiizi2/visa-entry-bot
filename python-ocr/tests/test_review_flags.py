@@ -90,6 +90,19 @@ class ReviewFlagsTests(unittest.TestCase):
         self.assertNotIn("MRZ_CHECKSUM_FAILED", flags["record"])
         self.assertNotIn("MRZ_CHECKSUM_FAILED", flags["passportExtracted"]["passportNumber"])
 
+    def test_low_passporteye_confidence_with_valid_mrz_adds_no_review_flag(self) -> None:
+        flags = build_review_flags(
+            _passport_values(),
+            _resolved_values(),
+            _source_by_field(),
+            _field_confidence(),
+            "VALID",
+            "LOW PASSPORTEYE CONFIDENCE.; MRZ CHECKSUM VALID.",
+            _valid_mrz_validation(),
+        )
+
+        self.assertNotIn("LOW_MRZ_CONFIDENCE", flags["record"])
+
     def test_verified_single_word_name_adds_no_review_flag(self) -> None:
         passport = _passport_values(firstName="MARGONO", familyName="MARGONO")
         resolved = _resolved_values(firstName="MARGONO", familyName="MARGONO")
@@ -114,6 +127,95 @@ class ReviewFlagsTests(unittest.TestCase):
         self.assertNotIn("SINGLE_WORD_NAME", flags["record"])
         self.assertNotIn("SINGLE_WORD_OR_DUPLICATED_NAME", flags["passportExtracted"]["firstName"])
         self.assertNotIn("SINGLE_WORD_OR_DUPLICATED_NAME", flags["passportExtracted"]["familyName"])
+
+    def test_verified_single_word_visual_normalization_adds_no_review_flag(self) -> None:
+        passport = _passport_values(firstName="HERLINES", familyName="HERLINES")
+        resolved = _resolved_values(firstName="HERLINES", familyName="HERLINES")
+
+        flags = build_review_flags(
+            passport,
+            resolved,
+            _source_by_field(passport),
+            _field_confidence(passport, resolved),
+            "VALID",
+            "NAME NORMALIZED FROM FULL NAME FIELD; SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS",
+            _valid_mrz_validation(),
+        )
+
+        self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
+        self.assertNotIn("SINGLE_WORD_NAME", flags["record"])
+
+    def test_verified_mrz_abbreviation_visual_normalization_adds_no_review_flag(self) -> None:
+        flags = build_review_flags(
+            _passport_values(firstName="MUHAMMAD", familyName="YUSUP"),
+            _resolved_values(firstName="MUHAMMAD", familyName="YUSUP"),
+            _source_by_field(),
+            _field_confidence(),
+            "VALID",
+            "NAME NORMALIZED FROM FULL NAME FIELD; GIVEN NAME ABBREVIATION REPAIRED FROM MRZ",
+            _valid_mrz_validation(),
+        )
+
+        self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
+
+    def test_verified_initial_single_word_name_adds_no_review_flag(self) -> None:
+        passport = _passport_values(firstName="M HAMDI", familyName="M HAMDI")
+        resolved = _resolved_values(firstName="M", familyName="HAMDI")
+
+        flags = build_review_flags(
+            passport,
+            resolved,
+            _source_by_field(passport),
+            _field_confidence(passport, resolved),
+            "VALID",
+            "SINGLE-WORD NAME INITIAL RECOVERED FROM FILE NAME",
+            _valid_mrz_validation(),
+        )
+
+        self.assertNotIn("SINGLE_WORD_NAME", flags["record"])
+        self.assertNotIn("SINGLE_WORD_OR_DUPLICATED_NAME", flags["passportExtracted"]["firstName"])
+
+    def test_unverified_visual_name_normalization_still_requires_review(self) -> None:
+        flags = build_review_flags(
+            _passport_values(firstName="MUHAMMAD", familyName="YUSUP"),
+            _resolved_values(firstName="MUHAMMAD", familyName="YUSUP"),
+            _source_by_field(),
+            _field_confidence(),
+            "VALID",
+            "NAME NORMALIZED FROM FULL NAME FIELD",
+            {"line2": "", "status": "MRZ_FAILED", "valid": False, "validCheckCount": 0, "checks": [], "notes": ""},
+        )
+
+        self.assertIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
+
+    def test_high_confidence_visual_name_with_valid_mrz_adds_no_review_flag(self) -> None:
+        passport = _passport_values(firstName="YUSUP GUNAWAN", familyName="MIHARJO")
+        resolved = _resolved_values(firstName="YUSUP", fatherName="GUNAWAN", familyName="MIHARJO")
+
+        flags = build_review_flags(
+            passport,
+            resolved,
+            _source_by_field(passport),
+            _field_confidence(passport, resolved, firstName=0.98, familyName=0.94),
+            "VALID",
+            "NAME NORMALIZED FROM FULL NAME FIELD",
+            _valid_mrz_validation(),
+        )
+
+        self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
+
+    def test_verified_filename_name_repair_adds_no_visual_name_review_flag(self) -> None:
+        flags = build_review_flags(
+            _passport_values(firstName="RIKA", familyName="DIANA"),
+            _resolved_values(firstName="RIKA", familyName="DIANA"),
+            _source_by_field(),
+            _field_confidence(),
+            "VALID",
+            "NAME NORMALIZED FROM FULL NAME FIELD; FIRST NAME REPAIRED FROM FILE NAME HINT",
+            _valid_mrz_validation(),
+        )
+
+        self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
 
     def test_unverified_duplicated_name_still_requires_review(self) -> None:
         passport = _passport_values(firstName="MARGONO", familyName="MARGONO")
@@ -196,11 +298,24 @@ def _source_by_field(passport_values: dict[str, str] | None = None) -> dict[str,
 def _field_confidence(
     passport_values: dict[str, str] | None = None,
     resolved_values: dict[str, object] | None = None,
+    **passport_overrides: float,
 ) -> dict[str, object]:
     passport = {field_name: 1.0 for field_name in (passport_values or _passport_values())}
+    passport.update(passport_overrides)
     resolved = {field_name: 1.0 for field_name in (resolved_values or _resolved_values()) if field_name != "arabic"}
     resolved["arabic"] = {"firstName": 1.0, "fatherName": 1.0, "grandfatherName": 1.0, "familyName": 1.0}
     return {"passportExtracted": passport, "resolvedProfile": resolved}
+
+
+def _valid_mrz_validation() -> dict[str, object]:
+    return {
+        "line2": "X6725059<5IDN6312159M30112696404110120000214",
+        "status": "MRZ_VALID",
+        "valid": True,
+        "validCheckCount": 5,
+        "checks": [{"fieldName": "passportNumber", "valid": True}],
+        "notes": "",
+    }
 
 
 if __name__ == "__main__":

@@ -1,0 +1,322 @@
+[
+  {
+    "fileName": "AHMAD.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "AHMAD",
+      "familyName": "ISRADI",
+      "passportNumber": "X8490523",
+      "nationality": "INDONESIA",
+      "dob": "1993-01-02",
+      "issueDate": "2026-01-22",
+      "expiryDate": "2031-01-22",
+      "gender": "MALE",
+      "birthCity": "KOTABARU",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "ARIFIN.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "ARIFIN ABAU",
+      "familyName": "GAFUR",
+      "passportNumber": "E3668886",
+      "nationality": "INDONESIA",
+      "dob": "1961-07-25",
+      "issueDate": "2023-07-05",
+      "expiryDate": "2033-07-05",
+      "gender": "MALE",
+      "birthCity": "KALUMPANG",
+      "cityOfIssued": "PALANGKARAYA"
+    }
+  },
+  {
+    "fileName": "DESY.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "DESY",
+      "familyName": "MESALINA",
+      "passportNumber": "X7602191",
+      "nationality": "INDONESIA",
+      "dob": "1975-12-04",
+      "issueDate": "2025-12-02",
+      "expiryDate": "2030-12-02",
+      "gender": "FEMALE",
+      "birthCity": "BANJARMASIN",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "ETTY.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "ETTY",
+      "familyName": "YULIANA",
+      "passportNumber": "X6179551",
+      "nationality": "INDONESIA",
+      "dob": "1984-07-28",
+      "issueDate": "2025-06-26",
+      "expiryDate": "2035-06-26",
+      "gender": "FEMALE",
+      "birthCity": "BANJARMASIN",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "FENDY.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "FENDY RAKHMAT",
+      "familyName": "ARDIANSYAH",
+      "passportNumber": "X8489076",
+      "nationality": "INDONESIA",
+      "dob": "1990-02-28",
+      "issueDate": "2026-01-12",
+      "expiryDate": "2031-01-12",
+      "gender": "MALE",
+      "birthCity": "BANJARMASIN",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "HALIMAH 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "HALIMAH",
+      "familyName": "HALIMAH",
+      "passportNumber": "X7028437",
+      "nationality": "INDONESIA",
+      "dob": "1992-05-17",
+      "issueDate": "2026-01-21",
+      "expiryDate": "2036-01-21",
+      "gender": "FEMALE",
+      "birthCity": "PALANGKA RAYA",
+      "cityOfIssued": "PALANGKARAYA"
+    }
+  },
+  {
+    "fileName": "KAMILA.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "KAMILA",
+      "familyName": "FITRIANI",
+      "passportNumber": "X7602193",
+      "nationality": "INDONESIA",
+      "dob": "2009-09-22",
+      "issueDate": "2025-12-02",
+      "expiryDate": "2030-12-02",
+      "gender": "FEMALE",
+      "birthCity": "BANJARMASIN",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "M HAMDI 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "M HAMDI",
+      "familyName": "M HAMDI",
+      "passportNumber": "X8489774",
+      "nationality": "INDONESIA",
+      "dob": "1952-10-12",
+      "issueDate": "2026-01-18",
+      "expiryDate": "2031-01-18",
+      "gender": "MALE",
+      "birthCity": "TANJUNG",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "MAULANA.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "MAULANA",
+      "familyName": "MALIK",
+      "passportNumber": "E3668831",
+      "nationality": "INDONESIA",
+      "dob": "1985-09-26",
+      "issueDate": "2023-06-27",
+      "expiryDate": "2033-06-27",
+      "gender": "MALE",
+      "birthCity": "PALANGKA RAYA",
+      "cityOfIssued": "PALANGKARAYA"
+    }
+  },
+  {
+    "fileName": "MUH DAKRUN.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "MUHAMMAD",
+      "familyName": "DAKRUN",
+      "passportNumber": "E6360891",
+      "nationality": "INDONESIA",
+      "dob": "1983-06-10",
+      "issueDate": "2024-03-25",
+      "expiryDate": "2034-03-25",
+      "gender": "MALE",
+      "birthCity": "BREBES",
+      "cityOfIssued": "JAKARTA PUSAT"
+    }
+  },
+  {
+    "fileName": "MUH DARIAN.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "MUHAMMAD DARIAN",
+      "familyName": "HALIM",
+      "passportNumber": "X7602192",
+      "nationality": "INDONESIA",
+      "dob": "2003-05-04",
+      "issueDate": "2025-12-02",
+      "expiryDate": "2030-12-02",
+      "gender": "MALE",
+      "birthCity": "BANJARMASIN",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "NORDAM.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "NORDAM",
+      "familyName": "VALENTINO",
+      "passportNumber": "X5422909",
+      "nationality": "INDONESIA",
+      "dob": "1984-02-09",
+      "issueDate": "2025-02-17",
+      "expiryDate": "2035-02-17",
+      "gender": "MALE",
+      "birthCity": "JAKARTA",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "NUR.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "NUR FIQIH",
+      "familyName": "SAPUTRI",
+      "passportNumber": "E3668575",
+      "nationality": "INDONESIA",
+      "dob": "1991-01-28",
+      "issueDate": "2023-06-22",
+      "expiryDate": "2033-06-22",
+      "gender": "FEMALE",
+      "birthCity": "PALANGKA RAYA",
+      "cityOfIssued": "PALANGKARAYA"
+    }
+  },
+  {
+    "fileName": "NURHIDAYAH 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "NURHIDAYAH",
+      "familyName": "NURHIDAYAH",
+      "passportNumber": "X8489715",
+      "nationality": "INDONESIA",
+      "dob": "1963-06-20",
+      "issueDate": "2026-01-18",
+      "expiryDate": "2031-01-18",
+      "gender": "FEMALE",
+      "birthCity": "BANDUNG",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "PATHUL.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "PATHUL JANNAH",
+      "familyName": "IMAN",
+      "passportNumber": "X6179533",
+      "nationality": "INDONESIA",
+      "dob": "1954-02-26",
+      "issueDate": "2025-06-26",
+      "expiryDate": "2035-06-26",
+      "gender": "FEMALE",
+      "birthCity": "BANJARMASIN",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "RATNA 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "RATNA",
+      "familyName": "JELITA",
+      "passportNumber": "C9877086",
+      "nationality": "INDONESIA",
+      "dob": "1969-01-09",
+      "issueDate": "2022-07-12",
+      "expiryDate": "2027-07-12",
+      "gender": "FEMALE",
+      "birthCity": "TANAH KAMPUNG",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "RONY.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "RONY HERSANDI",
+      "familyName": "ABDURACHMAN",
+      "passportNumber": "X7601987",
+      "nationality": "INDONESIA",
+      "dob": "1973-10-24",
+      "issueDate": "2025-12-02",
+      "expiryDate": "2030-12-02",
+      "gender": "MALE",
+      "birthCity": "RANTAU",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "SAKDILLAH 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "SAKDILLAH",
+      "familyName": "SAKDILLAH",
+      "passportNumber": "C9876981",
+      "nationality": "INDONESIA",
+      "dob": "1969-04-27",
+      "issueDate": "2022-07-11",
+      "expiryDate": "2027-07-11",
+      "gender": "MALE",
+      "birthCity": "BARABAI",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  },
+  {
+    "fileName": "SITI.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "SITI",
+      "familyName": "HADIJAH",
+      "passportNumber": "E3668579",
+      "nationality": "INDONESIA",
+      "dob": "1963-08-20",
+      "issueDate": "2023-06-22",
+      "expiryDate": "2033-06-22",
+      "gender": "FEMALE",
+      "birthCity": "AMUNTAI",
+      "cityOfIssued": "PALANGKARAYA"
+    }
+  },
+  {
+    "fileName": "SUDARWATI 1.png",
+    "expected": {
+      "status": "VALID",
+      "firstName": "SUDARWATI",
+      "familyName": "SUDARWATI",
+      "passportNumber": "X8489039",
+      "nationality": "INDONESIA",
+      "dob": "1958-07-23",
+      "issueDate": "2026-01-12",
+      "expiryDate": "2031-01-12",
+      "gender": "FEMALE",
+      "birthCity": "MANADO",
+      "cityOfIssued": "BANJARMASIN"
+    }
+  }
+]

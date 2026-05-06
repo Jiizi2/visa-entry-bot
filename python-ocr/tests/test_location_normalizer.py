@@ -15,6 +15,13 @@ class LocationNormalizerTests(unittest.TestCase):
         self.assertEqual(pick_best_location_value("placeOfBirth", ["PARE PARE", "PAREPARE"]), "PAREPARE")
         self.assertTrue(is_known_location_value("placeOfBirth", "PARE PARE"))
 
+    def test_normalizes_split_banjarmasin_and_tanjong_redeb_aliases(self) -> None:
+        self.assertEqual(normalize_location_value("placeOfBirth", "BANJARMA SIN"), "BANJARMASIN")
+        self.assertEqual(normalize_location_value("placeOfBirth", "PALANGKARAYA"), "PALANGKA RAYA")
+        self.assertEqual(normalize_location_value("issuingOffice", "TANJONG REDEB"), "TANJUNG REDEB")
+        self.assertTrue(is_known_location_value("placeOfBirth", "SEMARANG"))
+        self.assertTrue(is_known_location_value("placeOfBirth", "PACITAN"))
+
 
 if __name__ == "__main__":
     unittest.main()

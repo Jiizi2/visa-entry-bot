@@ -51,6 +51,27 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parsed["nationality"], "INDONESIA")
         self.assertEqual(parsed["gender"], "MALE")
 
+    def test_repairs_ion_country_confusion_before_parsing(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNDIANA<<RIKA<<<<<<<<<<<<<<<<<<<<<<<<<<<<",
+                "line2": "E2657423<310N8808073F33030231305034708000254",
+            }
+        )
+
+        self.assertEqual(parsed["nationality"], "INDONESIA")
+
+    def test_prefers_valid_line_document_over_shifted_passporteye_number(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "number": "7E9229500",
+                "line1": "P<IDNHAZIQ<<MUHAMMAD<FADIL<<<<<<<<<<<<<<<<<",
+                "line2": "E9229500<3IDN0708270M35071086309062708000274",
+            }
+        )
+
+        self.assertEqual(parsed["passportNumber"], "E9229500")
+
     def test_rejects_line2_without_any_valid_check_digit(self) -> None:
         parsed = parse_mrz_data(
             {
@@ -96,6 +117,38 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parsed["firstName"], "MUHAMMAD MUGNI ZAR")
         self.assertEqual(parsed["familyName"], "GIFARI")
 
+    def test_repairs_k_noise_in_indonesian_name_particles(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNFATIH<<ABDULLAH<KYAZID<KAL<<<<<<<<<<<<",
+                "line2": "X4980079<4IDN2005113M30071473506151105000432",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "ABDULLAH KYAZID AL")
+        self.assertEqual(parsed["familyName"], "FATIH")
+
+    def test_preserves_real_name_ending_in_k_and_repairs_family_ocr_v_noise(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNHIDAYVAT<K<TAUFIK<<<<<<KK<K<SKSKKKSEKRK",
+                "line2": "X6725075<9IDN8703237M35112666403052303000594",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "TAUFIK")
+        self.assertEqual(parsed["familyName"], "HIDAYAT")
+
+    def test_repairs_djumadi_prefix_confusion(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNYUSUF<<DIUMADI<<<<<<<<<<<<<<<<<<<<<<<<",
+                "line2": "E8710852<5IDN1906017M30010866403050106000214",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "DJUMADI")
+
     def test_repairs_noisy_k_name_separator_from_mrz_line1(self) -> None:
         parsed = parse_mrz_data(
             {
@@ -106,6 +159,55 @@ class ParserTests(unittest.TestCase):
 
         self.assertEqual(parsed["firstName"], "FAITH")
         self.assertEqual(parsed["familyName"], "GHAISAN")
+
+    def test_repairs_noisy_direct_mrz_name_separator_and_fillers(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNGAFURSK<SARIFINSABAUSSSSSSSNSSNSSRNNSNN",
+                "line2": "E3668886<1IDN6107255M33070546271032506000198",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "ARIFIN ABAU")
+        self.assertEqual(parsed["familyName"], "GAFUR")
+
+    def test_repairs_embedded_k_separator_in_given_name(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNMAULANA<<RAYHANKARIFK<<<<<K<KKKKKKKKKKK",
+                "line2": "X6725321<5IDN1101133M30121546403091301000102",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "RAYHAN ARIF")
+        self.assertEqual(parsed["familyName"], "MAULANA")
+
+    def test_embedded_k_separator_does_not_split_real_name_prefix(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNPUTRA<<MASKURDI<SKUNDA<<<<<<<<<K<66EEK6",
+                "line2": "E2657415<2IDN8706179M33030231376031706000110",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "MASKURDI SKUNDA")
+        self.assertEqual(parsed["familyName"], "PUTRA")
+
+    def test_uses_repaired_explicit_line2_with_raw_line1(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "raw_text": (
+                    "P<IDNHAZIQ<<MUHAMMAD<FADIL<<<<<<<<<K<KKKKKKK\n"
+                    "7E9229500<31DNO708270M35071086309062708000270"
+                ),
+                "line2": "E9229500<3IDN0708270M35071086309062708000270",
+                "sex": "O",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "MUHAMMAD FADIL")
+        self.assertEqual(parsed["familyName"], "HAZIQ")
+        self.assertEqual(parsed["gender"], "MALE")
 
     def test_noisy_k_name_separator_does_not_break_single_word_name(self) -> None:
         parsed = parse_mrz_data(

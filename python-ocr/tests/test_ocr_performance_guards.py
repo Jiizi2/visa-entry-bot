@@ -20,12 +20,15 @@ from services.visual_region_scanner import scan_region_texts
 from main import (
     _apply_verified_mrz_name_repairs,
     _apply_verified_single_word_name,
+    _apply_final_name_repairs,
     _can_infer_missing_issue_date,
     _filename_name_hint,
     _pick_preferred_full_name,
     _select_panel_field_names,
     _select_visual_field_names,
     _should_refine_names,
+    _should_skip_panel_for_direct_location_only,
+    _visual_fields_need_aligned_page,
 )
 
 
@@ -199,11 +202,32 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(result, "2031-01-18")
         self.assertEqual(scanner.call_count, 1)
 
+    def test_visual_location_stops_after_known_candidate(self) -> None:
+        with (
+            patch("services.indonesia_field_ocr.crop_relative", side_effect=[object(), object()]),
+            patch("services.indonesia_field_ocr.scan_region_texts", side_effect=[["TANJUNG REDEB"], ["NOISE"]]) as scanner,
+        ):
+            result = _extract_field(object(), "issuingOffice")
+
+        self.assertEqual(result, "TANJUNG REDEB")
+        self.assertEqual(scanner.call_count, 1)
+
+    def test_visual_birth_place_tries_psm6_before_psm7(self) -> None:
+        with (
+            patch("services.indonesia_field_ocr.crop_relative", return_value=object()),
+            patch("services.indonesia_field_ocr.scan_region_texts", return_value=["SEMARANG"]) as scanner,
+        ):
+            result = _extract_field(object(), "placeOfBirth")
+
+        self.assertEqual(result, "SEMARANG")
+        self.assertEqual(scanner.call_args.args[1], 6)
+
     def test_visual_field_scope_limits_extracted_fields(self) -> None:
         page = object()
         with (
             patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
             patch("services.indonesia_field_ocr.extract_aligned_passport_page", return_value=page),
+            patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
             patch(
                 "services.indonesia_field_ocr._extract_field",
                 side_effect=lambda _page, field_name: field_name.upper(),
@@ -219,6 +243,54 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             [call.args[1] for call in extractor.call_args_list],
             ["placeOfBirth", "issuingOffice"],
         )
+
+    def test_visual_location_uses_raw_quick_probe_before_aligned_page(self) -> None:
+        page = object()
+        raw_image = np.zeros((100, 100, 3), dtype=np.uint8)
+        region = np.zeros((20, 20, 3), dtype=np.uint8)
+        with (
+            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
+            patch("services.indonesia_field_ocr._extract_field") as extractor,
+            patch("services.indonesia_field_ocr._load_image", return_value=raw_image),
+            patch("services.indonesia_field_ocr.crop_relative", return_value=region),
+            patch("services.indonesia_field_ocr.scan_region_texts", return_value=["PACITAN"]) as scanner,
+        ):
+            result = extract_visual_fields("file.png", page=page, field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "PACITAN"})
+        extractor.assert_not_called()
+        self.assertEqual(scanner.call_args.kwargs["variant_mode"], "fast")
+        self.assertEqual(scanner.call_args.args[1], 6)
+
+    def test_visual_location_uses_aligned_page_when_raw_probe_misses(self) -> None:
+        with (
+            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
+            patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
+            patch("services.indonesia_field_ocr._extract_field", return_value="PACITAN"),
+        ):
+            result = extract_visual_fields("file.png", page=object(), field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "PACITAN"})
+
+    def test_visual_location_can_skip_aligned_fallback_after_raw_probe_misses(self) -> None:
+        with (
+            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
+            patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
+            patch("services.indonesia_field_ocr.extract_aligned_passport_page") as align_page,
+        ):
+            result = extract_visual_fields(
+                "file.png",
+                field_names=("placeOfBirth",),
+                allow_aligned_fallback=False,
+            )
+
+        self.assertEqual(result, {})
+        align_page.assert_not_called()
+
+    def test_location_only_visual_scope_can_skip_aligned_page(self) -> None:
+        self.assertFalse(_visual_fields_need_aligned_page(("placeOfBirth", "issuingOffice")))
+        self.assertTrue(_visual_fields_need_aligned_page(("placeOfBirth", "fullName")))
+        self.assertTrue(_visual_fields_need_aligned_page(None))
 
     def test_panel_fallback_skips_visual_when_panel_has_needed_fields(self) -> None:
         parsed = {
@@ -271,6 +343,22 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
         self.assertEqual(result, ("placeOfBirth",))
 
+    def test_fast_visual_scope_skips_issue_date_when_it_can_be_inferred(self) -> None:
+        parsed = {
+            "firstName": "MUHAMMAD FADIL",
+            "familyName": "HAZIQ",
+            "passportNumber": "E9229500",
+            "nationality": "INDONESIA",
+            "dob": "2007-08-27",
+            "issueDate": "",
+            "expiryDate": "2035-07-10",
+            "gender": "MALE",
+        }
+
+        result = _select_visual_field_names(parsed, {"confidence": 1.0}, False, {})
+
+        self.assertEqual(result, ("placeOfBirth", "issuingOffice"))
+
     def test_direct_mrz_panel_scope_skips_fields_available_from_mrz(self) -> None:
         parsed = {
             "firstName": "KARIM ALFARIZI",
@@ -286,6 +374,41 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         result = _select_panel_field_names(parsed, {"notes": "MRZ recovered from direct lower-band OCR."})
 
         self.assertEqual(result, ("placeOfBirth", "issuingOffice"))
+
+    def test_direct_mrz_location_only_panel_scope_can_use_visual_path(self) -> None:
+        parsed = {
+            "firstName": "KARIM ALFARIZI",
+            "familyName": "RAMADAN",
+            "passportNumber": "E8710852",
+            "nationality": "INDONESIA",
+            "dob": "2019-06-01",
+            "issueDate": "",
+            "expiryDate": "2030-01-08",
+            "gender": "MALE",
+        }
+        extraction = {"confidence": 1.0, "notes": "MRZ recovered from direct lower-band OCR.; Image glare detected."}
+
+        self.assertTrue(
+            _should_skip_panel_for_direct_location_only(
+                parsed,
+                extraction,
+                ("placeOfBirth", "issuingOffice"),
+            )
+        )
+        self.assertFalse(
+            _should_skip_panel_for_direct_location_only(
+                parsed,
+                {"confidence": 1.0, "notes": "MRZ recovered from direct lower-band OCR."},
+                ("placeOfBirth", "issuingOffice"),
+            )
+        )
+        self.assertFalse(
+            _should_skip_panel_for_direct_location_only(
+                parsed,
+                extraction,
+                ("placeOfBirth", "fullName"),
+            )
+        )
 
     def test_direct_mrz_with_good_names_skips_name_scan_without_panel_name(self) -> None:
         parsed = {
@@ -334,9 +457,33 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(note, "")
         self.assertIn("fullName", _select_panel_field_names(parsed, extraction))
 
+    def test_verified_single_word_with_initial_uses_filename_default(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_mrz_name_repairs(
+            {"firstName": "", "familyName": "HAMDI"},
+            extraction,
+            file_name="M HAMDI 1.png",
+        )
+
+        self.assertEqual(parsed["firstName"], "M HAMDI")
+        self.assertEqual(parsed["familyName"], "M HAMDI")
+        self.assertIn("SINGLE-WORD NAME INITIAL RECOVERED FROM FILE NAME", note)
+
     def test_filename_hint_skips_generic_tokens(self) -> None:
         self.assertEqual(_filename_name_hint("Copy of Faith Ghaisan 1.jpeg"), "FAITH")
         self.assertEqual(_filename_name_hint("IMG_4531.jpg"), "")
+
+    def test_final_name_repairs_use_single_filename_hint_for_safe_cases(self) -> None:
+        parsed, _ = _apply_final_name_repairs({"firstName": "PUJUI", "familyName": "HARTADI"}, file_name="PUJI.png")
+        self.assertEqual(parsed["firstName"], "PUJI")
+
+        parsed, _ = _apply_final_name_repairs({"firstName": "ROBIY ANTO", "familyName": "KASIM"}, file_name="ROBIYANTO.png")
+        self.assertEqual(parsed["firstName"], "ROBIYANTO")
+
+        parsed, _ = _apply_final_name_repairs({"firstName": "DIANACKKRIKA", "familyName": "DIANACKKRIKA"}, file_name="RIKA.png")
+        self.assertEqual(parsed["firstName"], "RIKA")
+        self.assertEqual(parsed["familyName"], "DIANA")
 
     def test_preferred_full_name_can_use_filename_when_family_matches(self) -> None:
         result = _pick_preferred_full_name(
