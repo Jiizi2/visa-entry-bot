@@ -1,0 +1,3 @@
+﻿fileName,sourcePath,reviewApproved,reviewNotes,recordReviewStatus,recordStatus,confidence,reviewReasons,recordReviewReasons,status,firstName,familyName,passportNumber,nationality,dob,issueDate,expiryDate,gender,birthCity,cityOfIssued
+ABDULLAH.png,C:\visa-entry-bot\data\example-group\passports\thirdTest\ABDULLAH.png,FALSE,,VALID,VALID,1.0,GENERATED_FROM_CURRENT_OCR,,VALID,ABDULLAH KYAZID KAL,FATIH,X4980079,INDONESIA,2020-05-11,2025-07-14,2030-07-14,MALE,SEMARANG,TANJUNG REDEB
+HERLINES 1.png,C:\visa-entry-bot\data\example-group\passports\thirdTest\HERLINES 1.png,FALSE,,NEEDS_REVIEW,VALID,1.0,GENERATED_FROM_CURRENT_OCR|OCR_NEEDS_REVIEW,NAME_NORMALIZED_FROM_VISUAL,VALID,HERLINES,HERLINES,E6697226,ION,1979-04-24,2024-05-31,2034-05-31,FEMALE,,

@@ -1,0 +1,2774 @@
+{
+  "groupId": "45 PAX",
+  "passportsDir": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX",
+  "totalFiles": 45,
+  "summary": {
+    "validCount": 45,
+    "errorCount": 0,
+    "reviewStatusCounts": {
+      "VALID": 45,
+      "NEEDS_REVIEW": 0,
+      "ERROR": 0
+    },
+    "reviewCount": 0,
+    "mismatchCount": 0,
+    "avgTotalMs": 4400,
+    "p95TotalMs": 12842,
+    "maxTotalMs": 21873,
+    "stageTotalsMs": {
+      "dates": 0,
+      "mrz": 102948,
+      "names": 26602,
+      "panel": 30869,
+      "validate": 0,
+      "visual": 32091
+    },
+    "ocrCacheTotals": {
+      "hitCount": 4,
+      "missCount": 111,
+      "storeCount": 111
+    },
+    "tesseractTotals": {
+      "callCount": 989,
+      "errorCount": 0,
+      "totalMs": 130461,
+      "avgMs": 2899,
+      "p95Ms": 9572,
+      "maxMs": 726
+    },
+    "fieldAccuracy": {
+      "birthCity": {
+        "expectedCount": 44,
+        "matchCount": 44,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "cityOfIssued": {
+        "expectedCount": 43,
+        "matchCount": 43,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "dob": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "expiryDate": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "familyName": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "firstName": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "gender": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "issueDate": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "nationality": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "passportNumber": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "status": {
+        "expectedCount": 45,
+        "matchCount": 45,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      }
+    },
+    "ocrModeCounts": {
+      "RECOVERY": 45
+    },
+    "panelFallbackUsed": 31,
+    "visualOcrUsed": 18,
+    "mrzFallbackUsed": 0
+  },
+  "records": [
+    {
+      "fileName": "ABDULLAH.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2849,
+      "stagesMs": {
+        "mrz": 1690,
+        "visual": 1010,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\ABDULLAH.png"
+      },
+      "tesseract": {
+        "callCount": 17,
+        "errorCount": 0,
+        "totalMs": 1845,
+        "maxMs": 141,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "ACHMAD.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 3554,
+      "stagesMs": {
+        "mrz": 2569,
+        "visual": 883,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\ACHMAD.png"
+      },
+      "tesseract": {
+        "callCount": 23,
+        "errorCount": 0,
+        "totalMs": 2525,
+        "maxMs": 194,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "ADIBAH 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2779,
+      "stagesMs": {
+        "mrz": 2084,
+        "panel": 592,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\ADIBAH 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1845,
+        "maxMs": 172,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "AISYAH.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 6726,
+      "stagesMs": {
+        "mrz": 4376,
+        "visual": 2206,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 3,
+        "storeCount": 3,
+        "entryCount": 3,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\AISYAH.png"
+      },
+      "tesseract": {
+        "callCount": 40,
+        "errorCount": 0,
+        "totalMs": 5095,
+        "maxMs": 375,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "ARIF.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2664,
+      "stagesMs": {
+        "mrz": 2039,
+        "panel": 521,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\ARIF.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1809,
+        "maxMs": 172,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "DJUMADI.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 3290,
+      "stagesMs": {
+        "mrz": 1760,
+        "panel": 1177,
+        "visual": 247,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 1,
+        "storeCount": 1,
+        "entryCount": 1,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\DJUMADI.png"
+      },
+      "tesseract": {
+        "callCount": 22,
+        "errorCount": 0,
+        "totalMs": 2228,
+        "maxMs": 144,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "FAITH 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2749,
+      "stagesMs": {
+        "mrz": 2070,
+        "panel": 532,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\FAITH 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1829,
+        "maxMs": 194,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "HERLINES 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 12842,
+      "stagesMs": {
+        "mrz": 3644,
+        "visual": 4061,
+        "dates": 0,
+        "names": 5033,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 14,
+        "storeCount": 14,
+        "entryCount": 14,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\HERLINES 1.png"
+      },
+      "tesseract": {
+        "callCount": 71,
+        "errorCount": 0,
+        "totalMs": 9572,
+        "maxMs": 255,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "IHSAN 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2749,
+      "stagesMs": {
+        "mrz": 2103,
+        "panel": 499,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\IHSAN 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1857,
+        "maxMs": 182,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "ISMINI 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 4262,
+      "stagesMs": {
+        "mrz": 3566,
+        "visual": 592,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\ISMINI 1.png"
+      },
+      "tesseract": {
+        "callCount": 26,
+        "errorCount": 0,
+        "totalMs": 3193,
+        "maxMs": 190,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "JARIAH 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 13362,
+      "stagesMs": {
+        "mrz": 3406,
+        "visual": 4337,
+        "dates": 0,
+        "names": 5514,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 14,
+        "storeCount": 14,
+        "entryCount": 14,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\JARIAH 1.png"
+      },
+      "tesseract": {
+        "callCount": 71,
+        "errorCount": 0,
+        "totalMs": 9991,
+        "maxMs": 481,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "JUMARNI 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 4975,
+      "stagesMs": {
+        "mrz": 4220,
+        "visual": 612,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\JUMARNI 1.png"
+      },
+      "tesseract": {
+        "callCount": 26,
+        "errorCount": 0,
+        "totalMs": 3520,
+        "maxMs": 265,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "KAHARRUDDIN 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 3841,
+      "stagesMs": {
+        "mrz": 3169,
+        "visual": 570,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\KAHARRUDDIN 1.png"
+      },
+      "tesseract": {
+        "callCount": 26,
+        "errorCount": 0,
+        "totalMs": 2841,
+        "maxMs": 166,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "KARIM.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2762,
+      "stagesMs": {
+        "mrz": 2105,
+        "panel": 552,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\KARIM.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1863,
+        "maxMs": 184,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MAISARAH 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1257,
+      "stagesMs": {
+        "mrz": 405,
+        "panel": 709,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MAISARAH 1.png"
+      },
+      "tesseract": {
+        "callCount": 4,
+        "errorCount": 0,
+        "totalMs": 461,
+        "maxMs": 155,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MARGONO 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1027,
+      "stagesMs": {
+        "mrz": 384,
+        "panel": 539,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MARGONO 1.png"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 352,
+        "maxMs": 138,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MASKURDI.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1198,
+      "stagesMs": {
+        "mrz": 394,
+        "panel": 698,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MASKURDI.png"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 389,
+        "maxMs": 143,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MAWAR.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2606,
+      "stagesMs": {
+        "mrz": 1966,
+        "panel": 535,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MAWAR.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1727,
+        "maxMs": 175,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MEYSI.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2684,
+      "stagesMs": {
+        "mrz": 2016,
+        "panel": 565,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MEYSI.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1762,
+        "maxMs": 155,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH DZAKI 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1053,
+      "stagesMs": {
+        "mrz": 385,
+        "panel": 521,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH DZAKI 1.png"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 346,
+        "maxMs": 138,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH FADIL.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 0.2,
+      "totalMs": 12544,
+      "stagesMs": {
+        "mrz": 9369,
+        "panel": 2229,
+        "visual": 842,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 3,
+        "storeCount": 3,
+        "entryCount": 3,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH FADIL.png"
+      },
+      "tesseract": {
+        "callCount": 45,
+        "errorCount": 0,
+        "totalMs": 5204,
+        "maxMs": 422,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH FAUZI.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2627,
+      "stagesMs": {
+        "mrz": 1945,
+        "panel": 512,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH FAUZI.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1688,
+        "maxMs": 148,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH HANIF.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1155,
+      "stagesMs": {
+        "mrz": 388,
+        "panel": 656,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH HANIF.png"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 390,
+        "maxMs": 141,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH IHSAN.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2722,
+      "stagesMs": {
+        "mrz": 2049,
+        "panel": 569,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH IHSAN.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1791,
+        "maxMs": 168,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH MUGNI 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2627,
+      "stagesMs": {
+        "mrz": 1960,
+        "panel": 522,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH MUGNI 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1695,
+        "maxMs": 144,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH NUR.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2710,
+      "stagesMs": {
+        "mrz": 2077,
+        "panel": 527,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH NUR.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1816,
+        "maxMs": 183,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH TSABIT 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2646,
+      "stagesMs": {
+        "mrz": 1974,
+        "panel": 525,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH TSABIT 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1720,
+        "maxMs": 161,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "MUH YUSUP.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 3340,
+      "stagesMs": {
+        "mrz": 2644,
+        "visual": 591,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\MUH YUSUP.png"
+      },
+      "tesseract": {
+        "callCount": 14,
+        "errorCount": 0,
+        "totalMs": 1654,
+        "maxMs": 155,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "NORSIYAH 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 15223,
+      "stagesMs": {
+        "mrz": 4727,
+        "visual": 4474,
+        "dates": 0,
+        "names": 5917,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 14,
+        "storeCount": 14,
+        "entryCount": 14,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\NORSIYAH 1.png"
+      },
+      "tesseract": {
+        "callCount": 68,
+        "errorCount": 0,
+        "totalMs": 10992,
+        "maxMs": 392,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "NUR.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2670,
+      "stagesMs": {
+        "mrz": 2018,
+        "panel": 506,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\NUR.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1765,
+        "maxMs": 163,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "PUJI.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 4775,
+      "stagesMs": {
+        "mrz": 4094,
+        "visual": 564,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\PUJI.png"
+      },
+      "tesseract": {
+        "callCount": 26,
+        "errorCount": 0,
+        "totalMs": 3251,
+        "maxMs": 204,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "PURWANTO 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2503,
+      "stagesMs": {
+        "mrz": 1847,
+        "panel": 542,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\PURWANTO 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1593,
+        "maxMs": 140,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "RASID 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2816,
+      "stagesMs": {
+        "mrz": 1894,
+        "visual": 774,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\RASID 1.png"
+      },
+      "tesseract": {
+        "callCount": 16,
+        "errorCount": 0,
+        "totalMs": 1823,
+        "maxMs": 159,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "RASYDDIQ 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 3498,
+      "stagesMs": {
+        "mrz": 2020,
+        "panel": 1143,
+        "visual": 228,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 1,
+        "storeCount": 1,
+        "entryCount": 1,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\RASYDDIQ 1.png"
+      },
+      "tesseract": {
+        "callCount": 22,
+        "errorCount": 0,
+        "totalMs": 2424,
+        "maxMs": 179,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "RAYHAN 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2606,
+      "stagesMs": {
+        "mrz": 1980,
+        "panel": 481,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\RAYHAN 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1723,
+        "maxMs": 180,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "RIKA.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 21873,
+      "stagesMs": {
+        "mrz": 5817,
+        "visual": 5767,
+        "dates": 0,
+        "names": 10138,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 16,
+        "storeCount": 16,
+        "entryCount": 16,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\RIKA.png"
+      },
+      "tesseract": {
+        "callCount": 77,
+        "errorCount": 0,
+        "totalMs": 15574,
+        "maxMs": 726,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "ROBIYANTO.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 8502,
+      "stagesMs": {
+        "mrz": 2049,
+        "panel": 6319,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 7,
+        "storeCount": 7,
+        "entryCount": 7,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\ROBIYANTO.png"
+      },
+      "tesseract": {
+        "callCount": 41,
+        "errorCount": 0,
+        "totalMs": 6095,
+        "maxMs": 515,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "SITI 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1055,
+      "stagesMs": {
+        "mrz": 382,
+        "panel": 568,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\SITI 1.png"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 352,
+        "maxMs": 137,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "SUPARDIN 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 5530,
+      "stagesMs": {
+        "mrz": 2012,
+        "visual": 3111,
+        "panel": 199,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 4,
+        "missCount": 13,
+        "storeCount": 13,
+        "entryCount": 13,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\SUPARDIN 1.png"
+      },
+      "tesseract": {
+        "callCount": 29,
+        "errorCount": 0,
+        "totalMs": 3161,
+        "maxMs": 176,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "SUTRIS 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2820,
+      "stagesMs": {
+        "mrz": 2130,
+        "panel": 585,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\SUTRIS 1.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1880,
+        "maxMs": 193,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "SUWARTO 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1019,
+      "stagesMs": {
+        "mrz": 378,
+        "panel": 536,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\SUWARTO 1.png"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 347,
+        "maxMs": 137,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "TAUFIK.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2731,
+      "stagesMs": {
+        "mrz": 2034,
+        "panel": 593,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\TAUFIK.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1801,
+        "maxMs": 190,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "TRI.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2716,
+      "stagesMs": {
+        "mrz": 2053,
+        "panel": 516,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\TRI.png"
+      },
+      "tesseract": {
+        "callCount": 15,
+        "errorCount": 0,
+        "totalMs": 1820,
+        "maxMs": 171,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "YUNITA.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1705,
+      "stagesMs": {
+        "mrz": 377,
+        "visual": 1222,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\YUNITA.png"
+      },
+      "tesseract": {
+        "callCount": 9,
+        "errorCount": 0,
+        "totalMs": 896,
+        "maxMs": 132,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "YUSUP.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 6383,
+      "stagesMs": {
+        "mrz": 379,
+        "panel": 5901,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 7,
+        "storeCount": 7,
+        "entryCount": 7,
+        "scopeId": "C:\\visa-entry-bot\\python-ocr\\.review\\SecondTest-extracted\\45 PAX\\YUSUP.png"
+      },
+      "tesseract": {
+        "callCount": 28,
+        "errorCount": 0,
+        "totalMs": 3956,
+        "maxMs": 429,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    }
+  ],
+  "goldenValidation": {
+    "recordCount": 45,
+    "validCount": 45,
+    "errorCount": 0,
+    "duplicateFileNames": [],
+    "records": [
+      {
+        "index": 0,
+        "fileName": "ABDULLAH.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 1,
+        "fileName": "ACHMAD.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 2,
+        "fileName": "ADIBAH 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 3,
+        "fileName": "AISYAH.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 4,
+        "fileName": "ARIF.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 5,
+        "fileName": "DJUMADI.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 6,
+        "fileName": "FAITH 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 7,
+        "fileName": "HERLINES 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 8,
+        "fileName": "IHSAN 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 9,
+        "fileName": "ISMINI 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 10,
+        "fileName": "JARIAH 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 11,
+        "fileName": "JUMARNI 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 12,
+        "fileName": "KAHARRUDDIN 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 13,
+        "fileName": "KARIM.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 14,
+        "fileName": "MAISARAH 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 15,
+        "fileName": "MARGONO 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 16,
+        "fileName": "MASKURDI.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 17,
+        "fileName": "MAWAR.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 18,
+        "fileName": "MEYSI.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 19,
+        "fileName": "MUH DZAKI 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 20,
+        "fileName": "MUH FADIL.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 21,
+        "fileName": "MUH FAUZI.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 22,
+        "fileName": "MUH HANIF.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 23,
+        "fileName": "MUH IHSAN.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 24,
+        "fileName": "MUH MUGNI 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 25,
+        "fileName": "MUH NUR.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 26,
+        "fileName": "MUH TSABIT 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 27,
+        "fileName": "MUH YUSUP.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 28,
+        "fileName": "NORSIYAH 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 29,
+        "fileName": "NUR.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 30,
+        "fileName": "PUJI.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 31,
+        "fileName": "PURWANTO 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 32,
+        "fileName": "RASID 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 33,
+        "fileName": "RASYDDIQ 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 34,
+        "fileName": "RAYHAN 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 35,
+        "fileName": "RIKA.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 36,
+        "fileName": "ROBIYANTO.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 37,
+        "fileName": "SITI 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 38,
+        "fileName": "SUPARDIN 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 39,
+        "fileName": "SUTRIS 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 40,
+        "fileName": "SUWARTO 1.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 41,
+        "fileName": "TAUFIK.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 42,
+        "fileName": "TRI.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 43,
+        "fileName": "YUNITA.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 44,
+        "fileName": "YUSUP.png",
+        "status": "VALID",
+        "errors": []
+      }
+    ]
+  }
+}

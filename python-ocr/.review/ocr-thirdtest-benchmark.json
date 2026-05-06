@@ -1,0 +1,240 @@
+{
+  "groupId": "thirdTest",
+  "passportsDir": "C:\\visa-entry-bot\\data\\example-group\\passports\\thirdTest",
+  "totalFiles": 2,
+  "summary": {
+    "validCount": 2,
+    "errorCount": 0,
+    "reviewStatusCounts": {
+      "VALID": 2,
+      "NEEDS_REVIEW": 0,
+      "ERROR": 0
+    },
+    "reviewCount": 0,
+    "mismatchCount": 0,
+    "avgTotalMs": 7857,
+    "p95TotalMs": 2843,
+    "maxTotalMs": 12871,
+    "stageTotalsMs": {
+      "dates": 0,
+      "mrz": 5356,
+      "names": 5042,
+      "validate": 0,
+      "visual": 5070
+    },
+    "ocrCacheTotals": {
+      "hitCount": 0,
+      "missCount": 16,
+      "storeCount": 16
+    },
+    "tesseractTotals": {
+      "callCount": 88,
+      "errorCount": 0,
+      "totalMs": 11382,
+      "avgMs": 5691,
+      "p95Ms": 1838,
+      "maxMs": 252
+    },
+    "fieldAccuracy": {
+      "birthCity": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "cityOfIssued": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "dob": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "expiryDate": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "familyName": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "firstName": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "gender": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "issueDate": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "nationality": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "passportNumber": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "status": {
+        "expectedCount": 2,
+        "matchCount": 2,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      }
+    },
+    "ocrModeCounts": {
+      "RECOVERY": 2
+    },
+    "panelFallbackUsed": 0,
+    "visualOcrUsed": 2,
+    "mrzFallbackUsed": 0
+  },
+  "records": [
+    {
+      "fileName": "ABDULLAH.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2843,
+      "stagesMs": {
+        "mrz": 1688,
+        "visual": 1013,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\thirdTest\\ABDULLAH.png"
+      },
+      "tesseract": {
+        "callCount": 17,
+        "errorCount": 0,
+        "totalMs": 1838,
+        "maxMs": 141,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "HERLINES 1.png",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 12871,
+      "stagesMs": {
+        "mrz": 3668,
+        "visual": 4057,
+        "dates": 0,
+        "names": 5042,
+        "validate": 0
+      },
+      "panelFallbackUsed": false,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 14,
+        "storeCount": 14,
+        "entryCount": 14,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\thirdTest\\HERLINES 1.png"
+      },
+      "tesseract": {
+        "callCount": 71,
+        "errorCount": 0,
+        "totalMs": 9544,
+        "maxMs": 252,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    }
+  ],
+  "goldenValidation": {
+    "recordCount": 2,
+    "validCount": 2,
+    "errorCount": 0,
+    "duplicateFileNames": [],
+    "records": [
+      {
+        "index": 0,
+        "fileName": "ABDULLAH.png",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 1,
+        "fileName": "HERLINES 1.png",
+        "status": "VALID",
+        "errors": []
+      }
+    ]
+  }
+}

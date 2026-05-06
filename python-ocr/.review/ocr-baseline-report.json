@@ -6,33 +6,35 @@
     "validCount": 17,
     "errorCount": 0,
     "reviewStatusCounts": {
-      "VALID": 14,
-      "NEEDS_REVIEW": 3,
+      "VALID": 17,
+      "NEEDS_REVIEW": 0,
       "ERROR": 0
     },
-    "reviewCount": 3,
+    "reviewCount": 0,
     "mismatchCount": 0,
-    "avgTotalMs": 5345,
-    "p95TotalMs": 21681,
-    "maxTotalMs": 33599,
+    "avgTotalMs": 2188,
+    "p95TotalMs": 4414,
+    "maxTotalMs": 4992,
     "stageTotalsMs": {
-      "dates": 12844,
-      "mrz": 30379,
+      "dates": 0,
+      "mrz": 11600,
       "names": 0,
-      "panel": 35217,
+      "panel": 16321,
       "validate": 0,
-      "visual": 12408
+      "visual": 7110
     },
     "ocrCacheTotals": {
-      "hitCount": 0,
-      "missCount": 47,
-      "storeCount": 47
+      "hitCount": 2,
+      "missCount": 8,
+      "storeCount": 8
     },
     "tesseractTotals": {
-      "callCount": 419,
+      "callCount": 142,
       "errorCount": 0,
-      "totalMs": 48610,
-      "maxMs": 611
+      "totalMs": 18060,
+      "avgMs": 1062,
+      "p95Ms": 2485,
+      "maxMs": 327
     },
     "fieldAccuracy": {
       "birthCity": {
@@ -105,7 +107,7 @@
     "ocrModeCounts": {
       "RECOVERY": 17
     },
-    "panelFallbackUsed": 17,
+    "panelFallbackUsed": 14,
     "visualOcrUsed": 3,
     "mrzFallbackUsed": 0
   },
@@ -117,10 +119,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 2173,
+      "totalMs": 2283,
       "stagesMs": {
-        "mrz": 370,
-        "panel": 1801,
+        "mrz": 381,
+        "panel": 1736,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -139,8 +141,8 @@
       "tesseract": {
         "callCount": 8,
         "errorCount": 0,
-        "totalMs": 1221,
-        "maxMs": 262,
+        "totalMs": 1185,
+        "maxMs": 254,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -171,10 +173,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 4548,
+      "totalMs": 1545,
       "stagesMs": {
-        "mrz": 407,
-        "panel": 4140,
+        "mrz": 483,
+        "panel": 960,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -185,16 +187,16 @@
       "mrzFallbackUsed": false,
       "ocrCache": {
         "hitCount": 0,
-        "missCount": 3,
-        "storeCount": 3,
-        "entryCount": 3,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
         "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Djumadi Yusuf.jpeg"
       },
       "tesseract": {
-        "callCount": 14,
+        "callCount": 4,
         "errorCount": 0,
-        "totalMs": 3020,
-        "maxMs": 611,
+        "totalMs": 660,
+        "maxMs": 212,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -225,10 +227,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1492,
+      "totalMs": 1448,
       "stagesMs": {
-        "mrz": 416,
-        "panel": 1075,
+        "mrz": 403,
+        "panel": 937,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -247,8 +249,8 @@
       "tesseract": {
         "callCount": 4,
         "errorCount": 0,
-        "totalMs": 586,
-        "maxMs": 184,
+        "totalMs": 553,
+        "maxMs": 171,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -275,48 +277,39 @@
     {
       "fileName": "Copy of IMG_4530.jpg",
       "status": "VALID",
-      "reviewStatus": "NEEDS_REVIEW",
-      "requiresReview": true,
-      "reviewReasons": [
-        "LOW_MRZ_CONFIDENCE",
-        "LOW_ARABIC_CONFIDENCE",
-        "MRZ_CHECKSUM_PARTIAL",
-        "LOW_NAME_CONFIDENCE",
-        "LOW_VISUAL_FIELD_CONFIDENCE"
-      ],
-      "confidence": 0.65,
-      "totalMs": 21681,
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 3467,
       "stagesMs": {
-        "mrz": 12035,
-        "panel": 5955,
-        "visual": 3689,
+        "mrz": 1810,
+        "visual": 1553,
         "dates": 0,
         "names": 0,
         "validate": 0
       },
-      "panelFallbackUsed": true,
+      "panelFallbackUsed": false,
       "visualOcrUsed": true,
       "mrzFallbackUsed": false,
       "ocrCache": {
         "hitCount": 0,
-        "missCount": 8,
-        "storeCount": 8,
-        "entryCount": 8,
+        "missCount": 2,
+        "storeCount": 2,
+        "entryCount": 2,
         "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of IMG_4530.jpg"
       },
       "tesseract": {
-        "callCount": 82,
+        "callCount": 23,
         "errorCount": 0,
-        "totalMs": 9713,
-        "maxMs": 283,
+        "totalMs": 2485,
+        "maxMs": 153,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
       "ocrModeReasons": [
-        "PANEL_FALLBACK",
         "VISUAL_OCR",
-        "DATE_RECOVERY",
-        "REVIEW_STATUS"
+        "DATE_RECOVERY"
       ],
       "expectedFields": [
         "birthCity",
@@ -335,45 +328,39 @@
     {
       "fileName": "Copy of IMG_4531.jpg",
       "status": "VALID",
-      "reviewStatus": "NEEDS_REVIEW",
-      "requiresReview": true,
-      "reviewReasons": [
-        "LOW_ARABIC_CONFIDENCE",
-        "LOW_NAME_CONFIDENCE"
-      ],
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 8648,
+      "totalMs": 4414,
       "stagesMs": {
-        "mrz": 1838,
-        "panel": 2480,
-        "visual": 4329,
+        "mrz": 1625,
+        "visual": 2672,
         "dates": 0,
         "names": 0,
         "validate": 0
       },
-      "panelFallbackUsed": true,
+      "panelFallbackUsed": false,
       "visualOcrUsed": true,
       "mrzFallbackUsed": false,
       "ocrCache": {
-        "hitCount": 0,
-        "missCount": 8,
-        "storeCount": 8,
-        "entryCount": 8,
+        "hitCount": 1,
+        "missCount": 3,
+        "storeCount": 3,
+        "entryCount": 3,
         "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of IMG_4531.jpg"
       },
       "tesseract": {
-        "callCount": 60,
+        "callCount": 23,
         "errorCount": 0,
-        "totalMs": 5881,
-        "maxMs": 182,
+        "totalMs": 2400,
+        "maxMs": 167,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
       "ocrModeReasons": [
-        "PANEL_FALLBACK",
         "VISUAL_OCR",
-        "DATE_RECOVERY",
-        "REVIEW_STATUS"
+        "DATE_RECOVERY"
       ],
       "expectedFields": [
         "birthCity",
@@ -397,10 +384,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1309,
+      "totalMs": 1385,
       "stagesMs": {
-        "mrz": 403,
-        "panel": 905,
+        "mrz": 421,
+        "panel": 852,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -419,8 +406,8 @@
       "tesseract": {
         "callCount": 3,
         "errorCount": 0,
-        "totalMs": 453,
-        "maxMs": 172,
+        "totalMs": 473,
+        "maxMs": 183,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -450,10 +437,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 2106,
+      "totalMs": 2053,
       "stagesMs": {
-        "mrz": 426,
-        "panel": 1679,
+        "mrz": 411,
+        "panel": 1525,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -472,8 +459,8 @@
       "tesseract": {
         "callCount": 7,
         "errorCount": 0,
-        "totalMs": 949,
-        "maxMs": 186,
+        "totalMs": 984,
+        "maxMs": 187,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -504,10 +491,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1354,
+      "totalMs": 1368,
       "stagesMs": {
-        "mrz": 414,
-        "panel": 939,
+        "mrz": 412,
+        "panel": 849,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -526,8 +513,8 @@
       "tesseract": {
         "callCount": 3,
         "errorCount": 0,
-        "totalMs": 439,
-        "maxMs": 164,
+        "totalMs": 442,
+        "maxMs": 168,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -557,10 +544,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1916,
+      "totalMs": 2135,
       "stagesMs": {
-        "mrz": 397,
-        "panel": 1518,
+        "mrz": 422,
+        "panel": 1482,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -579,8 +566,8 @@
       "tesseract": {
         "callCount": 6,
         "errorCount": 0,
-        "totalMs": 855,
-        "maxMs": 166,
+        "totalMs": 864,
+        "maxMs": 168,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -608,10 +595,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1774,
+      "totalMs": 1748,
       "stagesMs": {
-        "mrz": 807,
-        "panel": 965,
+        "mrz": 832,
+        "panel": 808,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -630,8 +617,8 @@
       "tesseract": {
         "callCount": 6,
         "errorCount": 0,
-        "totalMs": 863,
-        "maxMs": 163,
+        "totalMs": 875,
+        "maxMs": 166,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -662,10 +649,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1877,
+      "totalMs": 1936,
       "stagesMs": {
-        "mrz": 406,
-        "panel": 1471,
+        "mrz": 402,
+        "panel": 1423,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -684,8 +671,8 @@
       "tesseract": {
         "callCount": 6,
         "errorCount": 0,
-        "totalMs": 780,
-        "maxMs": 165,
+        "totalMs": 808,
+        "maxMs": 171,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -716,10 +703,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1383,
+      "totalMs": 1402,
       "stagesMs": {
-        "mrz": 414,
-        "panel": 968,
+        "mrz": 417,
+        "panel": 816,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -738,7 +725,7 @@
       "tesseract": {
         "callCount": 3,
         "errorCount": 0,
-        "totalMs": 467,
+        "totalMs": 477,
         "maxMs": 173,
         "timeoutSeconds": 8.0
       },
@@ -770,10 +757,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1449,
+      "totalMs": 1437,
       "stagesMs": {
-        "mrz": 403,
-        "panel": 1045,
+        "mrz": 425,
+        "panel": 900,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -792,8 +779,8 @@
       "tesseract": {
         "callCount": 4,
         "errorCount": 0,
-        "totalMs": 542,
-        "maxMs": 167,
+        "totalMs": 561,
+        "maxMs": 176,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -824,10 +811,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 2246,
+      "totalMs": 2314,
       "stagesMs": {
-        "mrz": 406,
-        "panel": 1839,
+        "mrz": 412,
+        "panel": 1794,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -846,8 +833,8 @@
       "tesseract": {
         "callCount": 7,
         "errorCount": 0,
-        "totalMs": 1157,
-        "maxMs": 325,
+        "totalMs": 1181,
+        "maxMs": 327,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -878,10 +865,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1365,
+      "totalMs": 1309,
       "stagesMs": {
-        "mrz": 411,
-        "panel": 953,
+        "mrz": 414,
+        "panel": 783,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -900,8 +887,8 @@
       "tesseract": {
         "callCount": 3,
         "errorCount": 0,
-        "totalMs": 443,
-        "maxMs": 168,
+        "totalMs": 446,
+        "maxMs": 172,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -932,10 +919,10 @@
       "requiresReview": false,
       "reviewReasons": [],
       "confidence": 1.0,
-      "totalMs": 1947,
+      "totalMs": 1970,
       "stagesMs": {
-        "mrz": 388,
-        "panel": 1558,
+        "mrz": 407,
+        "panel": 1456,
         "visual": 0,
         "dates": 0,
         "names": 0,
@@ -954,8 +941,8 @@
       "tesseract": {
         "callCount": 7,
         "errorCount": 0,
-        "totalMs": 853,
-        "maxMs": 167,
+        "totalMs": 862,
+        "maxMs": 170,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
@@ -982,48 +969,39 @@
     {
       "fileName": "IMG_4532.jpg",
       "status": "VALID",
-      "reviewStatus": "NEEDS_REVIEW",
-      "requiresReview": true,
-      "reviewReasons": [
-        "LOW_MRZ_CONFIDENCE",
-        "LOW_ARABIC_CONFIDENCE",
-        "MRZ_CHECKSUM_PARTIAL",
-        "LOW_NAME_CONFIDENCE",
-        "LOW_VISUAL_FIELD_CONFIDENCE"
-      ],
-      "confidence": 0.15,
-      "totalMs": 33599,
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 4992,
       "stagesMs": {
-        "mrz": 10438,
-        "panel": 5926,
-        "visual": 4390,
-        "dates": 12844,
+        "mrz": 1923,
+        "visual": 2885,
+        "dates": 0,
         "names": 0,
         "validate": 0
       },
-      "panelFallbackUsed": true,
+      "panelFallbackUsed": false,
       "visualOcrUsed": true,
       "mrzFallbackUsed": false,
       "ocrCache": {
-        "hitCount": 0,
-        "missCount": 28,
-        "storeCount": 28,
-        "entryCount": 28,
+        "hitCount": 1,
+        "missCount": 3,
+        "storeCount": 3,
+        "entryCount": 3,
         "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\IMG_4532.jpg"
       },
       "tesseract": {
-        "callCount": 196,
+        "callCount": 25,
         "errorCount": 0,
-        "totalMs": 20388,
-        "maxMs": 471,
+        "totalMs": 2804,
+        "maxMs": 153,
         "timeoutSeconds": 8.0
       },
       "ocrMode": "RECOVERY",
       "ocrModeReasons": [
-        "PANEL_FALLBACK",
         "VISUAL_OCR",
-        "DATE_RECOVERY",
-        "REVIEW_STATUS"
+        "DATE_RECOVERY"
       ],
       "expectedFields": [
         "birthCity",
@@ -1151,21 +1129,5 @@
       }
     ]
   },
-  "targetFailures": [
-    {
-      "metric": "reviewCount",
-      "target": 0,
-      "actual": 3
-    },
-    {
-      "metric": "p95TotalMs",
-      "target": 18000,
-      "actual": 21681
-    },
-    {
-      "metric": "maxTotalMs",
-      "target": 25000,
-      "actual": 33599
-    }
-  ]
+  "targetFailures": []
 }

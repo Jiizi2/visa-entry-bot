@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Golden OCR Review Pack</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f7f8fa;
+      color: #1c2530;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+    }
+    header {
+      margin: 0 0 20px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0 0;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 6px;
+      background: #e8edf2;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .badge.valid { background: #dff3e7; color: #13552b; }
+    .badge.review { background: #fff1cc; color: #765000; }
+    .badge.error { background: #ffe1df; color: #8d1b15; }
+    .badge.pending { background: #e8edf2; color: #354352; }
+    .card {
+      margin: 0 0 22px;
+      padding: 16px;
+      border: 1px solid #d6dde5;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+    .card-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    h2 {
+      margin: 0;
+      max-width: 100%;
+      font-size: 18px;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+    .source {
+      margin-top: 4px;
+      color: #5b6876;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 46%) minmax(280px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    img {
+      display: block;
+      width: 100%;
+      max-height: 760px;
+      object-fit: contain;
+      border: 1px solid #d8dfe7;
+      border-radius: 6px;
+      background: #f1f3f6;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      min-width: 520px;
+    }
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #e3e8ee;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      width: 36%;
+      color: #52606f;
+      font-weight: 700;
+    }
+    td {
+      white-space: nowrap;
+      overflow-wrap: normal;
+      font-weight: 700;
+    }
+    .reasons {
+      margin-top: 12px;
+      color: #4b5968;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    @media (max-width: 860px) {
+      body { padding: 12px; }
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Golden OCR Review Pack</h1>
+    <div>C:\visa-entry-bot\data\example-group\passports\FirstTest</div>
+    <div class="summary">
+      <span class="badge pending">Candidates: 21</span>
+      <span class="badge valid">Approved: 20</span>
+      <span class="badge valid">VALID: 18</span>
+      <span class="badge review">NEEDS_REVIEW: 2</span>
+      <span class="badge error">ERROR: 1</span>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>AHMAD.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\AHMAD.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/AHMAD.png"><img src="../../data/example-group/passports/FirstTest/AHMAD.png" alt="AHMAD.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>AHMAD</td></tr>
+          <tr><th>familyName</th><td>ISRADI</td></tr>
+          <tr><th>passportNumber</th><td>X8490523</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1993-01-02</td></tr>
+          <tr><th>issueDate</th><td>2026-01-22</td></tr>
+          <tr><th>expiryDate</th><td>2031-01-22</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>KOTABARU</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>ARIFIN.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\ARIFIN.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/ARIFIN.png"><img src="../../data/example-group/passports/FirstTest/ARIFIN.png" alt="ARIFIN.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>ARIFIN ABAU</td></tr>
+          <tr><th>familyName</th><td>GAFUR</td></tr>
+          <tr><th>passportNumber</th><td>E3668886</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1961-07-25</td></tr>
+          <tr><th>issueDate</th><td>2023-07-05</td></tr>
+          <tr><th>expiryDate</th><td>2033-07-05</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>KALUMPANG</td></tr>
+          <tr><th>cityOfIssued</th><td>PALANGKARAYA</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>DESY.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\DESY.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/DESY.png"><img src="../../data/example-group/passports/FirstTest/DESY.png" alt="DESY.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>DESY</td></tr>
+          <tr><th>familyName</th><td>MESALINA</td></tr>
+          <tr><th>passportNumber</th><td>X7602191</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1975-12-04</td></tr>
+          <tr><th>issueDate</th><td>2025-12-02</td></tr>
+          <tr><th>expiryDate</th><td>2030-12-02</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>BANJARMASIN</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>ETTY.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\ETTY.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/ETTY.png"><img src="../../data/example-group/passports/FirstTest/ETTY.png" alt="ETTY.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>ETTY</td></tr>
+          <tr><th>familyName</th><td>YULIANA</td></tr>
+          <tr><th>passportNumber</th><td>X6179551</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1984-07-28</td></tr>
+          <tr><th>issueDate</th><td>2025-06-26</td></tr>
+          <tr><th>expiryDate</th><td>2035-06-26</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>BANJARMASIN</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>FENDY.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\FENDY.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/FENDY.png"><img src="../../data/example-group/passports/FirstTest/FENDY.png" alt="FENDY.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>FENDY RAKHMAT</td></tr>
+          <tr><th>familyName</th><td>ARDIANSYAH</td></tr>
+          <tr><th>passportNumber</th><td>X8489076</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1990-02-28</td></tr>
+          <tr><th>issueDate</th><td>2026-01-12</td></tr>
+          <tr><th>expiryDate</th><td>2031-01-12</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>BANJARMASIN</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>HALIMAH 1.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\HALIMAH 1.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/HALIMAH%201.png"><img src="../../data/example-group/passports/FirstTest/HALIMAH%201.png" alt="HALIMAH 1.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>HALIMAH</td></tr>
+          <tr><th>familyName</th><td>HALIMAH</td></tr>
+          <tr><th>passportNumber</th><td>X7028437</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1992-05-17</td></tr>
+          <tr><th>issueDate</th><td>2026-01-21</td></tr>
+          <tr><th>expiryDate</th><td>2036-01-21</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>PALANGKA RAYA</td></tr>
+          <tr><th>cityOfIssued</th><td>PALANGKARAYA</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>HALIMAH 2.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\HALIMAH 2.png</div>
+        </div>
+        <div>
+          <span class="badge pending">PENDING</span>
+          <span class="badge error">ERROR</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/HALIMAH%202.png"><img src="../../data/example-group/passports/FirstTest/HALIMAH%202.png" alt="HALIMAH 2.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td></td></tr>
+          <tr><th>familyName</th><td></td></tr>
+          <tr><th>passportNumber</th><td></td></tr>
+          <tr><th>nationality</th><td></td></tr>
+          <tr><th>dob</th><td></td></tr>
+          <tr><th>issueDate</th><td></td></tr>
+          <tr><th>expiryDate</th><td></td></tr>
+          <tr><th>gender</th><td></td></tr>
+          <tr><th>birthCity</th><td></td></tr>
+          <tr><th>cityOfIssued</th><td></td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR, OCR_NEEDS_REVIEW</div>
+          <div class="reasons">Record reasons: RECORD_ERROR, LOW_ARABIC_CONFIDENCE, LOW_NAME_CONFIDENCE, CRITICAL_FIELD_MISSING</div>
+          <div class="reasons">Notes: endorsement page; skipped per user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>KAMILA.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\KAMILA.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/KAMILA.png"><img src="../../data/example-group/passports/FirstTest/KAMILA.png" alt="KAMILA.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>KAMILA</td></tr>
+          <tr><th>familyName</th><td>FITRIANI</td></tr>
+          <tr><th>passportNumber</th><td>X7602193</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>2009-09-22</td></tr>
+          <tr><th>issueDate</th><td>2025-12-02</td></tr>
+          <tr><th>expiryDate</th><td>2030-12-02</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>BANJARMASIN</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>M HAMDI 1.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\M HAMDI 1.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge review">NEEDS_REVIEW</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/M%20HAMDI%201.png"><img src="../../data/example-group/passports/FirstTest/M%20HAMDI%201.png" alt="M HAMDI 1.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>M HAMDI</td></tr>
+          <tr><th>familyName</th><td>M HAMDI</td></tr>
+          <tr><th>passportNumber</th><td>X8489774</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1952-10-12</td></tr>
+          <tr><th>issueDate</th><td>2026-01-18</td></tr>
+          <tr><th>expiryDate</th><td>2031-01-18</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>TANJUNG</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR, OCR_NEEDS_REVIEW</div>
+          <div class="reasons">Record reasons: SINGLE_WORD_NAME</div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>MAULANA.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\MAULANA.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/MAULANA.png"><img src="../../data/example-group/passports/FirstTest/MAULANA.png" alt="MAULANA.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>MAULANA</td></tr>
+          <tr><th>familyName</th><td>MALIK</td></tr>
+          <tr><th>passportNumber</th><td>E3668831</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1985-09-26</td></tr>
+          <tr><th>issueDate</th><td>2023-06-27</td></tr>
+          <tr><th>expiryDate</th><td>2033-06-27</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>PALANGKA RAYA</td></tr>
+          <tr><th>cityOfIssued</th><td>PALANGKARAYA</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>MUH DAKRUN.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\MUH DAKRUN.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/MUH%20DAKRUN.png"><img src="../../data/example-group/passports/FirstTest/MUH%20DAKRUN.png" alt="MUH DAKRUN.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>MUHAMMAD</td></tr>
+          <tr><th>familyName</th><td>DAKRUN</td></tr>
+          <tr><th>passportNumber</th><td>E6360891</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1983-06-10</td></tr>
+          <tr><th>issueDate</th><td>2024-03-25</td></tr>
+          <tr><th>expiryDate</th><td>2034-03-25</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>BREBES</td></tr>
+          <tr><th>cityOfIssued</th><td>JAKARTA PUSAT</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>MUH DARIAN.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\MUH DARIAN.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/MUH%20DARIAN.png"><img src="../../data/example-group/passports/FirstTest/MUH%20DARIAN.png" alt="MUH DARIAN.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>MUHAMMAD DARIAN</td></tr>
+          <tr><th>familyName</th><td>HALIM</td></tr>
+          <tr><th>passportNumber</th><td>X7602192</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>2003-05-04</td></tr>
+          <tr><th>issueDate</th><td>2025-12-02</td></tr>
+          <tr><th>expiryDate</th><td>2030-12-02</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>BANJARMASIN</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>NORDAM.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\NORDAM.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/NORDAM.png"><img src="../../data/example-group/passports/FirstTest/NORDAM.png" alt="NORDAM.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>NORDAM</td></tr>
+          <tr><th>familyName</th><td>VALENTINO</td></tr>
+          <tr><th>passportNumber</th><td>X5422909</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1984-02-09</td></tr>
+          <tr><th>issueDate</th><td>2025-02-17</td></tr>
+          <tr><th>expiryDate</th><td>2035-02-17</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>JAKARTA</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>NUR.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\NUR.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/NUR.png"><img src="../../data/example-group/passports/FirstTest/NUR.png" alt="NUR.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>NUR FIQIH</td></tr>
+          <tr><th>familyName</th><td>SAPUTRI</td></tr>
+          <tr><th>passportNumber</th><td>E3668575</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1991-01-28</td></tr>
+          <tr><th>issueDate</th><td>2023-06-22</td></tr>
+          <tr><th>expiryDate</th><td>2033-06-22</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>PALANGKA RAYA</td></tr>
+          <tr><th>cityOfIssued</th><td>PALANGKARAYA</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>NURHIDAYAH 1.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\NURHIDAYAH 1.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/NURHIDAYAH%201.png"><img src="../../data/example-group/passports/FirstTest/NURHIDAYAH%201.png" alt="NURHIDAYAH 1.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>NURHIDAYAH</td></tr>
+          <tr><th>familyName</th><td>NURHIDAYAH</td></tr>
+          <tr><th>passportNumber</th><td>X8489715</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1963-06-20</td></tr>
+          <tr><th>issueDate</th><td>2026-01-18</td></tr>
+          <tr><th>expiryDate</th><td>2031-01-18</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>BANDUNG</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>PATHUL.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\PATHUL.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/PATHUL.png"><img src="../../data/example-group/passports/FirstTest/PATHUL.png" alt="PATHUL.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>PATHUL JANNAH</td></tr>
+          <tr><th>familyName</th><td>IMAN</td></tr>
+          <tr><th>passportNumber</th><td>X6179533</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1954-02-26</td></tr>
+          <tr><th>issueDate</th><td>2025-06-26</td></tr>
+          <tr><th>expiryDate</th><td>2035-06-26</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>BANJARMASIN</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>RATNA 1.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\RATNA 1.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/RATNA%201.png"><img src="../../data/example-group/passports/FirstTest/RATNA%201.png" alt="RATNA 1.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>RATNA</td></tr>
+          <tr><th>familyName</th><td>JELITA</td></tr>
+          <tr><th>passportNumber</th><td>C9877086</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1969-01-09</td></tr>
+          <tr><th>issueDate</th><td>2022-07-12</td></tr>
+          <tr><th>expiryDate</th><td>2027-07-12</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>TANAH KAMPUNG</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>RONY.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\RONY.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/RONY.png"><img src="../../data/example-group/passports/FirstTest/RONY.png" alt="RONY.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>RONY HERSANDI</td></tr>
+          <tr><th>familyName</th><td>ABDURACHMAN</td></tr>
+          <tr><th>passportNumber</th><td>X7601987</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1973-10-24</td></tr>
+          <tr><th>issueDate</th><td>2025-12-02</td></tr>
+          <tr><th>expiryDate</th><td>2030-12-02</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>RANTAU</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>SAKDILLAH 1.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\SAKDILLAH 1.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/SAKDILLAH%201.png"><img src="../../data/example-group/passports/FirstTest/SAKDILLAH%201.png" alt="SAKDILLAH 1.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>SAKDILLAH</td></tr>
+          <tr><th>familyName</th><td>SAKDILLAH</td></tr>
+          <tr><th>passportNumber</th><td>C9876981</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1969-04-27</td></tr>
+          <tr><th>issueDate</th><td>2022-07-11</td></tr>
+          <tr><th>expiryDate</th><td>2027-07-11</td></tr>
+          <tr><th>gender</th><td>MALE</td></tr>
+          <tr><th>birthCity</th><td>BARABAI</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>SITI.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\SITI.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge valid">VALID</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/SITI.png"><img src="../../data/example-group/passports/FirstTest/SITI.png" alt="SITI.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>SITI</td></tr>
+          <tr><th>familyName</th><td>HADIJAH</td></tr>
+          <tr><th>passportNumber</th><td>E3668579</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1963-08-20</td></tr>
+          <tr><th>issueDate</th><td>2023-06-22</td></tr>
+          <tr><th>expiryDate</th><td>2033-06-22</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>AMUNTAI</td></tr>
+          <tr><th>cityOfIssued</th><td>PALANGKARAYA</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR</div>
+          <div class="reasons">Record reasons: </div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>SUDARWATI 1.png</h2>
+          <div class="source">C:\visa-entry-bot\data\example-group\passports\FirstTest\SUDARWATI 1.png</div>
+        </div>
+        <div>
+          <span class="badge valid">APPROVED</span>
+          <span class="badge review">NEEDS_REVIEW</span>
+        </div>
+      </div>
+      <div class="layout">
+        <a href="../../data/example-group/passports/FirstTest/SUDARWATI%201.png"><img src="../../data/example-group/passports/FirstTest/SUDARWATI%201.png" alt="SUDARWATI 1.png"></a>
+        <div>
+          <div class="table-wrap">
+          <table>
+          <tr><th>status</th><td>VALID</td></tr>
+          <tr><th>firstName</th><td>SUDARWATI</td></tr>
+          <tr><th>familyName</th><td>SUDARWATI</td></tr>
+          <tr><th>passportNumber</th><td>X8489039</td></tr>
+          <tr><th>nationality</th><td>INDONESIA</td></tr>
+          <tr><th>dob</th><td>1958-07-23</td></tr>
+          <tr><th>issueDate</th><td>2026-01-12</td></tr>
+          <tr><th>expiryDate</th><td>2031-01-12</td></tr>
+          <tr><th>gender</th><td>FEMALE</td></tr>
+          <tr><th>birthCity</th><td>MANADO</td></tr>
+          <tr><th>cityOfIssued</th><td>BANJARMASIN</td></tr>
+          </table>
+          </div>
+          <div class="reasons">Review reasons: GENERATED_FROM_CURRENT_OCR, OCR_NEEDS_REVIEW</div>
+          <div class="reasons">Record reasons: NAME_NORMALIZED_FROM_VISUAL, MRZ_CHECKSUM_PARTIAL, SINGLE_WORD_NAME</div>
+          <div class="reasons">Notes: approved/corrected from user review</div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
