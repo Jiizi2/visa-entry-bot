@@ -13,13 +13,14 @@ from services.image_preprocessor import cleanup_temp_root
 from services.indonesia_field_ocr import build_visual_notes, extract_visual_fields, merge_visual_fields
 from services.issue_date_extractor import infer_issue_date
 from services.mrz_extractor import extract_mrz_data
-from services.name_support import is_reasonable_token, salvage_family_hints, score_name_fields, token_matches_simple
+from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
 from services.nusuk_manifest import build_error_record, build_member_record
-from services.ocr_result_cache import clear_ocr_result_cache
+from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_result_cache_stats, start_ocr_result_cache_session
 from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
 from services.panel_name_support import score_full_name
 from services.passport_page import clear_passport_page_cache, extract_aligned_passport_page
 from services.parser import parse_mrz_data
+from services.tesseract_runner import get_tesseract_ocr_stats, reset_tesseract_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 
@@ -27,6 +28,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 StepCallback = Callable[[str, str, float], None]
+FILENAME_NAME_NOISE = {"COPY", "IMG", "IMAGE", "JPEG", "JPG", "OF", "PASSPORT", "PHOTO", "PNG", "SCAN"}
 
 
 def resolve_group_context() -> tuple[str, str]:
@@ -130,19 +132,22 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             step_callback(code, label, progress)
 
     report_step("start", "Menyiapkan file", 0.04, f"Processing: {file_name}")
-    clear_ocr_result_cache()
     clear_passport_page_cache()
+    start_ocr_result_cache_session(file_path)
+    reset_tesseract_ocr_stats()
 
     try:
         extraction: dict[str, object] = {"data": {}, "confidence": 0.0, "notes": ""}
         parsed = parse_mrz_data({})
         mrz_error = ""
+        early_name_notes = ""
 
         report_step("mrz", "Mengekstrak MRZ", 0.16, "  - extracting MRZ")
         stage_started = time.perf_counter()
         try:
             extraction = extract_mrz_data(file_path)
             parsed = parse_mrz_data(extraction["data"])
+            parsed, early_name_notes = _apply_verified_mrz_name_repairs(parsed, extraction, file_name=file_name)
         except Exception as exc:  # noqa: BLE001
             mrz_error = str(exc)
         stage_durations_ms["mrz"] = _elapsed_ms(stage_started)
@@ -162,6 +167,9 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
                 family_hint=parsed.get("familyName", ""),
                 given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
                 field_names=panel_field_names,
+                current_dob=parsed.get("dob", ""),
+                current_issue_date=parsed.get("issueDate", ""),
+                current_expiry_date=parsed.get("expiryDate", ""),
             )
             parsed, panel_notes = fuse_panel_fields(parsed, extraction, panel_fields)
             stage_durations_ms["panel"] = _elapsed_ms(stage_started)
@@ -221,7 +229,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         stage_started = time.perf_counter()
         status, validation_notes = validate_member(parsed)
         stage_durations_ms["validate"] = _elapsed_ms(stage_started)
-        notes = join_notes(mrz_error, extraction.get("notes", ""), panel_notes, visual_notes, name_notes, validation_notes)
+        notes = join_notes(mrz_error, extraction.get("notes", ""), panel_notes, visual_notes, early_name_notes, name_notes, validation_notes)
         record = build_member_record(
             file_name,
             file_path,
@@ -240,6 +248,24 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "visualOcrUsed": visual_ocr_used,
             "visualFieldScope": list(visual_field_names) if visual_field_names is not None else "all",
             "mrzFallbackUsed": bool(mrz_error),
+            "ocrCache": get_ocr_result_cache_stats(),
+            "tesseract": get_tesseract_ocr_stats(),
+            "ocrMode": _classify_ocr_mode(
+                mrz_error=mrz_error,
+                panel_fallback_used=panel_fallback_used,
+                visual_ocr_used=visual_ocr_used,
+                needs_date_scan=needs_date_scan,
+                needs_name_scan=needs_name_scan,
+                review_status=str(record.get("reviewStatus", "")),
+            ),
+            "ocrModeReasons": _ocr_mode_reasons(
+                mrz_error=mrz_error,
+                panel_fallback_used=panel_fallback_used,
+                visual_ocr_used=visual_ocr_used,
+                needs_date_scan=needs_date_scan,
+                needs_name_scan=needs_name_scan,
+                review_status=str(record.get("reviewStatus", "")),
+            ),
         }
         return record
     except Exception as exc:  # noqa: BLE001
@@ -253,15 +279,69 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "panelFallbackUsed": panel_fallback_used,
             "visualOcrUsed": visual_ocr_used,
             "mrzFallbackUsed": bool(locals().get("mrz_error", "")),
+            "ocrCache": get_ocr_result_cache_stats(),
+            "tesseract": get_tesseract_ocr_stats(),
+            "ocrMode": "DEEP",
+            "ocrModeReasons": ["PROCESSING_EXCEPTION"],
         }
         return record
     finally:
-        clear_ocr_result_cache()
         clear_passport_page_cache()
+        end_ocr_result_cache_session()
+        reset_tesseract_ocr_stats()
 
 
 def _elapsed_ms(started_at: float) -> int:
     return max(0, int((time.perf_counter() - started_at) * 1000))
+
+
+def _classify_ocr_mode(
+    *,
+    mrz_error: str,
+    panel_fallback_used: bool,
+    visual_ocr_used: bool,
+    needs_date_scan: bool,
+    needs_name_scan: bool,
+    review_status: str,
+) -> str:
+    reasons = _ocr_mode_reasons(
+        mrz_error=mrz_error,
+        panel_fallback_used=panel_fallback_used,
+        visual_ocr_used=visual_ocr_used,
+        needs_date_scan=needs_date_scan,
+        needs_name_scan=needs_name_scan,
+        review_status=review_status,
+    )
+    if mrz_error or str(review_status).upper() == "ERROR":
+        return "DEEP"
+    return "FAST" if not reasons else "RECOVERY"
+
+
+def _ocr_mode_reasons(
+    *,
+    mrz_error: str,
+    panel_fallback_used: bool,
+    visual_ocr_used: bool,
+    needs_date_scan: bool,
+    needs_name_scan: bool,
+    review_status: str,
+) -> list[str]:
+    reasons: list[str] = []
+    if mrz_error:
+        reasons.append("MRZ_ERROR")
+    if panel_fallback_used:
+        reasons.append("PANEL_FALLBACK")
+    if visual_ocr_used:
+        reasons.append("VISUAL_OCR")
+    if needs_date_scan:
+        reasons.append("DATE_RECOVERY")
+    if needs_name_scan:
+        reasons.append("NAME_RECOVERY")
+    if str(review_status).upper() == "NEEDS_REVIEW":
+        reasons.append("REVIEW_STATUS")
+    if str(review_status).upper() == "ERROR":
+        reasons.append("ERROR_STATUS")
+    return reasons
 
 
 def _is_indonesian_passport(
@@ -338,13 +418,55 @@ def _select_panel_field_names(parsed: dict[str, str], extraction: dict[str, obje
     has_issue = _is_iso_date(parsed.get("issueDate", ""))
     if not has_issue and not (direct_mrz and has_expiry):
         fields.append("issueDate")
-    if not has_expiry or (not direct_mrz and not has_issue):
+    if not has_expiry or (not direct_mrz and not has_issue and not _has_valid_mrz_validation(extraction)):
         fields.append("expiryDate")
     return tuple(dict.fromkeys(fields))
 
 
 def _is_direct_mrz_extraction(extraction: dict[str, object]) -> bool:
     return "DIRECT LOWER-BAND OCR" in str(extraction.get("notes", "") or "").upper()
+
+
+def _has_valid_mrz_validation(extraction: dict[str, object]) -> bool:
+    validation = extraction.get("mrzValidation", {})
+    return isinstance(validation, dict) and bool(validation.get("valid"))
+
+
+def _apply_verified_single_word_name(
+    parsed: dict[str, str],
+    extraction: dict[str, object],
+    file_name: str = "",
+) -> tuple[dict[str, str], str]:
+    if not _has_valid_mrz_validation(extraction):
+        return parsed, ""
+    if _has_distinct_filename_name_hint(file_name, parsed.get("familyName", "")):
+        return parsed, ""
+    return repair_single_word_name(parsed)
+
+
+def _apply_verified_mrz_name_repairs(
+    parsed: dict[str, str],
+    extraction: dict[str, object],
+    file_name: str = "",
+) -> tuple[dict[str, str], str]:
+    if not _has_valid_mrz_validation(extraction):
+        return parsed, ""
+    notes = []
+    updated, note = repair_common_given_name_spacing(parsed)
+    if note:
+        notes.append(note)
+    updated, note = _apply_verified_single_word_name(updated, extraction, file_name=file_name)
+    if note:
+        notes.append(note)
+    return updated, "; ".join(notes)
+
+
+def _has_distinct_filename_name_hint(file_name: str, family_name: str) -> bool:
+    hint = _filename_name_hint(file_name)
+    if not hint:
+        return False
+    family_hints = salvage_family_hints(family_name)
+    return not any(token_matches_simple(hint, family_hint) for family_hint in family_hints)
 
 
 def _has_reliable_mrz_for_fast_path(
@@ -450,6 +572,8 @@ def _pick_preferred_full_name(
 ) -> str:
     full_name = panel_fields.get("fullName") or visual_fields.get("fullName", "")
     family_hints = salvage_family_hints(parsed.get("familyName", ""))
+    if not full_name:
+        return _filename_full_name_hint(file_name, family_hints)
     tokens = [token for token in full_name.upper().split() if token]
     if family_hints and not _full_name_matches_family_or_file(tokens, family_hints, file_name):
         return ""
@@ -472,11 +596,34 @@ def _build_given_name_hint(file_name: str, extraction: dict[str, object], family
 
 
 def _filename_name_hint(file_name: str) -> str:
-    stem = os.path.splitext(os.path.basename(file_name))[0]
-    for token in re.sub(r"[^A-Z\s]", " ", stem.upper()).split():
+    for token in _filename_name_tokens(file_name):
         if len(token) >= 3 and is_reasonable_token(token):
             return token
     return ""
+
+
+def _filename_full_name_hint(file_name: str, family_hints: list[str]) -> str:
+    if not family_hints:
+        return ""
+    tokens = _filename_name_tokens(file_name)
+    if len(tokens) < 2:
+        return ""
+    for start in range(max(0, len(tokens) - 4), len(tokens) - 1):
+        candidate_tokens = tokens[start:]
+        if any(token_matches_simple(candidate_tokens[-1], hint) for hint in family_hints):
+            candidate = " ".join(candidate_tokens)
+            if score_full_name(candidate, family_hints) >= 80:
+                return candidate
+    return ""
+
+
+def _filename_name_tokens(file_name: str) -> list[str]:
+    stem = os.path.splitext(os.path.basename(file_name))[0]
+    return [
+        token
+        for token in re.sub(r"[^A-Z\s]", " ", stem.upper()).split()
+        if token not in FILENAME_NAME_NOISE and is_reasonable_token(token)
+    ]
 
 
 def _extract_given_name_hint(extraction: dict[str, object], family_hint: str = "") -> str:
@@ -530,7 +677,8 @@ def write_manifest(group_id: str, group_dir: str, members: list[dict[str, object
 def print_summary(members: list[dict[str, object]]) -> None:
     valid_count = sum(1 for member in members if member.get("status") == "VALID")
     error_count = len(members) - valid_count
-    print(f"Processed {len(members)} files: {valid_count} VALID, {error_count} ERROR")
+    review_count = sum(1 for member in members if member.get("reviewStatus") == "NEEDS_REVIEW")
+    print(f"Processed {len(members)} files: {valid_count} VALID, {error_count} ERROR, {review_count} NEEDS_REVIEW")
 
 
 def main() -> None:

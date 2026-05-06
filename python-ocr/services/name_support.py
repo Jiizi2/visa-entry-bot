@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+COMMON_JOINED_GIVEN_NAMES = {"MUHAMMAD"}
 
 
 def clean_existing_first_name(parsed: dict[str, str]) -> dict[str, str]:
@@ -32,6 +33,21 @@ def repair_single_word_name(parsed: dict[str, str]) -> tuple[dict[str, str], str
     if not updated.get("firstName") and family_name and is_reasonable_name_value(family_name) and len(family_name.split()) == 1:
         updated["firstName"] = family_name
         return updated, "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS"
+    return updated, ""
+
+
+def repair_common_given_name_spacing(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
+    updated = dict(parsed)
+    tokens = re.sub(r"[^A-Z\s]", " ", str(updated.get("firstName", "") or "").upper()).split()
+    joined = "".join(tokens)
+    if len(tokens) == 2 and joined in COMMON_JOINED_GIVEN_NAMES:
+        updated["firstName"] = joined
+        return updated, "GIVEN NAME SPACING REPAIRED FROM MRZ"
+    if len(tokens) == 1:
+        cleaned = _strip_common_given_name_noise(tokens[0])
+        if cleaned != tokens[0]:
+            updated["firstName"] = cleaned
+            return updated, "GIVEN NAME NOISE REPAIRED FROM MRZ"
     return updated, ""
 
 
@@ -103,6 +119,9 @@ def repair_given_tokens(tokens: list[str]) -> list[str]:
     cleaned = [token for token in tokens if token]
     if len(cleaned) <= 1 or (len(cleaned) == 2 and len(cleaned[0]) == 1):
         return cleaned
+    joined = "".join(cleaned)
+    if len(cleaned) == 2 and joined in COMMON_JOINED_GIVEN_NAMES:
+        return [joined]
     merged = split_given_names("".join(cleaned)).split()
     if not merged or merged == cleaned:
         return cleaned
@@ -196,3 +215,11 @@ def _hint_variants(token: str) -> list[str]:
     if len(cleaned) >= 6 and cleaned.endswith("S") and is_reasonable_token(cleaned[:-1]):
         variants.append(cleaned[:-1])
     return variants
+
+
+def _strip_common_given_name_noise(token: str) -> str:
+    for common_name in COMMON_JOINED_GIVEN_NAMES:
+        suffix = token[len(common_name) :]
+        if token.startswith(common_name) and suffix and set(suffix) <= {"K"}:
+            return common_name
+    return token

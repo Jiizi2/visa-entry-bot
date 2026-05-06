@@ -12,6 +12,7 @@ def build_review_flags(
     field_confidence: dict[str, object],
     status: str,
     notes: str,
+    mrz_validation: dict[str, object] | None = None,
 ) -> dict[str, object]:
     passport_flags = {field: [] for field in passport_extracted}
     resolved_flags = {field: [] for field in resolved_profile if field != "arabic"}
@@ -27,8 +28,9 @@ def build_review_flags(
         source_by_field,
         field_confidence.get("resolvedProfile", {}),
     )
-    _apply_name_flags(passport_flags, resolved_flags, passport_extracted, resolved_profile)
+    _apply_name_flags(passport_flags, resolved_flags, passport_extracted, resolved_profile, notes, mrz_validation)
     _apply_date_flags(passport_flags, resolved_flags, passport_extracted, resolved_profile)
+    _apply_mrz_validation_flags(record_flags, passport_flags, mrz_validation)
     _apply_record_summary(record_flags, passport_flags, resolved_flags)
     return {"record": _dedupe(record_flags), "passportExtracted": passport_flags, "resolvedProfile": resolved_flags}
 
@@ -132,9 +134,22 @@ def _apply_name_flags(
     resolved_flags: dict[str, object],
     passport_values: dict[str, str],
     resolved_values: dict[str, object],
+    notes: str,
+    mrz_validation: dict[str, object] | None,
 ) -> None:
-    _mark_name_pair(passport_flags, passport_values.get("firstName", ""), passport_values.get("familyName", ""))
-    _mark_name_pair(resolved_flags, str(resolved_values.get("firstName", "") or ""), str(resolved_values.get("familyName", "") or ""))
+    allow_single_word_name = _is_verified_single_word_name(passport_values, notes, mrz_validation)
+    _mark_name_pair(
+        passport_flags,
+        passport_values.get("firstName", ""),
+        passport_values.get("familyName", ""),
+        allow_single_word_name=allow_single_word_name,
+    )
+    _mark_name_pair(
+        resolved_flags,
+        str(resolved_values.get("firstName", "") or ""),
+        str(resolved_values.get("familyName", "") or ""),
+        allow_single_word_name=allow_single_word_name,
+    )
 
 
 def _apply_date_flags(
@@ -150,6 +165,37 @@ def _apply_date_flags(
         str(resolved_values.get("issueDate", "") or ""),
         str(resolved_values.get("expiryDate", "") or ""),
     )
+
+
+def _apply_mrz_validation_flags(
+    record_flags: list[str],
+    passport_flags: dict[str, list[str]],
+    mrz_validation: dict[str, object] | None,
+) -> None:
+    if not isinstance(mrz_validation, dict) or not mrz_validation:
+        return
+    checks = mrz_validation.get("checks", [])
+    if not isinstance(checks, list) or not checks:
+        return
+    if mrz_validation.get("valid") is True:
+        return
+
+    valid_count = int(mrz_validation.get("validCheckCount", 0) or 0)
+    record_flags.append("MRZ_CHECKSUM_PARTIAL" if valid_count > 0 else "MRZ_CHECKSUM_FAILED")
+    for check in checks:
+        if not isinstance(check, dict) or check.get("valid") is True:
+            continue
+        field_name = _checksum_field_to_passport_field(str(check.get("fieldName", "") or ""))
+        if field_name and field_name in passport_flags:
+            passport_flags[field_name].append("MRZ_CHECKSUM_FAILED")
+
+
+def _checksum_field_to_passport_field(field_name: str) -> str:
+    return {
+        "passportNumber": "passportNumber",
+        "dob": "dob",
+        "expiryDate": "expiryDate",
+    }.get(field_name, "")
 
 
 def _apply_record_summary(
@@ -184,8 +230,23 @@ def _apply_source_flag(field_flags: list[str], source: str, value: object) -> No
         field_flags.append("MISSING_VALUE")
 
 
-def _mark_name_pair(flags: dict[str, object], first_name: str, family_name: str) -> None:
-    if first_name and first_name == family_name:
+def _is_verified_single_word_name(
+    passport_values: dict[str, str],
+    notes: str,
+    mrz_validation: dict[str, object] | None,
+) -> bool:
+    first_name = str(passport_values.get("firstName", "") or "").strip()
+    family_name = str(passport_values.get("familyName", "") or "").strip()
+    if not first_name or first_name != family_name:
+        return False
+    upper_notes = str(notes or "").upper()
+    if "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS" not in upper_notes:
+        return False
+    return isinstance(mrz_validation, dict) and mrz_validation.get("valid") is True
+
+
+def _mark_name_pair(flags: dict[str, object], first_name: str, family_name: str, allow_single_word_name: bool = False) -> None:
+    if first_name and first_name == family_name and not allow_single_word_name:
         flags["firstName"].append("SINGLE_WORD_OR_DUPLICATED_NAME")
         flags["familyName"].append("SINGLE_WORD_OR_DUPLICATED_NAME")
     if len(first_name) == 1:

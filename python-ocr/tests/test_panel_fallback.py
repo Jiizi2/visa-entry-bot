@@ -11,12 +11,14 @@ from services.panel_fallback import (
     _best_passport_candidate,
     _clean_date,
     _extract_date_fields,
+    _extract_passport_number,
     _extract_passport_candidates_from_lines,
     _extract_simple_field,
     fuse_panel_fields,
     _pick_stable_simple_field,
     _pick_strong_name_candidate,
     _prioritized_name_windows,
+    _split_full_name,
     extract_document_panel_fields,
     should_use_panel_fallback,
 )
@@ -29,20 +31,62 @@ class PanelFallbackTests(unittest.TestCase):
         self.assertEqual(_clean_date("11 JUL 2027"), "2027-07-11")
 
     def test_extract_date_fields_uses_only_date_windows(self) -> None:
+        panel_modes = {
+            "panel": {
+                "issueDate": ((0.10, 0.20, 0.30, 0.40),),
+                "expiryDate": ((0.50, 0.60, 0.70, 0.80),),
+            }
+        }
         with patch(
             "services.panel_fallback._collect_date_candidates",
             side_effect=[["2022-07-11"], ["2027-07-11", "1969-04-27"]],
-        ) as collector:
+        ) as collector, patch("services.panel_fallback.load_indonesia_panel_modes", return_value=panel_modes):
             fields = _extract_date_fields(object(), "panel", "1969-04-27")
 
         self.assertEqual(collector.call_count, 2)
+        self.assertEqual(collector.call_args_list[0].args[1], ((0.10, 0.20, 0.30, 0.40),))
+        self.assertEqual(collector.call_args_list[1].args[1], ((0.50, 0.60, 0.70, 0.80),))
         self.assertEqual(fields["issueDate"], "2022-07-11")
         self.assertEqual(fields["expiryDate"], "2027-07-11")
+
+    def test_extract_date_fields_skips_expiry_scan_when_current_expiry_is_trusted(self) -> None:
+        panel_modes = {
+            "panel": {
+                "issueDate": ((0.10, 0.20, 0.30, 0.40),),
+                "expiryDate": ((0.50, 0.60, 0.70, 0.80),),
+            }
+        }
+        with patch(
+            "services.panel_fallback._collect_date_candidates",
+            return_value=["11 JUL 2022"],
+        ) as collector, patch("services.panel_fallback.load_indonesia_panel_modes", return_value=panel_modes):
+            fields = _extract_date_fields(
+                object(),
+                "panel",
+                "1969-04-27",
+                requested_fields=("issueDate",),
+                current_expiry_date="2027-07-11",
+            )
+
+        self.assertEqual(fields, {"issueDate": "2022-07-11"})
+        self.assertEqual(collector.call_count, 1)
+        self.assertEqual(collector.call_args.args[1], ((0.10, 0.20, 0.30, 0.40),))
 
     def test_passport_candidate_joins_neighbor_prefix(self) -> None:
         candidates = _extract_passport_candidates_from_lines(["6725064", "X"])
 
         self.assertEqual(_best_passport_candidate(candidates), "X6725064")
+
+    def test_panel_passport_number_uses_strong_candidate_early_stop(self) -> None:
+        with (
+            patch("services.panel_fallback.crop_relative", return_value=object()),
+            patch("services.panel_fallback.collect_ocr_lines", return_value=["E8710852"]) as collector,
+        ):
+            result = _extract_passport_number(object(), ((0.1, 0.2, 0.3, 0.4),))
+
+        self.assertEqual(result, "E8710852")
+        self.assertTrue(callable(collector.call_args.kwargs["stop_when"]))
+        self.assertTrue(collector.call_args.kwargs["stop_when"](["E8710852"]))
 
     def test_direct_mrz_uses_panel_for_visual_fields(self) -> None:
         self.assertTrue(
@@ -90,6 +134,17 @@ class PanelFallbackTests(unittest.TestCase):
         self.assertEqual(result, "BERAU")
         self.assertEqual([call.kwargs["psm_values"] for call in collector.call_args_list], [(6,), (7,)])
 
+    def test_panel_location_uses_known_location_early_stop(self) -> None:
+        with (
+            patch("services.panel_fallback.crop_relative", return_value=object()),
+            patch("services.panel_fallback.collect_ocr_lines", return_value=["TANJUNG REDEB"]) as collector,
+        ):
+            result = _extract_simple_field(object(), ((0, 1, 0, 1),), "issuingOffice")
+
+        self.assertEqual(result, "TANJUNG REDEB")
+        self.assertTrue(callable(collector.call_args.kwargs["stop_when"]))
+        self.assertTrue(collector.call_args.kwargs["stop_when"](["TANJUNG REDEB"]))
+
     def test_panel_name_prioritizes_value_window_when_family_hint_exists(self) -> None:
         windows = ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12))
 
@@ -109,6 +164,9 @@ class PanelFallbackTests(unittest.TestCase):
         self.assertEqual(normalize_name_candidate("MASKURDISKUNDAPUTRA", ["PUTRA"]), "MASKURDI SKUNDA PUTRA")
         self.assertEqual(normalize_name_candidate("RAYHANARIFMAULANA", ["MAULANA"]), "RAYHAN ARIF MAULANA")
         self.assertEqual(normalize_name_candidate("PURWANTO", ["PURWANTO"]), "PURWANTO")
+
+    def test_panel_name_repairs_split_common_given_name(self) -> None:
+        self.assertEqual(_split_full_name("MUHA MMAD IHSAN"), {"firstName": "MUHAMMAD", "familyName": "IHSAN"})
 
 
 if __name__ == "__main__":

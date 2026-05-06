@@ -31,6 +31,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
     panel_fallback_used = 0
     visual_ocr_used = 0
     mrz_fallback_used = 0
+    ocr_mode_counts: dict[str, int] = {}
     for member in members:
         metrics = member.get("processingMetrics", {})
         if not isinstance(metrics, dict):
@@ -44,6 +45,9 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
             visual_ocr_used += 1
         if metrics.get("mrzFallbackUsed"):
             mrz_fallback_used += 1
+        ocr_mode = str(metrics.get("ocrMode", "") or "")
+        if ocr_mode:
+            ocr_mode_counts[ocr_mode] = ocr_mode_counts.get(ocr_mode, 0) + 1
 
     if not total_ms_values:
         return {
@@ -54,6 +58,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
             "panelFallbackUsed": panel_fallback_used,
             "visualOcrUsed": visual_ocr_used,
             "mrzFallbackUsed": mrz_fallback_used,
+            "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
         }
 
     sorted_values = sorted(total_ms_values)
@@ -66,6 +71,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
         "panelFallbackUsed": panel_fallback_used,
         "visualOcrUsed": visual_ocr_used,
         "mrzFallbackUsed": mrz_fallback_used,
+        "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
     }
 
 
@@ -171,6 +177,7 @@ def main() -> int:
 
     valid_count = sum(1 for member in result.members if member.get("status") == "VALID")
     error_count = len(result.members) - valid_count
+    review_count = sum(1 for member in result.members if member.get("reviewStatus") == "NEEDS_REVIEW")
     emit(
         "scan_complete",
         groupId=result.group_id,
@@ -180,6 +187,7 @@ def main() -> int:
         totalFiles=len(result.members),
         validCount=valid_count,
         errorCount=error_count,
+        reviewCount=review_count,
     )
     return 0
 

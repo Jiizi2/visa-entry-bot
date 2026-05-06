@@ -14,6 +14,11 @@ BUILTINS = {
     "placeOfBirth": {"BERAU", "KEDIRI", "KENDAL", "MAKASSAR", "PAREPARE", "PINRANG", "UJUNG PANDANG"},
     "issuingOffice": {"BANJARMASIN", "TANJUNG PRIOK", "TANJUNG REDEB", "TANJUG REDEB", "TARAKAN"},
 }
+CANONICAL_ALIASES = {
+    "placeOfBirth": {
+        "PARE PARE": "PAREPARE",
+    },
+}
 
 
 def normalize_location_value(field_name: str, value: str) -> str:
@@ -21,11 +26,11 @@ def normalize_location_value(field_name: str, value: str) -> str:
 
 
 def is_known_location_value(field_name: str, value: str) -> bool:
-    return _clean_text(value) in _known_values(field_name)
+    return _canonical_value(field_name, _clean_text(value)) in _known_values(field_name)
 
 
 def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
-    cleaned = [_clean_text(value) for value in candidates if _clean_text(value)]
+    cleaned = [_canonical_value(field_name, _clean_text(value)) for value in candidates if _clean_text(value)]
     if not cleaned:
         return ""
     vocabulary = _known_values(field_name)
@@ -65,7 +70,7 @@ def _best_vocabulary_match(candidate: str, vocabulary: set[str]) -> tuple[str, f
 
 @lru_cache(maxsize=1)
 def _known_values(field_name: str) -> set[str]:
-    values = set(BUILTINS.get(field_name, set()))
+    values = {_canonical_value(field_name, value) for value in BUILTINS.get(field_name, set())}
     for root, _, files in os.walk(DATA_DIR):
         for file_name in files:
             if not file_name.lower().endswith(".xlsx"):
@@ -75,7 +80,7 @@ def _known_values(field_name: str) -> set[str]:
             except Exception:  # noqa: BLE001
                 continue
             for row in rows:
-                value = _clean_text(row.get(field_name, ""))
+                value = _canonical_value(field_name, _clean_text(row.get(field_name, "")))
                 if value:
                     values.add(value)
     return values
@@ -108,6 +113,10 @@ def _clean_text(value: str) -> str:
     normalized = re.sub(r"[^A-Z\s-]", " ", str(value or "").upper())
     normalized = normalized.replace("-", " ")
     return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _canonical_value(field_name: str, value: str) -> str:
+    return CANONICAL_ALIASES.get(field_name, {}).get(value, value)
 
 
 def _compact(value: str) -> str:

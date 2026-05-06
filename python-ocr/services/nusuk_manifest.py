@@ -6,6 +6,7 @@ from datetime import date
 
 from services.confidence_levels import build_confidence_levels, empty_confidence_levels
 from services.field_confidence import build_field_confidence, empty_field_confidence
+from services.field_evidence import build_field_evidence, empty_field_evidence
 from services.parser import clean_country
 from services.resolved_name_rules import build_resolved_name_fields
 from services.review_flags import build_review_flags, empty_review_flags
@@ -30,6 +31,8 @@ def build_error_record(file_name: str, file_path: str, message: str) -> dict[str
             "resolvedProfile": resolved_profile,
             "sourceByField": source_by_field,
             "fieldConfidence": field_confidence,
+            "fieldEvidence": empty_field_evidence(),
+            "mrzValidation": _empty_mrz_validation(),
             "confidenceLevel": build_confidence_levels(0.0, field_confidence),
             "reviewFlags": build_review_flags(
                 passport_extracted,
@@ -39,6 +42,9 @@ def build_error_record(file_name: str, file_path: str, message: str) -> dict[str
                 "ERROR",
                 message.strip(),
             ),
+            "requiresReview": True,
+            "reviewReasons": ["RECORD_ERROR"],
+            "reviewStatus": "ERROR",
             "status": "ERROR",
             "confidence": 0.0,
             "notes": message.strip(),
@@ -63,15 +69,39 @@ def build_member_record(
     source_by_field = _build_source_by_field(passport_extracted, resolved_profile)
     field_confidence = build_field_confidence(passport_extracted, resolved_profile, source_by_field, extraction, visual_fields)
     confidence_levels = build_confidence_levels(confidence, field_confidence)
-    review_flags = build_review_flags(passport_extracted, resolved_profile, source_by_field, field_confidence, status, notes)
+    mrz_validation = _build_mrz_validation(extraction)
+    review_flags = build_review_flags(
+        passport_extracted,
+        resolved_profile,
+        source_by_field,
+        field_confidence,
+        status,
+        notes,
+        mrz_validation,
+    )
+    review_reasons = _record_review_reasons(review_flags)
+    field_evidence = build_field_evidence(
+        passport_extracted,
+        resolved_profile,
+        source_by_field,
+        field_confidence,
+        extraction,
+        visual_fields,
+        review_flags,
+    )
     record.update(
         {
             "passportExtracted": passport_extracted,
             "resolvedProfile": resolved_profile,
             "sourceByField": source_by_field,
             "fieldConfidence": field_confidence,
+            "fieldEvidence": field_evidence,
+            "mrzValidation": mrz_validation,
             "confidenceLevel": confidence_levels,
             "reviewFlags": review_flags,
+            "requiresReview": bool(review_reasons),
+            "reviewReasons": review_reasons,
+            "reviewStatus": _review_status(status, review_reasons),
             "status": status,
             "confidence": confidence,
             "notes": notes,
@@ -89,8 +119,13 @@ def _base_record(file_name: str, file_path: str) -> dict[str, object]:
         "resolvedProfile": _empty_resolved_profile(),
         "sourceByField": _empty_source_by_field(),
         "fieldConfidence": empty_field_confidence(),
+        "fieldEvidence": empty_field_evidence(),
+        "mrzValidation": _empty_mrz_validation(),
         "confidenceLevel": empty_confidence_levels(),
         "reviewFlags": empty_review_flags(),
+        "requiresReview": False,
+        "reviewReasons": [],
+        "reviewStatus": "ERROR",
         "status": "ERROR",
         "confidence": 0.0,
         "notes": "",
@@ -276,6 +311,35 @@ def _empty_source_by_field() -> dict[str, str]:
         "arabic.grandfatherName": "intentional_empty",
         "arabic.familyName": "intentional_empty",
     }
+
+
+def _build_mrz_validation(extraction: dict[str, object]) -> dict[str, object]:
+    validation = extraction.get("mrzValidation", {}) if extraction else {}
+    return validation if isinstance(validation, dict) else _empty_mrz_validation()
+
+
+def _empty_mrz_validation() -> dict[str, object]:
+    return {
+        "line2": "",
+        "status": "MRZ_FAILED",
+        "valid": False,
+        "validCheckCount": 0,
+        "checks": [],
+        "notes": "",
+    }
+
+
+def _record_review_reasons(review_flags: dict[str, object]) -> list[str]:
+    record_flags = review_flags.get("record", [])
+    if not isinstance(record_flags, list):
+        return []
+    return [str(value) for value in record_flags if str(value)]
+
+
+def _review_status(status: str, review_reasons: list[str]) -> str:
+    if status == "ERROR":
+        return "ERROR"
+    return "NEEDS_REVIEW" if review_reasons else "VALID"
 
 
 def _passport_source(passport_extracted: dict[str, str], field_name: str) -> str:

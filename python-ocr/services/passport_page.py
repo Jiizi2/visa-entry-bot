@@ -5,6 +5,7 @@ import re
 import shutil
 import warnings
 from functools import lru_cache
+from typing import Callable
 
 import numpy as np
 
@@ -25,6 +26,7 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 from services.image_preprocessor import temporary_mrz_variants
 from services.ocr_result_cache import build_region_cache_key, get_cached_lines, store_cached_lines
+from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
 
 
 @lru_cache(maxsize=8)
@@ -87,31 +89,36 @@ def collect_ocr_lines(
     whitelist: str = "",
     variant_mode: str = "default",
     max_lines: int = 0,
+    stop_when: Callable[[list[str]], bool] | None = None,
 ) -> list[str]:
     if region is None or cv2 is None or pytesseract is None or not configure_tesseract():
         return []
 
-    cache_key = build_region_cache_key("collect", region, psm_values, whitelist, variant_mode, max_lines)
+    cache_key = None if stop_when is not None else build_region_cache_key("collect", region, psm_values, whitelist, variant_mode, max_lines)
     cached = get_cached_lines(cache_key)
     if cached is not None:
         return cached
 
-    config_suffix = " -c user_defined_dpi=300 -c preserve_interword_spaces=1"
-    if whitelist:
-        config_suffix += f" -c tessedit_char_whitelist={whitelist}"
     seen: set[str] = set()
     lines: list[str] = []
     for variant in _build_variants(region, variant_mode):
         for psm in psm_values:
-            try:
-                text = pytesseract.image_to_string(variant, config=f"--oem 3 --psm {psm}{config_suffix}")
-            except Exception:  # noqa: BLE001
+            config = build_tesseract_config(
+                psm=psm,
+                whitelist=whitelist,
+                dpi=300,
+                preserve_interword_spaces=True,
+            )
+            text = run_tesseract_ocr(variant, config)
+            if not text:
                 continue
             for raw_line in text.splitlines():
                 cleaned = re.sub(r"\s+", " ", raw_line).strip()
                 if cleaned and cleaned not in seen:
                     seen.add(cleaned)
                     lines.append(cleaned)
+                    if stop_when is not None and stop_when(lines):
+                        return store_cached_lines(cache_key, lines)
                     if max_lines and len(lines) >= max_lines:
                         return store_cached_lines(cache_key, lines)
     return store_cached_lines(cache_key, lines)
@@ -138,7 +145,6 @@ def _build_variants(region: object, mode: str = "default") -> list[object]:
     sharpened = cv2.addWeighted(clahe, 1.55, cv2.GaussianBlur(clahe, (0, 0), 1.4), -0.55, 0)
     denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
     _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    _, otsu_inv = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     adaptive = cv2.adaptiveThreshold(
         denoised,
         255,
@@ -147,6 +153,10 @@ def _build_variants(region: object, mode: str = "default") -> list[object]:
         31,
         9,
     )
+    if mode == "hint":
+        return _unique_variants([clahe, denoised, otsu, adaptive])
+    if mode == "fast":
+        return _unique_variants([clahe, denoised, otsu, adaptive])
     local = cv2.adaptiveThreshold(
         denoised,
         255,
@@ -156,14 +166,11 @@ def _build_variants(region: object, mode: str = "default") -> list[object]:
         11,
     )
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    opened = cv2.morphologyEx(otsu, cv2.MORPH_OPEN, kernel)
     closed = cv2.morphologyEx(otsu, cv2.MORPH_CLOSE, kernel)
     if mode == "numeric":
         return _unique_variants([otsu, adaptive, local, closed])
-    if mode == "hint":
-        return _unique_variants([clahe, denoised, otsu, adaptive])
-    if mode == "fast":
-        return _unique_variants([clahe, denoised, otsu, adaptive])
+    _, otsu_inv = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    opened = cv2.morphologyEx(otsu, cv2.MORPH_OPEN, kernel)
     return _unique_variants([clahe, denoised, otsu, adaptive, local, opened, closed, otsu_inv])
 
 

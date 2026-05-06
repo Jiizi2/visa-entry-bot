@@ -4,21 +4,15 @@ import re
 from collections import Counter
 from datetime import date
 
+from services.layout_profiles import load_indonesia_passport_layout_profile
 from services.location_normalizer import pick_best_location_value
 from services.parser import clean_gender
 from services.passport_page import collect_ocr_lines, configure_tesseract, crop_relative, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
 
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
-TEMPLATES = (
-    {"fullName": (0.20, 0.33, 0.24, 0.80), "nationality": (0.41, 0.48, 0.34, 0.58), "dob": (0.53, 0.61, 0.34, 0.56), "gender": (0.53, 0.61, 0.60, 0.68), "placeOfBirth": (0.53, 0.61, 0.84, 0.97), "issueDate": (0.64, 0.72, 0.34, 0.56), "expiryDate": (0.61, 0.71, 0.80, 0.99), "issuingOffice": (0.80, 0.91, 0.71, 0.99)},
-    {"fullName": (0.18, 0.32, 0.22, 0.82), "nationality": (0.39, 0.47, 0.32, 0.60), "dob": (0.51, 0.60, 0.32, 0.57), "gender": (0.51, 0.60, 0.58, 0.70), "placeOfBirth": (0.51, 0.60, 0.81, 0.98), "issueDate": (0.62, 0.71, 0.32, 0.57), "expiryDate": (0.60, 0.70, 0.79, 0.99), "issuingOffice": (0.78, 0.90, 0.69, 0.99)},
-)
 FIELD_CONFIG = {"fullName": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name"}, "nationality": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country"}, "dob": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "gender": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender"}, "placeOfBirth": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}, "issueDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "expiryDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "issuingOffice": {"psm": 6, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}}
-EXTRA_WINDOWS = {"placeOfBirth": ((0.48, 0.64, 0.68, 0.99), (0.50, 0.64, 0.70, 0.99)), "issuingOffice": ((0.76, 0.94, 0.68, 0.99),)}
 LABEL_FRAGMENTS = ("BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
-NAME_WINDOWS = ((0.16, 0.40, 0.16, 0.90), (0.12, 0.42, 0.12, 0.90))
-NAME_VALUE_WINDOWS = ((0.30, 0.42, 0.22, 0.84), (0.29, 0.44, 0.20, 0.86))
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
 
 
@@ -68,8 +62,11 @@ def _extract_field(page: object, field_name: str) -> str:
     if field_name == "fullName":
         return _extract_full_name(page)
     config = FIELD_CONFIG[field_name]
+    layout_profile = load_indonesia_passport_layout_profile()
     candidates: list[str] = []
-    windows = [template[field_name] for template in TEMPLATES] + list(EXTRA_WINDOWS.get(field_name, ()))
+    windows = [template[field_name] for template in layout_profile["fieldTemplates"]] + list(
+        layout_profile["extraWindows"].get(field_name, ())
+    )
     variant_mode = "numeric" if config["kind"] == "date" else "fast"
     for window in windows:
         region = crop_relative(page, *window)
@@ -85,8 +82,9 @@ def _extract_field(page: object, field_name: str) -> str:
 
 
 def _extract_full_name(page: object) -> str:
+    layout_profile = load_indonesia_passport_layout_profile()
     collected: list[str] = []
-    for window in NAME_WINDOWS:
+    for window in layout_profile["nameWindows"]:
         lines = collect_ocr_lines(
             crop_relative(page, *window),
             psm_values=(6,),
@@ -108,7 +106,7 @@ def _extract_full_name(page: object) -> str:
                     collected.append(cleaned)
 
     config = FIELD_CONFIG["fullName"]
-    for window in NAME_VALUE_WINDOWS:
+    for window in layout_profile["nameValueWindows"]:
         region = crop_relative(page, *window)
         if region is None:
             continue

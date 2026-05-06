@@ -13,11 +13,20 @@ from services.date_field_extractor import extract_document_dates
 from services.expiry_date_extractor import extract_expiry_date
 from services.indonesia_field_ocr import _extract_field, extract_visual_fields
 from services.issue_date_extractor import extract_issue_date
-from services.mrz_extractor import DirectMrzResult, _read_best_mrz, _repair_direct_line2, _score_direct_line2
+from services.mrz_extractor import DirectMrzResult, _extract_direct_mrz_from_region, _read_best_mrz, _repair_direct_line2, _score_direct_line2
 from services.ocr_result_cache import clear_ocr_result_cache
 from services.passport_page import clear_passport_page_cache, collect_ocr_lines, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
-from main import _can_infer_missing_issue_date, _select_panel_field_names, _select_visual_field_names, _should_refine_names
+from main import (
+    _apply_verified_mrz_name_repairs,
+    _apply_verified_single_word_name,
+    _can_infer_missing_issue_date,
+    _filename_name_hint,
+    _pick_preferred_full_name,
+    _select_panel_field_names,
+    _select_visual_field_names,
+    _should_refine_names,
+)
 
 
 class OcrPerformanceGuardTests(unittest.TestCase):
@@ -34,7 +43,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         with (
             patch("services.passport_page.configure_tesseract", return_value=True),
             patch("services.passport_page._build_variants", return_value=[region]),
-            patch("services.passport_page.pytesseract.image_to_string", return_value="LINE 1\n") as image_to_string,
+            patch("services.tesseract_runner.pytesseract.image_to_string", return_value="LINE 1\n") as image_to_string,
         ):
             first = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
             second = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
@@ -48,7 +57,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         with (
             patch("services.passport_page.configure_tesseract", return_value=True),
             patch("services.passport_page._build_variants", return_value=[region, region]),
-            patch("services.passport_page.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "LINE 2\n"]),
+            patch("services.tesseract_runner.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "LINE 2\n"]),
         ):
             result = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
 
@@ -60,7 +69,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             patch("services.visual_region_scanner.collect_ocr_lines", return_value=[]),
             patch("services.visual_region_scanner.cv2", object()),
             patch("services.visual_region_scanner._build_variants", return_value=[region, region]),
-            patch("services.visual_region_scanner.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "TEXT"]),
+            patch("services.tesseract_runner.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "TEXT"]),
         ):
             result = scan_region_texts(region, 7, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -293,6 +302,72 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             )
         )
 
+    def test_verified_single_word_mrz_skips_name_recovery_scope(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_single_word_name({"firstName": "", "familyName": "MARGONO"}, extraction)
+
+        self.assertEqual(parsed["firstName"], "MARGONO")
+        self.assertEqual(note, "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS")
+        self.assertNotIn("fullName", _select_panel_field_names(parsed, extraction))
+        self.assertFalse(_should_refine_names(parsed, extraction, panel_fallback_used=True, preferred_full_name=""))
+
+    def test_unverified_single_word_mrz_keeps_name_recovery_scope(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": False}}
+
+        parsed, note = _apply_verified_single_word_name({"firstName": "", "familyName": "MARGONO"}, extraction)
+
+        self.assertEqual(parsed, {"firstName": "", "familyName": "MARGONO"})
+        self.assertEqual(note, "")
+        self.assertIn("fullName", _select_panel_field_names(parsed, extraction))
+
+    def test_verified_single_word_mrz_defers_when_filename_has_distinct_name_hint(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_mrz_name_repairs(
+            {"firstName": "", "familyName": "YUSUF"},
+            extraction,
+            file_name="Copy of Djumadi Yusuf.jpeg",
+        )
+
+        self.assertEqual(parsed, {"firstName": "", "familyName": "YUSUF"})
+        self.assertEqual(note, "")
+        self.assertIn("fullName", _select_panel_field_names(parsed, extraction))
+
+    def test_filename_hint_skips_generic_tokens(self) -> None:
+        self.assertEqual(_filename_name_hint("Copy of Faith Ghaisan 1.jpeg"), "FAITH")
+        self.assertEqual(_filename_name_hint("IMG_4531.jpg"), "")
+
+    def test_preferred_full_name_can_use_filename_when_family_matches(self) -> None:
+        result = _pick_preferred_full_name(
+            {"firstName": "", "familyName": "GHAISAN"},
+            {},
+            {},
+            file_name="Copy of Faith Ghaisan 1.jpeg",
+        )
+
+        self.assertEqual(result, "FAITH GHAISAN")
+
+    def test_verified_mrz_repairs_split_common_given_name_before_panel_scope(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_mrz_name_repairs({"firstName": "MUHA MMAD", "familyName": "IHSAN"}, extraction)
+
+        self.assertEqual(parsed["firstName"], "MUHAMMAD")
+        self.assertEqual(note, "GIVEN NAME SPACING REPAIRED FROM MRZ")
+        self.assertNotIn("fullName", _select_panel_field_names(parsed, extraction))
+        self.assertFalse(_should_refine_names(parsed, extraction, panel_fallback_used=True, preferred_full_name=""))
+
+    def test_verified_mrz_strips_common_given_name_filler_before_panel_scope(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_mrz_name_repairs({"firstName": "MUHAMMADK", "familyName": "IHSAN"}, extraction)
+
+        self.assertEqual(parsed["firstName"], "MUHAMMAD")
+        self.assertEqual(note, "GIVEN NAME NOISE REPAIRED FROM MRZ")
+        self.assertNotIn("fullName", _select_panel_field_names(parsed, extraction))
+        self.assertFalse(_should_refine_names(parsed, extraction, panel_fallback_used=True, preferred_full_name=""))
+
     def test_missing_issue_with_expiry_can_skip_page_alignment(self) -> None:
         parsed = {
             "dob": "2019-06-01",
@@ -341,6 +416,24 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertIs(mrz, direct)
         self.assertIn("direct lower-band OCR", note)
         read_mrz.assert_not_called()
+
+    def test_direct_mrz_region_stops_after_high_confidence_candidate(self) -> None:
+        region = np.zeros((40, 2000), dtype=np.uint8)
+        text = "\n".join(
+            [
+                "P<IDNRAMADAN<<KARIM<ALFARIZI<<<<<<<<<<<<<<<<",
+                "E8710852<5IDN1906017M30010866403050106000214",
+            ]
+        )
+        with (
+            patch("services.mrz_extractor._build_direct_mrz_variants", return_value=[region, region]),
+            patch("services.mrz_extractor.run_tesseract_ocr", return_value=text) as tesseract,
+        ):
+            result = _extract_direct_mrz_from_region(region)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.valid_score, 100)
+        self.assertEqual(tesseract.call_count, 1)
 
     def test_weak_indonesian_direct_mrz_does_not_short_circuit_variant(self) -> None:
         direct = DirectMrzResult(

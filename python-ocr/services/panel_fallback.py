@@ -6,45 +6,14 @@ from datetime import date
 from services.expiry_date_extractor import pick_expiry_date
 from services.image_preprocessor import _load_image, detect_document_crop
 from services.issue_date_extractor import infer_issue_date, pick_issue_date
+from services.layout_profiles import load_indonesia_panel_modes
 from services.location_normalizer import is_known_location_value, pick_best_location_value
-from services.name_support import salvage_family_hints, score_name_fields, token_matches_simple
+from services.name_support import repair_given_tokens, salvage_family_hints, score_name_fields, token_matches_simple
 from services.panel_name_support import normalize_name_candidate, pick_best_name_candidate, score_full_name
 from services.passport_page import collect_ocr_lines, crop_relative
 
 LOW_CONFIDENCE_THRESHOLD = 0.6
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
-MODES = {
-    "compact": {
-        "name": (
-            (0.18, 0.36, 0.20, 0.92),
-            (0.20, 0.36, 0.28, 0.95),
-            (0.22, 0.36, 0.30, 0.98),
-            (0.24, 0.38, 0.28, 0.98),
-            (0.24, 0.34, 0.36, 0.82),
-            (0.22, 0.30, 0.38, 0.80),
-            (0.18, 0.30, 0.34, 0.86),
-        ),
-        "passportNumber": ((0.14, 0.26, 0.72, 0.98), (0.16, 0.28, 0.70, 0.98), (0.12, 0.24, 0.70, 0.98)),
-        "nationality": ((0.34, 0.48, 0.34, 0.62),),
-        "dob": ((0.48, 0.62, 0.30, 0.54),),
-        "gender": ((0.48, 0.62, 0.56, 0.68),),
-        "placeOfBirth": ((0.48, 0.62, 0.74, 0.98),),
-        "issueDate": ((0.60, 0.76, 0.28, 0.56),),
-        "expiryDate": ((0.60, 0.76, 0.72, 0.98),),
-        "issuingOffice": ((0.72, 0.94, 0.70, 0.99),),
-    },
-    "panel": {
-        "name": ((0.20, 0.30, 0.22, 0.82), (0.18, 0.28, 0.22, 0.82), (0.22, 0.32, 0.20, 0.84)),
-        "passportNumber": ((0.12, 0.30, 0.62, 1.00), (0.08, 0.28, 0.60, 1.00), (0.14, 0.28, 0.68, 0.98), (0.10, 0.24, 0.70, 0.98), (0.12, 0.26, 0.68, 0.98)),
-        "nationality": ((0.32, 0.44, 0.22, 0.58),),
-        "dob": ((0.44, 0.58, 0.22, 0.50),),
-        "gender": ((0.44, 0.58, 0.50, 0.62), (0.42, 0.58, 0.44, 0.68)),
-        "placeOfBirth": ((0.40, 0.54, 0.64, 0.99), (0.44, 0.58, 0.72, 0.98)),
-        "issueDate": ((0.52, 0.64, 0.20, 0.55), (0.50, 0.63, 0.18, 0.58), (0.46, 0.58, 0.20, 0.55), (0.43, 0.58, 0.20, 0.52), (0.58, 0.72, 0.22, 0.50)),
-        "expiryDate": ((0.52, 0.64, 0.64, 0.99), (0.50, 0.63, 0.62, 0.99), (0.46, 0.58, 0.66, 0.99), (0.43, 0.58, 0.68, 0.99), (0.58, 0.72, 0.72, 0.98)),
-        "issuingOffice": ((0.58, 0.78, 0.68, 0.99), (0.72, 0.96, 0.70, 0.99)),
-    },
-}
 TEXT_FIELDS = {"placeOfBirth", "issuingOffice", "nationality", "gender"}
 DEFAULT_PANEL_FIELDS = (
     "fullName",
@@ -76,12 +45,15 @@ def extract_document_panel_fields(
     family_hint: str = "",
     given_hint: str = "",
     field_names: tuple[str, ...] | None = None,
+    current_dob: str = "",
+    current_issue_date: str = "",
+    current_expiry_date: str = "",
 ) -> dict[str, str]:
     panel, mode = _build_panel(file_path)
     if panel is None:
         return {}
     requested = set(field_names or DEFAULT_PANEL_FIELDS)
-    config = MODES[mode]
+    config = load_indonesia_panel_modes()[mode]
     fields: dict[str, str] = {}
     if "fullName" in requested:
         fields["fullName"] = _extract_name(panel, config["name"], family_hint, given_hint)
@@ -93,8 +65,16 @@ def extract_document_panel_fields(
         value = _extract_simple_field(panel, config[field_name], field_name)
         if value:
             fields[field_name] = value
-    if {"issueDate", "expiryDate"} & requested:
-        date_fields = _extract_date_fields(panel, mode, fields.get("dob", ""))
+    date_field_names = tuple(field_name for field_name in ("issueDate", "expiryDate") if field_name in requested)
+    if date_field_names:
+        date_fields = _extract_date_fields(
+            panel,
+            mode,
+            fields.get("dob", "") or current_dob,
+            requested_fields=date_field_names,
+            current_issue_date=current_issue_date,
+            current_expiry_date=current_expiry_date,
+        )
         fields.update({key: value for key, value in date_fields.items() if key in requested})
     return {key: value for key, value in fields.items() if value}
 
@@ -164,12 +144,17 @@ def _extract_passport_number(panel: object, windows: tuple[tuple[float, float, f
             whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
             variant_mode="fast",
             max_lines=20,
+            stop_when=_has_strong_passport_candidate,
         )
         candidates.extend(_extract_passport_candidates_from_lines(lines))
         best_candidate = _best_passport_candidate(candidates)
         if re.fullmatch(r"[EX]\d{7}", best_candidate):
             return best_candidate
     return _best_passport_candidate(candidates)
+
+
+def _has_strong_passport_candidate(lines: list[str]) -> bool:
+    return bool(re.fullmatch(r"[EX]\d{7}", _best_passport_candidate(_extract_passport_candidates_from_lines(lines))))
 
 
 def _extract_passport_candidates_from_lines(lines: list[str]) -> list[str]:
@@ -200,7 +185,14 @@ def _extract_simple_field(panel: object, windows: tuple[tuple[float, float, floa
     candidates: list[str] = []
     for psm_values in _simple_field_psm_passes(field_name):
         for window in windows:
-            for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=psm_values, whitelist=whitelist, variant_mode="fast", max_lines=8):
+            for line in collect_ocr_lines(
+                crop_relative(panel, *window),
+                psm_values=psm_values,
+                whitelist=whitelist,
+                variant_mode="fast",
+                max_lines=8,
+                stop_when=_simple_field_stop_when(field_name),
+            ):
                 value = _clean_field(field_name, line)
                 if value:
                     candidates.append(value)
@@ -214,15 +206,43 @@ def _extract_simple_field(panel: object, windows: tuple[tuple[float, float, floa
     return max(set(candidates), key=lambda value: (candidates.count(value), len(value))) if candidates else ""
 
 
-def _extract_date_fields(panel: object, mode: str, dob: str = "") -> dict[str, str]:
-    config = MODES[mode]
-    issue_candidates = _collect_date_candidates(panel, config["issueDate"])
-    expiry_candidates = _collect_date_candidates(panel, config["expiryDate"])
+def _extract_date_fields(
+    panel: object,
+    mode: str,
+    dob: str = "",
+    requested_fields: tuple[str, ...] = ("issueDate", "expiryDate"),
+    current_issue_date: str = "",
+    current_expiry_date: str = "",
+) -> dict[str, str]:
+    config = load_indonesia_panel_modes()[mode]
+    requested = set(requested_fields)
+    issue_candidates = _collect_date_candidates(panel, config["issueDate"]) if "issueDate" in requested else []
+    expiry_candidates = _collect_date_candidates(panel, config["expiryDate"]) if "expiryDate" in requested else []
     shared_candidates = _unique_dates(issue_candidates + expiry_candidates)
-    expiry = pick_expiry_date(expiry_candidates or shared_candidates, dob=dob)
-    issue = pick_issue_date(issue_candidates + expiry_candidates, dob, expiry)
-    fields = {"expiryDate": expiry, "issueDate": issue or infer_issue_date(dob, expiry)}
+    expiry = (
+        current_expiry_date
+        if _is_iso_date(current_expiry_date) and "expiryDate" not in requested
+        else pick_expiry_date(expiry_candidates or shared_candidates, dob=dob)
+    )
+    issue = (
+        current_issue_date
+        if _is_iso_date(current_issue_date) and "issueDate" not in requested
+        else pick_issue_date(issue_candidates + expiry_candidates, dob, expiry)
+    )
+    fields = {}
+    if "expiryDate" in requested:
+        fields["expiryDate"] = expiry
+    if "issueDate" in requested:
+        fields["issueDate"] = issue or infer_issue_date(dob, expiry)
     return {key: value for key, value in fields.items() if value}
+
+
+def _is_iso_date(value: str) -> bool:
+    try:
+        date.fromisoformat(str(value or ""))
+        return True
+    except ValueError:
+        return False
 
 
 def _collect_date_candidates(panel: object, windows: tuple[tuple[float, float, float, float], ...]) -> list[str]:
@@ -286,7 +306,10 @@ def _clean_date(value: str) -> str:
 
 def _split_full_name(full_name: str) -> dict[str, str]:
     tokens = full_name.split()
-    return {"firstName": tokens[0], "familyName": tokens[0]} if len(tokens) == 1 else {"firstName": " ".join(tokens[:-1]), "familyName": tokens[-1]}
+    if len(tokens) == 1:
+        return {"firstName": tokens[0], "familyName": tokens[0]}
+    first_tokens = repair_given_tokens(tokens[:-1])
+    return {"firstName": " ".join(first_tokens), "familyName": tokens[-1]}
 
 
 def _panel_name_matches_existing_hints(full_name: str, parsed: dict[str, str]) -> bool:
@@ -334,6 +357,21 @@ def _simple_field_psm_passes(field_name: str) -> tuple[tuple[int, ...], ...]:
     if field_name in {"placeOfBirth", "issuingOffice"}:
         return ((6,), (7,))
     return ((6, 7),)
+
+
+def _simple_field_stop_when(field_name: str) -> object | None:
+    if field_name not in {"placeOfBirth", "issuingOffice", "nationality"}:
+        return None
+
+    def stop_when(lines: list[str]) -> bool:
+        candidates = []
+        for line in lines:
+            value = _clean_field(field_name, line)
+            if value:
+                candidates.append(value)
+        return bool(_pick_stable_simple_field(field_name, candidates))
+
+    return stop_when
 
 
 def _repair_passport_number(current: str, extraction: dict[str, object] | None, visual: str) -> str:

@@ -31,6 +31,8 @@ def refine_names_from_scan(
     full_name = preferred_full_name or extract_full_name(file_path, parsed, page=page)
     if not full_name:
         return repair_single_word_name(parsed)
+    if _should_keep_single_word_mrz_name(parsed, full_name):
+        return repair_single_word_name(parsed)
     resolved, single_word = _split_full_name(full_name, parsed)
     if not resolved:
         return parsed, ""
@@ -200,6 +202,18 @@ def _split_full_name(full_name: str, parsed: dict[str, str]) -> tuple[dict[str, 
     first_name = " ".join(first_tokens).strip() or family_name
     single_word = single_word or first_name == family_name
     return {"firstName": first_name, "familyName": family_name}, single_word
+
+
+def _should_keep_single_word_mrz_name(parsed: dict[str, str], full_name: str) -> bool:
+    if parsed.get("firstName", "").strip():
+        return False
+    family_name = _normalize_line(parsed.get("familyName", ""))
+    if not family_name or len(family_name.split()) != 1:
+        return False
+    tokens = _normalize_line(full_name).split()
+    if len(tokens) <= 1:
+        return False
+    return any(_token_matches(token, family_name) for token in tokens)
 
 
 def _match_family_suffix(tokens: list[str], family_name: str) -> list[str]:

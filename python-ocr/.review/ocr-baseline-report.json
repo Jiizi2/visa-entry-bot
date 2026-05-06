@@ -1,0 +1,1171 @@
+{
+  "groupId": "trainingData",
+  "passportsDir": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData",
+  "totalFiles": 17,
+  "summary": {
+    "validCount": 17,
+    "errorCount": 0,
+    "reviewStatusCounts": {
+      "VALID": 14,
+      "NEEDS_REVIEW": 3,
+      "ERROR": 0
+    },
+    "reviewCount": 3,
+    "mismatchCount": 0,
+    "avgTotalMs": 5345,
+    "p95TotalMs": 21681,
+    "maxTotalMs": 33599,
+    "stageTotalsMs": {
+      "dates": 12844,
+      "mrz": 30379,
+      "names": 0,
+      "panel": 35217,
+      "validate": 0,
+      "visual": 12408
+    },
+    "ocrCacheTotals": {
+      "hitCount": 0,
+      "missCount": 47,
+      "storeCount": 47
+    },
+    "tesseractTotals": {
+      "callCount": 419,
+      "errorCount": 0,
+      "totalMs": 48610,
+      "maxMs": 611
+    },
+    "fieldAccuracy": {
+      "birthCity": {
+        "expectedCount": 16,
+        "matchCount": 16,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "cityOfIssued": {
+        "expectedCount": 16,
+        "matchCount": 16,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "dob": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "expiryDate": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "familyName": {
+        "expectedCount": 16,
+        "matchCount": 16,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "firstName": {
+        "expectedCount": 16,
+        "matchCount": 16,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "gender": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "issueDate": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "nationality": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "passportNumber": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "status": {
+        "expectedCount": 17,
+        "matchCount": 17,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      }
+    },
+    "ocrModeCounts": {
+      "RECOVERY": 17
+    },
+    "panelFallbackUsed": 17,
+    "visualOcrUsed": 3,
+    "mrzFallbackUsed": 0
+  },
+  "records": [
+    {
+      "fileName": "Copy of Arif Maulana.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2173,
+      "stagesMs": {
+        "mrz": 370,
+        "panel": 1801,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Arif Maulana.jpeg"
+      },
+      "tesseract": {
+        "callCount": 8,
+        "errorCount": 0,
+        "totalMs": 1221,
+        "maxMs": 262,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Djumadi Yusuf.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 4548,
+      "stagesMs": {
+        "mrz": 407,
+        "panel": 4140,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 3,
+        "storeCount": 3,
+        "entryCount": 3,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Djumadi Yusuf.jpeg"
+      },
+      "tesseract": {
+        "callCount": 14,
+        "errorCount": 0,
+        "totalMs": 3020,
+        "maxMs": 611,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Faith Ghaisan 1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1492,
+      "stagesMs": {
+        "mrz": 416,
+        "panel": 1075,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Faith Ghaisan 1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 4,
+        "errorCount": 0,
+        "totalMs": 586,
+        "maxMs": 184,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of IMG_4530.jpg",
+      "status": "VALID",
+      "reviewStatus": "NEEDS_REVIEW",
+      "requiresReview": true,
+      "reviewReasons": [
+        "LOW_MRZ_CONFIDENCE",
+        "LOW_ARABIC_CONFIDENCE",
+        "MRZ_CHECKSUM_PARTIAL",
+        "LOW_NAME_CONFIDENCE",
+        "LOW_VISUAL_FIELD_CONFIDENCE"
+      ],
+      "confidence": 0.65,
+      "totalMs": 21681,
+      "stagesMs": {
+        "mrz": 12035,
+        "panel": 5955,
+        "visual": 3689,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 8,
+        "storeCount": 8,
+        "entryCount": 8,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of IMG_4530.jpg"
+      },
+      "tesseract": {
+        "callCount": 82,
+        "errorCount": 0,
+        "totalMs": 9713,
+        "maxMs": 283,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "REVIEW_STATUS"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of IMG_4531.jpg",
+      "status": "VALID",
+      "reviewStatus": "NEEDS_REVIEW",
+      "requiresReview": true,
+      "reviewReasons": [
+        "LOW_ARABIC_CONFIDENCE",
+        "LOW_NAME_CONFIDENCE"
+      ],
+      "confidence": 1.0,
+      "totalMs": 8648,
+      "stagesMs": {
+        "mrz": 1838,
+        "panel": 2480,
+        "visual": 4329,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 8,
+        "storeCount": 8,
+        "entryCount": 8,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of IMG_4531.jpg"
+      },
+      "tesseract": {
+        "callCount": 60,
+        "errorCount": 0,
+        "totalMs": 5881,
+        "maxMs": 182,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "REVIEW_STATUS"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Jumarni Cagga 1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1309,
+      "stagesMs": {
+        "mrz": 403,
+        "panel": 905,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Jumarni Cagga 1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 453,
+        "maxMs": 172,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Karim Alfarizi Ramadan.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2106,
+      "stagesMs": {
+        "mrz": 426,
+        "panel": 1679,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Karim Alfarizi Ramadan.jpeg"
+      },
+      "tesseract": {
+        "callCount": 7,
+        "errorCount": 0,
+        "totalMs": 949,
+        "maxMs": 186,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Margono1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1354,
+      "stagesMs": {
+        "mrz": 414,
+        "panel": 939,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Margono1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 439,
+        "maxMs": 164,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Mawar Nurani La Rani.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1916,
+      "stagesMs": {
+        "mrz": 397,
+        "panel": 1518,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Mawar Nurani La Rani.jpeg"
+      },
+      "tesseract": {
+        "callCount": 6,
+        "errorCount": 0,
+        "totalMs": 855,
+        "maxMs": 166,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Meysi Salsahbilla.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1774,
+      "stagesMs": {
+        "mrz": 807,
+        "panel": 965,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Meysi Salsahbilla.jpeg"
+      },
+      "tesseract": {
+        "callCount": 6,
+        "errorCount": 0,
+        "totalMs": 863,
+        "maxMs": 163,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Dzaki 1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1877,
+      "stagesMs": {
+        "mrz": 406,
+        "panel": 1471,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Muhammad Dzaki 1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 6,
+        "errorCount": 0,
+        "totalMs": 780,
+        "maxMs": 165,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Fauzi Azka Fradilah 1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1383,
+      "stagesMs": {
+        "mrz": 414,
+        "panel": 968,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Muhammad Fauzi Azka Fradilah 1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 467,
+        "maxMs": 173,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Ihsan.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1449,
+      "stagesMs": {
+        "mrz": 403,
+        "panel": 1045,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Muhammad Ihsan.jpeg"
+      },
+      "tesseract": {
+        "callCount": 4,
+        "errorCount": 0,
+        "totalMs": 542,
+        "maxMs": 167,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Muhammad Mugni zar Gifari1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 2246,
+      "stagesMs": {
+        "mrz": 406,
+        "panel": 1839,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Muhammad Mugni zar Gifari1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 7,
+        "errorCount": 0,
+        "totalMs": 1157,
+        "maxMs": 325,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Nur Fitriana Ibrahim.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1365,
+      "stagesMs": {
+        "mrz": 411,
+        "panel": 953,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Nur Fitriana Ibrahim.jpeg"
+      },
+      "tesseract": {
+        "callCount": 3,
+        "errorCount": 0,
+        "totalMs": 443,
+        "maxMs": 168,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "Copy of Rasyddiq Mauliddhan1.jpeg",
+      "status": "VALID",
+      "reviewStatus": "VALID",
+      "requiresReview": false,
+      "reviewReasons": [],
+      "confidence": 1.0,
+      "totalMs": 1947,
+      "stagesMs": {
+        "mrz": 388,
+        "panel": 1558,
+        "visual": 0,
+        "dates": 0,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": false,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 0,
+        "storeCount": 0,
+        "entryCount": 0,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\Copy of Rasyddiq Mauliddhan1.jpeg"
+      },
+      "tesseract": {
+        "callCount": 7,
+        "errorCount": 0,
+        "totalMs": 853,
+        "maxMs": 167,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "DATE_RECOVERY",
+        "NAME_RECOVERY"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    },
+    {
+      "fileName": "IMG_4532.jpg",
+      "status": "VALID",
+      "reviewStatus": "NEEDS_REVIEW",
+      "requiresReview": true,
+      "reviewReasons": [
+        "LOW_MRZ_CONFIDENCE",
+        "LOW_ARABIC_CONFIDENCE",
+        "MRZ_CHECKSUM_PARTIAL",
+        "LOW_NAME_CONFIDENCE",
+        "LOW_VISUAL_FIELD_CONFIDENCE"
+      ],
+      "confidence": 0.15,
+      "totalMs": 33599,
+      "stagesMs": {
+        "mrz": 10438,
+        "panel": 5926,
+        "visual": 4390,
+        "dates": 12844,
+        "names": 0,
+        "validate": 0
+      },
+      "panelFallbackUsed": true,
+      "visualOcrUsed": true,
+      "mrzFallbackUsed": false,
+      "ocrCache": {
+        "hitCount": 0,
+        "missCount": 28,
+        "storeCount": 28,
+        "entryCount": 28,
+        "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\trainingData\\IMG_4532.jpg"
+      },
+      "tesseract": {
+        "callCount": 196,
+        "errorCount": 0,
+        "totalMs": 20388,
+        "maxMs": 471,
+        "timeoutSeconds": 8.0
+      },
+      "ocrMode": "RECOVERY",
+      "ocrModeReasons": [
+        "PANEL_FALLBACK",
+        "VISUAL_OCR",
+        "DATE_RECOVERY",
+        "REVIEW_STATUS"
+      ],
+      "expectedFields": [
+        "birthCity",
+        "cityOfIssued",
+        "dob",
+        "expiryDate",
+        "familyName",
+        "firstName",
+        "gender",
+        "issueDate",
+        "nationality",
+        "passportNumber",
+        "status"
+      ],
+      "mismatches": []
+    }
+  ],
+  "goldenValidation": {
+    "recordCount": 17,
+    "validCount": 17,
+    "errorCount": 0,
+    "duplicateFileNames": [],
+    "records": [
+      {
+        "index": 0,
+        "fileName": "Copy of Karim Alfarizi Ramadan.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 1,
+        "fileName": "Copy of Mawar Nurani La Rani.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 2,
+        "fileName": "Copy of Muhammad Dzaki 1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 3,
+        "fileName": "Copy of Margono1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 4,
+        "fileName": "Copy of Meysi Salsahbilla.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 5,
+        "fileName": "Copy of Muhammad Ihsan.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 6,
+        "fileName": "Copy of Muhammad Mugni zar Gifari1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 7,
+        "fileName": "Copy of Arif Maulana.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 8,
+        "fileName": "Copy of Djumadi Yusuf.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 9,
+        "fileName": "Copy of Faith Ghaisan 1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 10,
+        "fileName": "Copy of IMG_4530.jpg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 11,
+        "fileName": "Copy of IMG_4531.jpg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 12,
+        "fileName": "Copy of Jumarni Cagga 1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 13,
+        "fileName": "Copy of Muhammad Fauzi Azka Fradilah 1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 14,
+        "fileName": "Copy of Nur Fitriana Ibrahim.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 15,
+        "fileName": "Copy of Rasyddiq Mauliddhan1.jpeg",
+        "status": "VALID",
+        "errors": []
+      },
+      {
+        "index": 16,
+        "fileName": "IMG_4532.jpg",
+        "status": "VALID",
+        "errors": []
+      }
+    ]
+  },
+  "targetFailures": [
+    {
+      "metric": "reviewCount",
+      "target": 0,
+      "actual": 3
+    },
+    {
+      "metric": "p95TotalMs",
+      "target": 18000,
+      "actual": 21681
+    },
+    {
+      "metric": "maxTotalMs",
+      "target": 25000,
+      "actual": 33599
+    }
+  ]
+}

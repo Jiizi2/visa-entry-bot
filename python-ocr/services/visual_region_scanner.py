@@ -14,6 +14,7 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 from services.ocr_result_cache import build_region_cache_key, get_cached_lines, store_cached_lines
 from services.passport_page import collect_ocr_lines
+from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
 
 
 def scan_region_texts(region: object, psm: int, whitelist: str, variant_mode: str = "fast", max_lines: int = 10) -> list[str]:
@@ -26,12 +27,9 @@ def scan_region_texts(region: object, psm: int, whitelist: str, variant_mode: st
         return store_cached_lines(cache_key, _unique(texts))
     if cv2 is None or pytesseract is None:
         return store_cached_lines(cache_key, _unique(texts))
-    config = f"--oem 3 --psm {psm} -c tessedit_char_whitelist={whitelist}"
+    config = build_tesseract_config(psm=psm, whitelist=whitelist)
     for variant in _build_variants(region):
-        try:
-            text = pytesseract.image_to_string(variant, config=config).strip()
-        except Exception:  # noqa: BLE001
-            continue
+        text = run_tesseract_ocr(variant, config).strip()
         if text:
             texts.append(text)
     return store_cached_lines(cache_key, _unique(texts))

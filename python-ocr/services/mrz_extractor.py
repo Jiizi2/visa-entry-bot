@@ -24,6 +24,8 @@ except ImportError:  # pragma: no cover - depends on local environment
     pytesseract = None
 
 from services.image_preprocessor import assess_document_quality, detect_document_crop, temporary_mrz_variants
+from services.mrz_validation import MrzValidationResult, validate_td3_line2
+from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
 
 FIELD_NAMES = (
     "names",
@@ -83,11 +85,13 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
     data = _to_dictionary(mrz)
     if not data:
         raise ValueError("PassportEye returned empty MRZ data.")
+    mrz_validation = _build_mrz_validation(data)
 
     return {
         "data": data,
         "confidence": _calculate_confidence(mrz, data, quality_penalty),
-        "notes": _merge_notes(_build_notes(mrz), source_note, quality_notes),
+        "notes": _merge_notes(_build_notes(mrz), source_note, quality_notes, _build_validation_note(mrz_validation)),
+        "mrzValidation": mrz_validation.to_dict(),
     }
 
 
@@ -159,16 +163,18 @@ def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
     if gray.shape[1] < 1600:
         scale = 1600.0 / max(gray.shape[1], 1)
         gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    config = "--oem 3 --psm {psm} -c user_defined_dpi=300 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
     candidates: list[DirectMrzResult] = []
     for variant in _build_direct_mrz_variants(gray):
         for psm in (6, 7, 13):
-            try:
-                text = pytesseract.image_to_string(variant, config=config.format(psm=psm))
-            except Exception:  # noqa: BLE001
+            config = build_tesseract_config(psm=psm, whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
+            text = run_tesseract_ocr(variant, config)
+            if not text:
                 continue
             lines = _clean_direct_mrz_lines(text)
             candidates.extend(_direct_mrz_candidates_from_lines(lines))
+            best_candidate = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+            if _is_high_confidence_indonesian_direct_mrz(best_candidate):
+                return best_candidate
     return max(candidates, default=None, key=lambda candidate: candidate.valid_score)
 
 
@@ -296,6 +302,37 @@ def _to_dictionary(mrz: Any) -> dict[str, Any]:
         if value not in (None, "") and key not in data:
             data[key] = value
     return data
+
+
+def _build_mrz_validation(data: dict[str, Any]) -> MrzValidationResult:
+    line2 = _extract_line2(data)
+    return validate_td3_line2(line2)
+
+
+def _extract_line2(data: dict[str, Any]) -> str:
+    explicit_line2 = str(data.get("line2", "") or "")
+    if explicit_line2:
+        return explicit_line2
+    for key in ("mrz_text", "raw_text", "text"):
+        value = data.get(key)
+        if value is None:
+            continue
+        lines = [re.sub(r"[^A-Z0-9<]", "", line.upper()) for line in str(value).splitlines()]
+        candidates = [line for line in lines if len(line.replace("<", "")) >= 20]
+        if candidates:
+            return candidates[-1]
+    return ""
+
+
+def _build_validation_note(result: MrzValidationResult) -> str:
+    if result.notes:
+        return result.notes
+    if result.valid:
+        return "MRZ checksum valid."
+    failed_fields = [check.field_name for check in result.check_results if not check.valid]
+    if failed_fields:
+        return f"MRZ checksum partial: {result.valid_check_count}/{len(result.check_results)} valid ({', '.join(failed_fields)} failed)."
+    return ""
 
 
 def _calculate_confidence(mrz: Any, data: dict[str, Any], quality_penalty: float = 0.0) -> float:

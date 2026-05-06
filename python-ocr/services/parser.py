@@ -175,12 +175,17 @@ def _extract_lines(data: dict[str, Any]) -> list[str]:
 
 
 def _split_name_section(value: str) -> tuple[str, str]:
+    value = _repair_name_separator_noise(value)
     if "<<" not in value:
         return value.split("<", 1)[0], ""
     family_name, first_name = value.split("<<", 1)
     if "<" in family_name:
         return family_name.split("<", 1)[0], ""
     return family_name, first_name.replace("<<", " ")
+
+
+def _repair_name_separator_noise(value: str) -> str:
+    return re.sub(r"<K<(?=[A-Z]{3})", "<<", value)
 
 
 def _score_name(value: str, allow_multi: bool) -> int:
@@ -208,7 +213,13 @@ def _score_name(value: str, allow_multi: bool) -> int:
 
 def _normalize_name_token(token: str) -> str:
     normalized = re.sub(r"[^A-Z]", "", str(token or "").upper())
-    if normalized == "K" or (len(normalized) >= 3 and set(normalized) == {"K"}):
+    if len(normalized) == 1 and normalized not in {"A", "I", "M", "U"}:
+        return ""
+    if len(normalized) >= 3 and not any(char in "AEIOUY" for char in normalized) and normalized.count("K") >= 2:
+        return ""
+    if normalized and set(normalized) == {"K"}:
+        return ""
+    if len(normalized) >= 4 and normalized.count("K") >= 3 and set(normalized) <= {"E", "K", "S"}:
         return ""
     if len(normalized) >= 4 and set(normalized) <= {"S", "K"} and normalized.count("K") >= 3:
         return ""

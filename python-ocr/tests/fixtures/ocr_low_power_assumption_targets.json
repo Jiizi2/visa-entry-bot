@@ -1,0 +1,29 @@
+{
+  "mismatchCount": 0,
+  "reviewCount": 0,
+  "avgTotalMs": 12000,
+  "p95TotalMs": 18000,
+  "maxTotalMs": 25000,
+  "assumedHardware": {
+    "name": "low_power_laptop_assumption",
+    "latencyMultiplier": 3.0,
+    "avgTotalMs": 12000,
+    "p95TotalMs": 18000,
+    "maxTotalMs": 25000,
+    "tesseractTotalMs": 18000,
+    "tesseractMaxMs": 3000
+  },
+  "fieldAccuracy": {
+    "status": 1.0,
+    "passportNumber": 1.0,
+    "nationality": 1.0,
+    "dob": 1.0,
+    "expiryDate": 1.0,
+    "gender": 1.0,
+    "issueDate": 0.98,
+    "firstName": 0.98,
+    "familyName": 0.98,
+    "birthCity": 0.95,
+    "cityOfIssued": 0.95
+  }
+}

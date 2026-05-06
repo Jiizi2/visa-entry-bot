@@ -1,0 +1,57 @@
+{
+  "existingGoldenCount": 7,
+  "candidateCount": 14,
+  "reviewRowCount": 14,
+  "unmatchedReviewRowCount": 0,
+  "unmatchedReviewRows": [],
+  "approvedCount": 14,
+  "pendingCount": 0,
+  "readyToAppendCount": 10,
+  "blockedApprovedCount": 4,
+  "nextGoldenCount": 17,
+  "readyFileNames": [
+    "Copy of Arif Maulana.jpeg",
+    "Copy of Djumadi Yusuf.jpeg",
+    "Copy of Faith Ghaisan 1.jpeg",
+    "Copy of IMG_4530.jpg",
+    "Copy of IMG_4531.jpg",
+    "Copy of Jumarni Cagga 1.jpeg",
+    "Copy of Muhammad Fauzi Azka Fradilah 1.jpeg",
+    "Copy of Nur Fitriana Ibrahim.jpeg",
+    "Copy of Rasyddiq Mauliddhan1.jpeg",
+    "IMG_4532.jpg"
+  ],
+  "pendingFileNames": [],
+  "blockedApproved": [
+    {
+      "fileName": "Copy of Margono1.jpeg",
+      "reason": "ALREADY_IN_GOLDEN"
+    },
+    {
+      "fileName": "Copy of Meysi Salsahbilla.jpeg",
+      "reason": "ALREADY_IN_GOLDEN"
+    },
+    {
+      "fileName": "Copy of Muhammad Ihsan.jpeg",
+      "reason": "ALREADY_IN_GOLDEN"
+    },
+    {
+      "fileName": "Copy of Muhammad Mugni zar Gifari1.jpeg",
+      "reason": "ALREADY_IN_GOLDEN"
+    }
+  ],
+  "blockReasonCounts": {
+    "ALREADY_IN_GOLDEN": 4
+  },
+  "recordStatusCounts": {
+    "VALID": 14
+  },
+  "recordReviewStatusCounts": {
+    "NEEDS_REVIEW": 3,
+    "VALID": 11
+  },
+  "reviewReasonCounts": {
+    "GENERATED_FROM_CURRENT_OCR": 14,
+    "OCR_NEEDS_REVIEW": 3
+  }
+}

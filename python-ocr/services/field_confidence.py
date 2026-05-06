@@ -13,7 +13,7 @@ def build_field_confidence(
     visual_fields: dict[str, str],
 ) -> dict[str, object]:
     base = _clamp(float(extraction.get("confidence", 0.0) or 0.0))
-    passport_confidence = _build_passport_confidence(passport_extracted, visual_fields, base)
+    passport_confidence = _build_passport_confidence(passport_extracted, visual_fields, base, extraction)
     resolved_confidence = _build_resolved_confidence(resolved_profile, source_by_field, passport_confidence)
     return {"passportExtracted": passport_confidence, "resolvedProfile": resolved_confidence}
 
@@ -26,10 +26,11 @@ def _build_passport_confidence(
     passport_extracted: dict[str, str],
     visual_fields: dict[str, str],
     base: float,
+    extraction: dict[str, object],
 ) -> dict[str, float]:
     visual_name = visual_fields.get("fullName", "")
     nationality_confidence = _mrz_confidence(passport_extracted.get("nationality", ""), base)
-    return {
+    confidence = {
         "firstName": _name_confidence(passport_extracted.get("firstName", ""), visual_name, base),
         "familyName": _name_confidence(passport_extracted.get("familyName", ""), visual_name, base),
         "passportNumber": _mrz_confidence(passport_extracted.get("passportNumber", ""), base, bonus=0.08),
@@ -42,6 +43,7 @@ def _build_passport_confidence(
         "cityOfIssued": _visual_confidence(passport_extracted.get("cityOfIssued", ""), base),
         "birthCity": _visual_confidence(passport_extracted.get("birthCity", ""), base),
     }
+    return _apply_mrz_checksum_caps(confidence, extraction)
 
 
 def _build_resolved_confidence(
@@ -180,6 +182,34 @@ def _country_confidence(passport_extracted: dict[str, str], nationality_confiden
     if country == nationality and nationality:
         return nationality_confidence
     return _mrz_confidence(country, base)
+
+
+def _apply_mrz_checksum_caps(confidence: dict[str, float], extraction: dict[str, object]) -> dict[str, float]:
+    failed_fields = _failed_mrz_checksum_fields(extraction)
+    for field_name in failed_fields:
+        if field_name in confidence:
+            confidence[field_name] = min(confidence[field_name], 0.6)
+    return confidence
+
+
+def _failed_mrz_checksum_fields(extraction: dict[str, object]) -> set[str]:
+    validation = extraction.get("mrzValidation", {}) if extraction else {}
+    checks = validation.get("checks", []) if isinstance(validation, dict) else []
+    if not isinstance(checks, list):
+        return set()
+    mapping = {
+        "passportNumber": "passportNumber",
+        "dob": "dob",
+        "expiryDate": "expiryDate",
+    }
+    failed: set[str] = set()
+    for check in checks:
+        if not isinstance(check, dict) or check.get("valid") is True:
+            continue
+        field_name = mapping.get(str(check.get("fieldName", "") or ""))
+        if field_name:
+            failed.add(field_name)
+    return failed
 
 
 def _supports_name(value: str, visual_name: str) -> bool:

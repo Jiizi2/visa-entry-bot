@@ -1,0 +1,18 @@
+{
+  "requireAllOk": true,
+  "avgElapsedMs": 8000,
+  "maxElapsedMs": 15000,
+  "maxPeakMemoryKb": 500000,
+  "fieldHitRates": {
+    "passportNumber": 1.0,
+    "nationality": 1.0,
+    "dob": 1.0,
+    "expiryDate": 1.0,
+    "gender": 1.0,
+    "issueDate": 0.95,
+    "firstName": 0.95,
+    "familyName": 0.95,
+    "birthCity": 0.9,
+    "cityOfIssued": 0.9
+  }
+}
