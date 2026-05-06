@@ -4,14 +4,20 @@ import re
 from collections import Counter
 from datetime import date
 
+from services.image_preprocessor import _load_image
 from services.layout_profiles import load_indonesia_passport_layout_profile
-from services.location_normalizer import pick_best_location_value
+from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.parser import clean_gender
 from services.passport_page import collect_ocr_lines, configure_tesseract, crop_relative, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
 
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 FIELD_CONFIG = {"fullName": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name"}, "nationality": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country"}, "dob": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "gender": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender"}, "placeOfBirth": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}, "issueDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "expiryDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "issuingOffice": {"psm": 6, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}}
+RAW_LOCATION_WINDOWS = {
+    "placeOfBirth": ((0.40, 0.62, 0.62, 0.99), (0.44, 0.66, 0.60, 1.00)),
+    "issuingOffice": ((0.70, 0.94, 0.62, 1.00),),
+}
+RAW_LOCATION_PSM_VALUES = {"placeOfBirth": (6, 11), "issuingOffice": (6,)}
 LABEL_FRAGMENTS = ("BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
 
@@ -20,11 +26,9 @@ def extract_visual_fields(
     file_path: str,
     page: object | None = None,
     field_names: tuple[str, ...] | None = None,
+    allow_aligned_fallback: bool = True,
 ) -> dict[str, str]:
     if not configure_tesseract():
-        return {}
-    page = page if page is not None else extract_aligned_passport_page(file_path)
-    if page is None:
         return {}
     extracted: dict[str, str] = {}
     requested_fields = (
@@ -32,10 +36,25 @@ def extract_visual_fields(
         if field_names is None
         else tuple(field_name for field_name in field_names if field_name in FIELD_CONFIG)
     )
+
     for field_name in requested_fields:
-        value = _extract_field(page, field_name)
-        if value:
-            extracted[field_name] = value
+        if field_name in RAW_LOCATION_WINDOWS:
+            value = _extract_raw_location_field(file_path, field_name)
+            if value:
+                extracted[field_name] = value
+
+    remaining_fields = tuple(field_name for field_name in requested_fields if not extracted.get(field_name))
+    if not remaining_fields:
+        return extracted
+    if not allow_aligned_fallback and page is None:
+        return extracted
+
+    page = page if page is not None else extract_aligned_passport_page(file_path)
+    if page is not None:
+        for field_name in remaining_fields:
+            value = _extract_field(page, field_name)
+            if value:
+                extracted[field_name] = value
     return extracted
 
 
@@ -72,10 +91,56 @@ def _extract_field(page: object, field_name: str) -> str:
         region = crop_relative(page, *window)
         if region is None:
             continue
-        for text in scan_region_texts(region, config["psm"], config["whitelist"], variant_mode=variant_mode, max_lines=12):
-            value = _clean_value(field_name, text, config["kind"])
-            if _is_valid(value, field_name):
-                candidates.append(value)
+        for psm in _field_psm_values(field_name, config["psm"]):
+            for text in scan_region_texts(
+                region,
+                psm,
+                config["whitelist"],
+                variant_mode=variant_mode,
+                max_lines=12,
+                stop_when=_field_stop_when(field_name, config["kind"]),
+            ):
+                value = _clean_value(field_name, text, config["kind"])
+                if _is_valid(value, field_name):
+                    candidates.append(value)
+            if _has_stable_field_candidate(field_name, candidates):
+                break
+        if _has_stable_field_candidate(field_name, candidates):
+            break
+    return _pick_best_field_value(field_name, candidates)
+
+
+def _field_psm_values(field_name: str, default_psm: int) -> tuple[int, ...]:
+    if field_name == "placeOfBirth":
+        return (6, 7)
+    return (default_psm,)
+
+
+def _extract_raw_location_field(file_path: str, field_name: str) -> str:
+    image = _load_image(file_path)
+    if image is None:
+        return ""
+
+    config = FIELD_CONFIG[field_name]
+    candidates: list[str] = []
+    for window in RAW_LOCATION_WINDOWS[field_name]:
+        region = crop_relative(image, *window)
+        if region is None:
+            continue
+        for psm in RAW_LOCATION_PSM_VALUES[field_name]:
+            for text in scan_region_texts(
+                region,
+                psm,
+                config["whitelist"],
+                variant_mode="fast",
+                max_lines=16,
+                stop_when=_field_stop_when(field_name, config["kind"]),
+            ):
+                value = _clean_value(field_name, text, config["kind"])
+                if _is_valid(value, field_name):
+                    candidates.append(value)
+            if _has_stable_field_candidate(field_name, candidates):
+                break
         if _has_stable_field_candidate(field_name, candidates):
             break
     return _pick_best_field_value(field_name, candidates)
@@ -155,8 +220,22 @@ def _has_stable_field_candidate(field_name: str, candidates: list[str]) -> bool:
         return any(count >= 2 for count in counts.values())
     if field_name in {"placeOfBirth", "issuingOffice"}:
         best_value = _pick_best_field_value(field_name, candidates)
-        return bool(best_value and counts.get(best_value, 0) >= 2)
+        return bool(best_value and (is_known_location_value(field_name, best_value) or counts.get(best_value, 0) >= 2))
     return False
+
+
+def _field_stop_when(field_name: str, kind: str) -> object | None:
+    if field_name not in {"placeOfBirth", "issuingOffice"}:
+        return None
+
+    def stop_when(lines: list[str]) -> bool:
+        for line in lines:
+            value = _clean_value(field_name, line, kind)
+            if value and is_known_location_value(field_name, value):
+                return True
+        return False
+
+    return stop_when
 
 
 def _prefer_visual_value(field_name: str, current: str, candidate: str) -> bool:

@@ -19,7 +19,9 @@ def build_review_flags(
     resolved_flags["arabic"] = {field: [] for field in _arabic_values(resolved_profile)}
     record_flags: list[str] = []
 
-    _apply_status_flags(record_flags, status, notes)
+    passport_confidence = field_confidence.get("passportExtracted", {})
+    passport_confidence = passport_confidence if isinstance(passport_confidence, dict) else {}
+    _apply_status_flags(record_flags, status, notes, mrz_validation, passport_confidence)
     _apply_passport_flags(passport_flags, passport_extracted, field_confidence.get("passportExtracted", {}))
     _apply_resolved_flags(
         record_flags,
@@ -82,14 +84,51 @@ def empty_review_flags() -> dict[str, object]:
     }
 
 
-def _apply_status_flags(record_flags: list[str], status: str, notes: str) -> None:
+def _apply_status_flags(
+    record_flags: list[str],
+    status: str,
+    notes: str,
+    mrz_validation: dict[str, object] | None = None,
+    passport_confidence: dict[str, object] | None = None,
+) -> None:
     upper_notes = str(notes or "").upper()
     if status == "ERROR":
         record_flags.append("RECORD_ERROR")
-    if "LOW PASSPORTEYE CONFIDENCE" in upper_notes:
+    if "LOW PASSPORTEYE CONFIDENCE" in upper_notes and not _has_valid_mrz(mrz_validation):
         record_flags.append("LOW_MRZ_CONFIDENCE")
-    if "NAME NORMALIZED FROM FULL NAME FIELD" in upper_notes:
+    if (
+        "NAME NORMALIZED FROM FULL NAME FIELD" in upper_notes
+        and not _is_verified_deterministic_name_repair(upper_notes, mrz_validation)
+        and not _is_high_confidence_verified_visual_name_repair(mrz_validation, passport_confidence)
+    ):
         record_flags.append("NAME_NORMALIZED_FROM_VISUAL")
+
+
+def _is_verified_deterministic_name_repair(upper_notes: str, mrz_validation: dict[str, object] | None) -> bool:
+    if not _has_valid_mrz(mrz_validation):
+        return False
+    trusted_markers = (
+        "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS",
+        "GIVEN NAME ABBREVIATION REPAIRED FROM MRZ",
+        "GIVEN NAME SPACING REPAIRED FROM MRZ",
+        "GIVEN NAME NOISE REPAIRED FROM MRZ",
+        "FIRST NAME REPAIRED FROM FILE NAME HINT",
+        "NAME SPLIT REPAIRED FROM FILE NAME HINT",
+    )
+    return any(marker in upper_notes for marker in trusted_markers)
+
+
+def _has_valid_mrz(mrz_validation: dict[str, object] | None) -> bool:
+    return isinstance(mrz_validation, dict) and mrz_validation.get("valid") is True
+
+
+def _is_high_confidence_verified_visual_name_repair(
+    mrz_validation: dict[str, object] | None,
+    passport_confidence: dict[str, object] | None,
+) -> bool:
+    if not _has_valid_mrz(mrz_validation) or not isinstance(passport_confidence, dict):
+        return False
+    return _as_float(passport_confidence.get("firstName", 0.0)) >= 0.9 and _as_float(passport_confidence.get("familyName", 0.0)) >= 0.9
 
 
 def _apply_passport_flags(flags: dict[str, list[str]], values: dict[str, str], confidence: dict[str, object]) -> None:
@@ -240,7 +279,11 @@ def _is_verified_single_word_name(
     if not first_name or first_name != family_name:
         return False
     upper_notes = str(notes or "").upper()
-    if "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS" not in upper_notes:
+    trusted_markers = (
+        "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS",
+        "SINGLE-WORD NAME INITIAL RECOVERED FROM FILE NAME",
+    )
+    if not any(marker in upper_notes for marker in trusted_markers):
         return False
     return isinstance(mrz_validation, dict) and mrz_validation.get("valid") is True
 

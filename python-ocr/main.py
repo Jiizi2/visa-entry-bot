@@ -13,7 +13,7 @@ from services.image_preprocessor import cleanup_temp_root
 from services.indonesia_field_ocr import build_visual_notes, extract_visual_fields, merge_visual_fields
 from services.issue_date_extractor import infer_issue_date
 from services.mrz_extractor import extract_mrz_data
-from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
+from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_common_name_noise, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
 from services.nusuk_manifest import build_error_record, build_member_record
 from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_result_cache_stats, start_ocr_result_cache_session
 from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
@@ -157,22 +157,27 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         visual_notes = ""
         panel_fields: dict[str, str] = {}
         panel_notes = ""
+        skipped_panel_field_names: tuple[str, ...] = ()
         if should_use_panel_fallback(extraction):
-            panel_fallback_used = True
             panel_field_names = _select_panel_field_names(parsed, extraction)
-            report_step("panel", "Membaca panel dokumen", 0.30, "  - reading document panel")
-            stage_started = time.perf_counter()
-            panel_fields = extract_document_panel_fields(
-                file_path,
-                family_hint=parsed.get("familyName", ""),
-                given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
-                field_names=panel_field_names,
-                current_dob=parsed.get("dob", ""),
-                current_issue_date=parsed.get("issueDate", ""),
-                current_expiry_date=parsed.get("expiryDate", ""),
-            )
-            parsed, panel_notes = fuse_panel_fields(parsed, extraction, panel_fields)
-            stage_durations_ms["panel"] = _elapsed_ms(stage_started)
+            if _should_skip_panel_for_direct_location_only(parsed, extraction, panel_field_names):
+                skipped_panel_field_names = panel_field_names
+                panel_field_names = ()
+            else:
+                panel_fallback_used = True
+                report_step("panel", "Membaca panel dokumen", 0.30, "  - reading document panel")
+                stage_started = time.perf_counter()
+                panel_fields = extract_document_panel_fields(
+                    file_path,
+                    family_hint=parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
+                    field_names=panel_field_names,
+                    current_dob=parsed.get("dob", ""),
+                    current_issue_date=parsed.get("issueDate", ""),
+                    current_expiry_date=parsed.get("expiryDate", ""),
+                )
+                parsed, panel_notes = fuse_panel_fields(parsed, extraction, panel_fields)
+                stage_durations_ms["panel"] = _elapsed_ms(stage_started)
         else:
             panel_field_names = ()
 
@@ -182,11 +187,46 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             stage_started = time.perf_counter()
             if visual_field_names != ():
                 visual_ocr_used = True
-                page = extract_aligned_passport_page(file_path)
-                visual_fields = extract_visual_fields(file_path, page=page, field_names=visual_field_names)
+                if _visual_fields_need_aligned_page(visual_field_names):
+                    page = extract_aligned_passport_page(file_path)
+                visual_fields = extract_visual_fields(
+                    file_path,
+                    page=page,
+                    field_names=visual_field_names,
+                    allow_aligned_fallback=not skipped_panel_field_names,
+                )
             stage_durations_ms["visual"] = _elapsed_ms(stage_started)
         else:
             visual_field_names = ()
+        if skipped_panel_field_names:
+            missing_panel_fields = tuple(field_name for field_name in skipped_panel_field_names if not visual_fields.get(field_name))
+            if missing_panel_fields and visual_fields:
+                stage_started = time.perf_counter()
+                if page is None:
+                    page = extract_aligned_passport_page(file_path)
+                recovered_visual_fields = extract_visual_fields(
+                    file_path,
+                    page=page,
+                    field_names=missing_panel_fields,
+                )
+                visual_fields.update(recovered_visual_fields)
+                stage_durations_ms["visual"] = stage_durations_ms.get("visual", 0) + _elapsed_ms(stage_started)
+                missing_panel_fields = tuple(field_name for field_name in skipped_panel_field_names if not visual_fields.get(field_name))
+            if missing_panel_fields:
+                panel_fallback_used = True
+                report_step("panel", "Membaca panel dokumen", 0.50, "  - reading document panel")
+                stage_started = time.perf_counter()
+                panel_fields = extract_document_panel_fields(
+                    file_path,
+                    family_hint=parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
+                    field_names=missing_panel_fields,
+                    current_dob=parsed.get("dob", ""),
+                    current_issue_date=parsed.get("issueDate", ""),
+                    current_expiry_date=parsed.get("expiryDate", ""),
+                )
+                parsed, panel_notes = fuse_panel_fields(parsed, extraction, panel_fields)
+                stage_durations_ms["panel"] = _elapsed_ms(stage_started)
         merged_visual_fields = _merge_visual_sources(visual_fields, panel_fields)
         parsed = merge_visual_fields(parsed, merged_visual_fields)
         visual_notes = build_visual_notes(merged_visual_fields)
@@ -224,6 +264,9 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             )
         else:
             name_notes = ""
+        parsed, final_name_notes = _apply_final_name_repairs(parsed, file_name=file_name)
+        if final_name_notes:
+            name_notes = join_notes(name_notes, final_name_notes)
         stage_durations_ms["names"] = _elapsed_ms(stage_started)
         report_step("validate", "Validasi akhir", 0.96, "  - validating")
         stage_started = time.perf_counter()
@@ -366,7 +409,7 @@ def _select_visual_field_names(
         return None
 
     fields = ["placeOfBirth", "issuingOffice"]
-    if not _is_iso_date(parsed.get("issueDate", "")):
+    if not _is_iso_date(parsed.get("issueDate", "")) and not _can_infer_missing_issue_date(parsed):
         fields.append("issueDate")
     if not _is_iso_date(parsed.get("dob", "")):
         fields.append("dob")
@@ -379,6 +422,12 @@ def _select_visual_field_names(
     if _needs_name_refinement(parsed):
         fields.append("fullName")
     return tuple(dict.fromkeys(fields))
+
+
+def _visual_fields_need_aligned_page(field_names: tuple[str, ...] | None) -> bool:
+    if field_names is None:
+        return True
+    return any(field_name not in {"placeOfBirth", "issuingOffice"} for field_name in field_names)
 
 
 def _select_panel_fallback_visual_field_names(
@@ -423,6 +472,19 @@ def _select_panel_field_names(parsed: dict[str, str], extraction: dict[str, obje
     return tuple(dict.fromkeys(fields))
 
 
+def _should_skip_panel_for_direct_location_only(
+    parsed: dict[str, str],
+    extraction: dict[str, object],
+    panel_field_names: tuple[str, ...],
+) -> bool:
+    return (
+        _is_direct_mrz_extraction(extraction)
+        and "IMAGE GLARE DETECTED" in str(extraction.get("notes", "") or "").upper()
+        and set(panel_field_names).issubset({"placeOfBirth", "issuingOffice"})
+        and _has_reliable_mrz_for_fast_path(parsed, extraction, panel_fallback_used=False)
+    )
+
+
 def _is_direct_mrz_extraction(extraction: dict[str, object]) -> bool:
     return "DIRECT LOWER-BAND OCR" in str(extraction.get("notes", "") or "").upper()
 
@@ -448,17 +510,102 @@ def _apply_verified_mrz_name_repairs(
     parsed: dict[str, str],
     extraction: dict[str, object],
     file_name: str = "",
-) -> tuple[dict[str, str], str]:
-    if not _has_valid_mrz_validation(extraction):
-        return parsed, ""
+    ) -> tuple[dict[str, str], str]:
     notes = []
     updated, note = repair_common_given_name_spacing(parsed)
     if note:
         notes.append(note)
+    updated, note = repair_common_name_noise(updated)
+    if note:
+        notes.append(note)
+    if not _has_valid_mrz_validation(extraction):
+        return updated, "; ".join(notes)
     updated, note = _apply_verified_single_word_name(updated, extraction, file_name=file_name)
     if note:
         notes.append(note)
+    updated, note = _apply_filename_initial_single_word_name(updated, file_name=file_name)
+    if note:
+        notes.append(note)
     return updated, "; ".join(notes)
+
+
+def _apply_filename_initial_single_word_name(parsed: dict[str, str], file_name: str = "") -> tuple[dict[str, str], str]:
+    tokens = _filename_raw_name_tokens(file_name)
+    if len(tokens) < 2 or len(tokens[0]) != 1:
+        return parsed, ""
+    family_name = str(parsed.get("familyName", "") or "").strip().upper()
+    first_name = str(parsed.get("firstName", "") or "").strip().upper()
+    if not family_name or first_name != family_name:
+        return parsed, ""
+    candidate = f"{tokens[0]} {tokens[1]}"
+    if not token_matches_simple(tokens[1], family_name):
+        return parsed, ""
+    updated = dict(parsed)
+    updated["firstName"] = candidate
+    updated["familyName"] = candidate
+    return updated, "SINGLE-WORD NAME INITIAL RECOVERED FROM FILE NAME"
+
+
+def _apply_final_name_repairs(parsed: dict[str, str], file_name: str = "") -> tuple[dict[str, str], str]:
+    notes = []
+    updated, note = repair_common_given_name_spacing(parsed)
+    if note:
+        notes.append(note)
+    updated, note = repair_common_name_noise(updated)
+    if note:
+        notes.append(note)
+    updated, note = _apply_filename_initial_single_word_name(updated, file_name=file_name)
+    if note:
+        notes.append(note)
+    updated, note = _apply_filename_first_token_name_hint(updated, file_name=file_name)
+    if note:
+        notes.append(note)
+    return updated, "; ".join(notes)
+
+
+def _apply_filename_first_token_name_hint(parsed: dict[str, str], file_name: str = "") -> tuple[dict[str, str], str]:
+    tokens = _filename_raw_name_tokens(file_name)
+    if len(tokens) != 1 or len(tokens[0]) < 4:
+        return parsed, ""
+    hint = tokens[0]
+    first_tokens = re.sub(r"[^A-Z\s]", " ", str(parsed.get("firstName", "") or "").upper()).split()
+    family_tokens = re.sub(r"[^A-Z\s]", " ", str(parsed.get("familyName", "") or "").upper()).split()
+    if family_tokens:
+        family_compact = "".join(family_tokens)
+        if family_compact.endswith(hint) and len(family_compact) > len(hint) + 3:
+            family_prefix = re.sub(r"[CKS]+$", "", family_compact[: -len(hint)])
+            if is_reasonable_token(family_prefix):
+                updated = dict(parsed)
+                updated["firstName"] = hint
+                updated["familyName"] = family_prefix
+                return updated, "NAME SPLIT REPAIRED FROM FILE NAME HINT"
+    if not first_tokens or len(first_tokens) > 2:
+        return parsed, ""
+    compact_first = "".join(first_tokens)
+    should_replace = compact_first == hint or (
+        len(first_tokens) == 1 and (token_matches_simple(first_tokens[0], hint) or _is_one_edit_apart(first_tokens[0], hint))
+    )
+    if not should_replace:
+        return parsed, ""
+    updated = dict(parsed)
+    updated["firstName"] = hint
+    return updated, "FIRST NAME REPAIRED FROM FILE NAME HINT"
+
+
+def _is_one_edit_apart(observed: str, reference: str) -> bool:
+    observed = re.sub(r"[^A-Z]", "", str(observed or "").upper())
+    reference = re.sub(r"[^A-Z]", "", str(reference or "").upper())
+    if observed == reference:
+        return True
+    if abs(len(observed) - len(reference)) > 1:
+        return False
+    if len(observed) == len(reference):
+        return sum(a != b for a, b in zip(observed, reference)) <= 1
+    short, long = sorted((observed, reference), key=len)
+    for index in range(len(long)):
+        if long[:index] + long[index + 1 :] == short:
+            return True
+    return False
 
 
 def _has_distinct_filename_name_hint(file_name: str, family_name: str) -> bool:
@@ -623,6 +770,15 @@ def _filename_name_tokens(file_name: str) -> list[str]:
         token
         for token in re.sub(r"[^A-Z\s]", " ", stem.upper()).split()
         if token not in FILENAME_NAME_NOISE and is_reasonable_token(token)
+    ]
+
+
+def _filename_raw_name_tokens(file_name: str) -> list[str]:
+    stem = os.path.splitext(os.path.basename(file_name))[0]
+    return [
+        token
+        for token in re.sub(r"[^A-Z\s]", " ", stem.upper()).split()
+        if token not in FILENAME_NAME_NOISE and (len(token) == 1 or is_reasonable_token(token))
     ]
 
 

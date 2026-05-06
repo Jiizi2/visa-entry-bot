@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 
+from services.location_normalizer import is_known_location_value
 from services.name_support import is_reasonable_name_value
 
 
@@ -43,6 +45,7 @@ def _build_passport_confidence(
         "cityOfIssued": _visual_confidence(passport_extracted.get("cityOfIssued", ""), base),
         "birthCity": _visual_confidence(passport_extracted.get("birthCity", ""), base),
     }
+    confidence = _apply_valid_mrz_boosts(confidence, passport_extracted, extraction)
     return _apply_mrz_checksum_caps(confidence, extraction)
 
 
@@ -192,6 +195,27 @@ def _apply_mrz_checksum_caps(confidence: dict[str, float], extraction: dict[str,
     return confidence
 
 
+def _apply_valid_mrz_boosts(
+    confidence: dict[str, float],
+    passport_extracted: dict[str, str],
+    extraction: dict[str, object],
+) -> dict[str, float]:
+    validation = extraction.get("mrzValidation", {}) if extraction else {}
+    if not isinstance(validation, dict) or validation.get("valid") is not True:
+        return confidence
+    boosted = dict(confidence)
+    for field_name in ("firstName", "familyName", "passportNumber", "nationality", "dob", "expiryDate", "gender", "countryOfIssued"):
+        if passport_extracted.get(field_name):
+            boosted[field_name] = max(boosted.get(field_name, 0.0), 0.82)
+    if _is_iso_date(passport_extracted.get("issueDate", "")):
+        boosted["issueDate"] = max(boosted.get("issueDate", 0.0), 0.78)
+    if is_known_location_value("issuingOffice", passport_extracted.get("cityOfIssued", "")):
+        boosted["cityOfIssued"] = max(boosted.get("cityOfIssued", 0.0), 0.78)
+    if is_known_location_value("placeOfBirth", passport_extracted.get("birthCity", "")):
+        boosted["birthCity"] = max(boosted.get("birthCity", 0.0), 0.78)
+    return boosted
+
+
 def _failed_mrz_checksum_fields(extraction: dict[str, object]) -> set[str]:
     validation = extraction.get("mrzValidation", {}) if extraction else {}
     checks = validation.get("checks", []) if isinstance(validation, dict) else []
@@ -216,6 +240,14 @@ def _supports_name(value: str, visual_name: str) -> bool:
     if not visual_name or not is_reasonable_name_value(visual_name):
         return False
     return re.sub(r"[^A-Z]", "", value.upper()) in re.sub(r"[^A-Z]", "", visual_name.upper())
+
+
+def _is_iso_date(value: str) -> bool:
+    try:
+        date.fromisoformat(str(value or ""))
+        return True
+    except ValueError:
+        return False
 
 
 def _empty_passport_confidence() -> dict[str, float]:

@@ -11,12 +11,19 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 FIELDS = ("placeOfBirth", "issuingOffice")
 BUILTINS = {
-    "placeOfBirth": {"BERAU", "KEDIRI", "KENDAL", "MAKASSAR", "PAREPARE", "PINRANG", "UJUNG PANDANG"},
-    "issuingOffice": {"BANJARMASIN", "TANJUNG PRIOK", "TANJUNG REDEB", "TANJUG REDEB", "TARAKAN"},
+    "placeOfBirth": {"BANJARMASIN", "BERAU", "BULUNGAN", "KEDIRI", "KENDAL", "MAKASSAR", "PACITAN", "PALANGKA RAYA", "PAREPARE", "PINRANG", "SEMARANG", "UJUNG PANDANG"},
+    "issuingOffice": {"BANJARMASIN", "TANJUNG PRIOK", "TANJUNG REDEB", "TANJONG REDEB", "TANJUG REDEB", "TARAKAN"},
 }
 CANONICAL_ALIASES = {
     "placeOfBirth": {
+        "BANJARMA SIN": "BANJARMASIN",
+        "PALANGKARAYA": "PALANGKA RAYA",
         "PARE PARE": "PAREPARE",
+    },
+    "issuingOffice": {
+        "BANJARMA SIN": "BANJARMASIN",
+        "TANJONG REDEB": "TANJUNG REDEB",
+        "TANJUG REDEB": "TANJUNG REDEB",
     },
 }
 

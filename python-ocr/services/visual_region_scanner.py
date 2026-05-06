@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 try:
     import cv2
@@ -17,12 +18,28 @@ from services.passport_page import collect_ocr_lines
 from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
 
 
-def scan_region_texts(region: object, psm: int, whitelist: str, variant_mode: str = "fast", max_lines: int = 10) -> list[str]:
+def scan_region_texts(
+    region: object,
+    psm: int,
+    whitelist: str,
+    variant_mode: str = "fast",
+    max_lines: int = 10,
+    stop_when: Callable[[list[str]], bool] | None = None,
+) -> list[str]:
     cache_key = build_region_cache_key("scan", region, psm, whitelist, variant_mode, max_lines)
     cached = get_cached_lines(cache_key)
     if cached is not None:
         return cached
-    texts = collect_ocr_lines(region, psm_values=(psm, 6 if psm != 6 else 7), whitelist=whitelist, variant_mode=variant_mode, max_lines=max_lines)
+    texts = collect_ocr_lines(
+        region,
+        psm_values=(psm, 6 if psm != 6 else 7),
+        whitelist=whitelist,
+        variant_mode=variant_mode,
+        max_lines=max_lines,
+        stop_when=stop_when,
+    )
+    if stop_when is not None and stop_when(texts):
+        return store_cached_lines(cache_key, _unique(texts))
     if _has_sufficient_seed_text(texts):
         return store_cached_lines(cache_key, _unique(texts))
     if cv2 is None or pytesseract is None:
@@ -32,6 +49,8 @@ def scan_region_texts(region: object, psm: int, whitelist: str, variant_mode: st
         text = run_tesseract_ocr(variant, config).strip()
         if text:
             texts.append(text)
+            if stop_when is not None and stop_when(texts):
+                return store_cached_lines(cache_key, _unique(texts))
     return store_cached_lines(cache_key, _unique(texts))
 
 

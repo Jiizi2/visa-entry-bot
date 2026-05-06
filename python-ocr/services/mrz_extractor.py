@@ -82,7 +82,7 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
     if mrz is None:
         raise ValueError(_merge_notes("MRZ not detected.", quality_notes))
 
-    data = _to_dictionary(mrz)
+    data = _repair_extracted_mrz_data(_to_dictionary(mrz))
     if not data:
         raise ValueError("PassportEye returned empty MRZ data.")
     mrz_validation = _build_mrz_validation(data)
@@ -229,11 +229,63 @@ def _direct_line2_candidates(lines: list[str]) -> list[str]:
 
 def _repair_direct_line2(value: str) -> str:
     line = value[:44].ljust(44, "<")
+    candidates = {line}
+    candidates.update(_direct_line2_alignment_repairs(line))
+    repaired = {_repair_direct_line2_digits(_repair_direct_line2_country(candidate)) for candidate in candidates}
+    repaired.update(_repair_missing_composite_check_digit(candidate) for candidate in list(repaired))
+    return max(repaired, key=_line2_repair_score)
+
+
+def _repair_extracted_mrz_data(data: dict[str, Any]) -> dict[str, Any]:
+    updated = dict(data)
+    line2 = str(updated.get("line2") or _extract_line2(updated) or "")
+    if line2:
+        updated["line2"] = _repair_direct_line2(line2)
+    return updated
+
+
+def _direct_line2_alignment_repairs(line: str) -> set[str]:
+    repairs: set[str] = set()
+    if len(line) != 44:
+        return repairs
+    if line[0] in {"1", "7", "I", "L"} and line[1:8].isdigit() and line[8] == "<":
+        repairs.add("E" + line[1:])
+    if re.match(r"^[A-Z0-9][EX]\d{7}<", line):
+        repairs.add((line[1:] + "<")[:44].ljust(44, "<"))
+    return repairs
+
+
+def _repair_direct_line2_digits(line: str) -> str:
     chars = list(line)
-    if len(chars) >= 13 and chars[10] in {"1", "0", "L"} and chars[11:13] == ["D", "N"]:
-        chars[10] = "I"
-    line = "".join(chars)
-    return _repair_direct_line2_country(line)
+    digit_table = str.maketrans({"O": "0", "Q": "0", "D": "0", "I": "1", "L": "1", "S": "5", "B": "8", "Z": "2", "G": "6"})
+    for index in (9, 42, 43):
+        if index < len(chars):
+            chars[index] = chars[index].translate(digit_table)
+    for start, end in ((13, 20), (21, 28)):
+        for index in range(start, min(end, len(chars))):
+            chars[index] = chars[index].translate(digit_table)
+    if len(chars) > 20 and chars[20] in {"L", "I", "1"}:
+        chars[20] = "M"
+    if len(chars) > 20 and chars[20] == "P":
+        chars[20] = "F"
+    return "".join(chars)
+
+
+def _repair_missing_composite_check_digit(line: str) -> str:
+    result = validate_td3_line2(line)
+    if result.valid or result.valid_check_count < 4 or len(line) != 44:
+        return line
+    if line[43].isdigit():
+        return line
+    chars = list(line)
+    chars[43] = _mrz_check_digit(line[0:10] + line[13:20] + line[21:43])
+    candidate = "".join(chars)
+    return candidate if validate_td3_line2(candidate).valid_check_count > result.valid_check_count else line
+
+
+def _line2_repair_score(line: str) -> tuple[int, int, int]:
+    result = validate_td3_line2(line)
+    return (100 if result.valid else 0, result.valid_check_count, _score_direct_line2(line))
 
 
 def _repair_direct_line2_country(line: str) -> str:

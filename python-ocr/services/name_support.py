@@ -4,6 +4,7 @@ import re
 
 MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
 COMMON_JOINED_GIVEN_NAMES = {"MUHAMMAD"}
+COMMON_GIVEN_ABBREVIATIONS = {"MUH": "MUHAMMAD"}
 
 
 def clean_existing_first_name(parsed: dict[str, str]) -> dict[str, str]:
@@ -17,7 +18,7 @@ def clean_existing_first_name(parsed: dict[str, str]) -> dict[str, str]:
             else:
                 break
             continue
-        if index > 0 and len(cleaned) >= 5 and cleaned.startswith("K") and is_reasonable_token(cleaned[1:]):
+        if index > 0 and len(cleaned) >= 5 and cleaned.startswith("K") and cleaned[1] not in "AEIOUY" and is_reasonable_token(cleaned[1:]):
             cleaned = cleaned[1:]
         if is_reasonable_token(cleaned):
             tokens.append(cleaned)
@@ -39,6 +40,10 @@ def repair_single_word_name(parsed: dict[str, str]) -> tuple[dict[str, str], str
 def repair_common_given_name_spacing(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
     updated = dict(parsed)
     tokens = re.sub(r"[^A-Z\s]", " ", str(updated.get("firstName", "") or "").upper()).split()
+    if tokens and tokens[0] in COMMON_GIVEN_ABBREVIATIONS:
+        tokens[0] = COMMON_GIVEN_ABBREVIATIONS[tokens[0]]
+        updated["firstName"] = " ".join(tokens)
+        return updated, "GIVEN NAME ABBREVIATION REPAIRED FROM MRZ"
     joined = "".join(tokens)
     if len(tokens) == 2 and joined in COMMON_JOINED_GIVEN_NAMES:
         updated["firstName"] = joined
@@ -49,6 +54,25 @@ def repair_common_given_name_spacing(parsed: dict[str, str]) -> tuple[dict[str, 
             updated["firstName"] = cleaned
             return updated, "GIVEN NAME NOISE REPAIRED FROM MRZ"
     return updated, ""
+
+
+def repair_common_name_noise(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
+    updated = dict(parsed)
+    first_tokens = _name_tokens(updated.get("firstName", ""))
+    family_tokens = _name_tokens(updated.get("familyName", ""))
+    repaired_first = _repair_given_name_tokens(first_tokens)
+    repaired_family = [_repair_family_token(token) for token in family_tokens]
+    repaired_family = [token for token in repaired_family if token]
+    first_name = " ".join(repaired_first)
+    family_name = " ".join(repaired_family)
+    changed = False
+    if first_name and first_name != updated.get("firstName", ""):
+        updated["firstName"] = first_name
+        changed = True
+    if family_name and family_name != updated.get("familyName", ""):
+        updated["familyName"] = family_name
+        changed = True
+    return updated, "COMMON NAME OCR NOISE REPAIRED" if changed else ""
 
 
 def salvage_family_hints(value: str) -> list[str]:
@@ -128,6 +152,73 @@ def repair_given_tokens(tokens: list[str]) -> list[str]:
     if len(merged) == 1:
         return merged if len(cleaned) == 2 and len(cleaned[0]) <= 3 and len("".join(cleaned)) <= 8 else cleaned
     return merged if len(cleaned[0]) <= 4 else cleaned
+
+
+def _repair_given_name_tokens(tokens: list[str]) -> list[str]:
+    repaired: list[str] = []
+    for index, token in enumerate(tokens):
+        repaired.extend(_repair_given_token(token, index=index))
+    return [token for token in repaired if token]
+
+
+def _repair_given_token(token: str, *, index: int) -> list[str]:
+    if token.startswith("DIU") and len(token) >= 6:
+        token = "DJU" + token[3:]
+    if token.startswith("DUI") and len(token) >= 6:
+        token = "DJU" + token[3:]
+    if token == "KAL":
+        return ["AL"]
+    if token == "KLA":
+        return ["LA"]
+    if len(token) >= 6 and token.endswith("KAL") and is_reasonable_token(token[:-3]):
+        return [token[:-3], "AL"]
+    token = _strip_name_noise_suffix(token)
+    if not token:
+        return []
+    if token in COMMON_GIVEN_ABBREVIATIONS:
+        return [COMMON_GIVEN_ABBREVIATIONS[token]]
+    if index > 0 and len(token) >= 5 and token.startswith("K") and token[1] not in "AEIOUY" and is_reasonable_token(token[1:]):
+        return [token[1:]]
+    if index > 0 and len(token) >= 5 and token.startswith("X") and is_reasonable_token(token[1:]):
+        return [token[1:]]
+    if len(token) >= 6 and token.endswith("MS") and is_reasonable_token(token[:-1]):
+        return [token[:-1]]
+    if _is_short_filler_token(token):
+        return []
+    return [token]
+
+
+def _repair_family_token(token: str) -> str:
+    token = _strip_name_noise_suffix(token)
+    if len(token) >= 6 and token.startswith("NM") and is_reasonable_token(token[1:]):
+        return token[1:]
+    if len(token) >= 6 and token.endswith("C") and is_reasonable_token(token[:-1]):
+        return token[:-1]
+    if _is_short_filler_token(token):
+        return ""
+    return token
+
+
+def _strip_name_noise_suffix(token: str) -> str:
+    if len(token) >= 6 and token.endswith("KK"):
+        stripped = re.sub(r"K{2,}$", "", token)
+        if is_reasonable_token(stripped):
+            return stripped
+    if len(token) >= 6 and token.endswith("KE") and is_reasonable_token(token[:-2]):
+        return token[:-2]
+    if len(token) >= 6 and token.endswith("K") and not token.endswith(("FIK", "LIK")) and is_reasonable_token(token[:-1]):
+        return token[:-1]
+    return token
+
+
+def _is_short_filler_token(token: str) -> bool:
+    if len(token) <= 3 and not any(char in "AEIOUY" for char in token):
+        return True
+    return len(token) >= 4 and set(token) <= {"E", "G", "K", "S"} and (token.count("K") + token.count("G")) >= 2
+
+
+def _name_tokens(value: str) -> list[str]:
+    return re.sub(r"[^A-Z\s]", " ", str(value or "").upper()).split()
 
 
 def strip_repeated_suffix(token: str) -> str:
