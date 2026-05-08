@@ -1,0 +1,87 @@
+{
+  "manifestPath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\manifest.json",
+  "total": 37,
+  "statusCounts": {
+    "VALID": 35,
+    "ERROR": 2
+  },
+  "reviewStatusCounts": {
+    "NEEDS_REVIEW": 14,
+    "ERROR": 2,
+    "VALID": 21
+  },
+  "missingFields": {
+    "firstName": {
+      "count": 1,
+      "files": [
+        "RESPITAWULAN_NANANG_RIDWAN_page_001.jpg"
+      ]
+    },
+    "familyName": {
+      "count": 0,
+      "files": []
+    },
+    "passportNumber": {
+      "count": 0,
+      "files": []
+    },
+    "nationality": {
+      "count": 0,
+      "files": []
+    },
+    "dob": {
+      "count": 1,
+      "files": [
+        "ANI_YUNINGSIH_page_001.jpg"
+      ]
+    },
+    "issueDate": {
+      "count": 1,
+      "files": [
+        "RESPITAWULAN_NANANG_RIDWAN_page_001.jpg"
+      ]
+    },
+    "expiryDate": {
+      "count": 0,
+      "files": []
+    },
+    "gender": {
+      "count": 0,
+      "files": []
+    },
+    "birthCity": {
+      "count": 5,
+      "files": [
+        "ANI_YUNINGSIH_page_001.jpg",
+        "DANY_EKA_SAPUTRA_page_001.jpg",
+        "ERWIN_KURNIAWAN_page_001.jpg",
+        "KIKI_ZAKIAH_page_001.jpg",
+        "SURYATI_page_001.jpg"
+      ]
+    },
+    "cityOfIssued": {
+      "count": 7,
+      "files": [
+        "ANI_YUNINGSIH_page_001.jpg",
+        "AZKA_PUTRA_RAKHMATULLAH_page_001.jpg",
+        "EVY ENDAHRIYAH NOOR.png",
+        "KIKI_ZAKIAH_page_001.jpg",
+        "RESPITAWULAN_NANANG_RIDWAN_page_001.jpg",
+        "ROSIKAH_WIRAHADI_page_001.jpg",
+        "TIA_MUTHIAH_UMAR_page_001.jpg"
+      ]
+    }
+  },
+  "reviewReasonCounts": {
+    "NAME_NORMALIZED_FROM_VISUAL": 13,
+    "LOW_MRZ_CONFIDENCE": 3,
+    "LOW_ARABIC_CONFIDENCE": 4,
+    "MRZ_CHECKSUM_PARTIAL": 3,
+    "LOW_NAME_CONFIDENCE": 4,
+    "LOW_VISUAL_FIELD_CONFIDENCE": 3,
+    "RECORD_ERROR": 2,
+    "MRZ_CHECKSUM_FAILED": 1,
+    "SINGLE_WORD_NAME": 1,
+    "CRITICAL_FIELD_MISSING": 1
+  }
+}

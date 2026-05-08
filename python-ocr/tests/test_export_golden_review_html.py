@@ -30,7 +30,8 @@ class ExportGoldenReviewHtmlTests(unittest.TestCase):
                                 "nationality": "INDONESIA",
                             },
                         },
-                    }
+                        "processingMetrics": {"totalMs": 1234},
+                    },
                 ],
             },
             output=Path("review/output.html"),
@@ -43,6 +44,12 @@ class ExportGoldenReviewHtmlTests(unittest.TestCase):
         self.assertIn("NAME_NORMALIZED_FROM_VISUAL", html)
         self.assertIn("table-wrap", html)
         self.assertIn("white-space: nowrap", html)
+        self.assertIn("data-zoom-root", html)
+        self.assertIn("data-zoom-action=\"in\"", html)
+        self.assertIn("WHEEL_THRESHOLD = 120", html)
+        self.assertIn("Timed: 1", html)
+        self.assertIn("Avg scan: 1.2 s", html)
+        self.assertIn("Scan: 1.2 s", html)
 
 
 if __name__ == "__main__":

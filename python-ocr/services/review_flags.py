@@ -94,6 +94,8 @@ def _apply_status_flags(
     upper_notes = str(notes or "").upper()
     if status == "ERROR":
         record_flags.append("RECORD_ERROR")
+    if "FAST SCAN REVIEW REQUIRED" in upper_notes:
+        record_flags.append("FAST_SCAN_REVIEW")
     if "LOW PASSPORTEYE CONFIDENCE" in upper_notes and not _has_valid_mrz(mrz_validation):
         record_flags.append("LOW_MRZ_CONFIDENCE")
     if (
@@ -112,8 +114,6 @@ def _is_verified_deterministic_name_repair(upper_notes: str, mrz_validation: dic
         "GIVEN NAME ABBREVIATION REPAIRED FROM MRZ",
         "GIVEN NAME SPACING REPAIRED FROM MRZ",
         "GIVEN NAME NOISE REPAIRED FROM MRZ",
-        "FIRST NAME REPAIRED FROM FILE NAME HINT",
-        "NAME SPLIT REPAIRED FROM FILE NAME HINT",
     )
     return any(marker in upper_notes for marker in trusted_markers)
 
@@ -281,7 +281,6 @@ def _is_verified_single_word_name(
     upper_notes = str(notes or "").upper()
     trusted_markers = (
         "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS",
-        "SINGLE-WORD NAME INITIAL RECOVERED FROM FILE NAME",
     )
     if not any(marker in upper_notes for marker in trusted_markers):
         return False

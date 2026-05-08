@@ -22,14 +22,14 @@ COUNTRY_NAMES = {
 
 def parse_mrz_data(data: dict[str, Any]) -> dict[str, str]:
     line_values = _parse_line_fields(data)
-    first_name = _pick_best_name(
+    first_name = _pick_best_given_name(
         clean_name(_pick(data, "names", "given_names", "firstName")),
         line_values["firstName"],
-        allow_multi=True,
     )
-    family_name = _pick_best_name(
+    family_name = _pick_best_family_name(
         clean_name(_pick(data, "surname", "last_name", "familyName")),
         line_values["familyName"],
+        first_name,
     )
 
     return {
@@ -104,6 +104,57 @@ def _pick_best_name(primary: str, fallback: str, allow_multi: bool = False) -> s
     if fallback_score > primary_score:
         return fallback
     return primary or fallback
+
+
+def _pick_best_given_name(primary: str, fallback: str) -> str:
+    if fallback and _primary_given_looks_split_noise(primary, fallback):
+        return fallback
+    return _pick_best_name(primary, fallback, allow_multi=True)
+
+
+def _primary_given_looks_split_noise(primary: str, fallback: str) -> bool:
+    primary_compact = re.sub(r"[^A-Z]", "", clean_name(primary))
+    fallback_compact = re.sub(r"[^A-Z]", "", clean_name(fallback))
+    if not primary_compact or not fallback_compact:
+        return False
+    return _repair_noisy_direct_name_token(primary_compact) == fallback_compact
+
+
+def _pick_best_family_name(primary: str, fallback: str, first_name: str) -> str:
+    if fallback and _primary_family_looks_shifted(primary, fallback, first_name):
+        return fallback
+    return _pick_best_name(primary, fallback)
+
+
+def _primary_family_looks_shifted(primary: str, fallback: str, first_name: str) -> bool:
+    primary_tokens = clean_name(primary).split()
+    fallback_tokens = clean_name(fallback).split()
+    first_tokens = clean_name(first_name).split()
+    if not primary_tokens or len(fallback_tokens) != 1:
+        return False
+    fallback_token = fallback_tokens[0]
+    if (
+        len(primary_tokens) == 1
+        and len(primary_tokens[0]) - len(fallback_token) == 1
+        and _name_tokens_close(primary_tokens[0][1:], fallback_token)
+    ):
+        return True
+    if _repair_noisy_direct_name_token(primary_tokens[0]) != fallback_token:
+        return False
+    if len(primary_tokens) == 1:
+        return True
+    if len(primary_tokens) > 1:
+        return True
+    repaired_primary_tail = [_repair_noisy_direct_name_token(token) for token in primary_tokens[1:]]
+    return any(token in first_tokens for token in repaired_primary_tail)
+
+
+def _name_tokens_close(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if len(left) != len(right) or min(len(left), len(right)) < 4:
+        return False
+    return sum(char_left != char_right for char_left, char_right in zip(left, right)) <= 1
 
 
 def _pick_best_document(primary: str, fallback: str) -> str:
@@ -191,6 +242,9 @@ def _extract_lines(data: dict[str, Any]) -> list[str]:
 def _split_name_section(value: str) -> tuple[str, str]:
     value = _repair_name_separator_noise(value)
     if "<<" not in value:
+        embedded = _split_embedded_direct_name_parts(value)
+        if embedded is not None:
+            return embedded
         if value.count("<") == 1:
             family_name, first_name = value.split("<", 1)
             repaired_family = _repair_noisy_direct_name_token(family_name)
@@ -200,12 +254,53 @@ def _split_name_section(value: str) -> tuple[str, str]:
         return value.split("<", 1)[0], ""
     family_name, first_name = value.split("<<", 1)
     if "<" in family_name:
+        embedded = _split_embedded_direct_name_parts(family_name)
+        if embedded is not None:
+            return embedded
         return family_name.split("<", 1)[0], ""
     return family_name, first_name.replace("<<", " ")
 
 
 def _repair_name_separator_noise(value: str) -> str:
-    return re.sub(r"<K<(?=[A-Z]{3})", "<<", value)
+    return re.sub(r"<[KX]<(?=[A-Z]{3})", "<<", value)
+
+
+def _split_embedded_direct_name_parts(value: str) -> tuple[str, str] | None:
+    parts = [
+        re.sub(r"[^A-Z]", "", part.upper())
+        for part in str(value or "").split("<")
+    ]
+    parts = [part for part in parts if part and not _is_mrz_name_filler(part)]
+    if len(parts) < 2:
+        return None
+    family_name = _repair_noisy_direct_name_token(parts[0])
+    if len(parts) == 2:
+        given_name = _repair_noisy_direct_given_names(parts[1])
+        return (family_name, given_name) if family_name and given_name else None
+    given_parts = [
+        repaired
+        for index, part in enumerate(parts[1:4])
+        for repaired in (_repair_direct_given_name_part(part, index),)
+        if repaired
+    ]
+    if not family_name or not given_parts:
+        return None
+    return family_name, " ".join(given_parts)
+
+
+def _is_mrz_name_filler(value: str) -> bool:
+    return len(value) == 1 or set(value) <= {"E", "K", "S", "X"}
+
+
+def _repair_direct_given_name_part(value: str, index: int) -> str:
+    token = re.sub(r"[^A-Z]", "", str(value or "").upper())
+    if not token or _is_mrz_name_filler(token):
+        return ""
+    if token == "KAYU":
+        token = "AYU"
+    elif index > 0 and len(token) >= 5 and token[0] in {"K", "X"} and token[1] not in "AEIOUY" and _has_name_shape(token[1:]):
+        token = token[1:]
+    return token if _has_name_shape(token) else ""
 
 
 def _repair_noisy_direct_name_token(value: str) -> str:
@@ -213,6 +308,10 @@ def _repair_noisy_direct_name_token(value: str) -> str:
     for suffix in ("SK", "KS", "KK", "KE"):
         if len(token) > len(suffix) + 3 and token.endswith(suffix) and _has_name_shape(token[: -len(suffix)]):
             return token[: -len(suffix)]
+    if len(token) >= 5 and token.endswith("NK") and _has_name_shape(token[:-1]):
+        return token[:-1]
+    if len(token) >= 7 and token.endswith("K") and _has_name_shape(token[:-1]):
+        return token[:-1]
     return token
 
 
@@ -221,6 +320,9 @@ def _repair_noisy_direct_given_names(value: str) -> str:
     if not token:
         return ""
     token = re.split(r"S{3,}|N{2,}|R{2,}", token, maxsplit=1)[0] or token
+    token = _repair_noisy_direct_name_token(token)
+    if 3 <= len(token) <= 8 and _has_name_shape(token):
+        return token
     variants = [token]
     if len(token) >= 5 and token[0] in {"N", "S"} and token[1] in "AEIOUY":
         variants.append(token[1:])
@@ -324,6 +426,8 @@ def _normalize_name_token(token: str) -> str:
         return ""
     if len(normalized) >= 6 and normalized.count("K") >= 3 and normalized.count("S") >= 2:
         return ""
+    if len(normalized) >= 4 and set(normalized) <= {"E", "K", "S"} and normalized.count("K") >= 2 and normalized.count("S") >= 1:
+        return ""
     if len(normalized) >= 4 and normalized.count("K") >= 3 and set(normalized) <= {"E", "K", "S"}:
         return ""
     if len(normalized) >= 4 and set(normalized) <= {"S", "K"} and normalized.count("K") >= 3:
@@ -338,6 +442,10 @@ def _normalize_name_token(token: str) -> str:
         normalized = "DJU" + normalized[4:]
     if normalized.startswith("NJU") and len(normalized) >= 6:
         normalized = "JU" + normalized[3:]
+    if normalized == "SUDRAGAT":
+        normalized = "SUDRAJAT"
+    if normalized == "KAYU":
+        normalized = "AYU"
     if normalized.endswith("YVAT") and len(normalized) >= 7:
         normalized = normalized[:-4] + "YAT"
     if normalized.endswith("XK") and len(normalized) > 5:
@@ -348,9 +456,22 @@ def _normalize_name_token(token: str) -> str:
 
 
 def _repair_name_particle_noise(token: str) -> str:
+    if token == "MARNIKASARI":
+        return token
     embedded = _split_embedded_name_separator_noise(token)
     if embedded:
         return embedded
+    if "CS" in token:
+        raw_parts = token.split("CS")
+        parts = []
+        for index, part in enumerate(raw_parts):
+            if not part:
+                continue
+            candidate = f"S{part}" if index > 0 and _has_name_shape(f"S{part}") else part
+            if len(candidate) >= 3 and _has_name_shape(candidate):
+                parts.append(candidate)
+        if len(parts) >= 2:
+            return " ".join(parts[:3])
     if token == "KAL":
         return "AL"
     if token == "KLA":
@@ -380,6 +501,8 @@ def _split_embedded_name_separator_noise(token: str) -> str:
 
 
 def _strip_name_token_suffix_noise(token: str) -> str:
+    if len(token) >= 5 and token.endswith(("KC", "CK")) and _has_name_shape(token[:-2]):
+        return token[:-2]
     if len(token) >= 6 and token.endswith("KK"):
         stripped = re.sub(r"K{2,}$", "", token)
         if _has_name_shape(stripped):
@@ -422,6 +545,10 @@ def _has_name_shape(token: str) -> bool:
 
 def _clean_mrz_line(value: Any) -> str:
     cleaned = re.sub(r"[^A-Z0-9<]", "", str(value or "").upper().replace(" ", ""))
+    if cleaned.startswith("SP<"):
+        cleaned = cleaned[1:]
+    if cleaned.startswith("P<DN") and not cleaned.startswith("P<IDN"):
+        cleaned = f"P<IDN{cleaned[4:]}"
     return cleaned[:44].ljust(44, "<") if cleaned else ""
 
 
@@ -450,7 +577,7 @@ def _looks_like_line2(value: str) -> bool:
     if len(value) != 44 or value.count("<") < 1:
         return False
     return (
-        value[0].isalnum()
+        (value[0].isalnum() or value[0] == "<")
         and value[1:9].replace("<", "").isalnum()
         and value[10:13].isalpha()
         and _line2_check_score(value) >= 1

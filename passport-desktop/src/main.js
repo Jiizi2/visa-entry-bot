@@ -4,6 +4,7 @@ import {
   formatRecentStamp,
   formatConfidence,
   formatProgressValue,
+  formatDurationMs,
   nestedArrayValue,
   nestedStringValue,
   nestedNumberValue,
@@ -31,8 +32,6 @@ import {
 } from "./main-review-helpers.js";
 import {
   fieldStateDescriptor,
-  actionableIssuesForMember,
-  splitNotes,
   renderEmptyDetailPanel,
   renderReviewFlagsPanel,
   renderFieldConfidencePanel,
@@ -42,9 +41,6 @@ import {
   isMemberReadyForEntry,
   memberReviewStatus,
   computeReviewCompletionState,
-  computeTotalEntryTargetCount,
-  buildEntryFlowSteps,
-  renderEntryFlowSteps,
   entryStatusLabel,
   entryStatusTone,
   isEntryAccessible as isEntryAccessibleForState,
@@ -57,7 +53,7 @@ import {
 
 function tauriBindings() {
   const tauri = window.__TAURI__;
-  if (!tauri?.core || !tauri?.event || !tauri?.dialog || !tauri?.opener) {
+  if (!tauri?.core || !tauri?.event || !tauri?.dialog) {
     throw new Error("Binding Tauri belum tersedia di jendela aplikasi.");
   }
 
@@ -65,8 +61,7 @@ function tauriBindings() {
     invoke: tauri.core.invoke,
     listen: tauri.event.listen,
     open: tauri.dialog.open,
-    openPath: tauri.opener.openPath,
-    openUrl: tauri.opener.openUrl,
+    convertFileSrc: typeof tauri.core.convertFileSrc === "function" ? tauri.core.convertFileSrc : null,
   };
 }
 
@@ -76,6 +71,14 @@ const STORAGE_KEYS = {
 
 const CHILD_AGE_LIMIT = 18;
 const COMPANION_RELATION_OPTIONS = [
+  "Other",
+  "Father",
+  "Son",
+  "Brother",
+  "Grandfather",
+  "Grandson",
+  "Maternal Uncle",
+  "Niece (Brother side)",
   "Mother",
   "Daughter",
   "Sister",
@@ -88,20 +91,39 @@ const COMPANION_RELATION_OPTIONS = [
   "Mother in law",
   "Women Set",
   "Daughter in law",
+  "Son in law",
   "Step Mother",
+  "Step Father",
+  "Father in law",
   "Paternal Aunt",
+  "Paternal Uncle",
   "Wife",
+  "Husband",
+  "Wife's father",
   "Husband's mother",
   "Husband's father",
+  "Brother in law (Wife's brother)",
+  "Brother in law (Husband's brother)",
 ];
 const DEFAULT_COMPANION_RELATION = "Mother";
+const OPTIONAL_EMPTY_REVIEW_FIELDS = new Set([
+  "fatherName",
+  "grandfatherName",
+  "arabic.fatherName",
+  "arabic.grandfatherName",
+]);
+const PASSPORT_PREVIEW_ZOOM_DEFAULT = 1;
+const PASSPORT_PREVIEW_ZOOM_MIN = 0.85;
+const PASSPORT_PREVIEW_ZOOM_MAX = 2.5;
+const PASSPORT_PREVIEW_ZOOM_STEP = 0.15;
+const PASSPORT_PREVIEW_WHEEL_STEP = 0.1;
+const PASSPORT_PREVIEW_WHEEL_THRESHOLD = 120;
 
 const state = {
   currentPage: "import",
   validationFilter: "all",
   selectedDir: "",
   recentBatches: [],
-  nusukUrl: "https://masar.nusuk.sa/umrah/mutamer/add-mutamer",
   manifest: null,
   originalManifest: null,
   manifestPath: "",
@@ -122,19 +144,31 @@ const state = {
   progressStageLabel: "",
   isEntryRunning: false,
   exportedBatchPath: "",
+  exportError: "",
   entryLogs: [],
   lastWorkerMessage: "",
   scanLogs: [],
   scanPerfSummary: null,
+  scanMetricRecords: [],
+  lastScanMetric: null,
   showFullScanLog: false,
   activeFieldCategory: "identity",
-  statusHeadline: "Menunggu folder dipilih",
-  statusDetail: "Belum ada proses scan yang berjalan.",
+  passportImageCache: new Map(),
+  passportPreviewZoom: PASSPORT_PREVIEW_ZOOM_DEFAULT,
+  reviewBlock: null,
+  statusHeadline: "",
+  statusDetail: "",
   isScanning: false,
+  isStoppingScan: false,
 };
 
 const dom = {};
 let rescanConfirmResolver = null;
+let recentDeletePath = "";
+let recentEditPath = "";
+let passportDeleteMemberId = "";
+let passportImageRequestId = 0;
+let passportPreviewWheelDelta = 0;
 const requestFrame = typeof window.requestAnimationFrame === "function"
   ? window.requestAnimationFrame.bind(window)
   : (callback) => window.setTimeout(callback, 16);
@@ -143,6 +177,9 @@ const cancelFrame = typeof window.cancelAnimationFrame === "function"
   : (handle) => window.clearTimeout(handle);
 let renderAllHandle = null;
 let renderAllQueued = false;
+let manifestSaveTimer = null;
+let manifestSaveSequence = 0;
+const MANIFEST_SAVE_DELAY_MS = 350;
 
 window.addEventListener("error", (event) => {
   showFatalScreen(event.error?.message || event.message || "Terjadi error yang tidak diketahui.");
@@ -176,10 +213,6 @@ function bindDom() {
   dom.topbarEyebrow = document.querySelector("#topbar-eyebrow");
   dom.topbarTitle = document.querySelector("#topbar-title");
   dom.topbarStatus = document.querySelector("#topbar-status");
-  dom.globalNotice = document.querySelector("#global-notice");
-  dom.globalNoticeTitle = document.querySelector("#global-notice-title");
-  dom.globalNoticeDetail = document.querySelector("#global-notice-detail");
-
   dom.folderDropzone = document.querySelector("#folder-dropzone");
   dom.selectedFolderName = document.querySelector("#selected-folder-name");
   dom.selectedFolderCaption = document.querySelector("#selected-folder-caption");
@@ -187,12 +220,47 @@ function bindDom() {
   dom.folderPath = document.querySelector("#folder-path");
   dom.chooseFolderButton = document.querySelector("#choose-folder-button");
   dom.scanButton = document.querySelector("#scan-button");
+  dom.stopScanButton = document.querySelector("#stop-scan-button");
   dom.importNextButton = document.querySelector("#import-next-button");
   dom.rescanConfirmModal = document.querySelector("#rescan-confirm-modal");
   dom.rescanModalTitle = document.querySelector("#rescan-modal-title");
   dom.rescanModalDesc = document.querySelector("#rescan-modal-desc");
   dom.rescanConfirmButton = document.querySelector("#rescan-confirm-button");
   dom.rescanCancelButton = document.querySelector("#rescan-cancel-button");
+  dom.stopScanConfirmModal = document.querySelector("#stop-scan-confirm-modal");
+  dom.stopScanConfirmButton = document.querySelector("#stop-scan-confirm-button");
+  dom.stopScanCancelButton = document.querySelector("#stop-scan-cancel-button");
+  dom.recentDeleteModal = document.querySelector("#recent-delete-modal");
+  dom.recentDeleteModalDesc = document.querySelector("#recent-delete-modal-desc");
+  dom.recentDeleteConfirmButton = document.querySelector("#recent-delete-confirm-button");
+  dom.recentDeleteCancelButton = document.querySelector("#recent-delete-cancel-button");
+  dom.recentEditModal = document.querySelector("#recent-edit-modal");
+  dom.recentEditInput = document.querySelector("#recent-edit-input");
+  dom.recentEditSaveButton = document.querySelector("#recent-edit-save-button");
+  dom.recentEditCancelButton = document.querySelector("#recent-edit-cancel-button");
+  dom.passportDeleteModal = document.querySelector("#passport-delete-modal");
+  dom.passportDeleteModalDesc = document.querySelector("#passport-delete-modal-desc");
+  dom.passportDeleteConfirmButton = document.querySelector("#passport-delete-confirm-button");
+  dom.passportDeleteCancelButton = document.querySelector("#passport-delete-cancel-button");
+  dom.reviewCompleteModal = document.querySelector("#review-complete-modal");
+  dom.reviewCompleteModalDesc = document.querySelector("#review-complete-modal-desc");
+  dom.reviewCompleteCancelButton = document.querySelector("#review-complete-cancel-button");
+  dom.reviewCompleteExportButton = document.querySelector("#review-complete-export-button");
+  dom.reviewPreviewExportButton = document.querySelector("#review-preview-export-button");
+  dom.reviewExportStatus = document.querySelector("#review-export-status");
+  dom.reviewExportSummary = document.querySelector("#review-export-summary");
+  dom.reviewExportPreviewBody = document.querySelector("#review-export-preview-body");
+  dom.reviewExportResult = document.querySelector("#review-export-result");
+  dom.entryStatusPill = document.querySelector("#entry-status-pill");
+  dom.entryExportDescription = document.querySelector("#entry-export-description");
+  dom.entryExportSummary = document.querySelector("#entry-export-summary");
+  dom.entryExportPreviewBody = document.querySelector("#entry-export-preview-body");
+  dom.entryExportResult = document.querySelector("#entry-export-result");
+  dom.entryBackReviewButton = document.querySelector("#entry-back-review-button");
+  dom.prepareEntryButton = document.querySelector("#prepare-entry-button");
+  dom.entryLogBox = document.querySelector("#entry-log-box");
+  dom.entryLogCounter = document.querySelector("#entry-log-counter");
+  dom.entryLogClearButton = document.querySelector("#entry-log-clear-button");
   dom.recentBatchesList = document.querySelector("#recent-batches-list");
   dom.systemOcrStatus = document.querySelector("#system-ocr-status");
   dom.systemValidationStatus = document.querySelector("#system-validation-status");
@@ -208,6 +276,8 @@ function bindDom() {
   dom.scanStatTotal = document.querySelector("#scan-stat-total");
   dom.scanStatDone = document.querySelector("#scan-stat-done");
   dom.scanStatLeft = document.querySelector("#scan-stat-left");
+  dom.scanStatAverage = document.querySelector("#scan-stat-average");
+  dom.scanStatLastTime = document.querySelector("#scan-stat-last-time");
 
   dom.batchBadge = document.querySelector("#batch-badge");
   dom.filterButtons = [...document.querySelectorAll("button[data-validation-filter]")];
@@ -218,6 +288,17 @@ function bindDom() {
   dom.passportListSummary = document.querySelector("#passport-list-summary");
   dom.passportPagePrevButton = document.querySelector("#passport-page-prev-button");
   dom.passportPageNextButton = document.querySelector("#passport-page-next-button");
+  dom.passportPreviewFrame = document.querySelector("#passport-preview-frame");
+  dom.passportPreviewImage = document.querySelector("#passport-preview-image");
+  dom.passportPreviewEmpty = document.querySelector("#passport-preview-empty");
+  dom.passportPreviewName = document.querySelector("#passport-preview-name");
+  dom.passportPreviewFile = document.querySelector("#passport-preview-file");
+  dom.passportPreviewStatus = document.querySelector("#passport-preview-status");
+  dom.passportZoomOutButton = document.querySelector("#passport-zoom-out-button");
+  dom.passportZoomInButton = document.querySelector("#passport-zoom-in-button");
+  dom.passportZoomResetButton = document.querySelector("#passport-zoom-reset-button");
+  dom.passportZoomLabel = document.querySelector("#passport-zoom-label");
+  dom.passportReviewProgress = document.querySelector("#passport-review-progress");
   dom.detailStatus = document.querySelector("#detail-status");
   dom.workspacePassportCode = document.querySelector("#workspace-passport-code");
   dom.detailTitle = document.querySelector("#detail-title");
@@ -229,23 +310,8 @@ function bindDom() {
   dom.fieldConfidenceBox = document.querySelector("#field-confidence-box");
 
   dom.resetFieldsButton = document.querySelector("#reset-fields-button");
-  dom.nusukUrl = document.querySelector("#nusuk-url");
-  dom.openNusukButton = document.querySelector("#open-nusuk-button");
-  dom.prepareEntryButton = document.querySelector("#prepare-entry-button");
-  dom.terminateEntryButton = document.querySelector("#terminate-entry-button");
-  dom.entryProgressTitle = document.querySelector("#entry-progress-title");
-  dom.entryProgressCount = document.querySelector("#entry-progress-count");
-  dom.entryProgressFill = document.querySelector("#entry-progress-fill");
-  dom.entryProgressCaption = document.querySelector("#entry-progress-caption");
-  dom.entryFlowSteps = document.querySelector("#entry-flow-steps");
-  dom.entryLogBox = document.querySelector("#entry-log-box");
-  dom.entryLogCounter = document.querySelector("#entry-log-counter");
-  dom.entryLogClearButton = document.querySelector("#entry-log-clear-button");
+  dom.deletePassportButton = document.querySelector("#delete-passport-button");
   dom.saveNextButton = document.querySelector("#save-next-button");
-  dom.entryStatusPill = document.querySelector("#entry-status-pill");
-  dom.entryBatchName = document.querySelector("#entry-batch-name");
-  dom.entryValidCount = document.querySelector("#entry-valid-count");
-  dom.entrySelectedCount = document.querySelector("#entry-selected-count");
   dom.workspacePrevButtons = [document.querySelector("#workspace-prev-button-top")].filter(Boolean);
   dom.workspaceNextButtons = [document.querySelector("#workspace-next-button-top")].filter(Boolean);
 }
@@ -288,6 +354,7 @@ function bindActions() {
   dom.scanButton.addEventListener("click", () => {
     void handleScanButtonClick();
   });
+  dom.stopScanButton?.addEventListener("click", openStopScanModal);
   dom.importNextButton?.addEventListener("click", () => {
     setPage("validation");
   });
@@ -302,9 +369,89 @@ function bindActions() {
       resolveRescanConfirmation(false);
     }
   });
+  dom.stopScanConfirmButton?.addEventListener("click", () => {
+    void confirmStopScan();
+  });
+  dom.stopScanCancelButton?.addEventListener("click", closeStopScanModal);
+  dom.stopScanConfirmModal?.addEventListener("click", (event) => {
+    if (event.target === dom.stopScanConfirmModal) {
+      closeStopScanModal();
+    }
+  });
+  dom.recentDeleteConfirmButton?.addEventListener("click", confirmRecentDelete);
+  dom.recentDeleteCancelButton?.addEventListener("click", closeRecentDeleteModal);
+  dom.recentDeleteModal?.addEventListener("click", (event) => {
+    if (event.target === dom.recentDeleteModal) {
+      closeRecentDeleteModal();
+    }
+  });
+  dom.recentEditSaveButton?.addEventListener("click", confirmRecentEdit);
+  dom.recentEditCancelButton?.addEventListener("click", closeRecentEditModal);
+  dom.recentEditModal?.addEventListener("click", (event) => {
+    if (event.target === dom.recentEditModal) {
+      closeRecentEditModal();
+    }
+  });
+  dom.recentEditInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      confirmRecentEdit();
+    }
+  });
+  dom.passportDeleteConfirmButton?.addEventListener("click", confirmPassportDelete);
+  dom.passportDeleteCancelButton?.addEventListener("click", closePassportDeleteModal);
+  dom.passportDeleteModal?.addEventListener("click", (event) => {
+    if (event.target === dom.passportDeleteModal) {
+      closePassportDeleteModal();
+    }
+  });
+  dom.reviewCompleteCancelButton?.addEventListener("click", closeReviewCompleteModal);
+  dom.reviewCompleteExportButton?.addEventListener("click", () => {
+    void handlePrepareEntry();
+  });
+  dom.reviewPreviewExportButton?.addEventListener("click", () => {
+    setPage("entry");
+  });
+  dom.reviewCompleteModal?.addEventListener("click", (event) => {
+    if (event.target === dom.reviewCompleteModal) {
+      closeReviewCompleteModal();
+    }
+  });
+  dom.entryBackReviewButton?.addEventListener("click", () => {
+    setPage("validation");
+  });
+  dom.prepareEntryButton?.addEventListener("click", () => {
+    void handlePrepareEntry();
+  });
+  dom.reviewExportPreviewBody?.addEventListener("click", handleExportPreviewMemberClick);
+  dom.entryExportPreviewBody?.addEventListener("click", handleExportPreviewMemberClick);
+  dom.entryLogClearButton?.addEventListener("click", () => {
+    state.entryLogs = [];
+    renderEntryLogs();
+  });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !dom.rescanConfirmModal?.classList.contains("is-hidden")) {
       resolveRescanConfirmation(false);
+      return;
+    }
+    if (event.key === "Escape" && !dom.stopScanConfirmModal?.classList.contains("is-hidden")) {
+      closeStopScanModal();
+      return;
+    }
+    if (event.key === "Escape" && !dom.recentDeleteModal?.classList.contains("is-hidden")) {
+      closeRecentDeleteModal();
+      return;
+    }
+    if (event.key === "Escape" && !dom.recentEditModal?.classList.contains("is-hidden")) {
+      closeRecentEditModal();
+      return;
+    }
+    if (event.key === "Escape" && !dom.passportDeleteModal?.classList.contains("is-hidden")) {
+      closePassportDeleteModal();
+      return;
+    }
+    if (event.key === "Escape" && !dom.reviewCompleteModal?.classList.contains("is-hidden")) {
+      closeReviewCompleteModal();
     }
   });
   dom.scanLogToggle?.addEventListener("click", () => {
@@ -313,6 +460,22 @@ function bindActions() {
   });
 
   dom.recentBatchesList.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-recent-edit-path]");
+    if (editButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openRecentEditModal(editButton.dataset.recentEditPath ?? "");
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-recent-delete-path]");
+    if (deleteButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openRecentDeleteModal(deleteButton.dataset.recentDeletePath ?? "");
+      return;
+    }
+
     const item = event.target.closest("[data-recent-path]");
     if (!item) {
       return;
@@ -322,6 +485,18 @@ function bindActions() {
       return;
     }
     void openRecentBatch(recentPath);
+  });
+
+  dom.recentBatchesList.addEventListener("keydown", (event) => {
+    if (event.target.closest("button") || (event.key !== "Enter" && event.key !== " ")) {
+      return;
+    }
+    const item = event.target.closest("[data-recent-path]");
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    void openRecentBatch(item.dataset.recentPath ?? "");
   });
 
   for (const button of dom.filterButtons) {
@@ -334,7 +509,7 @@ function bindActions() {
     });
   }
 
-  dom.passportList.addEventListener("click", (event) => {
+  dom.passportList?.addEventListener("click", (event) => {
     const row = event.target.closest("[data-member-id]");
     if (!row) {
       return;
@@ -370,6 +545,9 @@ function bindActions() {
   });
 
   dom.resetFieldsButton.addEventListener("click", resetActiveMemberFields);
+  dom.deletePassportButton?.addEventListener("click", () => {
+    openPassportDeleteModal();
+  });
   dom.saveNextButton?.addEventListener("click", handleSaveAndNext);
   dom.fieldCategoryTabs?.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-field-category]");
@@ -380,11 +558,20 @@ function bindActions() {
     renderWorkspace();
   });
   dom.passportPagePrevButton?.addEventListener("click", () => {
-    changePassportListPage(-1);
+    moveActiveMember(-1);
   });
   dom.passportPageNextButton?.addEventListener("click", () => {
-    changePassportListPage(1);
+    moveActiveMember(1);
   });
+  dom.passportZoomOutButton?.addEventListener("click", () => {
+    changePassportPreviewZoom(-PASSPORT_PREVIEW_ZOOM_STEP);
+  });
+  dom.passportZoomInButton?.addEventListener("click", () => {
+    changePassportPreviewZoom(PASSPORT_PREVIEW_ZOOM_STEP);
+  });
+  dom.passportZoomResetButton?.addEventListener("click", resetPassportPreviewZoom);
+  dom.passportPreviewFrame?.addEventListener("wheel", handlePassportPreviewWheel, { passive: false });
+  dom.passportPreviewFrame?.addEventListener("keydown", handlePassportPreviewKeydown);
 
   for (const button of dom.workspacePrevButtons) {
     button.addEventListener("click", () => {
@@ -398,20 +585,6 @@ function bindActions() {
     });
   }
 
-  dom.nusukUrl.addEventListener("input", (event) => {
-    state.nusukUrl = event.target.value.trim();
-    updateActionAvailability();
-  });
-
-  dom.openNusukButton.addEventListener("click", handleOpenNusuk);
-  dom.prepareEntryButton.addEventListener("click", handlePrepareEntry);
-  dom.terminateEntryButton?.addEventListener("click", () => {
-    void handleTerminateEntry();
-  });
-  dom.entryLogClearButton?.addEventListener("click", () => {
-    state.entryLogs = [];
-    renderEntryLogs();
-  });
 }
 
 async function setupEventBridge() {
@@ -425,11 +598,15 @@ async function setupEventBridge() {
     switch (payload.event) {
       case "scan_started":
         state.isScanning = true;
+        state.isStoppingScan = false;
         state.totalFiles = Number(payload.totalFiles ?? 0);
         state.progressTotal = Number(payload.totalFiles ?? 0);
         state.progressCurrent = 0;
         state.progressFileName = "";
         state.progressStageLabel = "Menyiapkan antrean scan";
+        state.scanPerfSummary = null;
+        state.scanMetricRecords = [];
+        state.lastScanMetric = null;
         state.statusHeadline = "Scan sedang berjalan";
         state.statusDetail = `Menyiapkan ${payload.totalFiles ?? 0} dokumen dari ${payload.groupId ?? "-"}.`;
         appendScanLog(`Mulai proses ${payload.totalFiles ?? 0} dokumen | grup ${payload.groupId ?? "-"}`);
@@ -487,8 +664,26 @@ async function setupEventBridge() {
         scheduleRenderAll();
         break;
       }
+      case "scan_cancel_requested":
+        state.isStoppingScan = true;
+        state.statusHeadline = "Menghentikan scan";
+        state.statusDetail = payload.message ?? "Worker OCR sedang dihentikan.";
+        appendScanLog(payload.message ?? "Permintaan stop scan dikirim.");
+        scheduleRenderAll();
+        break;
+      case "scan_stopped":
+        state.isScanning = false;
+        state.isStoppingScan = false;
+        state.progressStageLabel = "Dihentikan";
+        state.statusHeadline = "Scan dihentikan";
+        state.statusDetail = payload.message ?? "Proses scan dihentikan oleh pengguna.";
+        appendScanLog(`Scan dihentikan | ${state.progressFileName || "worker OCR"}`);
+        closeStopScanModal();
+        renderAll();
+        break;
       case "scan_complete":
         state.isScanning = false;
+        state.isStoppingScan = false;
         state.manifestPath = payload.manifestPath ?? "";
         state.resultDir = payload.groupDir ?? "";
         state.resultSourceDir = state.selectedDir;
@@ -504,6 +699,7 @@ async function setupEventBridge() {
         appendScanLog(`Scan selesai | VALID ${payload.validCount ?? 0} | ERROR ${payload.errorCount ?? 0} | REVIEW ${payload.reviewCount ?? 0}`);
         rememberRecentBatch(state.selectedDir || state.resultDir, state.totalFiles, state.manifestPath);
         await loadManifest();
+        closeStopScanModal();
         renderAll();
         break;
       case "scan_error": {
@@ -514,9 +710,11 @@ async function setupEventBridge() {
         appendScanLog(`[${code}] ${message} (stage: ${stage})`);
         if (fatal) {
           state.isScanning = false;
+          state.isStoppingScan = false;
           state.progressStageLabel = "Gagal";
           state.statusHeadline = "Scan gagal";
           state.statusDetail = `[${code}] ${message}`;
+          closeStopScanModal();
           renderAll();
         } else {
           scheduleRenderAll();
@@ -526,9 +724,12 @@ async function setupEventBridge() {
       case "scan_metric": {
         const fileName = String(payload.fileName ?? "");
         const metrics = payload.metrics && typeof payload.metrics === "object" ? payload.metrics : null;
-        const totalMs = Number(metrics?.totalMs ?? 0);
+        const totalMs = normalizeDurationMs(metrics?.totalMs);
         if (fileName && totalMs > 0) {
-          appendScanLog(`Metrik ${fileName} | total ${totalMs}ms`);
+          const scanMetric = { fileName, totalMs, metrics };
+          state.scanMetricRecords.push(scanMetric);
+          state.lastScanMetric = scanMetric;
+          appendScanLog(`Metrik ${fileName} | total ${formatDurationMs(totalMs)}`);
         }
         scheduleRenderAll();
         break;
@@ -540,17 +741,19 @@ async function setupEventBridge() {
           const avg = Number(summary.avgTotalMs ?? 0);
           const p95 = Number(summary.p95TotalMs ?? 0);
           const max = Number(summary.maxTotalMs ?? 0);
-          appendScanLog(`Ringkasan performa | avg ${avg}ms | p95 ${p95}ms | max ${max}ms`);
+          appendScanLog(`Ringkasan performa | avg ${formatDurationMs(avg)} | p95 ${formatDurationMs(p95)} | max ${formatDurationMs(max)}`);
         }
         scheduleRenderAll();
         break;
       }
       case "scan_failed":
         state.isScanning = false;
+        state.isStoppingScan = false;
         state.progressStageLabel = "Gagal";
         state.statusHeadline = "Scan gagal";
         state.statusDetail = payload.message ?? "Worker Python berhenti sebelum selesai.";
         appendScanLog(`Scan gagal | ${payload.message ?? "Worker Python berhenti sebelum selesai."}`);
+        closeStopScanModal();
         renderAll();
         break;
       case "scan_log":
@@ -611,10 +814,14 @@ async function startScan() {
   state.lastWorkerMessage = "";
   state.scanLogs = [];
   state.scanPerfSummary = null;
+  state.scanMetricRecords = [];
+  state.lastScanMetric = null;
   state.exportedBatchPath = "";
+  state.exportError = "";
   state.validationFilter = "all";
   state.passportListPage = 1;
   state.isScanning = true;
+  state.isStoppingScan = false;
   state.statusHeadline = "Memulai proses";
   state.statusDetail = "Sedang menyiapkan pembacaan data.";
   appendScanLog(`Memulai proses untuk folder ${state.selectedDir}`);
@@ -625,6 +832,7 @@ async function startScan() {
     await invoke("start_scan", { selectedDir: state.selectedDir });
   } catch (error) {
     state.isScanning = false;
+    state.isStoppingScan = false;
     state.statusHeadline = "Scan gagal dimulai";
     state.statusDetail = String(error);
     renderAll();
@@ -642,6 +850,52 @@ async function handleScanButtonClick() {
     }
   }
   await startScan();
+}
+
+function openStopScanModal() {
+  if (!state.isScanning || state.isStoppingScan) {
+    return;
+  }
+  if (!dom.stopScanConfirmModal) {
+    void confirmStopScan();
+    return;
+  }
+
+  dom.stopScanConfirmModal.classList.remove("is-hidden");
+  dom.stopScanConfirmModal.setAttribute("aria-hidden", "false");
+  requestFrame(() => dom.stopScanCancelButton?.focus());
+}
+
+function closeStopScanModal() {
+  if (!dom.stopScanConfirmModal) {
+    return;
+  }
+  dom.stopScanConfirmModal.classList.add("is-hidden");
+  dom.stopScanConfirmModal.setAttribute("aria-hidden", "true");
+}
+
+async function confirmStopScan() {
+  closeStopScanModal();
+  if (!state.isScanning || state.isStoppingScan) {
+    return;
+  }
+
+  state.isStoppingScan = true;
+  state.statusHeadline = "Menghentikan scan";
+  state.statusDetail = "Meminta worker OCR berhenti...";
+  appendScanLog("Mengirim permintaan stop scan.");
+  renderAll();
+
+  try {
+    const { invoke } = tauriBindings();
+    await invoke("stop_scan");
+  } catch (error) {
+    state.isStoppingScan = false;
+    state.statusHeadline = "Stop scan gagal";
+    state.statusDetail = String(error || "Worker OCR tidak berhasil dihentikan.");
+    appendScanLog(`Stop scan gagal | ${state.statusDetail}`);
+    renderAll();
+  }
 }
 
 function requestRescanConfirmation(mode = "rescan-same") {
@@ -747,8 +1001,10 @@ async function loadManifest() {
   state.originalManifest = cloneJson(manifest);
   state.activeMemberId = firstMemberId(manifest);
   state.selectedIds = new Set(defaultSelectedIds(manifest));
-  state.reviewedMemberIds = new Set();
+  state.reviewedMemberIds = confirmedReviewIds(manifest);
+  state.passportImageCache.clear();
   state.exportedBatchPath = "";
+  state.exportError = "";
   recalculateMetrics();
   ensureVisibleActiveMember();
 }
@@ -761,6 +1017,9 @@ async function openRecentBatch(path) {
 
   state.selectedDir = normalizedPath;
   state.currentPage = "import";
+  state.scanPerfSummary = null;
+  state.scanMetricRecords = [];
+  state.lastScanMetric = null;
   state.statusHeadline = "Memuat riwayat";
   state.statusDetail = `Mencari manifest dari ${basenameFromPath(normalizedPath)}.`;
   renderAll();
@@ -841,52 +1100,6 @@ async function detectManifestPathFromBasePath(basePath) {
   return typeof detectedPath === "string" ? detectedPath.trim() : "";
 }
 
-function validateNusukAddMutamerUrl(rawUrl) {
-  const url = String(rawUrl ?? "").trim();
-  if (!url) {
-    return { ok: false, reason: "Isi URL Nusuk terlebih dahulu." };
-  }
-
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return { ok: false, reason: "Format URL Nusuk tidak valid." };
-  }
-
-  if (parsed.protocol !== "https:") {
-    return { ok: false, reason: "URL Nusuk harus menggunakan https://." };
-  }
-  if (parsed.hostname.toLowerCase() !== "masar.nusuk.sa") {
-    return { ok: false, reason: "Gunakan domain resmi masar.nusuk.sa." };
-  }
-  if (!parsed.pathname.toLowerCase().startsWith("/umrah/mutamer/add-mutamer")) {
-    return { ok: false, reason: "Gunakan halaman Add Mutamer: /umrah/mutamer/add-mutamer." };
-  }
-
-  return { ok: true, normalizedUrl: parsed.toString() };
-}
-
-async function handleOpenNusuk() {
-  const { openUrl } = tauriBindings();
-  const url = dom.nusukUrl.value.trim();
-  state.nusukUrl = url;
-  const validation = validateNusukAddMutamerUrl(url);
-  if (!validation.ok) {
-    state.statusHeadline = "URL Nusuk belum tepat";
-    state.statusDetail = validation.reason;
-    appendEntryLog(`URL tidak valid: ${validation.reason}`, "warn");
-    renderAll();
-    return;
-  }
-
-  await openUrl(validation.normalizedUrl);
-  state.statusHeadline = "Halaman Nusuk dibuka";
-  state.statusDetail = "Lanjut login sampai halaman Add Mutamer siap. Upload JSON hasil export ke extension untuk autofill.";
-  appendEntryLog(`Membuka URL Nusuk: ${validation.normalizedUrl}`);
-  renderAll();
-}
-
 async function handlePrepareEntry() {
   if (state.isEntryRunning) {
     appendEntryLog("Export JSON masih berjalan. Tunggu proses aktif selesai.", "warn");
@@ -894,6 +1107,7 @@ async function handlePrepareEntry() {
   }
 
   appendEntryLog("Tombol Export JSON diklik.");
+  state.exportError = "";
   if (!state.manifestPath || !state.manifest) {
     state.statusHeadline = "Belum ada hasil scan";
     state.statusDetail = "Jalankan proses terlebih dahulu sebelum membuat JSON untuk extension.";
@@ -904,6 +1118,7 @@ async function handlePrepareEntry() {
 
   const review = reviewCompletionState();
   if (review.remaining > 0) {
+    state.exportError = `Masih ada ${review.remaining} data yang belum ditandai siap.`;
     state.statusHeadline = "Review belum selesai";
     state.statusDetail = `Masih ada ${review.remaining} data yang belum ditandai siap sebelum membuat JSON untuk extension.`;
     state.currentPage = "validation";
@@ -914,6 +1129,7 @@ async function handlePrepareEntry() {
 
   const companionValidation = validateCompanionsBeforeExport();
   if (!companionValidation.ok) {
+    state.exportError = companionValidation.message;
     state.statusHeadline = "Companion belum lengkap";
     state.statusDetail = companionValidation.message;
     state.currentPage = "validation";
@@ -926,6 +1142,15 @@ async function handlePrepareEntry() {
     return;
   }
 
+  if (!canExportReviewedJson()) {
+    state.exportError = "Tidak ada passport valid yang sudah direview untuk diexport.";
+    state.statusHeadline = "Tidak ada data export";
+    state.statusDetail = state.exportError;
+    appendEntryLog(`Gagal export: ${state.exportError}`, "warn");
+    renderAll();
+    return;
+  }
+
   try {
     const { invoke } = tauriBindings();
     state.isEntryRunning = true;
@@ -933,10 +1158,12 @@ async function handlePrepareEntry() {
     state.statusDetail = "Menyiapkan file JSON untuk diupload ke extension.";
     appendEntryLog("Membuat batch data Nusuk untuk extension...");
     renderAll();
+    await flushManifestSave();
     const exportManifest = buildManifestForEntryExport();
+    const selectedIds = Array.from(state.selectedIds);
     const batchPath = await invoke("create_nusuk_batch", {
       manifestPath: state.manifestPath,
-      selectedIds: Array.from(state.selectedIds),
+      selectedIds,
       manifestData: exportManifest,
     });
     state.exportedBatchPath = batchPath;
@@ -947,6 +1174,7 @@ async function handlePrepareEntry() {
     renderAll();
   } catch (error) {
     const rawError = String(error ?? "");
+    state.exportError = rawError || "Gagal membuat JSON untuk extension.";
     state.statusHeadline = "Export JSON gagal";
     state.statusDetail = rawError || "Gagal membuat JSON untuk extension.";
     appendEntryLog(`Export JSON gagal: ${truncateForLog(rawError, 700)}`, "error");
@@ -1049,13 +1277,6 @@ function effectiveSelectedIdsForExport() {
   return base;
 }
 
-async function handleTerminateEntry() {
-  appendEntryLog("Tidak ada proses browser automation dari desktop app pada flow baru.", "warn");
-  state.statusHeadline = "Automation desktop nonaktif";
-  state.statusDetail = "Gunakan extension Nusuk Autofill untuk proses autofill setelah JSON diexport.";
-  renderAll();
-}
-
 function toggleMemberSelection(memberId, checked) {
   if (!memberId) {
     return;
@@ -1069,16 +1290,157 @@ function toggleMemberSelection(memberId, checked) {
   renderAll();
 }
 
+function reviewCompletionValidation(member) {
+  if (!member) {
+    return { ok: false, message: "Belum ada passport aktif untuk direview.", categoryId: "", fieldKey: "" };
+  }
+
+  const companionIssue = companionBlockingIssue(member);
+  if (companionIssue) {
+    return companionIssue;
+  }
+
+  const missingFields = missingRequiredReviewFields(member);
+  if (missingFields.length) {
+    const visibleLabels = missingFields.slice(0, 3).map((item) => item.label).join(", ");
+    const suffix = missingFields.length > 3 ? ` dan ${missingFields.length - 3} lainnya` : "";
+    return {
+      ok: false,
+      target: "field",
+      message: `${missingFields.length} data wajib belum diisi: ${visibleLabels}${suffix}.`,
+      categoryId: missingFields[0].categoryId,
+      fieldKey: missingFields[0].key,
+    };
+  }
+
+  return { ok: true, message: "", categoryId: "", fieldKey: "" };
+}
+
+function companionBlockingIssue(member) {
+  const childInfo = childInfoForMember(member);
+  if (!childInfo.isChild) {
+    return null;
+  }
+
+  const companionId = String(member.companionMemberId || "").trim();
+  const companion = manifestMembers().find((candidate) => String(candidate.id || "") === companionId);
+  if (companion && !childInfoForMember(companion).isChild) {
+    return null;
+  }
+
+  return {
+    ok: false,
+    target: "companion",
+    message: "Companion dewasa wajib dipilih sebelum lanjut ke passport berikutnya.",
+    categoryId: FIELD_CATEGORY_PAIRS[0]?.id ?? "identity",
+    fieldKey: "",
+  };
+}
+
+function missingRequiredReviewFields(member) {
+  const resolved = ensureResolvedProfile(member);
+  return REVIEW_FIELDS
+    .filter(([key]) => !rawValueFrom(resolved, key))
+    .filter(([key]) => !isReviewFieldAllowedEmpty(member, key))
+    .map(([key, label]) => ({
+      key,
+      label,
+      categoryId: fieldCategoryPairIdForKey(key),
+    }));
+}
+
+function isReviewFieldAllowedEmpty(member, key) {
+  if (OPTIONAL_EMPTY_REVIEW_FIELDS.has(key)) {
+    return true;
+  }
+  return fieldFlagsForMember(member, key).includes("INTENTIONAL_EMPTY");
+}
+
+function fieldCategoryPairIdForKey(key) {
+  for (const pair of FIELD_CATEGORY_PAIRS) {
+    const categoryKeys = pair.categoryIds
+      .map((categoryId) => FIELD_CATEGORY_DEFS.find((item) => item.id === categoryId))
+      .filter(Boolean)
+      .flatMap((category) => category.keys);
+    if (categoryKeys.includes(key)) {
+      return pair.id;
+    }
+  }
+  return FIELD_CATEGORY_PAIRS[0]?.id ?? "identity";
+}
+
+function showReviewBlockingMessage(validation) {
+  state.reviewBlock = {
+    target: validation.target || (validation.fieldKey ? "field" : ""),
+    fieldKey: validation.fieldKey || "",
+    token: Date.now(),
+  };
+  if (validation.categoryId) {
+    state.activeFieldCategory = validation.categoryId;
+  }
+  state.statusHeadline = "Review belum lengkap";
+  state.statusDetail = validation.message || "Lengkapi data yang masih perlu dicek sebelum lanjut.";
+  renderAll();
+  if (validation.fieldKey) {
+    focusReviewField(validation.fieldKey);
+  } else if (validation.target === "companion") {
+    focusCompanionSelect();
+  }
+}
+
+function clearReviewBlock() {
+  state.reviewBlock = null;
+}
+
+function focusReviewField(fieldKey) {
+  requestFrame(() => {
+    const input = [...dom.fieldReviewRows.querySelectorAll("[data-field-key]")]
+      .find((node) => node.dataset.fieldKey === fieldKey);
+    input?.focus();
+    input?.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+}
+
+function focusCompanionSelect() {
+  requestFrame(() => {
+    const select = dom.fieldReviewRows.querySelector("[data-companion-select]");
+    select?.focus();
+    select?.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+}
+
+function isMemberReviewConfirmed(member) {
+  return Boolean(member?.reviewConfirmed === true || state.reviewedMemberIds.has(member?.id));
+}
+
+function confirmMemberReview(member) {
+  if (!member?.id) {
+    return;
+  }
+  member.reviewConfirmed = true;
+  state.reviewedMemberIds.add(member.id);
+}
+
+function clearMemberReviewConfirmation(member) {
+  if (!member?.id) {
+    return;
+  }
+  delete member.reviewConfirmed;
+  state.reviewedMemberIds.delete(member.id);
+}
+
 function updateActiveMemberField(fieldKey, nextValue) {
   const member = activeMember();
   if (!member || !fieldKey) {
     return;
   }
 
+  clearReviewBlock();
   const resolved = ensureResolvedProfile(member);
   setValueByPath(resolved, fieldKey, normalizeInputValueForField(fieldKey, nextValue));
   syncMemberChildMetadata(member);
-  state.reviewedMemberIds.delete(member.id);
+  clearMemberReviewConfirmation(member);
+  scheduleManifestSave();
   state.statusHeadline = "Perubahan lokal tersimpan";
   state.statusDetail = `${humanizeFieldPath(`resolvedProfile.${fieldKey}`)} diperbarui di sesi review.`;
 }
@@ -1089,6 +1451,7 @@ function updateActiveMemberCompanion(companionMemberId) {
     return;
   }
 
+  clearReviewBlock();
   const normalizedId = String(companionMemberId || "").trim();
   syncMemberChildMetadata(member);
   if (normalizedId) {
@@ -1110,7 +1473,8 @@ function updateActiveMemberCompanion(companionMemberId) {
     state.statusHeadline = "Companion dikosongkan";
     state.statusDetail = `${memberDisplayName(member)} belum memiliki companion.`;
   }
-  state.reviewedMemberIds.delete(member.id);
+  clearMemberReviewConfirmation(member);
+  scheduleManifestSave();
 }
 
 function updateActiveMemberCompanionRelation(value) {
@@ -1118,6 +1482,7 @@ function updateActiveMemberCompanionRelation(value) {
   if (!member) {
     return;
   }
+  clearReviewBlock();
   const companionId = String(member.companionMemberId || "").trim();
   const companion = manifestMembers().find((item) => String(item.id || "") === companionId);
   if (!companion) {
@@ -1128,7 +1493,8 @@ function updateActiveMemberCompanionRelation(value) {
   member.companion = buildCompanionSnapshot(companion, relation);
   state.statusHeadline = "Relation companion diperbarui";
   state.statusDetail = `${relation} dipilih sebagai relation untuk companion ${memberDisplayName(companion)}.`;
-  state.reviewedMemberIds.delete(member.id);
+  clearMemberReviewConfirmation(member);
+  scheduleManifestSave();
 }
 
 function resetActiveMemberFields() {
@@ -1137,15 +1503,19 @@ function resetActiveMemberFields() {
     return;
   }
 
+  clearReviewBlock();
   const originalMember = originalMemberById(member.id);
   if (!originalMember) {
     return;
   }
 
-  replaceMemberInManifest(member.id, cloneJson(originalMember));
+  const resetMember = cloneJson(originalMember);
+  delete resetMember.reviewConfirmed;
+  replaceMemberInManifest(member.id, resetMember);
   state.reviewedMemberIds.delete(member.id);
   state.statusHeadline = "Field di-reset";
   state.statusDetail = "Perubahan untuk passport aktif dikembalikan ke hasil scan awal.";
+  scheduleManifestSave(0);
   renderAll();
 }
 
@@ -1160,10 +1530,11 @@ function markActiveMemberValid() {
   member.requiresReview = false;
   member.reviewReasons = [];
   state.selectedIds.add(member.id);
-  state.reviewedMemberIds.add(member.id);
+  confirmMemberReview(member);
   state.statusHeadline = "Passport ditandai valid";
   state.statusDetail = `${memberDisplayName(member)} ditandai siap untuk batch entry.`;
   recalculateMetrics();
+  scheduleManifestSave(0);
   renderAll();
 }
 
@@ -1177,6 +1548,11 @@ function handleSaveAndNext() {
   const currentPairIndex = FIELD_CATEGORY_PAIRS.findIndex((item) => item.id === currentPair.id);
   const nextPair = FIELD_CATEGORY_PAIRS[currentPairIndex + 1] || null;
 
+  if (isFinalReviewCompleteAction(member)) {
+    openReviewCompleteModal();
+    return;
+  }
+
   if (nextPair) {
     state.activeFieldCategory = nextPair.id;
     state.statusHeadline = "Lanjut kategori review";
@@ -1185,17 +1561,62 @@ function handleSaveAndNext() {
     return;
   }
 
+  const validation = reviewCompletionValidation(member);
+  if (!validation.ok) {
+    showReviewBlockingMessage(validation);
+    return;
+  }
+
   member.status = "VALID";
   member.reviewStatus = "VALID";
   member.requiresReview = false;
   member.reviewReasons = [];
+  clearReviewBlock();
   state.selectedIds.add(member.id);
-  state.reviewedMemberIds.add(member.id);
+  confirmMemberReview(member);
   state.statusHeadline = "Review data selesai";
-  state.statusDetail = `${memberDisplayName(member)} ditandai siap dan berpindah ke data berikutnya.`;
+  const canMoveNext = activeNavigationState().canMoveNext;
+  const review = reviewCompletionState();
+  const isAllReviewDone = review.total > 0 && review.remaining === 0;
+  state.statusDetail = isAllReviewDone
+      ? `${review.reviewed}/${review.total} passport sudah direview. Preview export JSON siap dibuka.`
+      : canMoveNext
+        ? `${memberDisplayName(member)} ditandai siap dan berpindah ke data berikutnya.`
+        : `${memberDisplayName(member)} ditandai siap. Tidak ada passport berikutnya di antrean ini.`;
   recalculateMetrics();
-  state.activeFieldCategory = FIELD_CATEGORY_PAIRS[0]?.id ?? "identity";
-  moveActiveMember(1);
+  scheduleManifestSave(0);
+  if (canMoveNext && !isAllReviewDone) {
+    state.activeFieldCategory = FIELD_CATEGORY_PAIRS[0]?.id ?? "identity";
+    moveActiveMember(1);
+  } else {
+    renderAll();
+    if (isAllReviewDone) {
+      openReviewCompleteModal();
+    }
+  }
+}
+
+function reviewPrimaryActionLabel(member, nextPair) {
+  if (isFinalReviewCompleteAction(member)) {
+    return "Konfirmasi Review Selesai";
+  }
+  if (nextPair) {
+    return `Lanjut ke ${nextPair.label}`;
+  }
+  return activeNavigationState().canMoveNext
+    ? "Tandai Dicek & Lanjut"
+    : "Tandai Dicek & Selesai";
+}
+
+function isFinalReviewCompleteAction(member = activeMember()) {
+  const review = reviewCompletionState();
+  return Boolean(
+    member
+    && review.total > 0
+    && review.remaining === 0
+    && isMemberReviewConfirmed(member)
+    && !activeNavigationState().canMoveNext
+  );
 }
 
 function moveActiveMember(step) {
@@ -1204,16 +1625,74 @@ function moveActiveMember(step) {
     return;
   }
 
+  if (step > 0) {
+    const member = activeMember();
+    if (member && memberReviewStatus(member) !== "ERROR") {
+      const validation = reviewCompletionValidation(member);
+      if (!validation.ok) {
+        showReviewBlockingMessage(validation);
+        return;
+      }
+      if (!isMemberReviewConfirmed(member)) {
+        showReviewBlockingMessage({
+          ok: false,
+          message: "Tandai passport ini sebagai sudah dicek sebelum lanjut ke passport berikutnya.",
+          categoryId: state.activeFieldCategory,
+          fieldKey: "",
+        });
+        return;
+      }
+    }
+  }
+
   const currentIndex = members.findIndex((member) => member.id === state.activeMemberId);
   const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
   const nextIndex = Math.max(0, Math.min(members.length - 1, safeCurrentIndex + step));
   const previousPage = state.passportListPage;
+  clearReviewBlock();
   state.activeMemberId = members[nextIndex].id ?? "";
   syncPassportPageWithActiveMember();
   renderAll();
   if (state.passportListPage !== previousPage) {
     scrollPassportListToTop();
   }
+}
+
+function handleExportPreviewMemberClick(event) {
+  const button = event.target.closest("[data-review-member-id]");
+  if (!button) {
+    return;
+  }
+
+  event.preventDefault();
+  jumpToReviewMember(button.dataset.reviewMemberId ?? "");
+}
+
+function jumpToReviewMember(memberId) {
+  const targetId = String(memberId || "").trim();
+  const member = manifestMembers().find((candidate) => String(candidate.id || "") === targetId);
+  if (!member) {
+    return;
+  }
+
+  clearReviewBlock();
+  state.validationFilter = "all";
+  state.activeMemberId = member.id ?? targetId;
+  state.activeFieldCategory = FIELD_CATEGORY_PAIRS[0]?.id ?? "identity";
+  state.currentPage = "validation";
+  syncPassportPageWithActiveMember();
+  state.statusHeadline = "Kembali ke review";
+  state.statusDetail = `${memberDisplayName(member)} dibuka dari preview export JSON.`;
+  renderAll();
+  focusActivePassportListItem();
+}
+
+function focusActivePassportListItem() {
+  requestFrame(() => {
+    const row = dom.passportList?.querySelector(".passport-item.is-active");
+    row?.scrollIntoView({ block: "center", behavior: "smooth" });
+    row?.focus?.();
+  });
 }
 
 function setPage(page) {
@@ -1234,7 +1713,7 @@ function setPage(page) {
   if (page === "entry") {
     if (!state.manifestPath || !state.manifest || !manifestMembers().length) {
       state.statusHeadline = "Belum ada data hasil scan";
-      state.statusDetail = "Selesaikan proses scan terlebih dahulu sebelum lanjut ke tahap final entry.";
+      state.statusDetail = "Selesaikan proses scan terlebih dahulu sebelum membuka preview export JSON.";
       state.currentPage = "import";
       renderAll();
       return;
@@ -1243,7 +1722,7 @@ function setPage(page) {
     const review = reviewCompletionState();
     if (review.remaining > 0) {
       state.statusHeadline = "Review belum selesai";
-      state.statusDetail = `Masih ada ${review.remaining} data yang belum ditandai siap. Mohon review semua data dulu di halaman Periksa Data.`;
+      state.statusDetail = `Masih ada ${review.remaining} passport yang perlu ditandai dicek sebelum preview/export JSON.`;
       state.currentPage = "validation";
       renderAll();
       return;
@@ -1261,12 +1740,13 @@ function renderAll() {
   renderNavigation();
   renderPageVisibility();
   renderTopbar();
-  renderGlobalNotice();
   renderImportPage();
   renderProgressPanel();
   renderScanLogs();
   renderPassportList();
+  renderPassportPreview();
   renderWorkspace();
+  renderReviewExportModal();
   renderEntryPage();
   updateActionAvailability();
 }
@@ -1294,6 +1774,58 @@ function clearScheduledRenderAll() {
   renderAllHandle = null;
 }
 
+function scheduleManifestSave(delayMs = MANIFEST_SAVE_DELAY_MS) {
+  if (!state.manifestPath || !state.manifest) {
+    return;
+  }
+
+  manifestSaveSequence += 1;
+  if (manifestSaveTimer !== null) {
+    window.clearTimeout(manifestSaveTimer);
+  }
+
+  const sequence = manifestSaveSequence;
+  manifestSaveTimer = window.setTimeout(() => {
+    manifestSaveTimer = null;
+    void persistManifestSnapshot(sequence);
+  }, Math.max(0, Number(delayMs) || 0));
+}
+
+async function flushManifestSave() {
+  if (!state.manifestPath || !state.manifest) {
+    return;
+  }
+
+  if (manifestSaveTimer !== null) {
+    window.clearTimeout(manifestSaveTimer);
+    manifestSaveTimer = null;
+  }
+
+  manifestSaveSequence += 1;
+  await persistManifestSnapshot(manifestSaveSequence);
+}
+
+async function persistManifestSnapshot(sequence) {
+  if (!state.manifestPath || !state.manifest) {
+    return;
+  }
+
+  const snapshot = cloneJson(state.manifest);
+  try {
+    const { invoke } = tauriBindings();
+    await invoke("save_manifest", {
+      manifestPath: state.manifestPath,
+      manifestData: snapshot,
+    });
+  } catch (error) {
+    if (sequence === manifestSaveSequence) {
+      state.statusHeadline = "Gagal menyimpan review";
+      state.statusDetail = String(error || "Manifest tidak berhasil disimpan.");
+      renderAll();
+    }
+  }
+}
+
 function renderNavigation() {
   const pageOrder = ["import", "validation", "entry"];
   const activeIndex = pageOrder.indexOf(state.currentPage);
@@ -1301,8 +1833,8 @@ function renderNavigation() {
   const entryReady = isEntryAccessible();
   const subtitleByPage = {
     import: state.manifestPath ? "Scan selesai, lanjut review" : "Pilih folder dan jalankan scan",
-    validation: review.remaining > 0 ? `Sisa review: ${review.remaining} data` : "Semua data sudah siap",
-    entry: entryReady ? "Siap export JSON" : "Belum tersedia, selesaikan review",
+    validation: review.remaining > 0 ? `Sisa review: ${review.remaining} data` : "Semua data sudah dicek",
+    entry: entryReady ? "Siap preview/export JSON" : "Selesaikan review dulu",
   };
 
   for (const button of dom.navButtons) {
@@ -1334,61 +1866,13 @@ function renderNavigation() {
   });
 }
 
-function renderGlobalNotice() {
-  if (!dom.globalNotice || !dom.globalNoticeTitle || !dom.globalNoticeDetail) {
-    return;
-  }
-
-  const review = reviewCompletionState();
-  let title = String(state.statusHeadline || "").trim();
-  let detail = String(state.statusDetail || "").trim();
-  let tone = "info";
-
-  if (!state.manifestPath) {
-    title = title || "Mulai dari Tahap 1";
-    detail = detail || "Pilih folder passport atau grup, lalu jalankan scan untuk melanjutkan proses.";
-  } else if (hasFolderSelectionConflict()) {
-    const activeFolder = basenameFromPath(state.resultSourceDir || state.resultDir || "-");
-    const selectedFolder = basenameFromPath(state.selectedDir || "-");
-    title = "Folder aktif berbeda";
-    detail = `Data saat ini berasal dari ${activeFolder}, tetapi folder terpilih adalah ${selectedFolder}. Klik Proses Folder Ini untuk mengganti.`;
-    tone = "warn";
-  } else if (review.remaining > 0 && state.currentPage !== "entry") {
-    title = "Tahap 3 Belum Bisa Dibuka";
-    detail = `Masih ada ${review.remaining} data yang perlu ditandai siap di halaman Review Data.`;
-    tone = "warn";
-  }
-
-  const sample = `${title} ${detail}`.toLowerCase();
-  if (/(gagal|error|terminate gagal|belum tepat)/i.test(sample)) {
-    tone = "danger";
-  } else if (/(belum|perlu|review|menunggu)/i.test(sample)) {
-    tone = tone === "danger" ? tone : "warn";
-  } else if (/(selesai|berhasil|siap)/i.test(sample)) {
-    tone = tone === "danger" ? tone : "success";
-  }
-
-  if (!title && !detail) {
-    dom.globalNotice.classList.add("is-hidden");
-    dom.globalNotice.className = "global-notice is-hidden";
-    dom.globalNoticeTitle.textContent = "";
-    dom.globalNoticeDetail.textContent = "";
-    return;
-  }
-
-  dom.globalNotice.className = `global-notice is-${tone}`;
-  dom.globalNotice.classList.remove("is-hidden");
-  dom.globalNoticeTitle.textContent = title || "Informasi";
-  dom.globalNoticeDetail.textContent = detail || "Status terbaru aplikasi akan tampil di sini.";
-}
-
 function renderPageVisibility() {
   dom.pageImport.classList.toggle("is-hidden", state.currentPage !== "import");
   dom.pageValidation.classList.toggle("is-hidden", state.currentPage !== "validation");
-  dom.pageEntry.classList.toggle("is-hidden", state.currentPage !== "entry");
+  dom.pageEntry?.classList.toggle("is-hidden", state.currentPage !== "entry");
   const topbarNode = document.querySelector(".topbar");
   if (topbarNode) {
-    topbarNode.style.display = state.currentPage === "entry" ? "none" : "flex";
+    topbarNode.style.display = "flex";
   }
 }
 
@@ -1418,12 +1902,12 @@ function topbarDescriptor() {
 
   if (state.currentPage === "entry") {
     return {
-      eyebrow: "Tahap 3",
-      title: "Lanjutkan ke Nusuk",
+      eyebrow: "",
+      title: "Preview & Export JSON",
       statusLabel: status.label,
       statusTone: status.tone,
       compact: true,
-      hidden: true,
+      hidden: false,
     };
   }
 
@@ -1438,6 +1922,9 @@ function topbarDescriptor() {
 }
 
 function currentTopbarStatus() {
+  if (state.isStoppingScan) {
+    return { label: "Menghentikan", tone: "warn" };
+  }
   if (state.isScanning) {
     return { label: "Sedang Diproses", tone: "info" };
   }
@@ -1464,7 +1951,7 @@ function renderImportPage() {
     dom.selectedFolderCaption.textContent = state.selectedDir;
   } else {
     dom.selectedFolderName.textContent = "Belum ada folder dipilih";
-    dom.selectedFolderCaption.textContent = "Pilih folder passport atau folder grup untuk mulai memproses data.";
+    dom.selectedFolderCaption.textContent = "Pilih folder berisi JPG, PNG, atau PDF passport untuk mulai memproses data.";
   }
 
   dom.importFooterText.textContent = importFooterMessage();
@@ -1473,7 +1960,9 @@ function renderImportPage() {
   dom.importNextButton?.classList.toggle("is-hidden", !hasResultForSelected);
   dom.scanButton.className = hasAnyResult ? "secondary-button" : "primary-action";
   dom.scanButton.textContent = state.isScanning
-    ? "Sedang Memproses..."
+    ? state.isStoppingScan
+      ? "Menghentikan..."
+      : "Sedang Memproses..."
     : !state.selectedDir
       ? "Pilih Folder Dulu"
       : hasResultForSelected
@@ -1482,6 +1971,11 @@ function renderImportPage() {
           ? "Proses Folder Ini"
           : "Mulai Proses";
   dom.scanButton.setAttribute("aria-busy", state.isScanning ? "true" : "false");
+  if (dom.stopScanButton) {
+    dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
+    dom.stopScanButton.textContent = state.isStoppingScan ? "Menghentikan..." : "Stop Scan";
+    dom.stopScanButton.setAttribute("aria-busy", state.isStoppingScan ? "true" : "false");
+  }
 
   renderMiniStatus(dom.systemOcrStatus, ocrStatusDescriptor());
   renderMiniStatus(dom.systemValidationStatus, { label: "Siap", tone: "ready" });
@@ -1490,6 +1984,9 @@ function renderImportPage() {
 }
 
 function importFooterMessage() {
+  if (state.isStoppingScan) {
+    return "Worker OCR sedang dihentikan. Tunggu sampai status berubah sebelum memilih folder lain.";
+  }
   if (state.isScanning) {
     return "";
   }
@@ -1505,6 +2002,9 @@ function importFooterMessage() {
 }
 
 function ocrStatusDescriptor() {
+  if (state.isStoppingScan) {
+    return { label: "Menghentikan", tone: "warn" };
+  }
   if (state.isScanning) {
     return { label: "Sedang Jalan", tone: "info" };
   }
@@ -1518,6 +2018,9 @@ function ocrStatusDescriptor() {
 }
 
 function renderMiniStatus(node, descriptor) {
+  if (!node) {
+    return;
+  }
   node.textContent = descriptor.label;
   node.className = `mini-status ${descriptor.tone}`;
 }
@@ -1531,18 +2034,408 @@ function renderRecentBatches() {
   dom.recentBatchesList.innerHTML = state.recentBatches
     .map((entry) => {
       const countLabel = Number(entry.totalFiles) > 0 ? `${entry.totalFiles} file` : "folder";
+      const label = entry.label || basenameFromPath(entry.path);
       return `
-        <button class="recent-item" type="button" data-recent-path="${escapeHtml(entry.path)}">
-          <span class="recent-icon">DIR</span>
+        <div class="recent-item" role="button" tabindex="0" data-recent-path="${escapeHtml(entry.path)}">
+          <span class="recent-icon" aria-hidden="true"></span>
           <span class="recent-body">
-            <strong>${escapeHtml(entry.label || basenameFromPath(entry.path))}</strong>
+            <strong>${escapeHtml(label)}</strong>
             <span class="recent-meta">${escapeHtml(formatRecentStamp(entry.usedAt))}</span>
           </span>
           <span class="recent-count">${escapeHtml(countLabel)}</span>
-        </button>
+          <span class="recent-actions" aria-label="Aksi riwayat">
+            <button
+              class="recent-action-button"
+              type="button"
+              data-recent-edit-path="${escapeHtml(entry.path)}"
+              aria-label="${escapeHtml(`Edit ${label}`)}"
+              title="Edit nama"
+            >
+              ${renderRecentActionIcon("edit")}
+            </button>
+            <button
+              class="recent-action-button danger"
+              type="button"
+              data-recent-delete-path="${escapeHtml(entry.path)}"
+              aria-label="${escapeHtml(`Hapus ${label}`)}"
+              title="Hapus dari riwayat"
+            >
+              ${renderRecentActionIcon("delete")}
+            </button>
+          </span>
+        </div>
       `;
     })
     .join("");
+}
+
+function renderRecentActionIcon(type) {
+  if (type === "delete") {
+    return `
+      <svg class="recent-action-svg" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z"></path>
+        <path d="M6 9h12l-1 11H7L6 9Z"></path>
+      </svg>
+    `;
+  }
+  return `
+    <svg class="recent-action-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 17.5V20h2.5L18.2 9.3l-2.5-2.5L5 17.5Z"></path>
+      <path d="m17 5.5 1.2-1.2a1.6 1.6 0 0 1 2.3 2.3L19.3 8 17 5.5Z"></path>
+    </svg>
+  `;
+}
+
+function openRecentDeleteModal(path) {
+  const entry = recentEntryByPath(path);
+  if (!entry || !dom.recentDeleteModal) {
+    return;
+  }
+
+  recentDeletePath = entry.path;
+  if (dom.recentDeleteModalDesc) {
+    const label = entry.label || basenameFromPath(entry.path);
+    dom.recentDeleteModalDesc.textContent =
+      `Hapus "${label}" dari Riwayat Pilihan? File scan dan manifest tidak ikut dihapus.`;
+  }
+  dom.recentDeleteModal.classList.remove("is-hidden");
+  dom.recentDeleteModal.setAttribute("aria-hidden", "false");
+  requestFrame(() => dom.recentDeleteCancelButton?.focus());
+}
+
+function closeRecentDeleteModal() {
+  recentDeletePath = "";
+  if (!dom.recentDeleteModal) {
+    return;
+  }
+  dom.recentDeleteModal.classList.add("is-hidden");
+  dom.recentDeleteModal.setAttribute("aria-hidden", "true");
+}
+
+function confirmRecentDelete() {
+  const targetPath = recentDeletePath;
+  if (!targetPath) {
+    closeRecentDeleteModal();
+    return;
+  }
+
+  const removedEntry = recentEntryByPath(targetPath);
+  state.recentBatches = state.recentBatches.filter((entry) => entry.path !== targetPath);
+  saveRecentBatches(state.recentBatches);
+  closeRecentDeleteModal();
+  state.statusHeadline = "Riwayat dihapus";
+  state.statusDetail = `${removedEntry?.label || basenameFromPath(targetPath)} dihapus dari Riwayat Pilihan.`;
+  renderAll();
+}
+
+function openRecentEditModal(path) {
+  const entry = recentEntryByPath(path);
+  if (!entry || !dom.recentEditModal || !dom.recentEditInput) {
+    return;
+  }
+
+  recentEditPath = entry.path;
+  dom.recentEditInput.value = entry.label || basenameFromPath(entry.path);
+  dom.recentEditModal.classList.remove("is-hidden");
+  dom.recentEditModal.setAttribute("aria-hidden", "false");
+  requestFrame(() => {
+    dom.recentEditInput.focus();
+    dom.recentEditInput.select();
+  });
+}
+
+function closeRecentEditModal() {
+  recentEditPath = "";
+  if (!dom.recentEditModal) {
+    return;
+  }
+  dom.recentEditModal.classList.add("is-hidden");
+  dom.recentEditModal.setAttribute("aria-hidden", "true");
+}
+
+function confirmRecentEdit() {
+  const targetPath = recentEditPath;
+  if (!targetPath || !dom.recentEditInput) {
+    closeRecentEditModal();
+    return;
+  }
+
+  const entry = recentEntryByPath(targetPath);
+  if (!entry) {
+    closeRecentEditModal();
+    return;
+  }
+
+  const nextLabel = dom.recentEditInput.value.trim() || basenameFromPath(targetPath);
+  state.recentBatches = state.recentBatches.map((item) =>
+    item.path === targetPath
+      ? { ...item, label: nextLabel }
+      : item,
+  );
+  saveRecentBatches(state.recentBatches);
+  closeRecentEditModal();
+  state.statusHeadline = "Riwayat diperbarui";
+  state.statusDetail = `Nama riwayat diubah menjadi ${nextLabel}.`;
+  renderAll();
+}
+
+function openPassportDeleteModal(memberId = activeMember()?.id ?? "") {
+  const member = manifestMembers().find((item) => String(item.id || "") === String(memberId || ""));
+  if (!member || !dom.passportDeleteModal) {
+    return;
+  }
+
+  passportDeleteMemberId = String(member.id || "");
+  if (dom.passportDeleteModalDesc) {
+    const passport = memberPassport(member) || member.fileName || "-";
+    dom.passportDeleteModalDesc.textContent =
+      `Hapus ${memberDisplayName(member)} (${passport}) dari manifest review? File gambar asli tidak ikut dihapus dan data ini tidak akan masuk export JSON.`;
+  }
+  dom.passportDeleteModal.classList.remove("is-hidden");
+  dom.passportDeleteModal.setAttribute("aria-hidden", "false");
+  requestFrame(() => dom.passportDeleteCancelButton?.focus());
+}
+
+function closePassportDeleteModal() {
+  passportDeleteMemberId = "";
+  if (!dom.passportDeleteModal) {
+    return;
+  }
+  dom.passportDeleteModal.classList.add("is-hidden");
+  dom.passportDeleteModal.setAttribute("aria-hidden", "true");
+}
+
+function confirmPassportDelete() {
+  const memberId = String(passportDeleteMemberId || "");
+  const members = manifestMembers();
+  const index = members.findIndex((member) => String(member.id || "") === memberId);
+  if (!memberId || index < 0 || !Array.isArray(state.manifest?.members)) {
+    closePassportDeleteModal();
+    return;
+  }
+
+  const removedMember = members[index];
+  state.manifest.members = members.filter((member) => String(member.id || "") !== memberId);
+  state.selectedIds.delete(memberId);
+  state.reviewedMemberIds.delete(memberId);
+  state.passportImageCache.delete(memberId);
+  clearDeletedCompanionReferences(memberId);
+  closePassportDeleteModal();
+
+  recalculateMetrics();
+  const nextMembers = filteredMembers();
+  state.activeMemberId = nextMembers[Math.min(index, Math.max(nextMembers.length - 1, 0))]?.id ?? "";
+  ensureVisibleActiveMember();
+  syncPassportPageWithActiveMember();
+  scheduleManifestSave(0);
+  state.statusHeadline = "Passport dihapus dari review";
+  state.statusDetail = `${memberDisplayName(removedMember)} dihapus dari manifest review. File asli tetap aman di folder sumber.`;
+  renderAll();
+}
+
+function clearDeletedCompanionReferences(deletedMemberId) {
+  for (const member of manifestMembers()) {
+    if (String(member.companionMemberId || "") !== String(deletedMemberId || "")) {
+      continue;
+    }
+    delete member.companionMemberId;
+    delete member.companionRelation;
+    delete member.companion;
+    clearMemberReviewConfirmation(member);
+  }
+}
+
+function openReviewCompleteModal() {
+  setPage("entry");
+}
+
+function closeReviewCompleteModal() {
+  if (!dom.reviewCompleteModal) {
+    return;
+  }
+  dom.reviewCompleteModal.classList.add("is-hidden");
+  dom.reviewCompleteModal.setAttribute("aria-hidden", "true");
+}
+
+function renderReviewExportModal() {
+  if (!dom.reviewCompleteModal) {
+    return;
+  }
+
+  const preview = exportPreviewState();
+
+  if (dom.reviewCompleteModalDesc) {
+    dom.reviewCompleteModalDesc.textContent = preview.description;
+  }
+
+  if (dom.reviewExportStatus) {
+    const statusText = state.isEntryRunning
+      ? "Export berjalan"
+      : state.exportedBatchPath
+        ? "JSON siap"
+        : preview.canExport
+          ? "Siap export"
+          : "Belum siap";
+    const statusTone = state.isEntryRunning
+      ? "warn"
+      : state.exportedBatchPath
+        ? "valid"
+        : preview.canExport
+          ? "ready"
+          : "neutral";
+    dom.reviewExportStatus.textContent = statusText;
+    dom.reviewExportStatus.className = `status-chip ${statusTone}`;
+  }
+
+  if (dom.reviewExportSummary) {
+    dom.reviewExportSummary.innerHTML = renderExportSummaryCards(preview);
+  }
+
+  if (dom.reviewExportPreviewBody) {
+    dom.reviewExportPreviewBody.innerHTML = preview.members.length
+      ? preview.members.map((member) => renderReviewExportPreviewRow(member, preview.selectedIds)).join("")
+      : `<tr><td colspan="4">Belum ada data untuk dipreview.</td></tr>`;
+  }
+
+  if (dom.reviewExportResult) {
+    dom.reviewExportResult.className = `review-export-result${state.exportError ? " is-error" : state.exportedBatchPath ? " is-success" : ""}`;
+    dom.reviewExportResult.textContent = state.exportError
+      ? state.exportError
+      : state.exportedBatchPath
+        ? `JSON dibuat: ${state.exportedBatchPath}`
+        : "Export akan membuat file nusuk-entry-batch.json dari data valid yang sudah direview.";
+  }
+
+  if (dom.reviewCompleteExportButton) {
+    dom.reviewCompleteExportButton.disabled = !preview.canExport;
+    dom.reviewCompleteExportButton.textContent = state.isEntryRunning ? "Membuat JSON..." : "Export to JSON";
+    dom.reviewCompleteExportButton.setAttribute("aria-disabled", dom.reviewCompleteExportButton.disabled ? "true" : "false");
+  }
+}
+
+function renderEntryPage() {
+  if (!dom.entryStatusPill) {
+    return;
+  }
+
+  const preview = exportPreviewState();
+  const statusInput = {
+    isEntryRunning: state.isEntryRunning,
+    isScanning: state.isScanning,
+    manifestPath: state.manifestPath,
+    selectedIdsSize: preview.selectedIds.size,
+  };
+  dom.entryStatusPill.textContent = state.exportedBatchPath ? "JSON siap" : entryStatusLabel(statusInput);
+  dom.entryStatusPill.className = `status-pill ${state.exportedBatchPath ? "valid" : entryStatusTone(statusInput)}`;
+
+  if (dom.entryExportDescription) {
+    dom.entryExportDescription.textContent = preview.description;
+  }
+  if (dom.entryExportSummary) {
+    dom.entryExportSummary.innerHTML = renderExportSummaryCards(preview);
+  }
+  if (dom.entryExportPreviewBody) {
+    dom.entryExportPreviewBody.innerHTML = preview.members.length
+      ? preview.members.map((member) => renderReviewExportPreviewRow(member, preview.selectedIds)).join("")
+      : `<tr><td colspan="4">Belum ada data untuk dipreview.</td></tr>`;
+  }
+  if (dom.entryExportResult) {
+    dom.entryExportResult.className = `review-export-result${state.exportError ? " is-error" : state.exportedBatchPath ? " is-success" : ""}`;
+    dom.entryExportResult.textContent = state.exportError
+      ? state.exportError
+      : state.exportedBatchPath
+        ? `JSON dibuat: ${state.exportedBatchPath}`
+        : "Export akan membuat file nusuk-entry-batch.json dari data valid yang sudah direview.";
+  }
+  if (dom.prepareEntryButton) {
+    dom.prepareEntryButton.disabled = !preview.canExport;
+    dom.prepareEntryButton.textContent = state.isEntryRunning ? "Membuat JSON..." : "Export to JSON";
+    dom.prepareEntryButton.setAttribute("aria-disabled", dom.prepareEntryButton.disabled ? "true" : "false");
+  }
+  renderEntryLogs();
+}
+
+function exportPreviewState() {
+  const members = manifestMembers();
+  const selectedIds = effectiveSelectedIdsForExport();
+  const review = reviewCompletionState();
+  const readyMembers = members.filter((member) => selectedIds.has(String(member.id || "")) && isMemberReadyForJson(member));
+  const failedMembers = members.filter((member) => memberReviewStatus(member) === "ERROR");
+  const skippedMembers = members.filter((member) => !readyMembers.includes(member) && memberReviewStatus(member) !== "ERROR");
+  const reviewedMembers = members.filter((member) =>
+    memberReviewStatus(member) === "ERROR" || isMemberReviewConfirmed(member)
+  );
+  const canExport = canExportReviewedJson() && !state.isEntryRunning;
+  const description = review.remaining > 0
+    ? `${review.reviewed}/${review.total} passport sudah ditandai dicek. Selesaikan review sebelum export JSON.`
+    : `${readyMembers.length} passport valid siap diexport. Data gagal atau skipped tetap tampil di preview dan tidak masuk JSON.`;
+
+  return {
+    members: review.remaining > 0 ? reviewedMembers : members,
+    selectedIds,
+    review,
+    readyMembers,
+    failedMembers,
+    skippedMembers,
+    reviewedMembers,
+    canExport,
+    description,
+  };
+}
+
+function renderExportSummaryCards(preview) {
+  return [
+    ["Total", preview.members.length],
+    ["Sudah Review", preview.reviewedMembers.length],
+    ["Siap JSON", preview.readyMembers.length],
+    ["Gagal/Skip", preview.failedMembers.length + preview.skippedMembers.length],
+  ].map(([label, value]) => `
+    <article class="review-export-summary-card">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(String(value))}</strong>
+    </article>
+  `).join("");
+}
+
+function renderReviewExportPreviewRow(member, selectedIds) {
+  const status = memberReviewStatus(member) || "-";
+  const ready = selectedIds.has(String(member.id || "")) && isMemberReadyForJson(member);
+  const passport = memberPassport(member) || "-";
+  const name = memberDisplayName(member);
+  const fileName = member.fileName || "-";
+  const exportLabel = ready ? "Masuk JSON" : "Tidak diexport";
+  return `
+    <tr>
+      <td>
+        <strong>${escapeHtml(passport)}</strong>
+        <small>${escapeHtml(fileName)}</small>
+      </td>
+      <td>
+        <button class="review-export-member-link" type="button" data-review-member-id="${escapeHtml(member.id ?? "")}">
+          ${escapeHtml(name)}
+        </button>
+      </td>
+      <td><span class="review-export-row-status ${escapeHtml(status.toLowerCase())}">${escapeHtml(status)}</span></td>
+      <td>${escapeHtml(exportLabel)}</td>
+    </tr>
+  `;
+}
+
+function isMemberReadyForJson(member) {
+  return isMemberReadyForEntry(member) && isMemberReviewConfirmed(member);
+}
+
+function canExportReviewedJson() {
+  if (!isEntryAccessible()) {
+    return false;
+  }
+  const selectedIds = effectiveSelectedIdsForExport();
+  return manifestMembers().some((member) => selectedIds.has(String(member.id || "")) && isMemberReadyForJson(member));
+}
+
+function recentEntryByPath(path) {
+  const targetPath = String(path || "").trim();
+  return state.recentBatches.find((entry) => entry.path === targetPath) || null;
 }
 
 function renderProgressPanel() {
@@ -1550,6 +2443,7 @@ function renderProgressPanel() {
   const current = Math.min(state.progressCurrent || 0, total || 0);
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
   const lastLog = state.lastWorkerMessage || state.scanLogs[state.scanLogs.length - 1] || "";
+  const timing = scanTimingSummary();
 
   dom.progressTitle.textContent = state.isScanning
     ? `Proses berjalan ${percentage}%`
@@ -1579,6 +2473,12 @@ function renderProgressPanel() {
   }
   if (dom.scanStatLeft) {
     dom.scanStatLeft.textContent = String(Math.max((total || 0) - Math.floor(current || 0), 0));
+  }
+  if (dom.scanStatAverage) {
+    dom.scanStatAverage.textContent = formatDurationMs(timing.avgTotalMs);
+  }
+  if (dom.scanStatLastTime) {
+    dom.scanStatLastTime.textContent = formatDurationMs(timing.latest?.totalMs);
   }
 
   if (dom.scanConsoleState) {
@@ -1619,24 +2519,37 @@ function renderScanLogs() {
 function renderPassportList() {
   const allMembers = manifestMembers();
   const visibleMembers = filteredMembers();
-  const pagination = paginationState(visibleMembers.length);
-  const pagedMembers = paginateMembers(visibleMembers);
 
-  dom.filterAllCount.textContent = String(allMembers.length);
-  dom.filterErrorCount.textContent = String(allMembers.filter((member) => memberReviewStatus(member) === "ERROR").length);
-  dom.filterValidCount.textContent = String(allMembers.filter((member) => memberReviewStatus(member) === "VALID").length);
+  if (dom.filterAllCount) {
+    dom.filterAllCount.textContent = String(allMembers.length);
+  }
+  if (dom.filterErrorCount) {
+    dom.filterErrorCount.textContent = String(allMembers.filter((member) => memberReviewStatus(member) === "ERROR").length);
+  }
+  if (dom.filterValidCount) {
+    dom.filterValidCount.textContent = String(allMembers.filter((member) => memberReviewStatus(member) === "VALID").length);
+  }
 
   for (const button of dom.filterButtons) {
     button.classList.toggle("is-active", button.dataset.validationFilter === state.validationFilter);
   }
 
-  dom.batchBadge.textContent = state.resultDir
-    ? `Kelompok ${basenameFromPath(state.resultDir)}`
-    : state.selectedDir
-      ? `Kelompok ${basenameFromPath(state.selectedDir)}`
-      : "Siap diperiksa";
+  renderReviewProgress();
 
-  dom.passportListSummary.textContent = passportListSummaryText(pagination, allMembers.length);
+  if (!dom.passportList) {
+    if (dom.passportListSummary) {
+      dom.passportListSummary.textContent = reviewPaginationSummaryText(visibleMembers.length);
+    }
+    renderPassportPagination({ totalItems: visibleMembers.length });
+    return;
+  }
+
+  const pagination = paginationState(visibleMembers.length);
+  const pagedMembers = paginateMembers(visibleMembers);
+
+  if (dom.passportListSummary) {
+    dom.passportListSummary.textContent = passportListSummaryText(pagination, allMembers.length);
+  }
 
   if (!allMembers.length) {
     dom.passportList.innerHTML = `<div class="friendly-empty">Belum ada data passport. Mulai proses dulu dari halaman Pilih Dokumen.</div>`;
@@ -1656,19 +2569,42 @@ function renderPassportList() {
   renderPassportPagination(pagination);
 }
 
+function renderReviewProgress() {
+  const review = reviewCompletionState();
+  const remainingText = review.remaining
+    ? `${review.remaining} belum dicek`
+    : "Semua sudah dicek";
+  const progressText = `${review.reviewed}/${review.total} direview`;
+
+  if (dom.batchBadge) {
+    dom.batchBadge.textContent = state.resultDir
+      ? `Kelompok ${basenameFromPath(state.resultDir)}`
+      : state.selectedDir
+        ? `Kelompok ${basenameFromPath(state.selectedDir)}`
+        : "Siap diperiksa";
+  }
+  if (dom.passportReviewProgress) {
+    dom.passportReviewProgress.textContent = `${progressText} | ${remainingText}`;
+  }
+}
+
 function renderPassportListItem(member) {
   const resolved = resolvedProfileOf(member);
   const active = state.activeMemberId === member.id ? " is-active" : "";
-  const reviewed = state.reviewedMemberIds.has(member.id);
+  const reviewed = isMemberReviewConfirmed(member);
   const tone = memberTone(member);
   const passportNumber = valueFrom(resolved, "passportNumber");
   const childInfo = childInfoForMember(member);
   const companionMissing = childInfo.isChild && !String(member.companionMemberId || "").trim();
   const groupLabel = childInfo.isChild ? "Child" : "Adult";
   const groupClass = childInfo.isChild ? "child" : "adult";
+  const scanDurationMs = memberScanTotalMs(member);
+  const scanTimePill = scanDurationMs > 0
+    ? `<span class="mini-pill muted scan-time-pill">Scan ${escapeHtml(formatDurationMs(scanDurationMs))}</span>`
+    : "";
 
   return `
-    <div class="passport-item${active}${reviewed ? " is-reviewed" : ""}" data-member-id="${escapeHtml(member.id ?? "")}">
+    <div class="passport-item${active}${reviewed ? " is-reviewed" : ""}" data-member-id="${escapeHtml(member.id ?? "")}" tabindex="0">
       <div class="passport-item-main">
         <div class="passport-item-title">
           <span class="passport-status-dot ${tone}${reviewed ? " reviewed" : ""}"></span>
@@ -1676,6 +2612,7 @@ function renderPassportListItem(member) {
         </div>
         <div class="passport-meta">
           <span class="mono">${escapeHtml(passportNumber)}</span>
+          ${scanTimePill}
           ${childInfo.isChild ? `<span class="mini-pill ${companionMissing ? "warn" : "info"}">${companionMissing ? "Butuh companion" : "Anak"}</span>` : ""}
         </div>
       </div>
@@ -1684,6 +2621,286 @@ function renderPassportListItem(member) {
       </div>
     </div>
   `;
+}
+
+function renderPassportPreview() {
+  if (!dom.passportPreviewImage || !dom.passportPreviewEmpty) {
+    return;
+  }
+
+  const member = activeMember();
+  if (!member) {
+    dom.passportPreviewImage.removeAttribute("src");
+    dom.passportPreviewImage.classList.add("is-hidden");
+    dom.passportPreviewEmpty.classList.remove("is-hidden");
+    dom.passportPreviewEmpty.textContent = "Belum ada passport dipilih.";
+    if (dom.passportPreviewName) {
+      dom.passportPreviewName.textContent = "Belum ada data";
+    }
+    if (dom.passportPreviewFile) {
+      dom.passportPreviewFile.textContent = "Jalankan scan atau buka riwayat terlebih dahulu.";
+    }
+    if (dom.passportPreviewStatus) {
+      dom.passportPreviewStatus.textContent = "Menunggu";
+      dom.passportPreviewStatus.className = "passport-preview-status neutral";
+    }
+    resetPassportPreviewZoomState();
+    return;
+  }
+
+  if (dom.passportPreviewName) {
+    dom.passportPreviewName.textContent = memberDisplayName(member);
+  }
+  if (dom.passportPreviewFile) {
+    const fileLabel = member.fileName || basenameFromPath(member.passportImagePath || "");
+    const scanDurationMs = memberScanTotalMs(member);
+    dom.passportPreviewFile.textContent = scanDurationMs > 0
+      ? `${fileLabel} | Scan ${formatDurationMs(scanDurationMs)}`
+      : fileLabel;
+  }
+  if (dom.passportPreviewStatus) {
+    const reviewed = isMemberReviewConfirmed(member);
+    dom.passportPreviewStatus.textContent = reviewed ? "Sudah direview" : "Belum direview";
+    dom.passportPreviewStatus.className = `passport-preview-status ${reviewed ? "valid" : "warn"}`;
+  }
+
+  void ensurePassportImageForMember(member);
+}
+
+async function ensurePassportImageForMember(member) {
+  const memberId = String(member?.id || "");
+  if (!memberId || !dom.passportPreviewImage || !dom.passportPreviewEmpty) {
+    return;
+  }
+
+  const cached = state.passportImageCache.get(memberId);
+  if (cached) {
+    applyPassportImageResult(memberId, cached);
+    return;
+  }
+
+  const requestId = ++passportImageRequestId;
+  applyPassportImageResult(memberId, {
+    status: "loading",
+    message: "Memuat foto passport...",
+    src: "",
+    path: "",
+  });
+
+  try {
+    const { invoke } = tauriBindings();
+    const imageData = await invoke("load_passport_image_data", {
+      manifestPath: state.manifestPath,
+      imagePath: String(member.passportImagePath || ""),
+      fileName: String(member.fileName || ""),
+    });
+    const result = imageData?.dataUrl
+      ? {
+          status: "ready",
+          message: "",
+          src: imageData.dataUrl,
+          path: imageData.path || "",
+        }
+      : {
+          status: "missing",
+          message: "File gambar passport tidak ditemukan.",
+          src: "",
+          path: "",
+        };
+    state.passportImageCache.set(memberId, result);
+    if (requestId === passportImageRequestId && String(activeMember()?.id || "") === memberId) {
+      applyPassportImageResult(memberId, result);
+    }
+  } catch (error) {
+    const result = {
+      status: "error",
+      message: `Gagal memuat foto passport: ${String(error)}`,
+      src: "",
+      path: "",
+    };
+    state.passportImageCache.set(memberId, result);
+    if (requestId === passportImageRequestId && String(activeMember()?.id || "") === memberId) {
+      applyPassportImageResult(memberId, result);
+    }
+  }
+}
+
+function applyPassportImageResult(memberId, result) {
+  if (!dom.passportPreviewImage || !dom.passportPreviewEmpty || String(activeMember()?.id || "") !== memberId) {
+    return;
+  }
+
+  if (result.status === "ready" && result.src) {
+    dom.passportPreviewEmpty.classList.add("is-hidden");
+    dom.passportPreviewImage.classList.remove("is-hidden");
+    const sourceChanged = dom.passportPreviewImage.getAttribute("src") !== result.src;
+    if (sourceChanged) {
+      dom.passportPreviewImage.src = result.src;
+    }
+    dom.passportPreviewImage.alt = activeMember()?.fileName
+      ? `Foto passport ${activeMember().fileName}`
+      : "Foto passport";
+    applyPassportPreviewZoom({ centerRatio: sourceChanged ? { x: 0.5, y: 0.5 } : null });
+    return;
+  }
+
+  dom.passportPreviewImage.removeAttribute("src");
+  dom.passportPreviewImage.classList.add("is-hidden");
+  dom.passportPreviewEmpty.classList.remove("is-hidden");
+  dom.passportPreviewEmpty.textContent = result.message || "Foto passport belum tersedia.";
+  renderPassportPreviewZoomControls();
+}
+
+function changePassportPreviewZoom(delta) {
+  if (!isPassportPreviewImageReady()) {
+    return;
+  }
+  setPassportPreviewZoom(state.passportPreviewZoom + delta, { keepViewportCenter: true });
+}
+
+function resetPassportPreviewZoom() {
+  if (!isPassportPreviewImageReady()) {
+    return;
+  }
+  setPassportPreviewZoom(PASSPORT_PREVIEW_ZOOM_DEFAULT, { centerRatio: { x: 0.5, y: 0.5 } });
+}
+
+function resetPassportPreviewZoomState() {
+  state.passportPreviewZoom = PASSPORT_PREVIEW_ZOOM_DEFAULT;
+  passportPreviewWheelDelta = 0;
+  applyPassportPreviewZoom();
+}
+
+function setPassportPreviewZoom(nextZoom, options = {}) {
+  const zoom = clampPassportPreviewZoom(nextZoom);
+  const previousZoom = state.passportPreviewZoom;
+  const centerRatio = options.centerRatio
+    || (options.keepViewportCenter ? passportPreviewScrollCenterRatio() : null);
+
+  if (Math.abs(zoom - previousZoom) < 0.001) {
+    renderPassportPreviewZoomControls();
+    return;
+  }
+
+  state.passportPreviewZoom = zoom;
+  applyPassportPreviewZoom({ centerRatio });
+}
+
+function applyPassportPreviewZoom(options = {}) {
+  state.passportPreviewZoom = clampPassportPreviewZoom(state.passportPreviewZoom);
+  const zoom = state.passportPreviewZoom;
+  const hasImage = isPassportPreviewImageReady();
+
+  if (dom.passportPreviewFrame) {
+    dom.passportPreviewFrame.style.setProperty("--passport-preview-zoom", zoom.toFixed(2));
+    dom.passportPreviewFrame.classList.toggle("is-zoomed", hasImage && zoom > PASSPORT_PREVIEW_ZOOM_DEFAULT + 0.001);
+  }
+
+  renderPassportPreviewZoomControls();
+
+  if (options.centerRatio && dom.passportPreviewFrame) {
+    requestFrame(() => {
+      restorePassportPreviewScrollCenter(options.centerRatio);
+    });
+  }
+}
+
+function handlePassportPreviewWheel(event) {
+  if (!event.ctrlKey || !isPassportPreviewImageReady()) {
+    return;
+  }
+
+  event.preventDefault();
+  passportPreviewWheelDelta += event.deltaY;
+  if (Math.abs(passportPreviewWheelDelta) < PASSPORT_PREVIEW_WHEEL_THRESHOLD) {
+    return;
+  }
+
+  const direction = passportPreviewWheelDelta > 0 ? -1 : 1;
+  passportPreviewWheelDelta = 0;
+  changePassportPreviewZoom(direction * PASSPORT_PREVIEW_WHEEL_STEP);
+}
+
+function handlePassportPreviewKeydown(event) {
+  if (!isPassportPreviewImageReady()) {
+    return;
+  }
+
+  if (event.key === "+" || event.key === "=") {
+    event.preventDefault();
+    changePassportPreviewZoom(PASSPORT_PREVIEW_ZOOM_STEP);
+    return;
+  }
+  if (event.key === "-" || event.key === "_") {
+    event.preventDefault();
+    changePassportPreviewZoom(-PASSPORT_PREVIEW_ZOOM_STEP);
+    return;
+  }
+  if (event.key === "0") {
+    event.preventDefault();
+    resetPassportPreviewZoom();
+  }
+}
+
+function renderPassportPreviewZoomControls() {
+  const hasImage = isPassportPreviewImageReady();
+  const zoom = clampPassportPreviewZoom(state.passportPreviewZoom);
+
+  if (dom.passportZoomLabel) {
+    dom.passportZoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+  }
+  if (dom.passportZoomOutButton) {
+    dom.passportZoomOutButton.disabled = !hasImage || zoom <= PASSPORT_PREVIEW_ZOOM_MIN + 0.001;
+  }
+  if (dom.passportZoomInButton) {
+    dom.passportZoomInButton.disabled = !hasImage || zoom >= PASSPORT_PREVIEW_ZOOM_MAX - 0.001;
+  }
+  if (dom.passportZoomResetButton) {
+    dom.passportZoomResetButton.disabled = !hasImage || Math.abs(zoom - PASSPORT_PREVIEW_ZOOM_DEFAULT) < 0.001;
+  }
+}
+
+function passportPreviewScrollCenterRatio() {
+  const frame = dom.passportPreviewFrame;
+  if (!frame) {
+    return { x: 0.5, y: 0.5 };
+  }
+
+  const scrollWidth = Math.max(1, frame.scrollWidth);
+  const scrollHeight = Math.max(1, frame.scrollHeight);
+  return {
+    x: (frame.scrollLeft + (frame.clientWidth / 2)) / scrollWidth,
+    y: (frame.scrollTop + (frame.clientHeight / 2)) / scrollHeight,
+  };
+}
+
+function restorePassportPreviewScrollCenter(centerRatio) {
+  const frame = dom.passportPreviewFrame;
+  if (!frame) {
+    return;
+  }
+
+  const maxLeft = Math.max(0, frame.scrollWidth - frame.clientWidth);
+  const maxTop = Math.max(0, frame.scrollHeight - frame.clientHeight);
+  frame.scrollLeft = Math.min(maxLeft, Math.max(0, (frame.scrollWidth * centerRatio.x) - (frame.clientWidth / 2)));
+  frame.scrollTop = Math.min(maxTop, Math.max(0, (frame.scrollHeight * centerRatio.y) - (frame.clientHeight / 2)));
+}
+
+function isPassportPreviewImageReady() {
+  return Boolean(
+    dom.passportPreviewImage
+    && !dom.passportPreviewImage.classList.contains("is-hidden")
+    && dom.passportPreviewImage.getAttribute("src")
+  );
+}
+
+function clampPassportPreviewZoom(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return PASSPORT_PREVIEW_ZOOM_DEFAULT;
+  }
+  const clamped = Math.min(PASSPORT_PREVIEW_ZOOM_MAX, Math.max(PASSPORT_PREVIEW_ZOOM_MIN, numeric));
+  return Math.round(clamped * 100) / 100;
 }
 
 function renderWorkspace() {
@@ -1714,7 +2931,8 @@ function renderWorkspace() {
   }
 
   dom.fieldReviewRows.classList.remove("is-empty");
-  dom.workspaceIssueBox.classList.remove("is-hidden");
+  dom.workspaceIssueBox.className = "issue-box issue-box-neutral is-hidden";
+  dom.workspaceIssueBox.textContent = "";
   document.querySelector(".field-review-head")?.classList.remove("is-hidden");
   document.querySelector(".workspace-panel")?.classList.remove("is-empty");
   const resolved = ensureResolvedProfile(member);
@@ -1725,9 +2943,6 @@ function renderWorkspace() {
   dom.detailSummary.classList.add("is-hidden");
   dom.detailSummary.textContent = "";
 
-  const issueSummary = buildIssueSummary(member);
-  dom.workspaceIssueBox.className = `issue-box ${issueSummary.toneClass}`;
-  dom.workspaceIssueBox.innerHTML = issueSummary.html;
   renderFieldCategoryTabs(member);
   dom.fieldReviewRows.innerHTML = renderFieldReviewRows(member);
   initializeWorkspaceDatePickers();
@@ -1741,68 +2956,8 @@ function renderWorkspace() {
   const currentPairIndex = FIELD_CATEGORY_PAIRS.findIndex((item) => item.id === currentPair.id);
   const nextPair = FIELD_CATEGORY_PAIRS[currentPairIndex + 1] || null;
   if (dom.saveNextButton) {
-    dom.saveNextButton.textContent = nextPair
-      ? `Lanjut ke ${nextPair.label}`
-      : "Siap & Lanjut";
+    dom.saveNextButton.textContent = reviewPrimaryActionLabel(member, nextPair);
   }
-}
-
-function renderEntryPage() {
-  if (!dom.entryStatusPill) {
-    return;
-  }
-
-  const batchName = state.resultDir
-    ? basenameFromPath(state.resultDir)
-    : state.selectedDir
-      ? basenameFromPath(state.selectedDir)
-      : "Belum ada data";
-  const validCount = state.validCount || countMembersByStatus("VALID");
-  const selectedCount = effectiveSelectedIdsForExport().size;
-  const totalEntryCount = totalEntryTargetCount();
-  const flowSteps = buildEntryFlowSteps({
-    url: String(dom.nusukUrl?.value ?? state.nusukUrl ?? "").trim().toLowerCase(),
-    isReviewDone: reviewCompletionState().remaining === 0 && manifestMembers().length > 0,
-    isExported: Boolean(state.exportedBatchPath),
-  });
-  const entryStatusInput = {
-    isEntryRunning: state.isEntryRunning,
-    isScanning: state.isScanning,
-    manifestPath: state.manifestPath,
-    selectedIdsSize: state.selectedIds.size,
-  };
-
-  dom.entryStatusPill.textContent = entryStatusLabel(entryStatusInput);
-  dom.entryStatusPill.className = `status-pill ${entryStatusTone(entryStatusInput)}`;
-  dom.entryBatchName.textContent = batchName;
-  dom.entryValidCount.textContent = `${validCount} data`;
-  dom.entrySelectedCount.textContent = `${selectedCount} data`;
-  dom.nusukUrl.value = state.nusukUrl;
-  if (dom.entryProgressTitle) {
-    dom.entryProgressTitle.textContent = state.exportedBatchPath
-      ? "JSON siap untuk extension"
-      : "Belum ada export JSON";
-  }
-  if (dom.entryProgressCount) {
-    dom.entryProgressCount.textContent = state.exportedBatchPath ? "Ready" : "0 file";
-    dom.entryProgressCount.className = `status-chip ${state.exportedBatchPath ? "valid" : "neutral"}`;
-  }
-  if (dom.entryProgressFill) {
-    const exportPercent = state.exportedBatchPath ? 100 : 0;
-    dom.entryProgressFill.style.width = `${exportPercent}%`;
-    dom.entryProgressFill.parentElement?.setAttribute("aria-valuenow", String(exportPercent));
-  }
-  if (dom.entryProgressCaption) {
-    dom.entryProgressCaption.textContent = state.exportedBatchPath
-      ? `Upload JSON ini ke extension: ${state.exportedBatchPath}`
-      : totalEntryCount > 0
-        ? `${totalEntryCount} passport siap diexport ke JSON.`
-        : "Tidak ada data target untuk export.";
-  }
-  if (dom.entryFlowSteps) {
-    dom.entryFlowSteps.innerHTML = renderEntryFlowSteps(flowSteps);
-  }
-  renderEntryLogs();
 }
 
 function activeCategoryPair() {
@@ -1844,6 +2999,7 @@ function renderFieldReviewRows(member) {
       const hasScanSource = Boolean(normalizedOcr);
       const changedFromScan = Boolean(normalizedOcr && normalizedFinal && normalizedOcr !== normalizedFinal);
       const sourceText = ocrValue || "Belum terbaca";
+      const blocked = state.reviewBlock?.target === "field" && state.reviewBlock?.fieldKey === key;
       const sourceBadge = hasScanSource
         ? (changedFromScan ? "Diubah" : "Asli")
         : "Manual";
@@ -1852,12 +3008,12 @@ function renderFieldReviewRows(member) {
         : "manual";
 
       return `
-        <div class="field-pair-cell${descriptor.rowAlert ? " is-alert" : ""}">
+        <div class="field-pair-cell${descriptor.rowAlert ? " is-alert" : ""}${blocked ? " is-blocked" : ""}">
           <div class="field-pair-label">${escapeHtml(label)}</div>
-          <div class="field-final-cell is-editable${descriptor.rowAlert ? " is-alert" : ""}">
+          <div class="field-final-cell is-editable${descriptor.rowAlert ? " is-alert" : ""}${blocked ? " is-blocked" : ""}">
             <div class="field-final-stack">
               <input
-                class="field-final-input${descriptor.rowAlert ? " is-alert" : ""}${dateField ? " js-date-input" : ""}"
+                class="field-final-input${descriptor.rowAlert ? " is-alert" : ""}${blocked ? " is-blocked" : ""}${dateField ? " js-date-input" : ""}"
                 data-field-key="${escapeHtml(key)}"
                 type="text"
                 value="${escapeHtml(inputValue)}"
@@ -1910,6 +3066,7 @@ function renderCompanionReviewPanel(member) {
   const selectedId = String(member.companionMemberId || "");
   const selectedCompanion = candidates.find((candidate) => String(candidate.id || "") === selectedId) || null;
   const selectedRelation = normalizeCompanionRelation(member.companionRelation || member.companion?.relation || (selectedCompanion ? inferDefaultCompanionRelation(member, selectedCompanion) : ""));
+  const blocked = state.reviewBlock?.target === "companion";
   const ageLabel = Number.isFinite(childInfo.age)
     ? `${childInfo.age} tahun`
     : "umur belum terbaca";
@@ -1928,15 +3085,11 @@ function renderCompanionReviewPanel(member) {
 
   return `
     <div class="field-review-row companion-review-row">
-      <div class="companion-review-card${selectedCompanion ? " is-complete" : " is-missing"}">
+      <div class="companion-review-card${selectedCompanion ? " is-complete" : " is-missing"}${blocked ? " is-blocked" : ""}">
         <div class="companion-review-copy">
           <span class="companion-pill">Anak - ${escapeHtml(ageLabel)}</span>
-          <strong>Companion wajib dipilih sebelum export</strong>
-          <small>${
-            selectedCompanion
-              ? `Companion: ${escapeHtml(memberDisplayName(selectedCompanion))} (${escapeHtml(memberPassport(selectedCompanion) || "-")})`
-              : "Pilih jamaah dewasa yang akan menjadi companion di Nusuk."
-          }</small>
+          <strong>Companion wajib</strong>
+          <small>${selectedCompanion ? "Siap export" : "Pilih jamaah dewasa"}</small>
         </div>
         <label class="companion-select-wrap">
           <span>Companion</span>
@@ -2015,44 +3168,17 @@ function workspaceStatusTone(member) {
   return "valid";
 }
 
-function buildIssueSummary(member) {
-  const issues = actionableIssuesForMember(member);
-  if (issues.length) {
-    const visible = issues.slice(0, 2);
-    const hiddenCount = Math.max(issues.length - visible.length, 0);
-    return {
-      toneClass: "issue-box-danger",
-      html: `
-        <strong>Perlu dicek (${issues.length})</strong>
-        <ul>${visible.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")}</ul>
-        ${hiddenCount ? `<p class="issue-more">+${hiddenCount} catatan lainnya</p>` : ""}
-      `,
-    };
-  }
-
-  const notes = splitNotes(member.notes).slice(0, 2);
-  if (notes.length) {
-    return {
-      toneClass: "issue-box-warn",
-      html: `
-        <strong>Catatan</strong>
-        <ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>
-      `,
-    };
-  }
-
-  return {
-    toneClass: "issue-box-ok",
-    html: "<strong>Data utama terlihat siap digunakan.</strong>",
-  };
-}
-
 function updateActionAvailability() {
   const hasSelectedDir = Boolean(state.selectedDir.trim());
   const hasActiveMember = Boolean(activeMember());
   const navigation = activeNavigationState();
 
   dom.scanButton.disabled = state.isScanning || !hasSelectedDir;
+  if (dom.stopScanButton) {
+    dom.stopScanButton.disabled = !state.isScanning || state.isStoppingScan;
+    dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
+    dom.stopScanButton.setAttribute("aria-disabled", dom.stopScanButton.disabled ? "true" : "false");
+  }
   if (dom.importNextButton) {
     const canGoNext = !state.isScanning && hasScanResultForSelectedDir();
     dom.importNextButton.disabled = !canGoNext;
@@ -2064,20 +3190,33 @@ function updateActionAvailability() {
   dom.folderDropzone.setAttribute("aria-disabled", state.isScanning ? "true" : "false");
   dom.folderDropzone.setAttribute("aria-busy", state.isScanning ? "true" : "false");
 
-  dom.openNusukButton.disabled = !dom.nusukUrl.value.trim() || state.isEntryRunning;
-  dom.prepareEntryButton.disabled = state.isEntryRunning || !isEntryAccessible();
-  if (dom.terminateEntryButton) {
-    dom.terminateEntryButton.disabled = true;
+  if (dom.reviewPreviewExportButton) {
+    const hasManifest = Boolean(state.manifestPath && state.manifest && manifestMembers().length);
+    const canPreviewExport = hasManifest && reviewCompletionState().remaining === 0 && !state.isScanning;
+    dom.reviewPreviewExportButton.classList.toggle("is-hidden", !hasManifest);
+    dom.reviewPreviewExportButton.disabled = !canPreviewExport;
+    dom.reviewPreviewExportButton.setAttribute("aria-disabled", dom.reviewPreviewExportButton.disabled ? "true" : "false");
+  }
+  if (dom.reviewCompleteExportButton) {
+    dom.reviewCompleteExportButton.disabled = state.isEntryRunning || !canExportReviewedJson();
+    dom.reviewCompleteExportButton.setAttribute("aria-disabled", dom.reviewCompleteExportButton.disabled ? "true" : "false");
+  }
+  if (dom.prepareEntryButton) {
+    dom.prepareEntryButton.disabled = state.isEntryRunning || !canExportReviewedJson();
+    dom.prepareEntryButton.setAttribute("aria-disabled", dom.prepareEntryButton.disabled ? "true" : "false");
+  }
+  if (dom.entryBackReviewButton) {
+    dom.entryBackReviewButton.disabled = state.isEntryRunning;
+    dom.entryBackReviewButton.setAttribute("aria-disabled", dom.entryBackReviewButton.disabled ? "true" : "false");
+  }
+  if (dom.deletePassportButton) {
+    dom.deletePassportButton.disabled = !hasActiveMember || state.isScanning;
+    dom.deletePassportButton.setAttribute("aria-disabled", dom.deletePassportButton.disabled ? "true" : "false");
   }
   dom.resetFieldsButton.disabled = !hasActiveMember;
   dom.saveNextButton.disabled = !hasActiveMember;
   dom.scanButton.setAttribute("aria-disabled", dom.scanButton.disabled ? "true" : "false");
   dom.chooseFolderButton.setAttribute("aria-disabled", dom.chooseFolderButton.disabled ? "true" : "false");
-  dom.openNusukButton.setAttribute("aria-disabled", dom.openNusukButton.disabled ? "true" : "false");
-  dom.prepareEntryButton.setAttribute("aria-disabled", dom.prepareEntryButton.disabled ? "true" : "false");
-  if (dom.terminateEntryButton) {
-    dom.terminateEntryButton.setAttribute("aria-disabled", dom.terminateEntryButton.disabled ? "true" : "false");
-  }
   dom.resetFieldsButton.setAttribute("aria-disabled", dom.resetFieldsButton.disabled ? "true" : "false");
   dom.saveNextButton.setAttribute("aria-disabled", dom.saveNextButton.disabled ? "true" : "false");
 
@@ -2091,17 +3230,29 @@ function updateActionAvailability() {
     button.setAttribute("aria-disabled", button.disabled ? "true" : "false");
   }
   for (const button of dom.workspaceNextButtons) {
-    button.disabled = !navigation.canMoveNext;
+    button.disabled = !canAdvanceToNextPassport(navigation);
     button.setAttribute("aria-disabled", button.disabled ? "true" : "false");
   }
 
   if (dom.passportPagePrevButton && dom.passportPageNextButton) {
-    const pagination = paginationState(filteredMembers().length);
-    dom.passportPagePrevButton.disabled = !pagination.canMovePrev;
-    dom.passportPageNextButton.disabled = !pagination.canMoveNext;
+    dom.passportPagePrevButton.disabled = !navigation.canMovePrev;
+    dom.passportPageNextButton.disabled = !canAdvanceToNextPassport(navigation);
     dom.passportPagePrevButton.setAttribute("aria-disabled", dom.passportPagePrevButton.disabled ? "true" : "false");
     dom.passportPageNextButton.setAttribute("aria-disabled", dom.passportPageNextButton.disabled ? "true" : "false");
   }
+}
+
+function canAdvanceToNextPassport(navigation = activeNavigationState()) {
+  const member = activeMember();
+  if (navigation.canMoveNext && memberReviewStatus(member) === "ERROR") {
+    return true;
+  }
+  return Boolean(
+    navigation.canMoveNext
+    && member
+    && isMemberReviewConfirmed(member)
+    && reviewCompletionValidation(member).ok
+  );
 }
 
 function hasFolderSelectionConflict() {
@@ -2123,10 +3274,6 @@ function reviewCompletionState() {
   return computeReviewCompletionState(manifestMembers(), state.reviewedMemberIds);
 }
 
-function totalEntryTargetCount() {
-  return computeTotalEntryTargetCount(effectiveSelectedIdsForExport().size, countMembersByStatus("VALID"));
-}
-
 function appendEntryLog(message, level = "info") {
   const text = String(message ?? "").trim();
   if (!text) {
@@ -2142,6 +3289,7 @@ function appendEntryLog(message, level = "info") {
   if (state.entryLogs.length > 120) {
     state.entryLogs = state.entryLogs.slice(-120);
   }
+  renderReviewExportModal();
   renderEntryLogs();
 }
 
@@ -2248,10 +3396,25 @@ function renderPassportPagination(pagination) {
   if (!dom.passportPagePrevButton || !dom.passportPageNextButton) {
     return;
   }
-  dom.passportPagePrevButton.disabled = !pagination.canMovePrev;
-  dom.passportPageNextButton.disabled = !pagination.canMoveNext;
+  const navigation = activeNavigationState();
+  dom.passportPagePrevButton.disabled = !navigation.canMovePrev;
+  dom.passportPageNextButton.disabled = !canAdvanceToNextPassport(navigation);
   dom.passportPagePrevButton.setAttribute("aria-disabled", dom.passportPagePrevButton.disabled ? "true" : "false");
   dom.passportPageNextButton.setAttribute("aria-disabled", dom.passportPageNextButton.disabled ? "true" : "false");
+  if (dom.passportListSummary && !dom.passportList) {
+    dom.passportListSummary.textContent = reviewPaginationSummaryText(pagination.totalItems);
+  }
+}
+
+function reviewPaginationSummaryText(totalItems) {
+  const members = filteredMembers();
+  const index = members.findIndex((member) => member.id === state.activeMemberId);
+  const safeIndex = index >= 0 ? index + 1 : 0;
+  const review = reviewCompletionState();
+  if (!totalItems) {
+    return "0 dari 0 passport";
+  }
+  return `Passport ${safeIndex} dari ${totalItems} | ${review.reviewed}/${review.total} direview`;
 }
 
 function passportListSummaryText(pagination, totalMembers) {
@@ -2302,6 +3465,18 @@ function defaultSelectedIds(manifest) {
   return manifest.members
     .filter((member) => isMemberReadyForEntry(member) && member.id)
     .map((member) => member.id);
+}
+
+function confirmedReviewIds(manifest) {
+  if (!Array.isArray(manifest?.members)) {
+    return new Set();
+  }
+
+  return new Set(
+    manifest.members
+      .filter((member) => member?.reviewConfirmed === true && member.id)
+      .map((member) => member.id),
+  );
 }
 
 function countMembersByStatus(status) {
@@ -2513,6 +3688,98 @@ function recalculateMetrics() {
   state.reviewCount = members.filter((member) => memberReviewStatus(member) === "NEEDS_REVIEW").length;
 }
 
+function normalizeDurationMs(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : 0;
+}
+
+function memberScanTotalMs(member) {
+  const metrics = member?.processingMetrics;
+  if (!metrics || typeof metrics !== "object") {
+    return 0;
+  }
+  return normalizeDurationMs(metrics.totalMs);
+}
+
+function scanTimingSummary() {
+  const summary = scanTimingSummaryFromPerformance(state.scanPerfSummary);
+  const latest = state.lastScanMetric || latestScanMetricFromManifest();
+  if (summary.filesWithMetrics > 0) {
+    return { ...summary, latest };
+  }
+
+  const liveSummary = scanTimingSummaryFromValues(
+    state.scanMetricRecords.map((entry) => entry.totalMs),
+  );
+  if (liveSummary.filesWithMetrics > 0) {
+    return { ...liveSummary, latest };
+  }
+
+  return { ...scanTimingSummaryFromValues(manifestMembers().map(memberScanTotalMs)), latest };
+}
+
+function scanTimingSummaryFromPerformance(summary) {
+  if (!summary || typeof summary !== "object") {
+    return emptyScanTimingSummary();
+  }
+
+  const filesWithMetrics = normalizeDurationMs(summary.filesWithMetrics);
+  const avgTotalMs = normalizeDurationMs(summary.avgTotalMs);
+  if (filesWithMetrics <= 0 || avgTotalMs <= 0) {
+    return emptyScanTimingSummary();
+  }
+
+  return {
+    filesWithMetrics,
+    avgTotalMs,
+    p95TotalMs: normalizeDurationMs(summary.p95TotalMs),
+    maxTotalMs: normalizeDurationMs(summary.maxTotalMs),
+  };
+}
+
+function scanTimingSummaryFromValues(values) {
+  const durations = values
+    .map(normalizeDurationMs)
+    .filter((value) => value > 0);
+  if (!durations.length) {
+    return emptyScanTimingSummary();
+  }
+
+  const sorted = [...durations].sort((left, right) => left - right);
+  const p95Index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * 0.95) - 1));
+  const total = durations.reduce((sum, value) => sum + value, 0);
+  return {
+    filesWithMetrics: durations.length,
+    avgTotalMs: Math.round(total / durations.length),
+    p95TotalMs: sorted[p95Index],
+    maxTotalMs: sorted[sorted.length - 1],
+  };
+}
+
+function emptyScanTimingSummary() {
+  return {
+    filesWithMetrics: 0,
+    avgTotalMs: 0,
+    p95TotalMs: 0,
+    maxTotalMs: 0,
+  };
+}
+
+function latestScanMetricFromManifest() {
+  const members = manifestMembers();
+  for (let index = members.length - 1; index >= 0; index -= 1) {
+    const totalMs = memberScanTotalMs(members[index]);
+    if (totalMs > 0) {
+      return {
+        fileName: String(members[index].fileName || ""),
+        totalMs,
+        metrics: members[index].processingMetrics,
+      };
+    }
+  }
+  return null;
+}
+
 function originalMemberById(memberId) {
   const members = Array.isArray(state.originalManifest?.members) ? state.originalManifest.members : [];
   return members.find((member) => member.id === memberId) || null;
@@ -2563,7 +3830,9 @@ function refreshCompactLogs() {
   }
 
   if (!state.isScanning && state.manifestPath) {
-    lines.push(`Hasil akhir | VALID ${state.validCount} | REVIEW ${state.reviewCount} | ERROR ${state.errorCount}`);
+    const timing = scanTimingSummary();
+    const timingText = timing.filesWithMetrics > 0 ? ` | avg ${formatDurationMs(timing.avgTotalMs)}` : "";
+    lines.push(`Hasil akhir | VALID ${state.validCount} | REVIEW ${state.reviewCount} | ERROR ${state.errorCount}${timingText}`);
   }
 
   state.scanLogs = lines.slice(-3);

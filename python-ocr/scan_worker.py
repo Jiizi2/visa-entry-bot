@@ -102,8 +102,7 @@ def main() -> int:
     boot_heartbeat = start_boot_heartbeat()
 
     try:
-        from main import list_passport_files
-        from scan_session import resolve_scan_target, scan_selected_directory
+        from scan_session import prepare_scan_inputs, resolve_scan_target, scan_selected_directory
     except Exception as exc:  # noqa: BLE001
         emit_error("OCR_BOOT_FAILURE", str(exc), stage="bootstrap", fatal=True)
         return 1
@@ -137,17 +136,23 @@ def main() -> int:
 
     try:
         target = resolve_scan_target(selected_dir)
-        passport_files = list_passport_files(target.passports_dir)
+        prepared_inputs = prepare_scan_inputs(
+            target,
+            log_callback=lambda message: emit("scan_log", message=message),
+        )
         emit(
             "scan_log",
-            message=f"Menemukan {len(passport_files)} passport di {target.passports_dir}.",
+            message=(
+                f"Menemukan {len(prepared_inputs.source_files)} file input di {target.passports_dir}. "
+                f"{prepared_inputs.total_targets} target scan siap diproses."
+            ),
         )
         emit(
             "scan_started",
             groupId=target.group_id,
             groupDir=target.group_dir,
             passportsDir=target.passports_dir,
-            totalFiles=len(passport_files),
+            totalFiles=prepared_inputs.total_targets,
         )
         with contextlib.redirect_stdout(io.StringIO()):
             result = scan_selected_directory(
@@ -155,6 +160,7 @@ def main() -> int:
                 progress_callback=on_progress,
                 stage_callback=on_stage,
                 metrics_callback=on_metrics,
+                prepared_inputs=prepared_inputs,
             )
     except Exception as exc:  # noqa: BLE001
         emit_error("SCAN_EXECUTION_FAILED", str(exc), stage="scan_session", fatal=True)

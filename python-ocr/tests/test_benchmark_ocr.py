@@ -130,6 +130,7 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "mrzFallbackUsed": False,
                 "ocrCache": {"hitCount": 1, "missCount": 2, "storeCount": 2},
                 "tesseract": {"callCount": 2, "errorCount": 0, "totalMs": 50, "maxMs": 30},
+                "imagePreprocessor": {"requestCount": 1, "callCount": 1, "totalMs": 12, "maxMs": 12, "inputMegaPixels": 1.2, "outputMegaPixels": 0.8, "estimatedPeakMb": 9.0},
                 "expectedFields": ["status", "passportNumber"],
                 "mismatches": [],
             },
@@ -145,6 +146,17 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "mrzFallbackUsed": True,
                 "ocrCache": {"hitCount": 3, "missCount": 4, "storeCount": 4},
                 "tesseract": {"callCount": 5, "errorCount": 1, "totalMs": 120, "maxMs": 90},
+                "imagePreprocessor": {
+                    "requestCount": 2,
+                    "cacheHitCount": 1,
+                    "callCount": 1,
+                    "errorCount": 0,
+                    "totalMs": 18,
+                    "maxMs": 18,
+                    "inputMegaPixels": 1.0,
+                    "outputMegaPixels": 0.7,
+                    "estimatedPeakMb": 11.5,
+                },
                 "expectedFields": ["status", "passportNumber"],
                 "mismatches": [{"field": "passportNumber", "expected": "E1234567", "actual": ""}],
             },
@@ -164,6 +176,22 @@ class BenchmarkOcrTests(unittest.TestCase):
         self.assertEqual(result["stageTotalsMs"], {"mrz": 180, "panel": 80})
         self.assertEqual(result["ocrCacheTotals"], {"hitCount": 4, "missCount": 6, "storeCount": 6})
         self.assertEqual(result["tesseractTotals"], {"callCount": 7, "errorCount": 1, "totalMs": 170, "avgMs": 85, "p95Ms": 50, "maxMs": 90})
+        self.assertEqual(
+            result["imagePreprocessorTotals"],
+            {
+                "requestCount": 3,
+                "cacheHitCount": 1,
+                "callCount": 2,
+                "errorCount": 0,
+                "totalMs": 30,
+                "avgMs": 15,
+                "p95Ms": 12,
+                "maxMs": 18,
+                "inputMegaPixels": 2.2,
+                "outputMegaPixels": 1.5,
+                "estimatedPeakMb": 11.5,
+            },
+        )
         self.assertEqual(
             result["fieldAccuracy"]["passportNumber"],
             {"expectedCount": 2, "matchCount": 1, "mismatchCount": 1, "accuracy": 0.5},
@@ -223,6 +251,14 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "p95TotalMs": 200,
                 "maxTotalMs": 300,
                 "tesseractTotals": {"totalMs": 80, "avgMs": 40, "p95Ms": 30, "maxMs": 30, "callCount": 7},
+                "imagePreprocessorTotals": {
+                    "totalMs": 10,
+                    "avgMs": 5,
+                    "p95Ms": 8,
+                    "maxMs": 9,
+                    "callCount": 2,
+                    "estimatedPeakMb": 12.5,
+                },
             },
             {"name": "low_power", "latencyMultiplier": 3.0},
         )
@@ -240,6 +276,12 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "tesseractP95Ms": 90,
                 "tesseractMaxMs": 90,
                 "tesseractCallCount": 7,
+                "imagePreprocessorTotalMs": 30,
+                "imagePreprocessorAvgMs": 15,
+                "imagePreprocessorP95Ms": 24,
+                "imagePreprocessorMaxMs": 27,
+                "imagePreprocessorCallCount": 2,
+                "imagePreprocessorEstimatedPeakMb": 12.5,
             },
         )
 

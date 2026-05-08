@@ -95,6 +95,19 @@ def _write_invalid_golden_report(args: argparse.Namespace, target: Any, golden_v
             "stageTotalsMs": {},
             "ocrCacheTotals": {"hitCount": 0, "missCount": 0, "storeCount": 0},
             "tesseractTotals": {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0},
+            "imagePreprocessorTotals": {
+                "requestCount": 0,
+                "cacheHitCount": 0,
+                "callCount": 0,
+                "errorCount": 0,
+                "totalMs": 0,
+                "avgMs": 0,
+                "p95Ms": 0,
+                "maxMs": 0,
+                "inputMegaPixels": 0.0,
+                "outputMegaPixels": 0.0,
+                "estimatedPeakMb": 0.0,
+            },
             "fieldAccuracy": {},
             "ocrModeCounts": {},
             "panelFallbackUsed": 0,
@@ -174,6 +187,7 @@ def _summarize_record(record: dict[str, Any], expected: dict[str, str]) -> dict[
         "mrzFallbackUsed": bool(metrics.get("mrzFallbackUsed")),
         "ocrCache": _dict_value(metrics.get("ocrCache", {})),
         "tesseract": _dict_value(metrics.get("tesseract", {})),
+        "imagePreprocessor": _dict_value(metrics.get("imagePreprocessor", {})),
         "ocrMode": str(metrics.get("ocrMode", "")),
         "ocrModeReasons": _list_values(metrics.get("ocrModeReasons", [])),
         "expectedFields": sorted(expected),
@@ -189,6 +203,20 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     ocr_mode_counts: dict[str, int] = {}
     tesseract_totals = {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0}
     tesseract_total_ms_values: list[int] = []
+    image_preprocessor_totals = {
+        "requestCount": 0,
+        "cacheHitCount": 0,
+        "callCount": 0,
+        "errorCount": 0,
+        "totalMs": 0,
+        "avgMs": 0,
+        "p95Ms": 0,
+        "maxMs": 0,
+        "inputMegaPixels": 0.0,
+        "outputMegaPixels": 0.0,
+        "estimatedPeakMb": 0.0,
+    }
+    image_preprocessor_total_ms_values: list[int] = []
     ocr_cache_totals = {"hitCount": 0, "missCount": 0, "storeCount": 0}
     for record in records:
         stages = record.get("stagesMs", {})
@@ -220,6 +248,25 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             tesseract_totals["totalMs"] += record_tesseract_total
             tesseract_totals["maxMs"] = max(tesseract_totals["maxMs"], int(tesseract.get("maxMs", 0) or 0))
             tesseract_total_ms_values.append(record_tesseract_total)
+        image_preprocessor = record.get("imagePreprocessor", {})
+        if isinstance(image_preprocessor, dict):
+            record_preprocess_total = int(image_preprocessor.get("totalMs", 0) or 0)
+            image_preprocessor_totals["requestCount"] += int(image_preprocessor.get("requestCount", 0) or 0)
+            image_preprocessor_totals["cacheHitCount"] += int(image_preprocessor.get("cacheHitCount", 0) or 0)
+            image_preprocessor_totals["callCount"] += int(image_preprocessor.get("callCount", 0) or 0)
+            image_preprocessor_totals["errorCount"] += int(image_preprocessor.get("errorCount", 0) or 0)
+            image_preprocessor_totals["totalMs"] += record_preprocess_total
+            image_preprocessor_totals["maxMs"] = max(
+                int(image_preprocessor_totals["maxMs"]),
+                int(image_preprocessor.get("maxMs", 0) or 0),
+            )
+            image_preprocessor_totals["inputMegaPixels"] += float(image_preprocessor.get("inputMegaPixels", 0.0) or 0.0)
+            image_preprocessor_totals["outputMegaPixels"] += float(image_preprocessor.get("outputMegaPixels", 0.0) or 0.0)
+            image_preprocessor_totals["estimatedPeakMb"] = max(
+                float(image_preprocessor_totals["estimatedPeakMb"]),
+                float(image_preprocessor.get("estimatedPeakMb", 0.0) or 0.0),
+            )
+            image_preprocessor_total_ms_values.append(record_preprocess_total)
         ocr_cache = record.get("ocrCache", {})
         if isinstance(ocr_cache, dict):
             ocr_cache_totals["hitCount"] += int(ocr_cache.get("hitCount", 0) or 0)
@@ -227,6 +274,13 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             ocr_cache_totals["storeCount"] += int(ocr_cache.get("storeCount", 0) or 0)
     tesseract_totals["avgMs"] = int(statistics.fmean(tesseract_total_ms_values)) if tesseract_total_ms_values else 0
     tesseract_totals["p95Ms"] = _percentile(tesseract_total_ms_values, 0.95)
+    image_preprocessor_totals["avgMs"] = (
+        int(statistics.fmean(image_preprocessor_total_ms_values)) if image_preprocessor_total_ms_values else 0
+    )
+    image_preprocessor_totals["p95Ms"] = _percentile(image_preprocessor_total_ms_values, 0.95)
+    image_preprocessor_totals["inputMegaPixels"] = round(float(image_preprocessor_totals["inputMegaPixels"]), 3)
+    image_preprocessor_totals["outputMegaPixels"] = round(float(image_preprocessor_totals["outputMegaPixels"]), 3)
+    image_preprocessor_totals["estimatedPeakMb"] = round(float(image_preprocessor_totals["estimatedPeakMb"]), 2)
     return {
         "validCount": sum(1 for record in records if record.get("status") == "VALID"),
         "errorCount": sum(1 for record in records if record.get("status") != "VALID"),
@@ -239,6 +293,7 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "stageTotalsMs": dict(sorted(stage_totals.items())),
         "ocrCacheTotals": ocr_cache_totals,
         "tesseractTotals": tesseract_totals,
+        "imagePreprocessorTotals": image_preprocessor_totals,
         "fieldAccuracy": _summarize_field_accuracy(field_totals, field_mismatches),
         "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
         "panelFallbackUsed": sum(1 for record in records if record.get("panelFallbackUsed")),
@@ -346,6 +401,8 @@ def _project_latency(summary: dict[str, Any], assumption: dict[str, Any]) -> dic
     multiplier = float(assumption.get("latencyMultiplier", 1.0) or 1.0)
     tesseract_totals = summary.get("tesseractTotals", {})
     tesseract_totals = tesseract_totals if isinstance(tesseract_totals, dict) else {}
+    image_preprocessor_totals = summary.get("imagePreprocessorTotals", {})
+    image_preprocessor_totals = image_preprocessor_totals if isinstance(image_preprocessor_totals, dict) else {}
     return {
         "name": str(assumption.get("name", "") or "assumed_hardware"),
         "latencyMultiplier": multiplier,
@@ -357,6 +414,12 @@ def _project_latency(summary: dict[str, Any], assumption: dict[str, Any]) -> dic
         "tesseractP95Ms": _scale_ms(tesseract_totals.get("p95Ms", 0), multiplier),
         "tesseractMaxMs": _scale_ms(tesseract_totals.get("maxMs", 0), multiplier),
         "tesseractCallCount": int(tesseract_totals.get("callCount", 0) or 0),
+        "imagePreprocessorTotalMs": _scale_ms(image_preprocessor_totals.get("totalMs", 0), multiplier),
+        "imagePreprocessorAvgMs": _scale_ms(image_preprocessor_totals.get("avgMs", 0), multiplier),
+        "imagePreprocessorP95Ms": _scale_ms(image_preprocessor_totals.get("p95Ms", 0), multiplier),
+        "imagePreprocessorMaxMs": _scale_ms(image_preprocessor_totals.get("maxMs", 0), multiplier),
+        "imagePreprocessorCallCount": int(image_preprocessor_totals.get("callCount", 0) or 0),
+        "imagePreprocessorEstimatedPeakMb": float(image_preprocessor_totals.get("estimatedPeakMb", 0.0) or 0.0),
     }
 
 
@@ -383,7 +446,19 @@ def _evaluate_assumed_hardware_targets(
             }
         )
         return
-    for metric in ("avgTotalMs", "p95TotalMs", "maxTotalMs", "tesseractTotalMs", "tesseractAvgMs", "tesseractP95Ms", "tesseractMaxMs"):
+    for metric in (
+        "avgTotalMs",
+        "p95TotalMs",
+        "maxTotalMs",
+        "tesseractTotalMs",
+        "tesseractAvgMs",
+        "tesseractP95Ms",
+        "tesseractMaxMs",
+        "imagePreprocessorTotalMs",
+        "imagePreprocessorAvgMs",
+        "imagePreprocessorP95Ms",
+        "imagePreprocessorMaxMs",
+    ):
         if metric in assumed_targets:
             actual = int(assumed_summary.get(metric, 0) or 0)
             target = int(assumed_targets[metric])

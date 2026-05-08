@@ -9,17 +9,21 @@ from datetime import date
 from typing import Callable
 
 from services.date_field_extractor import extract_document_dates
-from services.image_preprocessor import cleanup_temp_root
-from services.indonesia_field_ocr import build_visual_notes, extract_visual_fields, merge_visual_fields
+from services.image_preprocessor import (
+    cleanup_temp_root,
+    clear_image_preprocess_cache,
+    get_image_preprocessor_stats,
+    reset_image_preprocessor_stats,
+)
+from services.indonesia_field_ocr import build_visual_notes, extract_fast_location_fields, extract_visual_fields, merge_visual_fields
 from services.issue_date_extractor import infer_issue_date
 from services.mrz_extractor import extract_mrz_data
 from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_common_name_noise, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
 from services.nusuk_manifest import build_error_record, build_member_record
 from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_result_cache_stats, start_ocr_result_cache_session
 from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
-from services.panel_name_support import score_full_name
 from services.passport_page import clear_passport_page_cache, extract_aligned_passport_page
-from services.parser import parse_mrz_data
+from services.parser import format_date, parse_mrz_data
 from services.tesseract_runner import get_tesseract_ocr_stats, reset_tesseract_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
@@ -27,8 +31,18 @@ from services.visual_name_extractor import refine_names_from_scan
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+OCR_PROFILE_SPEED = "speed"
+OCR_PROFILE_ACCURACY = "accuracy"
 StepCallback = Callable[[str, str, float], None]
-FILENAME_NAME_NOISE = {"COPY", "IMG", "IMAGE", "JPEG", "JPG", "OF", "PASSPORT", "PHOTO", "PNG", "SCAN"}
+
+
+def _ocr_profile() -> str:
+    value = os.environ.get("PASSPORT_OCR_PROFILE", OCR_PROFILE_SPEED).strip().lower()
+    return OCR_PROFILE_ACCURACY if value == OCR_PROFILE_ACCURACY else OCR_PROFILE_SPEED
+
+
+def _is_speed_first_scan() -> bool:
+    return _ocr_profile() == OCR_PROFILE_SPEED
 
 
 def resolve_group_context() -> tuple[str, str]:
@@ -133,10 +147,14 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
 
     report_step("start", "Menyiapkan file", 0.04, f"Processing: {file_name}")
     clear_passport_page_cache()
+    clear_image_preprocess_cache()
     start_ocr_result_cache_session(file_path)
     reset_tesseract_ocr_stats()
+    reset_image_preprocessor_stats()
 
     try:
+        speed_first_scan = _is_speed_first_scan()
+        speed_scan_notes = "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED" if speed_first_scan else ""
         extraction: dict[str, object] = {"data": {}, "confidence": 0.0, "notes": ""}
         parsed = parse_mrz_data({})
         mrz_error = ""
@@ -153,12 +171,13 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         stage_durations_ms["mrz"] = _elapsed_ms(stage_started)
 
         page = None
+        ocr_rotation_degrees = _ocr_rotation_degrees(extraction)
         visual_fields: dict[str, str] = {}
         visual_notes = ""
         panel_fields: dict[str, str] = {}
         panel_notes = ""
         skipped_panel_field_names: tuple[str, ...] = ()
-        if should_use_panel_fallback(extraction):
+        if not speed_first_scan and should_use_panel_fallback(extraction):
             panel_field_names = _select_panel_field_names(parsed, extraction)
             if _should_skip_panel_for_direct_location_only(parsed, extraction, panel_field_names):
                 skipped_panel_field_names = panel_field_names
@@ -181,24 +200,46 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         else:
             panel_field_names = ()
 
-        if _is_indonesian_passport(parsed, extraction, panel_fields):
-            visual_field_names = _select_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
+        is_indonesian_passport = _is_indonesian_passport(parsed, extraction, panel_fields) or (
+            speed_first_scan and _has_indonesian_mrz_hint(extraction)
+        )
+        if is_indonesian_passport:
+            visual_field_names = (
+                _select_speed_visual_field_names(parsed, extraction)
+                if speed_first_scan
+                else _select_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
+            )
             report_step("visual", "Membaca field visual", 0.46, "  - reading visual fields")
             stage_started = time.perf_counter()
             if visual_field_names != ():
                 visual_ocr_used = True
-                if _visual_fields_need_aligned_page(visual_field_names):
+                if speed_first_scan:
+                    visual_fields = extract_fast_location_fields(
+                        file_path,
+                        field_names=visual_field_names,
+                        rotation_degrees=ocr_rotation_degrees,
+                    )
+                elif _visual_fields_need_aligned_page(visual_field_names):
                     page = extract_aligned_passport_page(file_path)
-                visual_fields = extract_visual_fields(
-                    file_path,
-                    page=page,
-                    field_names=visual_field_names,
-                    allow_aligned_fallback=not skipped_panel_field_names,
-                )
+                    visual_fields = extract_visual_fields(
+                        file_path,
+                        page=page,
+                        field_names=visual_field_names,
+                        allow_aligned_fallback=not skipped_panel_field_names,
+                        rotation_degrees=ocr_rotation_degrees,
+                    )
+                else:
+                    visual_fields = extract_visual_fields(
+                        file_path,
+                        page=page,
+                        field_names=visual_field_names,
+                        allow_aligned_fallback=not skipped_panel_field_names,
+                        rotation_degrees=ocr_rotation_degrees,
+                    )
             stage_durations_ms["visual"] = _elapsed_ms(stage_started)
         else:
             visual_field_names = ()
-        if skipped_panel_field_names:
+        if skipped_panel_field_names and not speed_first_scan:
             missing_panel_fields = tuple(field_name for field_name in skipped_panel_field_names if not visual_fields.get(field_name))
             if missing_panel_fields and visual_fields:
                 stage_started = time.perf_counter()
@@ -208,6 +249,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
                     file_path,
                     page=page,
                     field_names=missing_panel_fields,
+                    rotation_degrees=ocr_rotation_degrees,
                 )
                 visual_fields.update(recovered_visual_fields)
                 stage_durations_ms["visual"] = stage_durations_ms.get("visual", 0) + _elapsed_ms(stage_started)
@@ -229,10 +271,13 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
                 stage_durations_ms["panel"] = _elapsed_ms(stage_started)
         merged_visual_fields = _merge_visual_sources(visual_fields, panel_fields)
         parsed = merge_visual_fields(parsed, merged_visual_fields)
+        parsed = _apply_indonesian_visual_repairs(parsed, extraction, merged_visual_fields)
+        parsed, fast_mrz_notes = _apply_fast_mrz_repairs(parsed, extraction) if speed_first_scan else (parsed, "")
         visual_notes = build_visual_notes(merged_visual_fields)
         preferred_full_name = _pick_preferred_full_name(parsed, merged_visual_fields, panel_fields, file_name)
-        needs_date_scan = _should_extract_dates(parsed)
-        needs_name_scan = _should_refine_names(parsed, extraction, panel_fallback_used, preferred_full_name)
+        parsed, fast_date_notes = _apply_fast_date_repairs(parsed) if speed_first_scan else (parsed, "")
+        needs_date_scan = False if speed_first_scan else _should_extract_dates(parsed)
+        needs_name_scan = False if speed_first_scan else _should_refine_names(parsed, extraction, panel_fallback_used, preferred_full_name)
         needs_page_for_dates = needs_date_scan and not _can_infer_missing_issue_date(parsed)
 
         if page is None and (needs_page_for_dates or (needs_name_scan and not preferred_full_name)):
@@ -252,6 +297,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             for field_name in ("issueDate", "expiryDate"):
                 if date_fields.get(field_name):
                     parsed[field_name] = date_fields[field_name]
+        parsed, date_repair_notes = _repair_impossible_expiry_date(parsed)
         stage_durations_ms["dates"] = _elapsed_ms(stage_started)
         report_step("names", "Merapikan nama", 0.88, "  - refining names")
         stage_started = time.perf_counter()
@@ -272,7 +318,19 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         stage_started = time.perf_counter()
         status, validation_notes = validate_member(parsed)
         stage_durations_ms["validate"] = _elapsed_ms(stage_started)
-        notes = join_notes(mrz_error, extraction.get("notes", ""), panel_notes, visual_notes, early_name_notes, name_notes, validation_notes)
+        notes = join_notes(
+            mrz_error,
+            extraction.get("notes", ""),
+            panel_notes,
+            visual_notes,
+            speed_scan_notes,
+            early_name_notes,
+            fast_mrz_notes,
+            fast_date_notes,
+            date_repair_notes,
+            name_notes,
+            validation_notes,
+        )
         record = build_member_record(
             file_name,
             file_path,
@@ -291,8 +349,10 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "visualOcrUsed": visual_ocr_used,
             "visualFieldScope": list(visual_field_names) if visual_field_names is not None else "all",
             "mrzFallbackUsed": bool(mrz_error),
+            "ocrProfile": _ocr_profile(),
             "ocrCache": get_ocr_result_cache_stats(),
             "tesseract": get_tesseract_ocr_stats(),
+            "imagePreprocessor": get_image_preprocessor_stats(),
             "ocrMode": _classify_ocr_mode(
                 mrz_error=mrz_error,
                 panel_fallback_used=panel_fallback_used,
@@ -322,16 +382,20 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "panelFallbackUsed": panel_fallback_used,
             "visualOcrUsed": visual_ocr_used,
             "mrzFallbackUsed": bool(locals().get("mrz_error", "")),
+            "ocrProfile": _ocr_profile(),
             "ocrCache": get_ocr_result_cache_stats(),
             "tesseract": get_tesseract_ocr_stats(),
+            "imagePreprocessor": get_image_preprocessor_stats(),
             "ocrMode": "DEEP",
             "ocrModeReasons": ["PROCESSING_EXCEPTION"],
         }
         return record
     finally:
         clear_passport_page_cache()
+        clear_image_preprocess_cache()
         end_ocr_result_cache_session()
         reset_tesseract_ocr_stats()
+        reset_image_preprocessor_stats()
 
 
 def _elapsed_ms(started_at: float) -> int:
@@ -394,7 +458,141 @@ def _is_indonesian_passport(
 ) -> bool:
     country = str(extraction.get("data", {}).get("country", "")).upper()
     nationality = parsed.get("nationality", "")
-    return nationality == "INDONESIA" or country == "IDN" or panel_fields.get("nationality") == "INDONESIA"
+    return bool(panel_fields) or nationality == "INDONESIA" or country == "IDN" or panel_fields.get("nationality") == "INDONESIA"
+
+
+def _apply_indonesian_visual_repairs(
+    parsed: dict[str, str],
+    extraction: dict[str, object],
+    visual_fields: dict[str, str],
+) -> dict[str, str]:
+    updated = dict(parsed)
+    if (visual_fields.get("placeOfBirth") or visual_fields.get("issuingOffice")) and _looks_like_noisy_indonesia_code(
+        updated.get("nationality", "")
+    ):
+        updated["nationality"] = "INDONESIA"
+    if not _is_iso_date(updated.get("dob", "")):
+        dob = _recover_dob_from_unverified_mrz(extraction)
+        if dob:
+            updated["dob"] = dob
+    return updated
+
+
+def _apply_fast_mrz_repairs(parsed: dict[str, str], extraction: dict[str, object]) -> tuple[dict[str, str], str]:
+    updated = dict(parsed)
+    notes: list[str] = []
+    if _has_indonesian_mrz_hint(extraction):
+        if _looks_like_noisy_indonesia_code(updated.get("nationality", "")):
+            updated["nationality"] = "INDONESIA"
+            notes.append("NATIONALITY REPAIRED FROM MRZ HINT IN FAST SCAN")
+        if not re.fullmatch(r"[EX]\d{7}", updated.get("passportNumber", "") or ""):
+            passport_number = _recover_passport_number_from_mrz(extraction)
+            if passport_number:
+                updated["passportNumber"] = passport_number
+                notes.append("PASSPORT NUMBER REPAIRED FROM MRZ HINT IN FAST SCAN")
+        if not _is_iso_date(updated.get("dob", "")):
+            dob = _recover_dob_from_unverified_mrz(extraction)
+            if dob:
+                updated["dob"] = dob
+                notes.append("DOB REPAIRED FROM MRZ HINT IN FAST SCAN")
+        if updated.get("gender") not in {"MALE", "FEMALE"}:
+            gender = _recover_gender_from_unverified_mrz(extraction)
+            if gender:
+                updated["gender"] = gender
+                notes.append("GENDER REPAIRED FROM MRZ HINT IN FAST SCAN")
+    return updated, "; ".join(notes)
+
+
+def _looks_like_noisy_indonesia_code(value: str) -> bool:
+    compact = re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+    return compact in {"", "ID", "IDN", "DNI", "DNB", "IO3", "I03", "1O3"}
+
+
+def _has_indonesian_mrz_hint(extraction: dict[str, object]) -> bool:
+    data = extraction.get("data", {}) if extraction else {}
+    country = _normalize_mrz_country_hint(str(data.get("country", "") or data.get("nationality", "") or ""))
+    if country == "IDN":
+        return True
+    for value in _mrz_text_values(extraction):
+        cleaned = re.sub(r"[^A-Z0-9<]", "", value.upper())
+        if cleaned.startswith(("P<IDN", "P<DN")):
+            return True
+        for match in re.finditer(r"[A-Z0-9<]{10}([A-Z0-9]{3})\d{6}[0-9<]?[MFP<]", cleaned):
+            if _normalize_mrz_country_hint(match.group(1)) == "IDN":
+                return True
+    return False
+
+
+def _recover_passport_number_from_mrz(extraction: dict[str, object]) -> str:
+    for value in _mrz_text_values(extraction):
+        cleaned = re.sub(r"[^A-Z0-9<]", "", value.upper())
+        match = re.search(r"\b([EX]\d{7})<", cleaned)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _recover_dob_from_unverified_mrz(extraction: dict[str, object]) -> str:
+    for value in _mrz_text_values(extraction):
+        cleaned = re.sub(r"[^A-Z0-9<]", "", value.upper())
+        for match in re.finditer(r"(?:IDN|1DN|DN)(\d{6})[0-9<]?[MFP]", cleaned):
+            dob = format_date(match.group(1), "birth")
+            if _is_iso_date(dob):
+                return dob
+    return ""
+
+
+def _recover_gender_from_unverified_mrz(extraction: dict[str, object]) -> str:
+    for value in _mrz_text_values(extraction):
+        cleaned = re.sub(r"[^A-Z0-9<]", "", value.upper())
+        for match in re.finditer(r"(?:IDN|1DN|DN)\d{6}[0-9<]?([MFP])", cleaned):
+            gender = match.group(1)
+            if gender == "M":
+                return "MALE"
+            if gender in {"F", "P"}:
+                return "FEMALE"
+    return ""
+
+
+def _mrz_text_values(extraction: dict[str, object]) -> list[str]:
+    data = extraction.get("data", {}) if extraction else {}
+    values: list[str] = []
+    for key in ("line1", "line2", "raw_text", "mrz_text", "text"):
+        value = data.get(key)
+        if value is None:
+            continue
+        values.extend(str(value).splitlines())
+    return values
+
+
+def _ocr_rotation_degrees(extraction: dict[str, object]) -> int:
+    data = extraction.get("data", {}) if extraction else {}
+    if isinstance(data, dict):
+        for key in ("rotationDegrees", "rotation_degrees"):
+            rotation = _normalize_ocr_rotation_degrees(data.get(key))
+            if rotation:
+                return rotation
+    notes = str(extraction.get("notes", "") or "").lower() if extraction else ""
+    for match in re.finditer(r"(\d{2,3})[-\s]+degree rotation", notes):
+        rotation = _normalize_ocr_rotation_degrees(match.group(1))
+        if rotation:
+            return rotation
+    return 0
+
+
+def _normalize_ocr_rotation_degrees(value: object) -> int:
+    try:
+        rotation = int(str(value or "0")) % 360
+    except ValueError:
+        return 0
+    return rotation if rotation in {90, 180, 270} else 0
+
+
+def _normalize_mrz_country_hint(value: str) -> str:
+    compact = re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+    if compact == "INDONESIA":
+        return "IDN"
+    return compact.translate(str.maketrans({"1": "I", "L": "I", "0": "D", "O": "D", "Q": "D"}))
 
 
 def _select_visual_field_names(
@@ -424,6 +622,12 @@ def _select_visual_field_names(
     return tuple(dict.fromkeys(fields))
 
 
+def _select_speed_visual_field_names(parsed: dict[str, str], extraction: dict[str, object]) -> tuple[str, ...]:
+    if not (_is_indonesian_passport(parsed, extraction, {}) or _has_indonesian_mrz_hint(extraction)):
+        return ()
+    return ("placeOfBirth", "issuingOffice")
+
+
 def _visual_fields_need_aligned_page(field_names: tuple[str, ...] | None) -> bool:
     if field_names is None:
         return True
@@ -434,11 +638,7 @@ def _select_panel_fallback_visual_field_names(
     parsed: dict[str, str],
     panel_fields: dict[str, str],
 ) -> tuple[str, ...]:
-    fields: list[str] = []
-    if not panel_fields.get("placeOfBirth"):
-        fields.append("placeOfBirth")
-    if not panel_fields.get("issuingOffice"):
-        fields.append("issuingOffice")
+    fields: list[str] = ["placeOfBirth", "issuingOffice"]
     if not panel_fields.get("fullName") and _needs_name_refinement(parsed):
         fields.append("fullName")
     if parsed.get("nationality") not in {"INDONESIA"} and not panel_fields.get("nationality"):
@@ -501,8 +701,6 @@ def _apply_verified_single_word_name(
 ) -> tuple[dict[str, str], str]:
     if not _has_valid_mrz_validation(extraction):
         return parsed, ""
-    if _has_distinct_filename_name_hint(file_name, parsed.get("familyName", "")):
-        return parsed, ""
     return repair_single_word_name(parsed)
 
 
@@ -523,27 +721,7 @@ def _apply_verified_mrz_name_repairs(
     updated, note = _apply_verified_single_word_name(updated, extraction, file_name=file_name)
     if note:
         notes.append(note)
-    updated, note = _apply_filename_initial_single_word_name(updated, file_name=file_name)
-    if note:
-        notes.append(note)
     return updated, "; ".join(notes)
-
-
-def _apply_filename_initial_single_word_name(parsed: dict[str, str], file_name: str = "") -> tuple[dict[str, str], str]:
-    tokens = _filename_raw_name_tokens(file_name)
-    if len(tokens) < 2 or len(tokens[0]) != 1:
-        return parsed, ""
-    family_name = str(parsed.get("familyName", "") or "").strip().upper()
-    first_name = str(parsed.get("firstName", "") or "").strip().upper()
-    if not family_name or first_name != family_name:
-        return parsed, ""
-    candidate = f"{tokens[0]} {tokens[1]}"
-    if not token_matches_simple(tokens[1], family_name):
-        return parsed, ""
-    updated = dict(parsed)
-    updated["firstName"] = candidate
-    updated["familyName"] = candidate
-    return updated, "SINGLE-WORD NAME INITIAL RECOVERED FROM FILE NAME"
 
 
 def _apply_final_name_repairs(parsed: dict[str, str], file_name: str = "") -> tuple[dict[str, str], str]:
@@ -554,66 +732,11 @@ def _apply_final_name_repairs(parsed: dict[str, str], file_name: str = "") -> tu
     updated, note = repair_common_name_noise(updated)
     if note:
         notes.append(note)
-    updated, note = _apply_filename_initial_single_word_name(updated, file_name=file_name)
-    if note:
-        notes.append(note)
-    updated, note = _apply_filename_first_token_name_hint(updated, file_name=file_name)
-    if note:
-        notes.append(note)
     return updated, "; ".join(notes)
 
 
-def _apply_filename_first_token_name_hint(parsed: dict[str, str], file_name: str = "") -> tuple[dict[str, str], str]:
-    tokens = _filename_raw_name_tokens(file_name)
-    if len(tokens) != 1 or len(tokens[0]) < 4:
-        return parsed, ""
-    hint = tokens[0]
-    first_tokens = re.sub(r"[^A-Z\s]", " ", str(parsed.get("firstName", "") or "").upper()).split()
-    family_tokens = re.sub(r"[^A-Z\s]", " ", str(parsed.get("familyName", "") or "").upper()).split()
-    if family_tokens:
-        family_compact = "".join(family_tokens)
-        if family_compact.endswith(hint) and len(family_compact) > len(hint) + 3:
-            family_prefix = re.sub(r"[CKS]+$", "", family_compact[: -len(hint)])
-            if is_reasonable_token(family_prefix):
-                updated = dict(parsed)
-                updated["firstName"] = hint
-                updated["familyName"] = family_prefix
-                return updated, "NAME SPLIT REPAIRED FROM FILE NAME HINT"
-    if not first_tokens or len(first_tokens) > 2:
-        return parsed, ""
-    compact_first = "".join(first_tokens)
-    should_replace = compact_first == hint or (
-        len(first_tokens) == 1 and (token_matches_simple(first_tokens[0], hint) or _is_one_edit_apart(first_tokens[0], hint))
-    )
-    if not should_replace:
-        return parsed, ""
-    updated = dict(parsed)
-    updated["firstName"] = hint
-    return updated, "FIRST NAME REPAIRED FROM FILE NAME HINT"
-
-
-def _is_one_edit_apart(observed: str, reference: str) -> bool:
-    observed = re.sub(r"[^A-Z]", "", str(observed or "").upper())
-    reference = re.sub(r"[^A-Z]", "", str(reference or "").upper())
-    if observed == reference:
-        return True
-    if abs(len(observed) - len(reference)) > 1:
-        return False
-    if len(observed) == len(reference):
-        return sum(a != b for a, b in zip(observed, reference)) <= 1
-    short, long = sorted((observed, reference), key=len)
-    for index in range(len(long)):
-        if long[:index] + long[index + 1 :] == short:
-            return True
-    return False
-
-
-def _has_distinct_filename_name_hint(file_name: str, family_name: str) -> bool:
-    hint = _filename_name_hint(file_name)
-    if not hint:
-        return False
-    family_hints = salvage_family_hints(family_name)
-    return not any(token_matches_simple(hint, family_hint) for family_hint in family_hints)
+def _compact_name_value(value: str) -> str:
+    return re.sub(r"[^A-Z]", "", str(value or "").upper())
 
 
 def _has_reliable_mrz_for_fast_path(
@@ -649,6 +772,20 @@ def _should_extract_dates(parsed: dict[str, str]) -> bool:
     return False
 
 
+def _apply_fast_date_repairs(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
+    if _is_iso_date(parsed.get("issueDate", "")):
+        return parsed, ""
+    expiry_date = parsed.get("expiryDate", "")
+    if not _is_iso_date(expiry_date):
+        return parsed, ""
+    inferred_issue = infer_issue_date(parsed.get("dob", ""), expiry_date)
+    if not inferred_issue:
+        return parsed, ""
+    updated = dict(parsed)
+    updated["issueDate"] = inferred_issue
+    return updated, "ISSUE DATE INFERRED FROM EXPIRY DATE IN FAST SCAN"
+
+
 def _should_refine_names(
     parsed: dict[str, str],
     extraction: dict[str, object],
@@ -663,12 +800,21 @@ def _should_refine_names(
 
 
 def _needs_name_refinement(parsed: dict[str, str]) -> bool:
+    first_compact = _compact_name_value(parsed.get("firstName", ""))
+    family_compact = _compact_name_value(parsed.get("familyName", ""))
+    if first_compact and first_compact == family_compact:
+        return True
     return score_name_fields(parsed.get("firstName", ""), parsed.get("familyName", "")) < 10 or _has_suspicious_name_noise(parsed)
 
 
 def _has_suspicious_name_noise(parsed: dict[str, str]) -> bool:
-    for value in (parsed.get("firstName", ""), parsed.get("familyName", "")):
-        for token in re.sub(r"[^A-Z\s]", " ", str(value or "").upper()).split():
+    for field_name, value in (("firstName", parsed.get("firstName", "")), ("familyName", parsed.get("familyName", ""))):
+        tokens = re.sub(r"[^A-Z\s]", " ", str(value or "").upper()).split()
+        if field_name == "familyName" and len(tokens) > 1:
+            return True
+        for token in tokens:
+            if field_name == "familyName" and token.endswith("TLE"):
+                return True
             if len(token) >= 9 and token.endswith(("K", "S")):
                 return True
             if re.search(r"(.)\1{2,}", token):
@@ -683,6 +829,26 @@ def _can_infer_missing_issue_date(parsed: dict[str, str]) -> bool:
     if not _is_iso_date(expiry_date):
         return False
     return bool(infer_issue_date(parsed.get("dob", ""), expiry_date))
+
+
+def _repair_impossible_expiry_date(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
+    expiry = _parse_iso_date(parsed.get("expiryDate", ""))
+    dob = _parse_iso_date(parsed.get("dob", ""))
+    if expiry is None or dob is None or expiry > dob or expiry.year >= 2000:
+        return parsed, ""
+    repaired_expiry = expiry.replace(year=expiry.year + 80)
+    today = date.today()
+    if repaired_expiry <= today or repaired_expiry.year > today.year + 20:
+        return parsed, ""
+    updated = dict(parsed)
+    updated["expiryDate"] = repaired_expiry.isoformat()
+    note = "EXPIRY DATE CENTURY REPAIRED FROM MRZ"
+    if not _is_iso_date(updated.get("issueDate", "")):
+        inferred_issue = infer_issue_date(updated.get("dob", ""), updated["expiryDate"])
+        if inferred_issue:
+            updated["issueDate"] = inferred_issue
+            note = join_notes(note, "ISSUE DATE INFERRED FROM REPAIRED EXPIRY")
+    return updated, note
 
 
 def _mrz_confidence(extraction: dict[str, object]) -> float:
@@ -717,69 +883,38 @@ def _pick_preferred_full_name(
     panel_fields: dict[str, str],
     file_name: str = "",
 ) -> str:
-    full_name = panel_fields.get("fullName") or visual_fields.get("fullName", "")
     family_hints = salvage_family_hints(parsed.get("familyName", ""))
-    if not full_name:
-        return _filename_full_name_hint(file_name, family_hints)
-    tokens = [token for token in full_name.upper().split() if token]
-    if family_hints and not _full_name_matches_family_or_file(tokens, family_hints, file_name):
-        return ""
-    return full_name
+    for full_name in (panel_fields.get("fullName", ""), visual_fields.get("fullName", "")):
+        if not full_name:
+            continue
+        tokens = [token for token in full_name.upper().split() if token]
+        if family_hints and not _full_name_matches_family(tokens, family_hints):
+            continue
+        if _has_suspicious_name_noise(parsed) and _full_name_matches_current_name(tokens, parsed):
+            continue
+        return full_name
+    return ""
 
 
-def _full_name_matches_family_or_file(tokens: list[str], family_hints: list[str], file_name: str) -> bool:
+def _full_name_matches_family(tokens: list[str], family_hints: list[str]) -> bool:
     if not tokens:
         return False
     if any(token_matches_simple(tokens[-1], hint) for hint in family_hints):
         return True
-    filename_hint = _filename_name_hint(file_name)
-    if filename_hint and token_matches_simple(tokens[0], filename_hint) and score_full_name(" ".join(tokens), []) >= 80:
-        return True
     return len(tokens) == 1 and any(token_matches_simple(tokens[0], hint) for hint in family_hints)
 
 
+def _full_name_matches_current_name(tokens: list[str], parsed: dict[str, str]) -> bool:
+    current_tokens = re.sub(
+        r"[^A-Z\s]",
+        " ",
+        f"{parsed.get('firstName', '')} {parsed.get('familyName', '')}".upper(),
+    ).split()
+    return bool(tokens and current_tokens) and ("".join(tokens) == "".join(current_tokens))
+
+
 def _build_given_name_hint(file_name: str, extraction: dict[str, object], family_hint: str = "") -> str:
-    return " ".join(token for token in (_extract_given_name_hint(extraction, family_hint), _filename_name_hint(file_name)) if token)
-
-
-def _filename_name_hint(file_name: str) -> str:
-    for token in _filename_name_tokens(file_name):
-        if len(token) >= 3 and is_reasonable_token(token):
-            return token
-    return ""
-
-
-def _filename_full_name_hint(file_name: str, family_hints: list[str]) -> str:
-    if not family_hints:
-        return ""
-    tokens = _filename_name_tokens(file_name)
-    if len(tokens) < 2:
-        return ""
-    for start in range(max(0, len(tokens) - 4), len(tokens) - 1):
-        candidate_tokens = tokens[start:]
-        if any(token_matches_simple(candidate_tokens[-1], hint) for hint in family_hints):
-            candidate = " ".join(candidate_tokens)
-            if score_full_name(candidate, family_hints) >= 80:
-                return candidate
-    return ""
-
-
-def _filename_name_tokens(file_name: str) -> list[str]:
-    stem = os.path.splitext(os.path.basename(file_name))[0]
-    return [
-        token
-        for token in re.sub(r"[^A-Z\s]", " ", stem.upper()).split()
-        if token not in FILENAME_NAME_NOISE and is_reasonable_token(token)
-    ]
-
-
-def _filename_raw_name_tokens(file_name: str) -> list[str]:
-    stem = os.path.splitext(os.path.basename(file_name))[0]
-    return [
-        token
-        for token in re.sub(r"[^A-Z\s]", " ", stem.upper()).split()
-        if token not in FILENAME_NAME_NOISE and (len(token) == 1 or is_reasonable_token(token))
-    ]
+    return _extract_given_name_hint(extraction, family_hint)
 
 
 def _extract_given_name_hint(extraction: dict[str, object], family_hint: str = "") -> str:

@@ -36,7 +36,7 @@
               <span class="nav-step-badge" data-step-badge aria-hidden="true">2</span>
               <span class="nav-text">
                 <strong>Review Data</strong>
-                <small data-step-subtitle>Validate extracted info</small>
+                <small data-step-subtitle>Review extracted info</small>
               </span>
             </button>
             <span class="nav-connector" data-step-connector aria-hidden="true"></span>
@@ -44,7 +44,7 @@
               <span class="nav-step-badge" data-step-badge aria-hidden="true">3</span>
               <span class="nav-text">
                 <strong>Export JSON</strong>
-                <small data-step-subtitle>Generate records</small>
+                <small data-step-subtitle>Preview reviewed passports</small>
               </span>
             </button>
           </nav>
@@ -72,11 +72,6 @@
           </div>
         </header>
 
-        <section id="global-notice" class="global-notice is-hidden" role="status" aria-live="polite">
-          <strong id="global-notice-title">Informasi</strong>
-          <p id="global-notice-detail"></p>
-        </section>
-
         <div class="mobile-nav" aria-label="Navigasi ringkas"></div>
 
         <section id="page-import" class="page-section">
@@ -93,12 +88,12 @@
               </div>
               <h4>Pilih Folder</h4>
               <p id="dropzone-description" class="dropzone-copy">
-                Klik area ini atau gunakan browse untuk memilih folder passport atau folder grup yang ingin diproses.
+                Klik area ini atau gunakan browse untuk memilih folder berisi foto passport atau PDF yang ingin diproses.
               </p>
 
               <div class="selected-folder">
                 <strong id="selected-folder-name">Belum ada folder dipilih</strong>
-                <span id="selected-folder-caption">Pilih folder passport atau folder grup untuk mulai memproses data.</span>
+                <span id="selected-folder-caption">Pilih folder berisi JPG, PNG, atau PDF passport untuk mulai memproses data.</span>
               </div>
 
               <div class="dropzone-actions">
@@ -106,39 +101,15 @@
               </div>
 
               <label class="field-label" for="folder-path">Lokasi Folder</label>
-              <input id="folder-path" type="text" placeholder="Pilih folder passport atau folder grup..." />
+              <input id="folder-path" type="text" placeholder="Pilih folder berisi JPG, PNG, atau PDF passport..." />
             </article>
 
-            <div class="import-side">
-              <article class="side-card">
-                <div class="card-head compact">
-                  <div>
-                    <p class="eyebrow">Status Aplikasi</p>
-                    <h4>Status Sistem</h4>
-                  </div>
-                </div>
-
-                <div class="status-row-list">
-                  <div class="status-row">
-                    <span>Mesin baca data</span>
-                    <span id="system-ocr-status" class="mini-status idle">Menunggu</span>
-                  </div>
-                  <div class="status-row">
-                    <span>Pemeriksaan data</span>
-                    <span id="system-validation-status" class="mini-status ready">Siap</span>
-                  </div>
-                  <div class="status-row">
-                    <span>Penyimpanan lokal</span>
-                    <span id="system-runtime-status" class="mini-status ready">Tersedia</span>
-                  </div>
-                </div>
-              </article>
-
+            <div class="import-side recent-only">
               <article class="side-card recent-card">
                 <div class="card-head compact">
                   <div>
-                  <p class="eyebrow">Folder Terakhir</p>
-                  <h4>Riwayat Pilihan</h4>
+                    <p class="eyebrow">Folder Terakhir</p>
+                    <h4>Riwayat Pilihan</h4>
                   </div>
                 </div>
 
@@ -171,6 +142,14 @@
                 <span>Sisa</span>
                 <strong id="scan-stat-left">0</strong>
               </article>
+              <article class="scan-stat">
+                <span>Rata-rata</span>
+                <strong id="scan-stat-average">-</strong>
+              </article>
+              <article class="scan-stat">
+                <span>Terakhir</span>
+                <strong id="scan-stat-last-time">-</strong>
+              </article>
             </div>
 
             <div class="scan-console-progress">
@@ -200,6 +179,7 @@
             <p id="import-footer-text"></p>
             <div class="import-action-buttons">
               <button id="scan-button" class="secondary-button" type="button">Mulai Proses</button>
+              <button id="stop-scan-button" class="danger-button is-hidden" type="button">Stop Scan</button>
               <button id="import-next-button" class="primary-action is-hidden" type="button">Next</button>
             </div>
           </div>
@@ -207,42 +187,38 @@
 
         <section id="page-validation" class="page-section is-hidden">
           <section class="review-shell">
-            <aside class="passport-panel">
-              <div class="passport-panel-head">
+            <aside class="passport-preview-panel" aria-label="Foto passport aktif">
+              <div class="passport-preview-head">
                 <div>
-                  <h3>Daftar Passport</h3>
+                  <p class="eyebrow">Foto Passport</p>
+                  <h3>Review Visual</h3>
                 </div>
                 <span id="batch-badge" class="batch-badge">Siap diperiksa</span>
               </div>
 
-              <div class="passport-filter-row">
-                <button id="filter-all-button" class="filter-chip is-active" data-validation-filter="all" type="button">
-                  Semua <span id="filter-all-count">0</span>
-                </button>
-                <button id="filter-error-button" class="filter-chip" data-validation-filter="error" type="button">
-                  Perlu Dicek <span id="filter-error-count">0</span>
-                </button>
-                <button id="filter-valid-button" class="filter-chip" data-validation-filter="valid" type="button">
-                  Siap <span id="filter-valid-count">0</span>
-                </button>
-              </div>
-
-              <div class="passport-list-head">
-                <div class="passport-list-head-main">Data Passport</div>
-                <div class="passport-list-head-confidence">Kelompok</div>
-              </div>
-
-              <div id="passport-list" class="passport-list">
-                <div class="friendly-empty">Belum ada data passport.</div>
-              </div>
-
-              <div class="passport-panel-footer">
-                <span id="passport-list-summary">0 dari 0 data</span>
-                <div class="passport-panel-nav">
-                  <button id="passport-page-prev-button" class="nav-arrow" type="button" aria-label="Halaman daftar sebelumnya">&larr;</button>
-                  <button id="passport-page-next-button" class="nav-arrow" type="button" aria-label="Halaman daftar berikutnya">&rarr;</button>
+              <div class="passport-preview-toolbar" aria-label="Kontrol zoom foto passport">
+                <div class="passport-zoom-controls">
+                  <button id="passport-zoom-out-button" class="passport-zoom-button" type="button" aria-label="Perkecil foto passport" title="Perkecil" disabled>-</button>
+                  <span id="passport-zoom-label" class="passport-zoom-label" aria-live="polite">100%</span>
+                  <button id="passport-zoom-in-button" class="passport-zoom-button" type="button" aria-label="Perbesar foto passport" title="Perbesar" disabled>+</button>
                 </div>
+                <button id="passport-zoom-reset-button" class="passport-zoom-reset" type="button" disabled>Reset</button>
               </div>
+
+              <div id="passport-preview-frame" class="passport-preview-frame" tabindex="0">
+                <img id="passport-preview-image" class="passport-preview-image is-hidden" alt="Foto passport" />
+                <div id="passport-preview-empty" class="passport-preview-empty">Belum ada passport dipilih.</div>
+              </div>
+
+              <div class="passport-preview-meta">
+                <div>
+                  <strong id="passport-preview-name">Belum ada data</strong>
+                  <span id="passport-preview-file">Jalankan scan atau buka riwayat terlebih dahulu.</span>
+                </div>
+                <span id="passport-preview-status" class="passport-preview-status neutral">Menunggu</span>
+              </div>
+
+              <div id="passport-review-progress" class="passport-review-progress">0/0 direview</div>
             </aside>
 
             <section class="workspace-panel">
@@ -259,11 +235,6 @@
                   <div id="workspace-issue-box" class="issue-box issue-box-neutral">
                     Belum ada catatan pemeriksaan.
                   </div>
-                </div>
-
-                <div class="workspace-head-actions">
-                  <button id="workspace-prev-button-top" class="nav-arrow" type="button" aria-label="Passport sebelumnya atas">&larr;</button>
-                  <button id="workspace-next-button-top" class="nav-arrow" type="button" aria-label="Passport berikutnya atas">&rarr;</button>
                 </div>
               </div>
 
@@ -288,78 +259,66 @@
                   </div>
                 </section>
               </div>
-
-              <div class="workspace-footer">
-                <button id="reset-fields-button" class="footer-link-button" type="button">Reset Perubahan</button>
-                <div class="workspace-footer-actions">
-                  <button id="save-next-button" class="primary-action" type="button">Lanjut</button>
-                </div>
-              </div>
             </section>
+
+            <div class="review-pagination-bar">
+              <div class="review-pagination-nav">
+                <button id="passport-page-prev-button" class="secondary-button review-nav-button" type="button">Sebelumnya</button>
+                <button id="passport-page-next-button" class="secondary-button review-nav-button" type="button">Berikutnya</button>
+              </div>
+              <span id="passport-list-summary" class="review-pagination-summary">0 dari 0 passport</span>
+              <div class="review-pagination-actions">
+                <button id="review-preview-export-button" class="secondary-button is-hidden" type="button">Lanjut Preview JSON</button>
+                <button id="delete-passport-button" class="danger-button" type="button">Hapus Passport</button>
+                <button id="reset-fields-button" class="footer-link-button" type="button">Reset Perubahan</button>
+                <button id="save-next-button" class="primary-action" type="button">Tandai Dicek &amp; Lanjut</button>
+              </div>
+            </div>
           </section>
         </section>
 
         <section id="page-entry" class="page-section is-hidden">
           <section class="entry-shell">
-            <article class="entry-panel">
+            <article class="entry-panel review-export-page-panel">
               <div class="entry-panel-head">
                 <div>
                   <p class="eyebrow">Tahap 3</p>
-                  <h3>Lanjutkan ke Nusuk</h3>
+                  <h3>Preview &amp; Export JSON</h3>
                 </div>
                 <span id="entry-status-pill" class="status-pill neutral">Menunggu proses</span>
               </div>
 
-              <div class="entry-summary-grid">
-                <article class="entry-summary-card">
-                  <span>Kelompok Data</span>
-                  <strong id="entry-batch-name">Belum ada data</strong>
-                </article>
-                <article class="entry-summary-card">
-                  <span>Siap Dipakai</span>
-                  <strong id="entry-valid-count">0 data</strong>
-                </article>
-                <article class="entry-summary-card">
-                  <span>Dipilih</span>
-                  <strong id="entry-selected-count">0 data</strong>
-                </article>
-              </div>
+              <div id="entry-export-summary" class="review-export-summary" aria-label="Ringkasan export JSON"></div>
 
-              <section class="entry-progress-card" aria-label="Status export JSON">
-                <div class="entry-progress-head">
-                  <div>
-                    <p class="eyebrow">Export JSON</p>
-                    <h4 id="entry-progress-title">Belum ada export JSON</h4>
-                  </div>
-                  <span id="entry-progress-count" class="status-chip neutral">0 file</span>
-                </div>
-                <div class="progress-track" role="progressbar" aria-label="Status export JSON" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                  <div id="entry-progress-fill" class="progress-fill"></div>
-                </div>
-                <p id="entry-progress-caption" class="entry-helper-copy">Export JSON lalu upload file tersebut ke extension Nusuk Autofill.</p>
-              </section>
-
-              <section class="entry-flow-card" aria-label="Tahapan export JSON">
-                <div class="entry-flow-head">
-                  <p class="eyebrow">Alur Cepat</p>
-                  <h4>Tahapan Export</h4>
-                </div>
-                <div id="entry-flow-steps" class="entry-flow-steps"></div>
-              </section>
-
-              <div class="entry-field-block">
-                <label for="nusuk-url">Halaman Nusuk</label>
-                <input id="nusuk-url" type="text" value="https://masar.nusuk.sa/umrah/mutamer/add-mutamer" />
-                <p class="entry-helper-copy">
-                  Buka halaman tambah mutamer Nusuk secara normal. Desktop app hanya membuat JSON; autofill dijalankan dari extension.
+              <div class="entry-export-toolbar">
+                <p id="entry-export-description" class="entry-helper-copy">
+                  Preview akan menampilkan semua passport yang sudah direview sebelum file JSON dibuat.
                 </p>
+                <div class="entry-action-grid">
+                  <button id="entry-back-review-button" class="secondary-button" type="button">Kembali Review</button>
+                  <button id="prepare-entry-button" class="primary-action" type="button">Export to JSON</button>
+                </div>
               </div>
 
-              <div class="entry-action-grid">
-                <button id="open-nusuk-button" class="primary-action" type="button">Buka Halaman Nusuk</button>
-                <button id="prepare-entry-button" class="secondary-button" type="button">Export JSON</button>
-                <button id="terminate-entry-button" class="danger-button is-hidden" type="button">Automation Nonaktif</button>
+              <div class="review-export-preview-wrap entry-preview-wrap">
+                <table class="review-export-table">
+                  <thead>
+                    <tr>
+                      <th>Passport</th>
+                      <th>Nama</th>
+                      <th>Status</th>
+                      <th>JSON</th>
+                    </tr>
+                  </thead>
+                  <tbody id="entry-export-preview-body">
+                    <tr>
+                      <td colspan="4">Belum ada data untuk dipreview.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+
+              <p id="entry-export-result" class="review-export-result"></p>
 
               <section class="entry-log-card" aria-label="Log export JSON">
                 <div class="entry-log-head">
@@ -374,7 +333,6 @@
                 </div>
                 <pre id="entry-log-box" class="entry-log-box">Belum ada aktivitas export.</pre>
               </section>
-
             </article>
           </section>
         </section>
@@ -398,6 +356,138 @@
         <div class="confirm-modal-actions">
           <button id="rescan-cancel-button" class="secondary-button" type="button">Batal</button>
           <button id="rescan-confirm-button" class="primary-action" type="button">Ya, Scan Ulang</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="stop-scan-confirm-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="stop-scan-modal-title"
+      aria-describedby="stop-scan-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card">
+        <h4 id="stop-scan-modal-title">Hentikan proses scan?</h4>
+        <p id="stop-scan-modal-desc">
+          Worker OCR yang sedang berjalan akan dihentikan. Manifest hanya dibuat kalau proses scan selesai penuh.
+        </p>
+        <div class="confirm-modal-actions">
+          <button id="stop-scan-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="stop-scan-confirm-button" class="danger-button" type="button">Ya, Stop Scan</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="recent-delete-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recent-delete-modal-title"
+      aria-describedby="recent-delete-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card">
+        <h4 id="recent-delete-modal-title">Hapus riwayat folder?</h4>
+        <p id="recent-delete-modal-desc">
+          Folder ini hanya akan dihapus dari Riwayat Pilihan. File scan dan manifest tidak ikut dihapus.
+        </p>
+        <div class="confirm-modal-actions">
+          <button id="recent-delete-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="recent-delete-confirm-button" class="danger-button" type="button">Hapus Riwayat</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="recent-edit-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recent-edit-modal-title"
+      aria-describedby="recent-edit-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card">
+        <h4 id="recent-edit-modal-title">Edit nama riwayat</h4>
+        <p id="recent-edit-modal-desc">Nama ini hanya mengubah label yang tampil di Riwayat Pilihan.</p>
+        <label class="recent-edit-field" for="recent-edit-input">
+          <span>Nama tampilan</span>
+          <input id="recent-edit-input" type="text" maxlength="80" />
+        </label>
+        <div class="confirm-modal-actions">
+          <button id="recent-edit-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="recent-edit-save-button" class="primary-action" type="button">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="passport-delete-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="passport-delete-modal-title"
+      aria-describedby="passport-delete-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card">
+        <h4 id="passport-delete-modal-title">Hapus passport dari review?</h4>
+        <p id="passport-delete-modal-desc">
+          Data passport ini akan dihapus dari manifest review dan tidak ikut export JSON. File gambar asli tidak ikut dihapus.
+        </p>
+        <div class="confirm-modal-actions">
+          <button id="passport-delete-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="passport-delete-confirm-button" class="danger-button" type="button">Hapus Passport</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="review-complete-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="review-complete-modal-title"
+      aria-describedby="review-complete-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card review-export-card">
+        <div class="review-export-head">
+          <div>
+            <p class="eyebrow">Preview Export</p>
+            <h4 id="review-complete-modal-title">Review selesai</h4>
+          </div>
+          <span id="review-export-status" class="status-chip neutral">Menunggu</span>
+        </div>
+        <p id="review-complete-modal-desc">
+          Semua passport sudah ditandai dicek. Periksa ringkasan data sebelum export JSON.
+        </p>
+        <div id="review-export-summary" class="review-export-summary" aria-label="Ringkasan export JSON"></div>
+        <div class="review-export-preview-wrap">
+          <table class="review-export-table">
+            <thead>
+              <tr>
+                <th>Passport</th>
+                <th>Nama</th>
+                <th>Status</th>
+                <th>JSON</th>
+              </tr>
+            </thead>
+            <tbody id="review-export-preview-body">
+              <tr>
+                <td colspan="4">Belum ada data untuk dipreview.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="review-export-result" class="review-export-result"></p>
+        <div class="confirm-modal-actions">
+          <button id="review-complete-cancel-button" class="secondary-button" type="button">Tetap Review</button>
+          <button id="review-complete-export-button" class="primary-action" type="button">Export to JSON</button>
         </div>
       </div>
     </div>

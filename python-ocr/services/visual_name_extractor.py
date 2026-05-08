@@ -6,10 +6,11 @@ from services.name_support import clean_existing_first_name, expand_compact_name
 from services.passport_page import build_mrz_relative_crops, collect_ocr_lines, crop_relative, extract_aligned_passport_page
 
 NOISE_WORDS = {
+    "AGES",
     "APR", "AUG", "COUNTRY", "DATE", "DEC", "FEB", "FULL", "HABIS", "INDONESIA", "ISSUE", "JAN", "JENIS",
     "JUL", "JUN", "KANTOR", "KEWARGANEGARAAN", "KODE", "LAHIR", "LENGKAP", "MAR", "MAY", "NAME", "NAMA",
     "NATIONALITY", "NEGARA", "NO", "NOV", "OCT", "PASPOR", "PASSPORT", "PLACE", "REG", "REPUBLIC", "REPUBLIK",
-    "SEP", "SEX", "TYPE",
+    "SEP", "SEX", "SIG", "TYPE",
 }
 NOISE_FRAGMENTS = (
     "BERLAK", "COUNTR", "EXPIR", "FULL", "GARAAN", "ISSU", "KANTOR", "KELUAR", "LAHIR", "LENG",
@@ -50,9 +51,14 @@ def refine_names_from_scan(
         return repair_single_word_name(parsed)
     current_score = score_name_fields(parsed.get("firstName", ""), parsed.get("familyName", ""))
     resolved_score = score_name_fields(resolved["firstName"], resolved["familyName"])
-    if current_score > resolved_score:
+    prefer_visual_name = _should_prefer_visual_name(parsed, resolved)
+    if current_score > resolved_score and not prefer_visual_name:
         return repair_single_word_name(parsed)
-    if current_score == resolved_score and score_given_name_layout(parsed.get("firstName", "")) > score_given_name_layout(resolved["firstName"]):
+    if (
+        current_score == resolved_score
+        and score_given_name_layout(parsed.get("firstName", "")) > score_given_name_layout(resolved["firstName"])
+        and not prefer_visual_name
+    ):
         return repair_single_word_name(parsed)
     notes = []
     if resolved["firstName"] != parsed.get("firstName", "") or resolved["familyName"] != parsed.get("familyName", ""):
@@ -183,6 +189,9 @@ def _prepare_candidate(line: str, parsed: dict[str, str]) -> str:
 
 def _split_full_name(full_name: str, parsed: dict[str, str]) -> tuple[dict[str, str], bool]:
     tokens = _normalize_line(full_name).split()
+    while tokens and (tokens[0] in NOISE_WORDS or _is_noise_token(tokens[0]) or (len(tokens) > 2 and len(tokens[0]) <= 2)):
+        tokens.pop(0)
+    tokens = _drop_leading_visual_noise(tokens, parsed)
     if not tokens:
         return {}, False
     if len(tokens) == 2 and len(tokens[0]) == 1:
@@ -211,9 +220,31 @@ def _should_keep_single_word_mrz_name(parsed: dict[str, str], full_name: str) ->
     if not family_name or len(family_name.split()) != 1:
         return False
     tokens = _normalize_line(full_name).split()
+    while tokens and (tokens[0] in NOISE_WORDS or _is_noise_token(tokens[0]) or (len(tokens) > 2 and len(tokens[0]) <= 2)):
+        tokens.pop(0)
     if len(tokens) <= 1:
         return False
-    return any(_token_matches(token, family_name) for token in tokens)
+    if _token_matches(tokens[-1], family_name) and len(tokens[:-1]) >= 2:
+        return False
+    for token in tokens:
+        if _token_matches(token, family_name):
+            return _prefer_family_token(token, family_name) == family_name
+    return False
+
+
+def _drop_leading_visual_noise(tokens: list[str], parsed: dict[str, str]) -> list[str]:
+    if len(tokens) <= 2:
+        return tokens
+    first_tokens = _reference_tokens(parsed.get("firstName", ""))
+    if not first_tokens:
+        return tokens
+    for index, token in enumerate(tokens[:-1]):
+        for reference_index, reference in enumerate(first_tokens):
+            if _token_matches(token, reference):
+                return tokens[max(0, index - reference_index) :]
+        if index == 0 and len(token) >= 5 and token[0] == "S" and any(_token_matches(token[1:], reference) for reference in first_tokens):
+            return [token[1:], *tokens[1:]]
+    return tokens
 
 
 def _match_family_suffix(tokens: list[str], family_name: str) -> list[str]:
@@ -224,6 +255,8 @@ def _match_family_suffix(tokens: list[str], family_name: str) -> list[str]:
     if suffix:
         return suffix
     last_token = tokens[-1]
+    if len(family_tokens) > 1 and _is_compact_visual_family(last_token, family_tokens):
+        return [last_token]
     for family_token in _family_reference_tokens(family_name):
         if _token_matches(last_token, family_token):
             return [_prefer_family_token(last_token, family_token)]
@@ -434,13 +467,73 @@ def _find_matching_index(tokens: list[str], references: list[str]) -> int:
 def _prefer_family_token(observed: str, reference: str) -> str:
     if observed == reference:
         return reference
+    if _is_better_visual_family_spelling(observed, reference):
+        return observed
     if len(observed) - len(reference) == 1 and observed[1:] == reference and observed[0] in {"N", "Y"}:
         return reference
+    if len(observed) - len(reference) == 1 and observed[1:] == reference and observed[0] == "B":
+        return observed
     if len(reference) - len(observed) == 1 and reference[:-1] == observed and reference[-1] in {"G", "H", "K", "S"}:
         return observed
     if len(reference) - len(observed) == 1 and reference[1:] == observed and reference[0] in {"N", "Y"}:
         return observed
+    if len(reference) - len(observed) == 1 and reference[0] in {"N", "Y"} and _is_one_edit_apart(reference[1:], observed):
+        return observed
+    if len(observed) - len(reference) == 1 and observed[0] == "B" and _is_one_edit_apart(observed[1:], reference):
+        return observed
     return reference
+
+
+def _should_prefer_visual_name(parsed: dict[str, str], resolved: dict[str, str]) -> bool:
+    current_first = _normalize_line(parsed.get("firstName", ""))
+    resolved_first = _normalize_line(resolved.get("firstName", ""))
+    current_family = _normalize_line(parsed.get("familyName", ""))
+    resolved_family = _normalize_line(resolved.get("familyName", ""))
+    if not current_family or not resolved_family or current_family == resolved_family:
+        return False
+    if not _given_names_align(current_first, resolved_first):
+        return False
+    return _is_suspicious_family_repaired_by_visual(current_family, resolved_family)
+
+
+def _given_names_align(current_first: str, resolved_first: str) -> bool:
+    if not current_first:
+        return True
+    if current_first == resolved_first:
+        return True
+    current_tokens = current_first.split()
+    resolved_tokens = resolved_first.split()
+    if not current_tokens or not resolved_tokens:
+        return False
+    if "".join(current_tokens) == "".join(resolved_tokens):
+        return True
+    return _token_matches(current_tokens[0], resolved_tokens[0])
+
+
+def _is_suspicious_family_repaired_by_visual(current_family: str, resolved_family: str) -> bool:
+    current_tokens = current_family.split()
+    resolved_tokens = resolved_family.split()
+    if len(current_tokens) > 1 and len(resolved_tokens) == 1:
+        return _is_compact_visual_family(resolved_tokens[0], current_tokens)
+    if len(current_tokens) == 1 and len(resolved_tokens) == 1:
+        return _is_better_visual_family_spelling(resolved_tokens[0], current_tokens[0])
+    return False
+
+
+def _is_compact_visual_family(observed: str, family_tokens: list[str]) -> bool:
+    if len(family_tokens) <= 1 or not observed or not _has_name_shape(observed):
+        return False
+    compact_reference = "".join(family_tokens)
+    if observed == compact_reference:
+        return True
+    if _is_within_one_edit(observed, compact_reference):
+        return True
+    length_delta = len(observed) - len(compact_reference)
+    return 0 < length_delta <= 2 and observed.startswith(family_tokens[0]) and observed.endswith(family_tokens[-1])
+
+
+def _is_better_visual_family_spelling(observed: str, reference: str) -> bool:
+    return reference.endswith("TLE") and observed.endswith("TIE") and _is_within_one_edit(observed, reference)
 
 
 def _token_matches(observed: str, reference: str) -> bool:
@@ -452,8 +545,41 @@ def _token_matches(observed: str, reference: str) -> bool:
         return True
     if len(reference) - len(observed) == 1 and reference[1:] == observed and reference[0] in {"N", "Y"}:
         return True
+    if len(observed) - len(reference) == 1 and observed[0] == "B" and _is_one_edit_apart(observed[1:], reference):
+        return True
+    if len(reference) - len(observed) == 1 and reference[0] in {"N", "Y"} and _is_one_edit_apart(reference[1:], observed):
+        return True
     short, long = sorted((observed, reference), key=len)
     if len(short) >= 4 and long.startswith(short):
         return True
     mismatches = sum(char_a != char_b for char_a, char_b in zip(observed, reference)) + abs(len(observed) - len(reference))
     return mismatches <= 1 and min(len(observed), len(reference)) >= 4
+
+
+def _is_one_edit_apart(left: str, right: str) -> bool:
+    if len(left) != len(right):
+        return False
+    return sum(char_a != char_b for char_a, char_b in zip(left, right)) <= 1
+
+
+def _is_within_one_edit(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if abs(len(left) - len(right)) > 1:
+        return False
+    if len(left) == len(right):
+        return _is_one_edit_apart(left, right)
+    shorter, longer = sorted((left, right), key=len)
+    index_short = 0
+    index_long = 0
+    edits = 0
+    while index_short < len(shorter) and index_long < len(longer):
+        if shorter[index_short] == longer[index_long]:
+            index_short += 1
+            index_long += 1
+            continue
+        edits += 1
+        if edits > 1:
+            return False
+        index_long += 1
+    return True

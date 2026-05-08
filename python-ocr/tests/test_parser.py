@@ -193,6 +193,83 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parsed["firstName"], "MASKURDI SKUNDA")
         self.assertEqual(parsed["familyName"], "PUTRA")
 
+    def test_salvages_direct_mrz_given_names_embedded_in_family_segment(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNSAPUTRAK<KEAN<KWIJAYA<<<<K<<K<KKKKKKKKK",
+                "line2": "X5605969<5IDN1112054M30042306403060512000158",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "KEAN WIJAYA")
+        self.assertEqual(parsed["familyName"], "SAPUTRA")
+
+    def test_salvages_direct_mrz_x_separator_and_k_ayu_noise(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNSAPUTRA<X<KIRANA<KAYU<K<<<<<<KKKSKEEEEK",
+                "line2": "X5606246<8IDN1607037F30042493273214307000110",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "KIRANA AYU")
+        self.assertEqual(parsed["familyName"], "SAPUTRA")
+
+    def test_prefers_line_family_when_passporteye_shifts_given_name_into_surname(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "raw_text": (
+                    "P<IDNKURNIAWANK<ERWINK<<<<K<<KKKKKKKKKKKKKKKK\n"
+                    "E6369752<61DN7404283M33120503277032804000994"
+                ),
+                "surname": "KURNIAWANK ERWINK",
+                "names": "K KKKKK",
+                "line2": "E6369752<6IDN7404283M33120503277032804000994",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "ERWIN")
+        self.assertEqual(parsed["familyName"], "KURNIAWAN")
+
+    def test_repairs_sp_prefix_and_cs_name_separator_noise(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "raw_text": (
+                    "SP<IDNSUDRAGAT<<ALSACSALSABILACS<<\n"
+                    "<0051599<11DNO105020F270721132731"
+                ),
+                "line2": "<0051599<1IDN0105020F270721132731<<<<<<<<<<<",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "ALSA SALSABILA")
+        self.assertEqual(parsed["familyName"], "SUDRAJAT")
+
+    def test_repairs_missing_indonesia_prefix_before_family_initial(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "raw_text": (
+                    "P<DNBUSTOMI<<ADEN<<<<<<<<<<6<<<<6666SKKSEKKK\n"
+                    "X5218457<910N9403316M30031163201013103000552"
+                ),
+                "line2": "X5218457<9IDN9403316M30031163201013103000552",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "ADEN")
+        self.assertEqual(parsed["familyName"], "BUSTOMI")
+
+    def test_does_not_split_real_family_name_with_embedded_k(self) -> None:
+        parsed = parse_mrz_data(
+            {
+                "line1": "P<IDNMARNIKASARI<<GITA<K<<<<<<6<6666666E0666",
+                "line2": "X7506205<2IDN6703093F35102473273144903000668",
+            }
+        )
+
+        self.assertEqual(parsed["firstName"], "GITA")
+        self.assertEqual(parsed["familyName"], "MARNIKASARI")
+
     def test_uses_repaired_explicit_line2_with_raw_line1(self) -> None:
         parsed = parse_mrz_data(
             {

@@ -25,14 +25,28 @@ def scan_region_texts(
     variant_mode: str = "fast",
     max_lines: int = 10,
     stop_when: Callable[[list[str]], bool] | None = None,
+    include_psm_fallback: bool = True,
 ) -> list[str]:
-    cache_key = build_region_cache_key("scan", region, psm, whitelist, variant_mode, max_lines)
+    cache_key = build_region_cache_key(
+        "scan",
+        region,
+        psm,
+        whitelist,
+        variant_mode,
+        max_lines,
+        int(include_psm_fallback),
+    )
     cached = get_cached_lines(cache_key)
     if cached is not None:
         return cached
+    psm_values = (
+        (psm, 6 if psm != 6 else 7)
+        if include_psm_fallback
+        else (psm,)
+    )
     texts = collect_ocr_lines(
         region,
-        psm_values=(psm, 6 if psm != 6 else 7),
+        psm_values=psm_values,
         whitelist=whitelist,
         variant_mode=variant_mode,
         max_lines=max_lines,

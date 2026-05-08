@@ -1,0 +1,5985 @@
+{
+  "groupId": "PASSPOR",
+  "passportsDir": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR",
+  "goldenPath": "C:\\visa-entry-bot\\python-ocr\\tests\\fixtures\\ocr_training_golden.json",
+  "recursive": true,
+  "totalFiles": 37,
+  "goldenCount": 17,
+  "missingCount": 37,
+  "scannedCount": 37,
+  "duplicateFileNames": [],
+  "candidates": [
+    {
+      "fileName": "ALSA_SALSABILA_SUDRAJAT_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ALSA_SALSABILA_SUDRAJAT_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ALSA SALSABILA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SUDRAJAT",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "0051599",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2001-05-02",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-07-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-07-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW",
+        "LOW_MRZ_CONFIDENCE",
+        "LOW_ARABIC_CONFIDENCE",
+        "MRZ_CHECKSUM_PARTIAL",
+        "LOW_NAME_CONFIDENCE",
+        "LOW_VISUAL_FIELD_CONFIDENCE"
+      ],
+      "confidence": 0.5,
+      "mrzValidation": {
+        "line2": "<0051599<1IDN0105020F270721132731<<<<<<<<<<<",
+        "status": "MRZ_PARTIAL",
+        "valid": false,
+        "validCheckCount": 2,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "3",
+            "actual": "1",
+            "valid": false
+          },
+          {
+            "fieldName": "dob",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "8",
+            "actual": "<",
+            "valid": false
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "<",
+            "valid": false
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ALSA SALSABILA",
+        "familyName": "SUDRAJAT",
+        "passportNumber": "0051599",
+        "nationality": "INDONESIA",
+        "dob": "2001-05-02",
+        "issueDate": "2022-07-21",
+        "expiryDate": "2027-07-21",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "ALSA_SALSABILA_SUDRAJAT_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ALSA SALSABILA",
+          "familyName": "SUDRAJAT",
+          "passportNumber": "0051599",
+          "nationality": "INDONESIA",
+          "dob": "2001-05-02",
+          "issueDate": "2022-07-21",
+          "expiryDate": "2027-07-21",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 12246,
+        "stagesMs": {
+          "mrz": 12245,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ALSA_SALSABILA_SUDRAJAT_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 6064,
+          "maxMs": 706,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ANI_YUNINGSIH_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ANI_YUNINGSIH_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "ERROR",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "KANIK",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "2731DN63",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "IO3",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1963-01-03",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "ERROR",
+      "recordReviewStatus": "ERROR",
+      "recordReviewReasons": [
+        "RECORD_ERROR",
+        "FAST_SCAN_REVIEW",
+        "LOW_MRZ_CONFIDENCE",
+        "LOW_ARABIC_CONFIDENCE",
+        "MRZ_CHECKSUM_FAILED",
+        "LOW_NAME_CONFIDENCE",
+        "CRITICAL_FIELD_MISSING"
+      ],
+      "confidence": 0.0,
+      "mrzValidation": {
+        "line2": "27<31DN6301031F34080213204064301000896<<<<<<",
+        "status": "MRZ_FAILED",
+        "valid": false,
+        "validCheckCount": 0,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "4",
+            "actual": "0",
+            "valid": false
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "0",
+            "valid": false
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "0",
+            "actual": "6",
+            "valid": false
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "9",
+            "actual": "<",
+            "valid": false
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "<",
+            "valid": false
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "ERROR",
+        "familyName": "KANIK",
+        "passportNumber": "2731DN63",
+        "nationality": "IO3",
+        "dob": "1963-01-03"
+      },
+      "goldenDraft": {
+        "fileName": "ANI_YUNINGSIH_page_001.jpg",
+        "expected": {
+          "status": "ERROR",
+          "familyName": "KANIK",
+          "passportNumber": "2731DN63",
+          "nationality": "IO3",
+          "dob": "1963-01-03"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 12017,
+        "stagesMs": {
+          "mrz": 12016,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ANI_YUNINGSIH_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 2373,
+          "maxMs": 125,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "DEEP",
+        "ocrModeReasons": [
+          "ERROR_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ANNE_RATNASARI_DIMYATI_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ANNE_RATNASARI_DIMYATI_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ANNE RATNASARI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "DIMYATI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E7202130",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1964-04-28",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-03-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2034-03-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E7202130<9IDN6404286F34032113273156804000104",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ANNE RATNASARI",
+        "familyName": "DIMYATI",
+        "passportNumber": "E7202130",
+        "nationality": "INDONESIA",
+        "dob": "1964-04-28",
+        "issueDate": "2024-03-21",
+        "expiryDate": "2034-03-21",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "ANNE_RATNASARI_DIMYATI_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ANNE RATNASARI",
+          "familyName": "DIMYATI",
+          "passportNumber": "E7202130",
+          "nationality": "INDONESIA",
+          "dob": "1964-04-28",
+          "issueDate": "2024-03-21",
+          "expiryDate": "2034-03-21",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 2276,
+        "stagesMs": {
+          "mrz": 1941,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ANNE_RATNASARI_DIMYATI_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 13,
+          "errorCount": 0,
+          "totalMs": 1421,
+          "maxMs": 182,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "AQILLAH_ARADEA_ERWITA_PUTRI_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AQILLAH_ARADEA_ERWITA_PUTRI_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "AQILLAH ARADEA ERWITA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "PUTRI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X4498722",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2013-08-18",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-12-31",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2029-12-31",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X4498722<1IDN1308183F29123163277035808000142",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "AQILLAH ARADEA ERWITA",
+        "familyName": "PUTRI",
+        "passportNumber": "X4498722",
+        "nationality": "INDONESIA",
+        "dob": "2013-08-18",
+        "issueDate": "2024-12-31",
+        "expiryDate": "2029-12-31",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "AQILLAH_ARADEA_ERWITA_PUTRI_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "AQILLAH ARADEA ERWITA",
+          "familyName": "PUTRI",
+          "passportNumber": "X4498722",
+          "nationality": "INDONESIA",
+          "dob": "2013-08-18",
+          "issueDate": "2024-12-31",
+          "expiryDate": "2029-12-31",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 831,
+        "stagesMs": {
+          "mrz": 478,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AQILLAH_ARADEA_ERWITA_PUTRI_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 209,
+          "maxMs": 209,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ARIEF_FADILLA_DE_MELLO_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ARIEF_FADILLA_DE_MELLO_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ARIEF FADILLA DE",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "MELLO",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X6061955",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1994-02-02",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-07-18",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2035-07-18",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X6061955<3IDN9402021M35071863273010202000648",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ARIEF FADILLA DE",
+        "familyName": "MELLO",
+        "passportNumber": "X6061955",
+        "nationality": "INDONESIA",
+        "dob": "1994-02-02",
+        "issueDate": "2025-07-18",
+        "expiryDate": "2035-07-18",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "ARIEF_FADILLA_DE_MELLO_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ARIEF FADILLA DE",
+          "familyName": "MELLO",
+          "passportNumber": "X6061955",
+          "nationality": "INDONESIA",
+          "dob": "1994-02-02",
+          "issueDate": "2025-07-18",
+          "expiryDate": "2035-07-18",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 910,
+        "stagesMs": {
+          "mrz": 541,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ARIEF_FADILLA_DE_MELLO_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 285,
+          "maxMs": 285,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ATIE_RACHMIATIE_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ATIE_RACHMIATIE_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ATIE",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "RACHMIATIE",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E0468178",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1959-03-30",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-09-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-09-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E0468178<2IDN5903302F27090533273217003000282",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ATIE",
+        "familyName": "RACHMIATIE",
+        "passportNumber": "E0468178",
+        "nationality": "INDONESIA",
+        "dob": "1959-03-30",
+        "issueDate": "2022-09-05",
+        "expiryDate": "2027-09-05",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "ATIE_RACHMIATIE_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ATIE",
+          "familyName": "RACHMIATIE",
+          "passportNumber": "E0468178",
+          "nationality": "INDONESIA",
+          "dob": "1959-03-30",
+          "issueDate": "2022-09-05",
+          "expiryDate": "2027-09-05",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 2457,
+        "stagesMs": {
+          "mrz": 2170,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ATIE_RACHMIATIE_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 13,
+          "errorCount": 0,
+          "totalMs": 1657,
+          "maxMs": 199,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "AZALIA_RAHIMA_FADILLA_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AZALIA_RAHIMA_FADILLA_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "AZALIA RAHIMA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "FADILLA",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "C9431952",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2003-04-02",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-06-20",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-06-20",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "C9431952<9IDN0304029F27062033273014204000376",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "AZALIA RAHIMA",
+        "familyName": "FADILLA",
+        "passportNumber": "C9431952",
+        "nationality": "INDONESIA",
+        "dob": "2003-04-02",
+        "issueDate": "2022-06-20",
+        "expiryDate": "2027-06-20",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "AZALIA_RAHIMA_FADILLA_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "AZALIA RAHIMA",
+          "familyName": "FADILLA",
+          "passportNumber": "C9431952",
+          "nationality": "INDONESIA",
+          "dob": "2003-04-02",
+          "issueDate": "2022-06-20",
+          "expiryDate": "2027-06-20",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 906,
+        "stagesMs": {
+          "mrz": 516,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AZALIA_RAHIMA_FADILLA_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 230,
+          "maxMs": 230,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "AZARINE_RAINA_ERWITA_PUTRI_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AZARINE_RAINA_ERWITA_PUTRI_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "AZARINE RAINA ERWITA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "PUTRI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E6369826",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2001-03-15",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-12-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2033-12-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E6369826<8IDN0103152F33120503277035503000948",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "AZARINE RAINA ERWITA",
+        "familyName": "PUTRI",
+        "passportNumber": "E6369826",
+        "nationality": "INDONESIA",
+        "dob": "2001-03-15",
+        "issueDate": "2023-12-05",
+        "expiryDate": "2033-12-05",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "AZARINE_RAINA_ERWITA_PUTRI_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "AZARINE RAINA ERWITA",
+          "familyName": "PUTRI",
+          "passportNumber": "E6369826",
+          "nationality": "INDONESIA",
+          "dob": "2001-03-15",
+          "issueDate": "2023-12-05",
+          "expiryDate": "2033-12-05",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 829,
+        "stagesMs": {
+          "mrz": 499,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AZARINE_RAINA_ERWITA_PUTRI_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 243,
+          "maxMs": 243,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "AZKA_PUTRA_RAKHMATULLAH_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AZKA_PUTRA_RAKHMATULLAH_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "AZKA PUTRA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "RAKHMATULLAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X6128725",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1992-02-26",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-07-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2035-07-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X6128725<4IDN9202265M35072343273092602000134",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "AZKA PUTRA",
+        "familyName": "RAKHMATULLAH",
+        "passportNumber": "X6128725",
+        "nationality": "INDONESIA",
+        "dob": "1992-02-26",
+        "issueDate": "2025-07-23",
+        "expiryDate": "2035-07-23",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "AZKA_PUTRA_RAKHMATULLAH_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "AZKA PUTRA",
+          "familyName": "RAKHMATULLAH",
+          "passportNumber": "X6128725",
+          "nationality": "INDONESIA",
+          "dob": "1992-02-26",
+          "issueDate": "2025-07-23",
+          "expiryDate": "2035-07-23",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 817,
+        "stagesMs": {
+          "mrz": 478,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\AZKA_PUTRA_RAKHMATULLAH_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 198,
+          "maxMs": 198,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "DANY_EKA_SAPUTRA_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\DANY_EKA_SAPUTRA_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "DANY EKA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SAPUTRA",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X1983299",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1983-09-27",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-03-20",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2033-03-20",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X1983299<0IDN8309271M33032073273212709000268",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "DANY EKA",
+        "familyName": "SAPUTRA",
+        "passportNumber": "X1983299",
+        "nationality": "INDONESIA",
+        "dob": "1983-09-27",
+        "issueDate": "2023-03-20",
+        "expiryDate": "2033-03-20",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "DANY_EKA_SAPUTRA_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "DANY EKA",
+          "familyName": "SAPUTRA",
+          "passportNumber": "X1983299",
+          "nationality": "INDONESIA",
+          "dob": "1983-09-27",
+          "issueDate": "2023-03-20",
+          "expiryDate": "2033-03-20",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 763,
+        "stagesMs": {
+          "mrz": 425,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\DANY_EKA_SAPUTRA_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 153,
+          "maxMs": 153,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "DEDEH_FARDIAH_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\DEDEH_FARDIAH_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "DEDEH",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "FARDIAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5540576",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1968-02-18",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-03-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2035-03-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5540576<1IDN6802181F35032473273015802000542",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "DEDEH",
+        "familyName": "FARDIAH",
+        "passportNumber": "X5540576",
+        "nationality": "INDONESIA",
+        "dob": "1968-02-18",
+        "issueDate": "2025-03-24",
+        "expiryDate": "2035-03-24",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "DEDEH_FARDIAH_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "DEDEH",
+          "familyName": "FARDIAH",
+          "passportNumber": "X5540576",
+          "nationality": "INDONESIA",
+          "dob": "1968-02-18",
+          "issueDate": "2025-03-24",
+          "expiryDate": "2035-03-24",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 786,
+        "stagesMs": {
+          "mrz": 501,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\DEDEH_FARDIAH_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 217,
+          "maxMs": 217,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ENDAH_DJUWENDAH_DODO_SULAEMAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ENDAH_DJUWENDAH_DODO_SULAEMAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ENDAH DJUWENDAH DODO",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SULAEMAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E4299611",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1970-04-17",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-07-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2033-07-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E4299611<8IDN7004177F33072163204285704000164",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ENDAH DJUWENDAH DODO",
+        "familyName": "SULAEMAN",
+        "passportNumber": "E4299611",
+        "nationality": "INDONESIA",
+        "dob": "1970-04-17",
+        "issueDate": "2023-07-21",
+        "expiryDate": "2033-07-21",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "ENDAH_DJUWENDAH_DODO_SULAEMAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ENDAH DJUWENDAH DODO",
+          "familyName": "SULAEMAN",
+          "passportNumber": "E4299611",
+          "nationality": "INDONESIA",
+          "dob": "1970-04-17",
+          "issueDate": "2023-07-21",
+          "expiryDate": "2033-07-21",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 838,
+        "stagesMs": {
+          "mrz": 486,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ENDAH_DJUWENDAH_DODO_SULAEMAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 215,
+          "maxMs": 215,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ERWIN_KURNIAWAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ERWIN_KURNIAWAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ERWIN",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "KURNIAWAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E6369752",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1974-04-28",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-12-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2033-12-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E6369752<6IDN7404283M33120503277032804000994",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ERWIN",
+        "familyName": "KURNIAWAN",
+        "passportNumber": "E6369752",
+        "nationality": "INDONESIA",
+        "dob": "1974-04-28",
+        "issueDate": "2023-12-05",
+        "expiryDate": "2033-12-05",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "ERWIN_KURNIAWAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ERWIN",
+          "familyName": "KURNIAWAN",
+          "passportNumber": "E6369752",
+          "nationality": "INDONESIA",
+          "dob": "1974-04-28",
+          "issueDate": "2023-12-05",
+          "expiryDate": "2033-12-05",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 14127,
+        "stagesMs": {
+          "mrz": 13781,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ERWIN_KURNIAWAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 3789,
+          "maxMs": 288,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "FATIMA_AZZAHRA_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\FATIMA_AZZAHRA_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "FATIMA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "AZZAHRA",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "C9214163",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1999-08-01",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-06-07",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-06-07",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "C9214163<4IDN9908017F27060743273204108000114",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "FATIMA",
+        "familyName": "AZZAHRA",
+        "passportNumber": "C9214163",
+        "nationality": "INDONESIA",
+        "dob": "1999-08-01",
+        "issueDate": "2022-06-07",
+        "expiryDate": "2027-06-07",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "FATIMA_AZZAHRA_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "FATIMA",
+          "familyName": "AZZAHRA",
+          "passportNumber": "C9214163",
+          "nationality": "INDONESIA",
+          "dob": "1999-08-01",
+          "issueDate": "2022-06-07",
+          "expiryDate": "2027-06-07",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 5491,
+        "stagesMs": {
+          "mrz": 5150,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\FATIMA_AZZAHRA_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 3277,
+          "maxMs": 232,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "HARYADJI_SATYAWAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\HARYADJI_SATYAWAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "HARYADJI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SATYAWAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X4353594",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1962-05-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-11-28",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2034-11-28",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X4353594<0IDN6205058M34112853204060505000988",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "HARYADJI",
+        "familyName": "SATYAWAN",
+        "passportNumber": "X4353594",
+        "nationality": "INDONESIA",
+        "dob": "1962-05-05",
+        "issueDate": "2024-11-28",
+        "expiryDate": "2034-11-28",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "HARYADJI_SATYAWAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "HARYADJI",
+          "familyName": "SATYAWAN",
+          "passportNumber": "X4353594",
+          "nationality": "INDONESIA",
+          "dob": "1962-05-05",
+          "issueDate": "2024-11-28",
+          "expiryDate": "2034-11-28",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 908,
+        "stagesMs": {
+          "mrz": 551,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\HARYADJI_SATYAWAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 266,
+          "maxMs": 266,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "JIHAN_MECCA_ARIANNE_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\JIHAN_MECCA_ARIANNE_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "JIHAN MECCA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "ARIANNE",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E4299540",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2011-06-11",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-07-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2028-07-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E4299540<5IDN1106116F28072143204285106000380",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "JIHAN MECCA",
+        "familyName": "ARIANNE",
+        "passportNumber": "E4299540",
+        "nationality": "INDONESIA",
+        "dob": "2011-06-11",
+        "issueDate": "2023-07-21",
+        "expiryDate": "2028-07-21",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "JIHAN_MECCA_ARIANNE_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "JIHAN MECCA",
+          "familyName": "ARIANNE",
+          "passportNumber": "E4299540",
+          "nationality": "INDONESIA",
+          "dob": "2011-06-11",
+          "issueDate": "2023-07-21",
+          "expiryDate": "2028-07-21",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 13517,
+        "stagesMs": {
+          "mrz": 13166,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\JIHAN_MECCA_ARIANNE_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 3024,
+          "maxMs": 187,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "KEAN_WIJAYA_SAPUTRA_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KEAN_WIJAYA_SAPUTRA_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "KEAN WIJAYA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SAPUTRA",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5605969",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2011-12-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-04-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-04-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5605969<5IDN1112050M3004238<<<<<<<<<<<<<<00",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "KEAN WIJAYA",
+        "familyName": "SAPUTRA",
+        "passportNumber": "X5605969",
+        "nationality": "INDONESIA",
+        "dob": "2011-12-05",
+        "issueDate": "2025-04-23",
+        "expiryDate": "2030-04-23",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "KEAN_WIJAYA_SAPUTRA_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "KEAN WIJAYA",
+          "familyName": "SAPUTRA",
+          "passportNumber": "X5605969",
+          "nationality": "INDONESIA",
+          "dob": "2011-12-05",
+          "issueDate": "2025-04-23",
+          "expiryDate": "2030-04-23",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 772,
+        "stagesMs": {
+          "mrz": 485,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KEAN_WIJAYA_SAPUTRA_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 210,
+          "maxMs": 210,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "KIKI_ZAKIAH_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KIKI_ZAKIAH_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "KIKI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "ZAKIAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X4419055",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1963-09-13",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-12-16",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2034-12-16",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X4419055<1IDN6309130F34121673204065309000118",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "KIKI",
+        "familyName": "ZAKIAH",
+        "passportNumber": "X4419055",
+        "nationality": "INDONESIA",
+        "dob": "1963-09-13",
+        "issueDate": "2024-12-16",
+        "expiryDate": "2034-12-16",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "KIKI_ZAKIAH_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "KIKI",
+          "familyName": "ZAKIAH",
+          "passportNumber": "X4419055",
+          "nationality": "INDONESIA",
+          "dob": "1963-09-13",
+          "issueDate": "2024-12-16",
+          "expiryDate": "2034-12-16",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 848,
+        "stagesMs": {
+          "mrz": 497,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KIKI_ZAKIAH_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 220,
+          "maxMs": 220,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "KINAN_KASOGI_RIDWAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KINAN_KASOGI_RIDWAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "KINAN KASOGI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "RIDWAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5819760",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1987-02-21",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-05-09",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-05-09",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5819760<7IDN8702218M30050953273212103000132",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "KINAN KASOGI",
+        "familyName": "RIDWAN",
+        "passportNumber": "X5819760",
+        "nationality": "INDONESIA",
+        "dob": "1987-02-21",
+        "issueDate": "2025-05-09",
+        "expiryDate": "2030-05-09",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "KINAN_KASOGI_RIDWAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "KINAN KASOGI",
+          "familyName": "RIDWAN",
+          "passportNumber": "X5819760",
+          "nationality": "INDONESIA",
+          "dob": "1987-02-21",
+          "issueDate": "2025-05-09",
+          "expiryDate": "2030-05-09",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 859,
+        "stagesMs": {
+          "mrz": 500,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KINAN_KASOGI_RIDWAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 222,
+          "maxMs": 222,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "KIRANA_AYU_SAPUTRA_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KIRANA_AYU_SAPUTRA_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "KIRANA AYU",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SAPUTRA",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5606246",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2016-07-03",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-04-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-04-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5606246<8IDN1607037F30042493273214307000110",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "KIRANA AYU",
+        "familyName": "SAPUTRA",
+        "passportNumber": "X5606246",
+        "nationality": "INDONESIA",
+        "dob": "2016-07-03",
+        "issueDate": "2025-04-24",
+        "expiryDate": "2030-04-24",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "KIRANA_AYU_SAPUTRA_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "KIRANA AYU",
+          "familyName": "SAPUTRA",
+          "passportNumber": "X5606246",
+          "nationality": "INDONESIA",
+          "dob": "2016-07-03",
+          "issueDate": "2025-04-24",
+          "expiryDate": "2030-04-24",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 852,
+        "stagesMs": {
+          "mrz": 507,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\KIRANA_AYU_SAPUTRA_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 233,
+          "maxMs": 233,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "MOHAMAD_ERIEF_PURNAWAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\MOHAMAD_ERIEF_PURNAWAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "MOHAMAD ERIEF",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "PURNAWAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X3639165",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1971-07-31",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-08-19",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2034-08-19",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 0.9,
+      "mrzValidation": {
+        "line2": "X3639165<2IDN7107311M34081913273143107000470",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "MOHAMAD ERIEF",
+        "familyName": "PURNAWAN",
+        "passportNumber": "X3639165",
+        "nationality": "INDONESIA",
+        "dob": "1971-07-31",
+        "issueDate": "2024-08-19",
+        "expiryDate": "2034-08-19",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "MOHAMAD_ERIEF_PURNAWAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "MOHAMAD ERIEF",
+          "familyName": "PURNAWAN",
+          "passportNumber": "X3639165",
+          "nationality": "INDONESIA",
+          "dob": "1971-07-31",
+          "issueDate": "2024-08-19",
+          "expiryDate": "2034-08-19",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 7791,
+        "stagesMs": {
+          "mrz": 7501,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\MOHAMAD_ERIEF_PURNAWAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 7,
+          "errorCount": 0,
+          "totalMs": 5681,
+          "maxMs": 1179,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "NENI_YULIANITA_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\NENI_YULIANITA_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "NENI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "YULIANITA",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X3476240",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1958-07-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-07-16",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2034-07-16",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X3476240<1IDN5807237F34071613273096307000174",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "NENI",
+        "familyName": "YULIANITA",
+        "passportNumber": "X3476240",
+        "nationality": "INDONESIA",
+        "dob": "1958-07-23",
+        "issueDate": "2024-07-16",
+        "expiryDate": "2034-07-16",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "NENI_YULIANITA_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "NENI",
+          "familyName": "YULIANITA",
+          "passportNumber": "X3476240",
+          "nationality": "INDONESIA",
+          "dob": "1958-07-23",
+          "issueDate": "2024-07-16",
+          "expiryDate": "2034-07-16",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 872,
+        "stagesMs": {
+          "mrz": 522,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\NENI_YULIANITA_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 242,
+          "maxMs": 242,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "RESPITAWULAN_NANANG_RIDWAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\RESPITAWULAN_NANANG_RIDWAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "ERROR",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SRESPITAWULAN WANANG",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "41285220",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1984-07-16",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-03-20",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2033-03-20",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "ERROR",
+      "recordReviewStatus": "ERROR",
+      "recordReviewReasons": [
+        "RECORD_ERROR",
+        "FAST_SCAN_REVIEW",
+        "LOW_MRZ_CONFIDENCE",
+        "LOW_ARABIC_CONFIDENCE",
+        "MRZ_CHECKSUM_PARTIAL",
+        "LOW_NAME_CONFIDENCE",
+        "CRITICAL_FIELD_MISSING",
+        "LOW_VISUAL_FIELD_CONFIDENCE"
+      ],
+      "confidence": 0.0,
+      "mrzValidation": {
+        "line2": "41285220<4IDN8407166653032075273215607001<<<",
+        "status": "MRZ_PARTIAL",
+        "valid": false,
+        "validCheckCount": 1,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "0",
+            "actual": "4",
+            "valid": false
+          },
+          {
+            "fieldName": "dob",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "7",
+            "valid": false
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "5",
+            "actual": "<",
+            "valid": false
+          },
+          {
+            "fieldName": "composite",
+            "expected": "3",
+            "actual": "<",
+            "valid": false
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "ERROR",
+        "familyName": "SRESPITAWULAN WANANG",
+        "passportNumber": "41285220",
+        "nationality": "INDONESIA",
+        "dob": "1984-07-16",
+        "issueDate": "2023-03-20",
+        "expiryDate": "2033-03-20"
+      },
+      "goldenDraft": {
+        "fileName": "RESPITAWULAN_NANANG_RIDWAN_page_001.jpg",
+        "expected": {
+          "status": "ERROR",
+          "familyName": "SRESPITAWULAN WANANG",
+          "passportNumber": "41285220",
+          "nationality": "INDONESIA",
+          "dob": "1984-07-16",
+          "issueDate": "2023-03-20",
+          "expiryDate": "2033-03-20"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 11283,
+        "stagesMs": {
+          "mrz": 11282,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\RESPITAWULAN_NANANG_RIDWAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 2319,
+          "maxMs": 116,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "DEEP",
+        "ocrModeReasons": [
+          "ERROR_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ROSIKAH_WIRAHADI_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ROSIKAH_WIRAHADI_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ROSIKAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "ROSIKAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5876578",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1972-09-09",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-05-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-05-23",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5876578<9IDN7209097F30052353202034909000440",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ROSIKAH",
+        "familyName": "ROSIKAH",
+        "passportNumber": "X5876578",
+        "nationality": "INDONESIA",
+        "dob": "1972-09-09",
+        "issueDate": "2025-05-23",
+        "expiryDate": "2030-05-23",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "ROSIKAH_WIRAHADI_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ROSIKAH",
+          "familyName": "ROSIKAH",
+          "passportNumber": "X5876578",
+          "nationality": "INDONESIA",
+          "dob": "1972-09-09",
+          "issueDate": "2025-05-23",
+          "expiryDate": "2030-05-23",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 833,
+        "stagesMs": {
+          "mrz": 486,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\ROSIKAH_WIRAHADI_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 263,
+          "maxMs": 263,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "SURYATI_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\SURYATI_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "SURYATI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SURYATI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X6135399",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1989-05-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-07-01",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2035-07-01",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X6135399<9IDN8905053F35070163273204505001060",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "SURYATI",
+        "familyName": "SURYATI",
+        "passportNumber": "X6135399",
+        "nationality": "INDONESIA",
+        "dob": "1989-05-05",
+        "issueDate": "2025-07-01",
+        "expiryDate": "2035-07-01",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "SURYATI_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "SURYATI",
+          "familyName": "SURYATI",
+          "passportNumber": "X6135399",
+          "nationality": "INDONESIA",
+          "dob": "1989-05-05",
+          "issueDate": "2025-07-01",
+          "expiryDate": "2035-07-01",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 819,
+        "stagesMs": {
+          "mrz": 478,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\SURYATI_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 229,
+          "maxMs": 229,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "TIA_MUTHIAH_UMAR_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\TIA_MUTHIAH_UMAR_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "TIA MUTHIAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "UMAR",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X3267664",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1971-03-04",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2024-06-27",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2034-06-27",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X3267664<5IDN7103047F34062783273214403000162",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "TIA MUTHIAH",
+        "familyName": "UMAR",
+        "passportNumber": "X3267664",
+        "nationality": "INDONESIA",
+        "dob": "1971-03-04",
+        "issueDate": "2024-06-27",
+        "expiryDate": "2034-06-27",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "TIA_MUTHIAH_UMAR_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "TIA MUTHIAH",
+          "familyName": "UMAR",
+          "passportNumber": "X3267664",
+          "nationality": "INDONESIA",
+          "dob": "1971-03-04",
+          "issueDate": "2024-06-27",
+          "expiryDate": "2034-06-27",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 900,
+        "stagesMs": {
+          "mrz": 538,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\TIA_MUTHIAH_UMAR_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 260,
+          "maxMs": 260,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "TRESNA_WIWITAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\TRESNA_WIWITAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "TRESNA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "WIWITAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X4905626",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1974-03-18",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-01-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-01-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X4905626<5IDN7403183F30012483277035803000510",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "TRESNA",
+        "familyName": "WIWITAN",
+        "passportNumber": "X4905626",
+        "nationality": "INDONESIA",
+        "dob": "1974-03-18",
+        "issueDate": "2025-01-24",
+        "expiryDate": "2030-01-24",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "TRESNA_WIWITAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "TRESNA",
+          "familyName": "WIWITAN",
+          "passportNumber": "X4905626",
+          "nationality": "INDONESIA",
+          "dob": "1974-03-18",
+          "issueDate": "2025-01-24",
+          "expiryDate": "2030-01-24",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 2466,
+        "stagesMs": {
+          "mrz": 2171,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\TRESNA_WIWITAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 13,
+          "errorCount": 0,
+          "totalMs": 1688,
+          "maxMs": 245,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "TSANIYA_SALMAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\TSANIYA_SALMAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "TSANIYA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "SALMAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E2674411",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "2002-07-06",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2023-02-28",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2033-02-28",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E2674411<5IDN0207061F33022883204134607000512",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "TSANIYA",
+        "familyName": "SALMAN",
+        "passportNumber": "E2674411",
+        "nationality": "INDONESIA",
+        "dob": "2002-07-06",
+        "issueDate": "2023-02-28",
+        "expiryDate": "2033-02-28",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "TSANIYA_SALMAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "TSANIYA",
+          "familyName": "SALMAN",
+          "passportNumber": "E2674411",
+          "nationality": "INDONESIA",
+          "dob": "2002-07-06",
+          "issueDate": "2023-02-28",
+          "expiryDate": "2033-02-28",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 5940,
+        "stagesMs": {
+          "mrz": 5576,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\TSANIYA_SALMAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 3225,
+          "maxMs": 251,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "YENI_YUNIATI_KUSMAN_page_001.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\YENI_YUNIATI_KUSMAN_page_001.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "YENI YUNIATI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "KUSMAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "C9214246",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1958-06-18",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-06-07",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-06-07",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "C9214246<0IDN5806182F27060743273205806000282",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "YENI YUNIATI",
+        "familyName": "KUSMAN",
+        "passportNumber": "C9214246",
+        "nationality": "INDONESIA",
+        "dob": "1958-06-18",
+        "issueDate": "2022-06-07",
+        "expiryDate": "2027-06-07",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "YENI_YUNIATI_KUSMAN_page_001.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "YENI YUNIATI",
+          "familyName": "KUSMAN",
+          "passportNumber": "C9214246",
+          "nationality": "INDONESIA",
+          "dob": "1958-06-18",
+          "issueDate": "2022-06-07",
+          "expiryDate": "2027-06-07",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 5232,
+        "stagesMs": {
+          "mrz": 4880,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\.passport-assistant-pdf-images\\YENI_YUNIATI_KUSMAN_page_001.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 2776,
+          "maxMs": 199,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "ADEN BUSTOMI.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\ADEN BUSTOMI.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "ADEN",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "BUSTOMI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5218457",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1994-03-31",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-03-11",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-03-11",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5218457<9IDN9403316M30031163201013103000552",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "ADEN",
+        "familyName": "BUSTOMI",
+        "passportNumber": "X5218457",
+        "nationality": "INDONESIA",
+        "dob": "1994-03-31",
+        "issueDate": "2025-03-11",
+        "expiryDate": "2030-03-11",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "ADEN BUSTOMI.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "ADEN",
+          "familyName": "BUSTOMI",
+          "passportNumber": "X5218457",
+          "nationality": "INDONESIA",
+          "dob": "1994-03-31",
+          "issueDate": "2025-03-11",
+          "expiryDate": "2030-03-11",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 6028,
+        "stagesMs": {
+          "mrz": 5676,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\ADEN BUSTOMI.jpg"
+        },
+        "tesseract": {
+          "callCount": 24,
+          "errorCount": 0,
+          "totalMs": 4451,
+          "maxMs": 353,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "EVY ENDAHRIYAH NOOR.png",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\EVY ENDAHRIYAH NOOR.png",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "EVY ENDAHRIYAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "NOOR",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "C8212064",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1969-04-08",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-04-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-04-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW",
+        "LOW_ARABIC_CONFIDENCE",
+        "MRZ_CHECKSUM_PARTIAL",
+        "LOW_NAME_CONFIDENCE"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "C8212064<7IDN6904085F2704058<<<K<K<<<<K<<<<<",
+        "status": "MRZ_PARTIAL",
+        "valid": false,
+        "validCheckCount": 3,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "0",
+            "actual": "<",
+            "valid": false
+          },
+          {
+            "fieldName": "composite",
+            "expected": "4",
+            "actual": "<",
+            "valid": false
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "EVY ENDAHRIYAH",
+        "familyName": "NOOR",
+        "passportNumber": "C8212064",
+        "nationality": "INDONESIA",
+        "dob": "1969-04-08",
+        "issueDate": "2022-04-05",
+        "expiryDate": "2027-04-05",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "EVY ENDAHRIYAH NOOR.png",
+        "expected": {
+          "status": "VALID",
+          "firstName": "EVY ENDAHRIYAH",
+          "familyName": "NOOR",
+          "passportNumber": "C8212064",
+          "nationality": "INDONESIA",
+          "dob": "1969-04-08",
+          "issueDate": "2022-04-05",
+          "expiryDate": "2027-04-05",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 1895,
+        "stagesMs": {
+          "mrz": 1894,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\EVY ENDAHRIYAH NOOR.png"
+        },
+        "tesseract": {
+          "callCount": 13,
+          "errorCount": 0,
+          "totalMs": 1460,
+          "maxMs": 149,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "GITA MARNIKASARI.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\GITA MARNIKASARI.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "GITA",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "MARNIKASARI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X7506205",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1967-03-09",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-10-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2035-10-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X7506205<2IDN6703093F35102473273144903000668",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "7",
+            "actual": "7",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "8",
+            "actual": "8",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "GITA",
+        "familyName": "MARNIKASARI",
+        "passportNumber": "X7506205",
+        "nationality": "INDONESIA",
+        "dob": "1967-03-09",
+        "issueDate": "2025-10-24",
+        "expiryDate": "2035-10-24",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "GITA MARNIKASARI.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "GITA",
+          "familyName": "MARNIKASARI",
+          "passportNumber": "X7506205",
+          "nationality": "INDONESIA",
+          "dob": "1967-03-09",
+          "issueDate": "2025-10-24",
+          "expiryDate": "2035-10-24",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 732,
+        "stagesMs": {
+          "mrz": 389,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\GITA MARNIKASARI.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 198,
+          "maxMs": 198,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "HANI HANIFAH.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\HANI HANIFAH.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "HANI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "HANIFAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5957512",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1987-08-02",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-05-29",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-05-29",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5957512<9IDN8708025F30052913204284208000256",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "HANI",
+        "familyName": "HANIFAH",
+        "passportNumber": "X5957512",
+        "nationality": "INDONESIA",
+        "dob": "1987-08-02",
+        "issueDate": "2025-05-29",
+        "expiryDate": "2030-05-29",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "HANI HANIFAH.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "HANI",
+          "familyName": "HANIFAH",
+          "passportNumber": "X5957512",
+          "nationality": "INDONESIA",
+          "dob": "1987-08-02",
+          "issueDate": "2025-05-29",
+          "expiryDate": "2030-05-29",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 773,
+        "stagesMs": {
+          "mrz": 427,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\HANI HANIFAH.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 168,
+          "maxMs": 168,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "NANAG RIDWAN IYUN.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\NANAG RIDWAN IYUN.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "NANANG RIDWAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "IYUN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X7200085",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1956-04-30",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-10-17",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-10-17",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X7200085<5IDN5604300M30101723273213004000140",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "5",
+            "actual": "5",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "NANANG RIDWAN",
+        "familyName": "IYUN",
+        "passportNumber": "X7200085",
+        "nationality": "INDONESIA",
+        "dob": "1956-04-30",
+        "issueDate": "2025-10-17",
+        "expiryDate": "2030-10-17",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "NANAG RIDWAN IYUN.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "NANANG RIDWAN",
+          "familyName": "IYUN",
+          "passportNumber": "X7200085",
+          "nationality": "INDONESIA",
+          "dob": "1956-04-30",
+          "issueDate": "2025-10-17",
+          "expiryDate": "2030-10-17",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 763,
+        "stagesMs": {
+          "mrz": 466,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\NANAG RIDWAN IYUN.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 239,
+          "maxMs": 239,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "OMOD HASBIANSYAH KAMALUDIN.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\OMOD HASBIANSYAH KAMALUDIN.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "OMOD HASBIANSYAH",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "KAMALUDIN",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "E0830887",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1962-07-14",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2022-09-29",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2027-09-29",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "E0830887<2IDN6207144M27092933204281407000490",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "4",
+            "actual": "4",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "3",
+            "actual": "3",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "OMOD HASBIANSYAH",
+        "familyName": "KAMALUDIN",
+        "passportNumber": "E0830887",
+        "nationality": "INDONESIA",
+        "dob": "1962-07-14",
+        "issueDate": "2022-09-29",
+        "expiryDate": "2027-09-29",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "OMOD HASBIANSYAH KAMALUDIN.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "OMOD HASBIANSYAH",
+          "familyName": "KAMALUDIN",
+          "passportNumber": "E0830887",
+          "nationality": "INDONESIA",
+          "dob": "1962-07-14",
+          "issueDate": "2022-09-29",
+          "expiryDate": "2027-09-29",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 750,
+        "stagesMs": {
+          "mrz": 393,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\OMOD HASBIANSYAH KAMALUDIN.jpg"
+        },
+        "tesseract": {
+          "callCount": 1,
+          "errorCount": 0,
+          "totalMs": 201,
+          "maxMs": 201,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "SRI SETIAWATI DOENGALI.jpg",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\SRI SETIAWATI DOENGALI.jpg",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "SRI SETIAWATI",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "DOENGALI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5957497",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1953-06-24",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-05-29",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2030-05-29",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "FEMALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5957497<9IDN5306246F30052913204066406000106",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "9",
+            "actual": "9",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "SRI SETIAWATI",
+        "familyName": "DOENGALI",
+        "passportNumber": "X5957497",
+        "nationality": "INDONESIA",
+        "dob": "1953-06-24",
+        "issueDate": "2025-05-29",
+        "expiryDate": "2030-05-29",
+        "gender": "FEMALE"
+      },
+      "goldenDraft": {
+        "fileName": "SRI SETIAWATI DOENGALI.jpg",
+        "expected": {
+          "status": "VALID",
+          "firstName": "SRI SETIAWATI",
+          "familyName": "DOENGALI",
+          "passportNumber": "X5957497",
+          "nationality": "INDONESIA",
+          "dob": "1953-06-24",
+          "issueDate": "2025-05-29",
+          "expiryDate": "2030-05-29",
+          "gender": "FEMALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 2578,
+        "stagesMs": {
+          "mrz": 2238,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\SRI SETIAWATI DOENGALI.jpg"
+        },
+        "tesseract": {
+          "callCount": 13,
+          "errorCount": 0,
+          "totalMs": 1774,
+          "maxMs": 221,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    },
+    {
+      "fileName": "YAMAN NURYAMAN FAOZI.png",
+      "sourcePath": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\YAMAN NURYAMAN FAOZI.png",
+      "reviewRequired": true,
+      "reviewApproved": false,
+      "reviewNotes": "",
+      "reviewReasons": [
+        "GENERATED_FROM_CURRENT_OCR",
+        "OCR_NEEDS_REVIEW"
+      ],
+      "reviewChecklist": [
+        {
+          "field": "status",
+          "candidate": "VALID",
+          "status": "needs_review"
+        },
+        {
+          "field": "firstName",
+          "candidate": "YAMAN NURYAMAN",
+          "status": "needs_review"
+        },
+        {
+          "field": "familyName",
+          "candidate": "FAOZI",
+          "status": "needs_review"
+        },
+        {
+          "field": "passportNumber",
+          "candidate": "X5443999",
+          "status": "needs_review"
+        },
+        {
+          "field": "nationality",
+          "candidate": "INDONESIA",
+          "status": "needs_review"
+        },
+        {
+          "field": "dob",
+          "candidate": "1976-01-07",
+          "status": "needs_review"
+        },
+        {
+          "field": "issueDate",
+          "candidate": "2025-03-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "expiryDate",
+          "candidate": "2035-03-05",
+          "status": "needs_review"
+        },
+        {
+          "field": "gender",
+          "candidate": "MALE",
+          "status": "needs_review"
+        }
+      ],
+      "recordStatus": "VALID",
+      "recordReviewStatus": "NEEDS_REVIEW",
+      "recordReviewReasons": [
+        "FAST_SCAN_REVIEW"
+      ],
+      "confidence": 1.0,
+      "mrzValidation": {
+        "line2": "X5443999<6IDN7601071M35030523211220701000560",
+        "status": "MRZ_VALID",
+        "valid": true,
+        "validCheckCount": 5,
+        "checks": [
+          {
+            "fieldName": "passportNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "dob",
+            "expected": "1",
+            "actual": "1",
+            "valid": true
+          },
+          {
+            "fieldName": "expiryDate",
+            "expected": "2",
+            "actual": "2",
+            "valid": true
+          },
+          {
+            "fieldName": "personalNumber",
+            "expected": "6",
+            "actual": "6",
+            "valid": true
+          },
+          {
+            "fieldName": "composite",
+            "expected": "0",
+            "actual": "0",
+            "valid": true
+          }
+        ],
+        "notes": ""
+      },
+      "candidateExpected": {
+        "status": "VALID",
+        "firstName": "YAMAN NURYAMAN",
+        "familyName": "FAOZI",
+        "passportNumber": "X5443999",
+        "nationality": "INDONESIA",
+        "dob": "1976-01-07",
+        "issueDate": "2025-03-05",
+        "expiryDate": "2035-03-05",
+        "gender": "MALE"
+      },
+      "goldenDraft": {
+        "fileName": "YAMAN NURYAMAN FAOZI.png",
+        "expected": {
+          "status": "VALID",
+          "firstName": "YAMAN NURYAMAN",
+          "familyName": "FAOZI",
+          "passportNumber": "X5443999",
+          "nationality": "INDONESIA",
+          "dob": "1976-01-07",
+          "issueDate": "2025-03-05",
+          "expiryDate": "2035-03-05",
+          "gender": "MALE"
+        }
+      },
+      "processingMetrics": {
+        "totalMs": 2349,
+        "stagesMs": {
+          "mrz": 2012,
+          "visual": 0,
+          "dates": 0,
+          "names": 0,
+          "validate": 0
+        },
+        "panelFallbackUsed": false,
+        "panelFieldScope": [],
+        "visualOcrUsed": false,
+        "visualFieldScope": [],
+        "mrzFallbackUsed": false,
+        "ocrProfile": "speed",
+        "ocrCache": {
+          "hitCount": 0,
+          "missCount": 0,
+          "storeCount": 0,
+          "entryCount": 0,
+          "scopeId": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\YAMAN NURYAMAN FAOZI.png"
+        },
+        "tesseract": {
+          "callCount": 13,
+          "errorCount": 0,
+          "totalMs": 1604,
+          "maxMs": 164,
+          "timeoutSeconds": 8.0
+        },
+        "ocrMode": "RECOVERY",
+        "ocrModeReasons": [
+          "REVIEW_STATUS"
+        ]
+      }
+    }
+  ]
+}

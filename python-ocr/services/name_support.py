@@ -141,17 +141,39 @@ def split_compact_full_name(value: str) -> str:
 
 def repair_given_tokens(tokens: list[str]) -> list[str]:
     cleaned = [token for token in tokens if token]
+    cleaned = _repair_visual_given_tokens(cleaned)
     if len(cleaned) <= 1 or (len(cleaned) == 2 and len(cleaned[0]) == 1):
         return cleaned
     joined = "".join(cleaned)
     if len(cleaned) == 2 and joined in COMMON_JOINED_GIVEN_NAMES:
         return [joined]
+    if len(cleaned) == 2 and len(cleaned[1]) >= 5 and all(is_reasonable_token(token) for token in cleaned):
+        return cleaned
     merged = split_given_names("".join(cleaned)).split()
     if not merged or merged == cleaned:
         return cleaned
     if len(merged) == 1:
         return merged if len(cleaned) == 2 and len(cleaned[0]) <= 3 and len("".join(cleaned)) <= 8 else cleaned
     return merged if len(cleaned[0]) <= 4 else cleaned
+
+
+def _repair_visual_given_tokens(tokens: list[str]) -> list[str]:
+    repaired: list[str] = []
+    for token in tokens:
+        if len(token) >= 8 and token.endswith("KDE") and is_reasonable_token(token[:-3]):
+            repaired.extend([token[:-3], "DE"])
+            continue
+        if len(token) >= 7 and token.endswith("DE") and is_reasonable_token(token[:-2]):
+            repaired.extend([token[:-2], "DE"])
+            continue
+        if len(token) >= 5 and token.endswith(("KC", "CK")) and is_reasonable_token(token[:-2]):
+            repaired.append(token[:-2])
+            continue
+        if token == "EKAC":
+            repaired.append("EKA")
+            continue
+        repaired.append(token)
+    return repaired
 
 
 def _repair_given_name_tokens(tokens: list[str]) -> list[str]:
@@ -162,6 +184,25 @@ def _repair_given_name_tokens(tokens: list[str]) -> list[str]:
 
 
 def _repair_given_token(token: str, *, index: int) -> list[str]:
+    exact_repairs = {
+        "AGQILLAH": "AQILLAH",
+        "KARADEA": "ARADEA",
+        "JITHAN": "JIHAN",
+        "TRESNAS": "TRESNA",
+        "YUNLATI": "YUNIATI",
+    }
+    if token in exact_repairs:
+        return [exact_repairs[token]]
+    if len(token) >= 8 and token.endswith("KDE") and is_reasonable_token(token[:-3]):
+        return [token[:-3], "DE"]
+    if len(token) >= 7 and token.endswith("DE") and is_reasonable_token(token[:-2]):
+        return [token[:-2], "DE"]
+    if len(token) >= 5 and token.endswith(("KC", "CK")) and is_reasonable_token(token[:-2]):
+        return [token[:-2]]
+    if token == "EKAC":
+        return ["EKA"]
+    if index > 0 and token.startswith("KER") and len(token) >= 6 and is_reasonable_token(token[1:]):
+        return [token[1:]]
     if token.startswith("DIU") and len(token) >= 6:
         token = "DJU" + token[3:]
     if token.startswith("DUI") and len(token) >= 6:
@@ -189,6 +230,8 @@ def _repair_given_token(token: str, *, index: int) -> list[str]:
 
 
 def _repair_family_token(token: str) -> str:
+    if token == "RACHMIATLE":
+        return "RACHMIATIE"
     token = _strip_name_noise_suffix(token)
     if len(token) >= 6 and token.startswith("NM") and is_reasonable_token(token[1:]):
         return token[1:]
@@ -200,6 +243,10 @@ def _repair_family_token(token: str) -> str:
 
 
 def _strip_name_noise_suffix(token: str) -> str:
+    if len(token) >= 5 and token.endswith(("KC", "CK")) and is_reasonable_token(token[:-2]):
+        return token[:-2]
+    if token == "EKAC":
+        return "EKA"
     if len(token) >= 6 and token.endswith("KK"):
         stripped = re.sub(r"K{2,}$", "", token)
         if is_reasonable_token(stripped):
@@ -270,6 +317,12 @@ def is_reasonable_token(token: str) -> bool:
 
 
 def token_matches_simple(observed: str, reference: str) -> bool:
+    observed = re.sub(r"[^A-Z]", "", str(observed or "").upper())
+    reference = re.sub(r"[^A-Z]", "", str(reference or "").upper())
+    if not observed or not reference:
+        return False
+    if _matches_with_leading_noise(observed, reference):
+        return True
     short, long = sorted((observed, reference), key=len)
     if len(short) >= 4 and long.startswith(short):
         return True
@@ -294,6 +347,22 @@ def _score_value(value: str) -> int:
         if re.search(r"[BCDFGHJKLMNPQRSTVWXYZ]{2,}$", token):
             score -= 3
     return score
+
+
+def _matches_with_leading_noise(observed: str, reference: str) -> bool:
+    pairs = ((observed, reference), (reference, observed))
+    for longer, shorter in pairs:
+        if len(longer) - len(shorter) != 1 or len(shorter) < 4:
+            continue
+        if longer[0] in {"B", "N", "Y"} and (longer[1:] == shorter or _is_one_edit_apart(longer[1:], shorter)):
+            return True
+    return False
+
+
+def _is_one_edit_apart(left: str, right: str) -> bool:
+    if len(left) != len(right):
+        return False
+    return sum(char_a != char_b for char_a, char_b in zip(left, right)) <= 1
 
 
 def _hint_variants(token: str) -> list[str]:

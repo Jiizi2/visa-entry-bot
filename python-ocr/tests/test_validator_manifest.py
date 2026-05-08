@@ -71,6 +71,29 @@ class ValidatorManifestTests(unittest.TestCase):
         self.assertEqual(record["reviewReasons"], [])
         self.assertEqual(record["reviewStatus"], "VALID")
 
+    def test_indonesian_country_of_issued_ignores_noisy_mrz_country(self) -> None:
+        record = build_member_record(
+            "passport.png",
+            "C:/visa-entry-bot/data/passport.png",
+            {
+                "firstName": "ADEN",
+                "familyName": "BUSTOMI",
+                "passportNumber": "X5218457",
+                "nationality": "INDONESIA",
+                "dob": "1994-03-31",
+                "issueDate": "2025-03-11",
+                "expiryDate": "2030-03-11",
+                "gender": "MALE",
+            },
+            {},
+            {"confidence": 1.0, "data": {"country": "DNB"}},
+            "VALID",
+            1.0,
+            "",
+        )
+
+        self.assertEqual(record["passportExtracted"]["countryOfIssued"], "INDONESIA")
+
     def test_build_member_record_preserves_mrz_validation_evidence(self) -> None:
         mrz_validation = {
             "line2": "E8710852<5IDN1906017M30010866403050106000214",

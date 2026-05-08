@@ -4,6 +4,8 @@ import os
 import shutil
 import uuid
 from contextlib import contextmanager
+from functools import lru_cache
+from time import perf_counter
 
 import numpy as np
 
@@ -16,7 +18,19 @@ QUALITY_NOTES = (
     (60.0, "Image blur detected.", 0.15),
     (120.0, "Image slightly blurred.", 0.07),
 )
+DEFAULT_PROCESSED_DOCUMENT_MAX_EDGE = 1800
 _TEMP_ROOT_PREPARED = False
+_IMAGE_PREPROCESS_STATS = {
+    "requestCount": 0,
+    "cacheHitCount": 0,
+    "callCount": 0,
+    "errorCount": 0,
+    "totalMs": 0,
+    "maxMs": 0,
+    "inputMegaPixels": 0.0,
+    "outputMegaPixels": 0.0,
+    "estimatedPeakMb": 0.0,
+}
 
 
 def assess_document_quality(file_path: str) -> tuple[float, str]:
@@ -42,6 +56,38 @@ def assess_document_quality(file_path: str) -> tuple[float, str]:
         notes.append("Image glare detected.")
         penalty += 0.12
     return min(penalty, 0.25), "; ".join(notes)
+
+
+def build_processed_document_image(file_path: str) -> object | None:
+    """Build a light, layout-ready document image for visual OCR fallback."""
+    if cv2 is None or _image_preprocess_mode() == "off":
+        return None
+    max_edge = _processed_document_max_edge()
+    before = _build_processed_document_image_cached.cache_info()
+    _IMAGE_PREPROCESS_STATS["requestCount"] += 1
+    image = _build_processed_document_image_cached(os.path.abspath(file_path), max_edge)
+    after = _build_processed_document_image_cached.cache_info()
+    if after.hits > before.hits:
+        _IMAGE_PREPROCESS_STATS["cacheHitCount"] += 1
+    return image
+
+
+def get_image_preprocessor_stats() -> dict[str, int | float]:
+    return {
+        **_IMAGE_PREPROCESS_STATS,
+        "inputMegaPixels": round(float(_IMAGE_PREPROCESS_STATS["inputMegaPixels"]), 3),
+        "outputMegaPixels": round(float(_IMAGE_PREPROCESS_STATS["outputMegaPixels"]), 3),
+        "estimatedPeakMb": round(float(_IMAGE_PREPROCESS_STATS["estimatedPeakMb"]), 2),
+    }
+
+
+def reset_image_preprocessor_stats() -> None:
+    for key in _IMAGE_PREPROCESS_STATS:
+        _IMAGE_PREPROCESS_STATS[key] = 0.0 if key in {"inputMegaPixels", "outputMegaPixels", "estimatedPeakMb"} else 0
+
+
+def clear_image_preprocess_cache() -> None:
+    _build_processed_document_image_cached.cache_clear()
 
 
 @contextmanager
@@ -262,3 +308,85 @@ def cleanup_temp_root() -> None:
                 os.remove(entry.path)
         except OSError:
             continue
+
+
+@lru_cache(maxsize=4)
+def _build_processed_document_image_cached(file_path: str, max_edge: int) -> object | None:
+    started = perf_counter()
+    input_pixels = 0
+    output_pixels = 0
+    estimated_peak_mb = 0.0
+    try:
+        image = _load_image(file_path)
+        if image is None:
+            return None
+        input_pixels = int(image.shape[0] * image.shape[1])
+        processed = _preprocess_document_for_visual_ocr(image, max_edge=max_edge)
+        if processed is None:
+            return None
+        output_pixels = int(processed.shape[0] * processed.shape[1])
+        estimated_peak_mb = _estimate_preprocess_peak_mb(image, processed)
+        return processed
+    except Exception:  # noqa: BLE001
+        _IMAGE_PREPROCESS_STATS["errorCount"] += 1
+        return None
+    finally:
+        elapsed_ms = max(0, int((perf_counter() - started) * 1000))
+        _IMAGE_PREPROCESS_STATS["callCount"] += 1
+        _IMAGE_PREPROCESS_STATS["totalMs"] += elapsed_ms
+        _IMAGE_PREPROCESS_STATS["maxMs"] = max(_IMAGE_PREPROCESS_STATS["maxMs"], elapsed_ms)
+        _IMAGE_PREPROCESS_STATS["inputMegaPixels"] += input_pixels / 1_000_000
+        _IMAGE_PREPROCESS_STATS["outputMegaPixels"] += output_pixels / 1_000_000
+        _IMAGE_PREPROCESS_STATS["estimatedPeakMb"] = max(
+            float(_IMAGE_PREPROCESS_STATS["estimatedPeakMb"]),
+            estimated_peak_mb,
+        )
+
+
+def _preprocess_document_for_visual_ocr(image: object, *, max_edge: int) -> object | None:
+    document = detect_document_crop(image)
+    if document is None:
+        document = image
+    gray = _to_gray(document)
+    gray = _resize_to_max_edge(gray, max_edge=max_edge)
+    normalized = _normalize_background(gray)
+    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8)).apply(normalized)
+    sharpened = cv2.addWeighted(clahe, 1.35, cv2.GaussianBlur(clahe, (0, 0), 1.2), -0.35, 0)
+    return cv2.normalize(sharpened, None, 0, 255, cv2.NORM_MINMAX)
+
+
+def _normalize_background(gray: object) -> object:
+    kernel_size = min(31, max(3, (min(gray.shape[:2]) // 18) | 1))
+    background = cv2.medianBlur(gray, kernel_size)
+    normalized = cv2.divide(gray, background, scale=255)
+    return cv2.normalize(normalized, None, 0, 255, cv2.NORM_MINMAX)
+
+
+def _resize_to_max_edge(image: object, *, max_edge: int) -> object:
+    if max_edge <= 0:
+        return image
+    height, width = image.shape[:2]
+    longest = max(height, width, 1)
+    if longest <= max_edge:
+        return image
+    scale = max_edge / longest
+    return cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+
+
+def _estimate_preprocess_peak_mb(input_image: object, output_image: object) -> float:
+    input_bytes = int(getattr(input_image, "nbytes", 0) or 0)
+    output_bytes = int(getattr(output_image, "nbytes", 0) or 0)
+    return round((input_bytes + output_bytes * 5) / (1024 * 1024), 2)
+
+
+def _image_preprocess_mode() -> str:
+    value = os.environ.get("PASSPORT_IMAGE_PREPROCESS_MODE", "light").strip().lower()
+    return "off" if value in {"0", "false", "no", "off"} else "light"
+
+
+def _processed_document_max_edge() -> int:
+    raw_value = os.environ.get("PASSPORT_IMAGE_PREPROCESS_MAX_EDGE", "")
+    try:
+        return max(600, int(raw_value)) if raw_value else DEFAULT_PROCESSED_DOCUMENT_MAX_EDGE
+    except ValueError:
+        return DEFAULT_PROCESSED_DOCUMENT_MAX_EDGE

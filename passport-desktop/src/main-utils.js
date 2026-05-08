@@ -51,6 +51,31 @@ export function formatProgressValue(value) {
   return Number.isFinite(numeric) ? numeric.toFixed(2).replace(/\.00$/, "") : "-";
 }
 
+export function formatDurationMs(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "-";
+  }
+
+  const milliseconds = Math.round(numeric);
+  if (milliseconds < 1000) {
+    return `${milliseconds} ms`;
+  }
+
+  const seconds = milliseconds / 1000;
+  const oneDecimalSeconds = Math.round(seconds * 10) / 10;
+  if (oneDecimalSeconds < 10) {
+    return `${oneDecimalSeconds.toFixed(1).replace(".", ",")} dtk`;
+  }
+  if (seconds < 60) {
+    return `${Math.round(seconds)} dtk`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
 export function nestedArrayValue(node, path) {
   const value = nestedValue(node, path);
   return Array.isArray(value) ? value : [];

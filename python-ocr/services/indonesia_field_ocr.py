@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
 import re
 from collections import Counter
+from dataclasses import dataclass
 from datetime import date
 
-from services.image_preprocessor import _load_image
+import numpy as np
+
+from services.image_preprocessor import _load_image, build_processed_document_image
 from services.layout_profiles import load_indonesia_passport_layout_profile
 from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.parser import clean_gender
@@ -14,12 +18,58 @@ from services.visual_region_scanner import scan_region_texts
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 FIELD_CONFIG = {"fullName": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name"}, "nationality": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country"}, "dob": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "gender": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender"}, "placeOfBirth": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}, "issueDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "expiryDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "issuingOffice": {"psm": 6, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}}
 RAW_LOCATION_WINDOWS = {
-    "placeOfBirth": ((0.40, 0.62, 0.62, 0.99), (0.44, 0.66, 0.60, 1.00)),
-    "issuingOffice": ((0.70, 0.94, 0.62, 1.00),),
+    "placeOfBirth": (
+        (0.52, 0.62, 0.30, 0.92),
+        (0.50, 0.61, 0.58, 0.96),
+        (0.50, 0.61, 0.34, 0.70),
+        (0.54, 0.68, 0.30, 0.92),
+        (0.44, 0.56, 0.78, 0.98),
+        (0.60, 0.68, 0.45, 0.70),
+        (0.40, 0.62, 0.62, 0.99),
+        (0.44, 0.66, 0.60, 1.00),
+    ),
+    "issuingOffice": (
+        (0.70, 0.84, 0.34, 0.68),
+        (0.70, 0.84, 0.54, 0.92),
+        (0.68, 0.86, 0.30, 0.92),
+        (0.60, 0.82, 0.35, 0.68),
+        (0.61, 0.69, 0.54, 0.92),
+        (0.61, 0.69, 0.30, 0.70),
+        (0.64, 0.80, 0.74, 0.99),
+        (0.65, 0.75, 0.47, 0.68),
+        (0.70, 0.94, 0.62, 1.00),
+    ),
 }
-RAW_LOCATION_PSM_VALUES = {"placeOfBirth": (6, 11), "issuingOffice": (6,)}
-LABEL_FRAGMENTS = ("BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
+RAW_LOCATION_PSM_VALUES = {"placeOfBirth": (6, 11, 7), "issuingOffice": (6, 11, 12, 7)}
+RAW_LOCATION_WINDOW_ORDER = {
+    "placeOfBirth": (0, 1, 2, 4, 5, 3, 6, 7),
+    "issuingOffice": (0, 1, 2, 6, 7, 8, 3, 4, 5),
+}
+RAW_LOCATION_PRIMARY_VARIANT_MODE = "fast"
+RAW_LOCATION_VARIANT_MODE = "default"
+SPEED_LOCATION_WINDOWS = {
+    "placeOfBirth": (
+        (0.48, 0.64, 0.68, 0.99),
+        (0.50, 0.63, 0.72, 0.99),
+        (0.46, 0.66, 0.62, 0.99),
+    ),
+    "issuingOffice": (
+        (0.66, 0.84, 0.62, 0.99),
+        (0.70, 0.90, 0.62, 0.99),
+        (0.64, 0.94, 0.58, 1.00),
+    ),
+}
+SPEED_LOCATION_PSM_VALUES = {"placeOfBirth": (6, 7), "issuingOffice": (6, 7)}
+LABEL_FRAGMENTS = ("BERLA", "BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "MENGELUAR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
+LABEL_NOISE_TOKENS = {"ARKAN", "ELUARKAN", "MENGELUARKAN"}
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
+
+
+@dataclass(frozen=True)
+class RawLocationScan:
+    value: str
+    candidates: tuple[str, ...]
+    stopped: bool
 
 
 def extract_visual_fields(
@@ -27,6 +77,7 @@ def extract_visual_fields(
     page: object | None = None,
     field_names: tuple[str, ...] | None = None,
     allow_aligned_fallback: bool = True,
+    rotation_degrees: int = 0,
 ) -> dict[str, str]:
     if not configure_tesseract():
         return {}
@@ -39,7 +90,7 @@ def extract_visual_fields(
 
     for field_name in requested_fields:
         if field_name in RAW_LOCATION_WINDOWS:
-            value = _extract_raw_location_field(file_path, field_name)
+            value = _extract_raw_location_field(file_path, field_name, rotation_degrees=rotation_degrees)
             if value:
                 extracted[field_name] = value
 
@@ -49,12 +100,60 @@ def extract_visual_fields(
     if not allow_aligned_fallback and page is None:
         return extracted
 
-    page = page if page is not None else extract_aligned_passport_page(file_path)
+    if page is None:
+        page = extract_aligned_passport_page(file_path)
+    if page is None:
+        page = build_processed_document_image(file_path)
+    page = _orient_image(page, rotation_degrees)
     if page is not None:
         for field_name in remaining_fields:
             value = _extract_field(page, field_name)
             if value:
                 extracted[field_name] = value
+    return extracted
+
+
+def extract_fast_location_fields(
+    file_path: str,
+    field_names: tuple[str, ...] = ("placeOfBirth", "issuingOffice"),
+    rotation_degrees: int = 0,
+) -> dict[str, str]:
+    if not configure_tesseract():
+        return {}
+    requested_fields = tuple(field_name for field_name in field_names if field_name in SPEED_LOCATION_WINDOWS)
+    if not requested_fields:
+        return {}
+
+    image = _orient_image(_load_image(file_path), rotation_degrees)
+    extracted: dict[str, str] = {}
+    missing_fields = list(requested_fields)
+    if image is not None:
+        missing_fields = []
+        for field_name in requested_fields:
+            value = _extract_fast_location_from_image(image, field_name)
+            if value:
+                extracted[field_name] = value
+            else:
+                missing_fields.append(field_name)
+
+    if not missing_fields or not _fast_location_preprocess_enabled():
+        return extracted
+
+    processed_image = _orient_image(build_processed_document_image(file_path), rotation_degrees)
+    if processed_image is None or _same_image_shape(image, processed_image):
+        return extracted
+
+    for field_name in missing_fields:
+        value = _extract_fast_location_from_image(processed_image, field_name)
+        if value:
+            extracted[field_name] = value
+    return extracted
+    for field_name in requested_fields:
+        for image in images:
+            value = _extract_fast_location_from_image(image, field_name)
+            if value:
+                extracted[field_name] = value
+                break
     return extracted
 
 
@@ -91,7 +190,9 @@ def _extract_field(page: object, field_name: str) -> str:
         region = crop_relative(page, *window)
         if region is None:
             continue
-        for psm in _field_psm_values(field_name, config["psm"]):
+        psm_values = _field_psm_values(field_name, config["psm"])
+        include_psm_fallback = len(psm_values) == 1
+        for psm in psm_values:
             for text in scan_region_texts(
                 region,
                 psm,
@@ -99,6 +200,7 @@ def _extract_field(page: object, field_name: str) -> str:
                 variant_mode=variant_mode,
                 max_lines=12,
                 stop_when=_field_stop_when(field_name, config["kind"]),
+                include_psm_fallback=include_psm_fallback,
             ):
                 value = _clean_value(field_name, text, config["kind"])
                 if _is_valid(value, field_name):
@@ -116,34 +218,157 @@ def _field_psm_values(field_name: str, default_psm: int) -> tuple[int, ...]:
     return (default_psm,)
 
 
-def _extract_raw_location_field(file_path: str, field_name: str) -> str:
-    image = _load_image(file_path)
+def _extract_raw_location_field(file_path: str, field_name: str, rotation_degrees: int = 0) -> str:
+    image = _orient_image(_load_image(file_path), rotation_degrees)
     if image is None:
         return ""
 
+    primary = _scan_raw_location_field(image, field_name, RAW_LOCATION_PRIMARY_VARIANT_MODE)
+    if _accept_raw_location_scan(field_name, primary) or RAW_LOCATION_VARIANT_MODE == RAW_LOCATION_PRIMARY_VARIANT_MODE:
+        return primary.value
+    if not primary.value:
+        return ""
+
+    fallback = _scan_raw_location_field(image, field_name, RAW_LOCATION_VARIANT_MODE)
+    return fallback.value or primary.value
+
+
+def _fast_location_preprocess_enabled() -> bool:
+    value = os.environ.get("PASSPORT_FAST_LOCATION_PREPROCESS", "").strip().lower()
+    return value in {"1", "true", "yes", "on", "fallback"}
+
+
+def _same_image_shape(left: object | None, right: object | None) -> bool:
+    if left is None or right is None:
+        return False
+    return getattr(left, "shape", None) == getattr(right, "shape", None)
+
+
+def _orient_image(image: object | None, rotation_degrees: int = 0) -> object | None:
+    if image is None:
+        return None
+    rotation = int(rotation_degrees or 0) % 360
+    if rotation == 0:
+        return image
+    try:
+        if rotation == 90:
+            return np.rot90(image, 3).copy()
+        if rotation == 180:
+            return np.rot90(image, 2).copy()
+        if rotation == 270:
+            return np.rot90(image, 1).copy()
+        return image
+    except Exception:  # noqa: BLE001
+        return image
+
+
+def _extract_fast_location_from_image(image: object, field_name: str) -> str:
     config = FIELD_CONFIG[field_name]
     candidates: list[str] = []
-    for window in RAW_LOCATION_WINDOWS[field_name]:
+    for window in SPEED_LOCATION_WINDOWS[field_name]:
         region = crop_relative(image, *window)
         if region is None:
             continue
-        for psm in RAW_LOCATION_PSM_VALUES[field_name]:
-            for text in scan_region_texts(
+        for psm in SPEED_LOCATION_PSM_VALUES[field_name]:
+            texts = scan_region_texts(
                 region,
                 psm,
                 config["whitelist"],
                 variant_mode="fast",
-                max_lines=16,
+                max_lines=12,
                 stop_when=_field_stop_when(field_name, config["kind"]),
-            ):
+                include_psm_fallback=False,
+            )
+            for text in texts:
                 value = _clean_value(field_name, text, config["kind"])
                 if _is_valid(value, field_name):
                     candidates.append(value)
-            if _has_stable_field_candidate(field_name, candidates):
-                break
+            best_value = _pick_best_field_value(field_name, candidates)
+            if best_value and is_known_location_value(field_name, best_value):
+                return best_value
         if _has_stable_field_candidate(field_name, candidates):
-            break
+            return _pick_best_field_value(field_name, candidates)
     return _pick_best_field_value(field_name, candidates)
+
+
+def _scan_raw_location_field(image: object, field_name: str, variant_mode: str) -> RawLocationScan:
+    config = FIELD_CONFIG[field_name]
+    candidates: list[str] = []
+    stopped = False
+    for window_index in RAW_LOCATION_WINDOW_ORDER[field_name]:
+        window = RAW_LOCATION_WINDOWS[field_name][window_index]
+        region = crop_relative(image, *window)
+        if region is None:
+            continue
+        for psm in RAW_LOCATION_PSM_VALUES[field_name]:
+            texts = scan_region_texts(
+                region,
+                psm,
+                config["whitelist"],
+                variant_mode=variant_mode,
+                max_lines=30,
+                stop_when=None if field_name == "issuingOffice" else _field_stop_when(field_name, config["kind"]),
+                include_psm_fallback=False,
+            )
+            for text, weight in _weighted_raw_location_texts(field_name, texts, window_index):
+                value = _clean_value(field_name, text, config["kind"])
+                if _is_valid(value, field_name):
+                    candidates.extend([value] * weight)
+            if _should_stop_raw_location_scan(field_name, candidates, window_index):
+                stopped = True
+                break
+        if stopped:
+            break
+    return RawLocationScan(_pick_best_field_value(field_name, candidates), tuple(candidates), stopped)
+
+
+def _accept_raw_location_scan(field_name: str, scan: RawLocationScan) -> bool:
+    if not scan.value:
+        return False
+    return _has_dominant_raw_location_value(scan)
+
+
+def _has_dominant_raw_location_value(scan: RawLocationScan) -> bool:
+    counts = Counter(scan.candidates).most_common(2)
+    if not counts or counts[0][0] != scan.value:
+        return False
+    if len(counts) == 1:
+        return True
+    top_count = counts[0][1]
+    runner_up_count = counts[1][1]
+    return top_count >= runner_up_count + 4 and top_count >= int(runner_up_count * 1.35)
+
+
+def _should_stop_raw_location_scan(field_name: str, candidates: list[str], window_index: int) -> bool:
+    if not _has_stable_field_candidate(field_name, candidates):
+        return False
+    if field_name != "issuingOffice":
+        return True
+    return window_index in {0, 1, 2, 7, 8}
+
+
+def _weighted_raw_location_texts(field_name: str, texts: list[str], window_index: int) -> list[tuple[str, int]]:
+    if field_name != "issuingOffice":
+        return [(text, 1) for text in texts]
+    weighted: list[tuple[str, int]] = []
+    marker_seen = False
+    for line_index, text in enumerate(texts):
+        weight = 1
+        if marker_seen:
+            weight += 3
+        if window_index <= 3:
+            weight += 1
+        if line_index >= 4:
+            weight += 1
+        weighted.append((text, weight))
+        if _has_issuing_office_marker(text):
+            marker_seen = True
+    return weighted
+
+
+def _has_issuing_office_marker(text: str) -> bool:
+    compact = re.sub(r"[^A-Z]", "", str(text or "").upper())
+    return any(fragment in compact for fragment in ("ISSUING", "OFFICE", "KANTOR", "MENGELUARKAN"))
 
 
 def _extract_full_name(page: object) -> str:
@@ -299,6 +524,8 @@ def _clean_visual_text(text: str) -> str:
     tokens = []
     for token in normalized.split():
         if len(token) < 2:
+            continue
+        if token in LABEL_NOISE_TOKENS:
             continue
         if any(fragment in token for fragment in LABEL_FRAGMENTS):
             continue

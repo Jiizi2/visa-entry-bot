@@ -48,6 +48,8 @@ def build_review_html(candidate_report: dict[str, Any], *, output: Path | None =
     candidates = _candidate_items(candidate_report)
     status_counts = _status_counts(candidates)
     approved_count = sum(1 for candidate in candidates if candidate.get("reviewApproved", False))
+    scan_durations = _scan_duration_values(candidates)
+    average_scan_ms = int(sum(scan_durations) / len(scan_durations)) if scan_durations else 0
     sections = "\n".join(_candidate_section(candidate, output=output) for candidate in candidates)
     return f"""<!doctype html>
 <html lang="en">
@@ -94,6 +96,7 @@ def build_review_html(candidate_report: dict[str, Any], *, output: Path | None =
     .badge.review {{ background: #fff1cc; color: #765000; }}
     .badge.error {{ background: #ffe1df; color: #8d1b15; }}
     .badge.pending {{ background: #e8edf2; color: #354352; }}
+    .badge.timing {{ background: #e6f0ff; color: #174d91; }}
     .card {{
       margin: 0 0 22px;
       padding: 16px;
@@ -128,13 +131,95 @@ def build_review_html(candidate_report: dict[str, Any], *, output: Path | None =
       gap: 16px;
       align-items: start;
     }}
-    img {{
-      display: block;
-      width: 100%;
-      max-height: 760px;
-      object-fit: contain;
+    .image-review {{
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }}
+    .zoom-toolbar {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }}
+    .zoom-controls {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }}
+    .zoom-button,
+    .zoom-reset {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      border: 1px solid #cad3de;
+      border-radius: 6px;
+      background: #eef2f7;
+      color: #1c2530;
+      font-weight: 800;
+      cursor: pointer;
+    }}
+    .zoom-button {{
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1;
+    }}
+    .zoom-reset {{
+      min-width: 60px;
+      padding: 0 10px;
+      font-size: 13px;
+    }}
+    .zoom-button:disabled,
+    .zoom-reset:disabled {{
+      opacity: 0.45;
+      cursor: not-allowed;
+    }}
+    .zoom-label {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      min-height: 34px;
+      padding: 0 8px;
       border: 1px solid #d8dfe7;
       border-radius: 6px;
+      background: #ffffff;
+      color: #52606f;
+      font-family: Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }}
+    .image-frame {{
+      --review-image-zoom: 1;
+      display: grid;
+      place-items: center;
+      max-height: 760px;
+      overflow: auto;
+      border: 1px solid #d8dfe7;
+      border-radius: 6px;
+      background: #f1f3f6;
+      overscroll-behavior: contain;
+    }}
+    .image-frame.is-zoomed {{
+      align-items: start;
+      justify-items: start;
+    }}
+    .image-frame a {{
+      display: block;
+      width: calc(100% * var(--review-image-zoom));
+      max-width: none;
+    }}
+    .review-image {{
+      display: block;
+      width: 100%;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      object-fit: contain;
       background: #f1f3f6;
     }}
     table {{
@@ -185,11 +270,124 @@ def build_review_html(candidate_report: dict[str, Any], *, output: Path | None =
       <span class="badge valid">VALID: {status_counts.get("VALID", 0)}</span>
       <span class="badge review">NEEDS_REVIEW: {status_counts.get("NEEDS_REVIEW", 0)}</span>
       <span class="badge error">ERROR: {status_counts.get("ERROR", 0)}</span>
+      <span class="badge timing">Timed: {len(scan_durations)}</span>
+      <span class="badge timing">Avg scan: {_escape(_format_duration_ms(average_scan_ms))}</span>
     </div>
   </header>
   <main>
 {sections}
   </main>
+  <script>
+    (() => {{
+      const DEFAULT_ZOOM = 1;
+      const MIN_ZOOM = 0.85;
+      const MAX_ZOOM = 2.5;
+      const BUTTON_STEP = 0.15;
+      const WHEEL_STEP = 0.1;
+      const WHEEL_THRESHOLD = 120;
+
+      for (const root of document.querySelectorAll("[data-zoom-root]")) {{
+        const frame = root.querySelector("[data-zoom-frame]");
+        const label = root.querySelector("[data-zoom-label]");
+        const outButton = root.querySelector("[data-zoom-action='out']");
+        const inButton = root.querySelector("[data-zoom-action='in']");
+        const resetButton = root.querySelector("[data-zoom-action='reset']");
+        let zoom = DEFAULT_ZOOM;
+        let wheelDelta = 0;
+
+        const clamp = (value) => {{
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric)) {{
+            return DEFAULT_ZOOM;
+          }}
+          return Math.round(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, numeric)) * 100) / 100;
+        }};
+
+        const centerRatio = () => {{
+          if (!frame) {{
+            return {{ x: 0.5, y: 0.5 }};
+          }}
+          return {{
+            x: (frame.scrollLeft + (frame.clientWidth / 2)) / Math.max(1, frame.scrollWidth),
+            y: (frame.scrollTop + (frame.clientHeight / 2)) / Math.max(1, frame.scrollHeight),
+          }};
+        }};
+
+        const restoreCenter = (ratio) => {{
+          if (!frame || !ratio) {{
+            return;
+          }}
+          requestAnimationFrame(() => {{
+            const maxLeft = Math.max(0, frame.scrollWidth - frame.clientWidth);
+            const maxTop = Math.max(0, frame.scrollHeight - frame.clientHeight);
+            frame.scrollLeft = Math.min(maxLeft, Math.max(0, (frame.scrollWidth * ratio.x) - (frame.clientWidth / 2)));
+            frame.scrollTop = Math.min(maxTop, Math.max(0, (frame.scrollHeight * ratio.y) - (frame.clientHeight / 2)));
+          }});
+        }};
+
+        const apply = (ratio = null) => {{
+          zoom = clamp(zoom);
+          frame?.style.setProperty("--review-image-zoom", zoom.toFixed(2));
+          frame?.classList.toggle("is-zoomed", zoom > DEFAULT_ZOOM + 0.001);
+          if (label) {{
+            label.textContent = `${{Math.round(zoom * 100)}}%`;
+          }}
+          if (outButton) {{
+            outButton.disabled = zoom <= MIN_ZOOM + 0.001;
+          }}
+          if (inButton) {{
+            inButton.disabled = zoom >= MAX_ZOOM - 0.001;
+          }}
+          if (resetButton) {{
+            resetButton.disabled = Math.abs(zoom - DEFAULT_ZOOM) < 0.001;
+          }}
+          restoreCenter(ratio);
+        }};
+
+        const setZoom = (nextZoom, ratio = centerRatio()) => {{
+          const next = clamp(nextZoom);
+          if (Math.abs(next - zoom) < 0.001) {{
+            apply();
+            return;
+          }}
+          zoom = next;
+          apply(ratio);
+        }};
+
+        root.addEventListener("click", (event) => {{
+          const button = event.target.closest("[data-zoom-action]");
+          if (!button) {{
+            return;
+          }}
+          event.preventDefault();
+          const action = button.dataset.zoomAction;
+          if (action === "out") {{
+            setZoom(zoom - BUTTON_STEP);
+          }} else if (action === "in") {{
+            setZoom(zoom + BUTTON_STEP);
+          }} else if (action === "reset") {{
+            setZoom(DEFAULT_ZOOM, {{ x: 0.5, y: 0.5 }});
+          }}
+        }});
+
+        frame?.addEventListener("wheel", (event) => {{
+          if (!event.ctrlKey) {{
+            return;
+          }}
+          event.preventDefault();
+          wheelDelta += event.deltaY;
+          if (Math.abs(wheelDelta) < WHEEL_THRESHOLD) {{
+            return;
+          }}
+          const direction = wheelDelta > 0 ? -1 : 1;
+          wheelDelta = 0;
+          setZoom(zoom + (direction * WHEEL_STEP));
+        }}, {{ passive: false }});
+
+        apply();
+      }}
+    }})();
+  </script>
 </body>
 </html>
 """
@@ -207,6 +405,7 @@ def _candidate_section(candidate: dict[str, Any], *, output: Path | None) -> str
     status_class = _status_class(record_status)
     source_path = str(candidate.get("sourcePath", "") or "")
     image_src = _image_src(source_path, output=output)
+    scan_duration_label = _format_duration_ms(_scan_duration_ms(candidate))
     return f"""    <section class="card">
       <div class="card-header">
         <div>
@@ -216,10 +415,23 @@ def _candidate_section(candidate: dict[str, Any], *, output: Path | None) -> str
         <div>
           <span class="badge {approval_class}">{approval_label}</span>
           <span class="badge {status_class}">{_escape(record_status or "UNKNOWN")}</span>
+          <span class="badge timing">Scan: {_escape(scan_duration_label)}</span>
         </div>
       </div>
       <div class="layout">
-        <a href="{image_src}"><img src="{image_src}" alt="{_escape(str(candidate.get('fileName', '') or 'passport image'))}"></a>
+        <div class="image-review" data-zoom-root>
+          <div class="zoom-toolbar" aria-label="Kontrol zoom passport">
+            <div class="zoom-controls">
+              <button class="zoom-button" type="button" data-zoom-action="out" aria-label="Perkecil gambar passport" title="Perkecil">-</button>
+              <span class="zoom-label" data-zoom-label>100%</span>
+              <button class="zoom-button" type="button" data-zoom-action="in" aria-label="Perbesar gambar passport" title="Perbesar">+</button>
+            </div>
+            <button class="zoom-reset" type="button" data-zoom-action="reset">Reset</button>
+          </div>
+          <div class="image-frame" data-zoom-frame>
+            <a href="{image_src}"><img class="review-image" src="{image_src}" alt="{_escape(str(candidate.get('fileName', '') or 'passport image'))}"></a>
+          </div>
+        </div>
         <div>
           <div class="table-wrap">
           <table>
@@ -284,6 +496,39 @@ def _join_reason_list(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(str(item) for item in value if item)
     return str(value or "")
+
+
+def _scan_duration_values(candidates: list[dict[str, Any]]) -> list[int]:
+    return [duration for duration in (_scan_duration_ms(candidate) for candidate in candidates) if duration > 0]
+
+
+def _scan_duration_ms(candidate: dict[str, Any]) -> int:
+    metrics = candidate.get("processingMetrics", {})
+    if not isinstance(metrics, dict):
+        return 0
+    try:
+        duration = int(float(metrics.get("totalMs", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+    return duration if duration > 0 else 0
+
+
+def _format_duration_ms(value: int) -> str:
+    if value <= 0:
+        return "-"
+    if value < 1000:
+        return f"{value} ms"
+
+    seconds = value / 1000
+    one_decimal_seconds = round(seconds, 1)
+    if one_decimal_seconds < 10:
+        return f"{one_decimal_seconds:.1f} s"
+    if seconds < 60:
+        return f"{round(seconds)} s"
+
+    minutes = int(seconds // 60)
+    remaining_seconds = round(seconds % 60)
+    return f"{minutes} m {remaining_seconds} s"
 
 
 def _escape(value: str) -> str:

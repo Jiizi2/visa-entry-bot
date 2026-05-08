@@ -26,7 +26,7 @@ test("countMembersByStatus uses effective review status", () => {
   assert.equal(countMembersByStatus(members, "ERROR"), 1);
 });
 
-test("review completion treats only effective valid members as auto-reviewed", () => {
+test("review completion requires an explicit review confirmation", () => {
   const members = [
     { id: "ready", status: "VALID", reviewStatus: "VALID" },
     { id: "review", status: "VALID", reviewStatus: "NEEDS_REVIEW" },
@@ -36,12 +36,30 @@ test("review completion treats only effective valid members as auto-reviewed", (
   assert.equal(isMemberReadyForEntry(members[1]), false);
   assert.deepEqual(computeReviewCompletionState(members, new Set()), {
     total: 2,
-    reviewed: 1,
-    remaining: 1,
+    reviewed: 0,
+    remaining: 2,
   });
   assert.deepEqual(computeReviewCompletionState(members, new Set(["review"])), {
     total: 2,
-    reviewed: 2,
+    reviewed: 1,
+    remaining: 1,
+  });
+  assert.deepEqual(computeReviewCompletionState([{ id: "ready", reviewConfirmed: true }], new Set()), {
+    total: 1,
+    reviewed: 1,
+    remaining: 0,
+  });
+});
+
+test("review completion does not block on error records", () => {
+  const members = [
+    { id: "ready", reviewStatus: "VALID", reviewConfirmed: true },
+    { id: "pdf-error", reviewStatus: "ERROR" },
+  ];
+
+  assert.deepEqual(computeReviewCompletionState(members, new Set()), {
+    total: 1,
+    reviewed: 1,
     remaining: 0,
   });
 });

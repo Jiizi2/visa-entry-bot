@@ -14,9 +14,10 @@ export function countMembersByStatus(members, status) {
 }
 
 export function computeReviewCompletionState(members, reviewedMemberIds) {
-  const total = members.length;
-  const reviewed = members.filter((member) =>
-    reviewedMemberIds.has(member.id) || isMemberReadyForEntry(member)
+  const reviewableMembers = members.filter((member) => memberReviewStatus(member) !== "ERROR");
+  const total = reviewableMembers.length;
+  const reviewed = reviewableMembers.filter((member) =>
+    reviewedMemberIds.has(member.id) || member?.reviewConfirmed === true
   ).length;
   return {
     total,

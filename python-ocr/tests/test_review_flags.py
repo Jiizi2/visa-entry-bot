@@ -15,7 +15,7 @@ class ReviewFlagsTests(unittest.TestCase):
             _passport_values(),
             _resolved_values(),
             _source_by_field(),
-            _field_confidence(),
+            _field_confidence(firstName=0.5, familyName=0.5),
             "VALID",
             "",
             {
@@ -103,6 +103,19 @@ class ReviewFlagsTests(unittest.TestCase):
 
         self.assertNotIn("LOW_MRZ_CONFIDENCE", flags["record"])
 
+    def test_fast_scan_note_requires_desktop_review(self) -> None:
+        flags = build_review_flags(
+            _passport_values(),
+            _resolved_values(),
+            _source_by_field(),
+            _field_confidence(),
+            "VALID",
+            "FAST SCAN REVIEW REQUIRED; VISUAL OCR SKIPPED",
+            _valid_mrz_validation(),
+        )
+
+        self.assertIn("FAST_SCAN_REVIEW", flags["record"])
+
     def test_verified_single_word_name_adds_no_review_flag(self) -> None:
         passport = _passport_values(firstName="MARGONO", familyName="MARGONO")
         resolved = _resolved_values(firstName="MARGONO", familyName="MARGONO")
@@ -158,7 +171,7 @@ class ReviewFlagsTests(unittest.TestCase):
 
         self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
 
-    def test_verified_initial_single_word_name_adds_no_review_flag(self) -> None:
+    def test_filename_initial_single_word_note_is_not_trusted(self) -> None:
         passport = _passport_values(firstName="M HAMDI", familyName="M HAMDI")
         resolved = _resolved_values(firstName="M", familyName="HAMDI")
 
@@ -172,8 +185,8 @@ class ReviewFlagsTests(unittest.TestCase):
             _valid_mrz_validation(),
         )
 
-        self.assertNotIn("SINGLE_WORD_NAME", flags["record"])
-        self.assertNotIn("SINGLE_WORD_OR_DUPLICATED_NAME", flags["passportExtracted"]["firstName"])
+        self.assertIn("SINGLE_WORD_NAME", flags["record"])
+        self.assertIn("SINGLE_WORD_OR_DUPLICATED_NAME", flags["passportExtracted"]["firstName"])
 
     def test_unverified_visual_name_normalization_still_requires_review(self) -> None:
         flags = build_review_flags(
@@ -204,18 +217,18 @@ class ReviewFlagsTests(unittest.TestCase):
 
         self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
 
-    def test_verified_filename_name_repair_adds_no_visual_name_review_flag(self) -> None:
+    def test_filename_name_repair_note_does_not_suppress_visual_name_review_flag(self) -> None:
         flags = build_review_flags(
             _passport_values(firstName="RIKA", familyName="DIANA"),
             _resolved_values(firstName="RIKA", familyName="DIANA"),
             _source_by_field(),
-            _field_confidence(),
+            _field_confidence(firstName=0.5, familyName=0.5),
             "VALID",
             "NAME NORMALIZED FROM FULL NAME FIELD; FIRST NAME REPAIRED FROM FILE NAME HINT",
             _valid_mrz_validation(),
         )
 
-        self.assertNotIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
+        self.assertIn("NAME_NORMALIZED_FROM_VISUAL", flags["record"])
 
     def test_unverified_duplicated_name_still_requires_review(self) -> None:
         passport = _passport_values(firstName="MARGONO", familyName="MARGONO")

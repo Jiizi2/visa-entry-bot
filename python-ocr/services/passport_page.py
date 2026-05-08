@@ -192,7 +192,7 @@ def _pad_for_tesseract(gray: object) -> object:
 
 
 def _normalize_background(gray: object) -> object:
-    kernel_size = max(15, (min(gray.shape[:2]) // 8) | 1)
+    kernel_size = min(15, max(3, (min(gray.shape[:2]) // 8) | 1))
     background = cv2.medianBlur(gray, kernel_size)
     normalized = cv2.divide(gray, background, scale=255)
     return cv2.normalize(normalized, None, 0, 255, cv2.NORM_MINMAX)

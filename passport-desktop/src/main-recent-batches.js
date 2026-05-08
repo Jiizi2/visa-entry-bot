@@ -9,7 +9,9 @@ export function buildRememberedRecentBatches(entries, path, totalFiles = 0, mani
   const normalizedManifestPath = String(manifestPath || existing?.manifestPath || "").trim();
   const nextEntry = {
     path: normalized,
-    label: basenameFromPath(normalized),
+    label: typeof existing?.label === "string" && existing.label.trim()
+      ? existing.label
+      : basenameFromPath(normalized),
     usedAt: new Date().toISOString(),
     totalFiles: Number(totalFiles) > 0 ? Number(totalFiles) : Number(existing?.totalFiles ?? 0),
     manifestPath: normalizedManifestPath,

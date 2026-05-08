@@ -4,7 +4,7 @@ import os
 import re
 import shutil
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Any
 
@@ -44,6 +44,7 @@ class DirectMrzResult:
     line2: str
     valid_score: int
     valid: bool = True
+    rotation_degrees: int = 0
 
     @property
     def raw_text(self) -> str:
@@ -64,6 +65,7 @@ class DirectMrzResult:
             "raw_text": self.raw_text,
             "text": self.raw_text,
             "mrz_text": self.raw_text,
+            "rotationDegrees": self.rotation_degrees,
         }
 
 
@@ -98,10 +100,10 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     direct_mrz = _read_direct_mrz(file_path)
     if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
-        return direct_mrz, "MRZ recovered from direct lower-band OCR."
+        return direct_mrz, _direct_mrz_note(direct_mrz)
 
     best_mrz = direct_mrz
-    best_note = "MRZ recovered from direct lower-band OCR." if direct_mrz is not None else ""
+    best_note = _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
     best_score = getattr(direct_mrz, "valid_score", -1) if direct_mrz is not None else -1
     with temporary_mrz_variants(file_path) as variants:
         for variant_path, note in variants:
@@ -145,17 +147,67 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
     if document is None:
         document = image
 
-    for start_ratio in (0.82, 0.75):
-        height = document.shape[0]
-        region = document[int(height * start_ratio) :, :]
-        result = _extract_direct_mrz_from_region(region)
-        if result is not None:
-            return result
-    return None
+    best_result: DirectMrzResult | None = None
+    for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
+        for start_ratio in (0.82, 0.75):
+            height = candidate_document.shape[0]
+            region = candidate_document[int(height * start_ratio) :, :]
+            result = _extract_direct_mrz_from_region(region)
+            if result is None:
+                continue
+            result = replace(result, rotation_degrees=rotation_degrees)
+            if best_result is None or result.valid_score > best_result.valid_score:
+                best_result = result
+            if _is_high_confidence_indonesian_direct_mrz(result):
+                return result
+    return best_result
+
+
+def _direct_mrz_orientation_candidates(document: object):
+    yield document, 0
+    yield _rotate_image_180(document), 180
+    yield _rotate_image_90(document), 90
+    yield _rotate_image_270(document), 270
+
+
+def _rotate_image_180(image: object) -> object:
+    return _rotate_image(image, 180)
+
+
+def _rotate_image_90(image: object) -> object:
+    return _rotate_image(image, 90)
+
+
+def _rotate_image_270(image: object) -> object:
+    return _rotate_image(image, 270)
+
+
+def _rotate_image(image: object, degrees: int) -> object:
+    rotation = int(degrees or 0) % 360
+    if rotation == 90 and hasattr(cv2, "ROTATE_90_CLOCKWISE"):
+        return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    if rotation == 180 and hasattr(cv2, "ROTATE_180"):
+        return cv2.rotate(image, cv2.ROTATE_180)
+    if rotation == 270 and hasattr(cv2, "ROTATE_90_COUNTERCLOCKWISE"):
+        return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    if rotation == 90:
+        return image.transpose(1, 0, *range(2, len(image.shape)))[:, ::-1].copy()
+    if rotation == 180:
+        return image[::-1, ::-1].copy()
+    if rotation == 270:
+        return image.transpose(1, 0, *range(2, len(image.shape)))[::-1, :].copy()
+    return image
 
 
 def _is_high_confidence_indonesian_direct_mrz(mrz: DirectMrzResult | None) -> bool:
     return bool(mrz and mrz.line1.startswith("P<IDN") and mrz.valid_score >= 98 and _score_direct_line2(mrz.line2) == 3)
+
+
+def _direct_mrz_note(mrz: DirectMrzResult | None) -> str:
+    rotation_degrees = int(getattr(mrz, "rotation_degrees", 0) or 0) % 360
+    if rotation_degrees:
+        return f"MRZ recovered from direct lower-band OCR after {rotation_degrees}-degree rotation."
+    return "MRZ recovered from direct lower-band OCR."
 
 
 def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:

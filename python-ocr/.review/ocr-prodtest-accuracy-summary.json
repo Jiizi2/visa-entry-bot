@@ -1,0 +1,9 @@
+{
+  "total": 37,
+  "valid": 35,
+  "error": 2,
+  "needsReview": 35,
+  "seconds": 125.1,
+  "avgSeconds": 3.4,
+  "manifest": "C:\\visa-entry-bot\\data\\example-group\\passports\\prodTest\\PASSPOR-20260506T221902Z-3-001\\PASSPOR\\manifest.json"
+}

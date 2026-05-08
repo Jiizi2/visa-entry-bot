@@ -22,6 +22,15 @@ class LocationNormalizerTests(unittest.TestCase):
         self.assertTrue(is_known_location_value("placeOfBirth", "SEMARANG"))
         self.assertTrue(is_known_location_value("placeOfBirth", "PACITAN"))
 
+    def test_new_prod_locations_are_not_dropped_as_unknown(self) -> None:
+        self.assertEqual(normalize_location_value("placeOfBirth", "BOGOR"), "BOGOR")
+        self.assertEqual(normalize_location_value("issuingOffice", "BANDUNG"), "BANDUNG")
+        self.assertEqual(normalize_location_value("placeOfBirth", "TSEP LMMALANG"), "MALANG")
+        self.assertEqual(normalize_location_value("placeOfBirth", "COPIEKARAWANG"), "KARAWANG")
+        self.assertEqual(normalize_location_value("issuingOffice", "BSSCIANIJUR"), "CIANJUR")
+        self.assertEqual(normalize_location_value("issuingOffice", "JAKARTA PUSAT"), "JAKARTA PUSAT")
+        self.assertEqual(pick_best_location_value("placeOfBirth", ["BSSBOG OR"]), "BOGOR")
+
 
 if __name__ == "__main__":
     unittest.main()
