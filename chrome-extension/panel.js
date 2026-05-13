@@ -116,6 +116,11 @@ dom.closeBtn.addEventListener("click", async () => {
 dom.startBtn.addEventListener("click", () => {
   const stateName = normalizeExecutionState(state.executionState);
   const isResume = stateName === "paused" && state.resumeAvailable;
+  const manifestValidationMessage = validateManifestReadyForRun();
+  if (manifestValidationMessage) {
+    setStatus(manifestValidationMessage, "error");
+    return;
+  }
   if (!getSelectedMember() && !isResume) {
     setStatus("Pilih data jamaah sebelum menjalankan autofill.", "error");
     return;
@@ -471,11 +476,22 @@ function normalizeExecutionState(value) {
 }
 
 function validateManifest(manifest) {
-  if (!manifest || typeof manifest !== "object") {
-    throw new Error("Root JSON harus berupa object.");
+  const validator = window.NusukAutofill?.manifestValidator;
+  if (!validator?.validateManifestForEntry) {
+    throw new Error("Validator manifest extension belum dimuat.");
   }
-  if (!Array.isArray(manifest.members) || !manifest.members.length) {
-    throw new Error("JSON harus memiliki array members yang tidak kosong.");
+  return validator.validateManifestForEntry(manifest);
+}
+
+function validateManifestReadyForRun() {
+  if (!state.manifest) {
+    return "";
+  }
+  try {
+    validateManifest(state.manifest);
+    return "";
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
 }
 

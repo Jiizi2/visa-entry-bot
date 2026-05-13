@@ -1,5 +1,6 @@
 (function () {
   const root = window.NusukAutofill = window.NusukAutofill || {};
+  const { validateManifestForEntry, formatManifestUploadMessage } = root.manifestValidator || {};
 
   function createPanelBridge({
     state,
@@ -35,8 +36,17 @@
 
         if (message.type === "NUSUK_PANEL_UPLOAD_MANIFEST") {
           const manifest = message.payload?.manifest;
-          if (!manifest || !Array.isArray(manifest.members)) {
-            postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "JSON yang diupload tidak valid." });
+          let validation = null;
+          try {
+            if (!validateManifestForEntry) {
+              throw new Error("Validator manifest extension belum dimuat.");
+            }
+            validation = validateManifestForEntry(manifest);
+          } catch (error) {
+            postToPanel("NUSUK_PANEL_STATUS", {
+              tone: "error",
+              message: error instanceof Error ? error.message : String(error),
+            });
             return;
           }
           state.manifest = manifest;
@@ -44,8 +54,8 @@
           void persistState();
           postPanelState();
           postToPanel("NUSUK_PANEL_STATUS", {
-            tone: "success",
-            message: `${manifest.members.length} data jamaah berhasil dimuat.`,
+            tone: validation.warnings.length ? "warning" : "success",
+            message: formatManifestUploadMessage(manifest.members.length, validation),
           });
           return;
         }

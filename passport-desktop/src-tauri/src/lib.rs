@@ -72,11 +72,13 @@ fn start_scan(
     app: AppHandle,
     state: State<'_, ScanState>,
     selected_dir: String,
+    ocr_mode: Option<String>,
 ) -> Result<(), String> {
     let selected_dir = selected_dir.trim().to_string();
     if selected_dir.is_empty() {
         return Err("Folder passport belum dipilih.".to_string());
     }
+    let ocr_mode = normalize_ocr_mode(ocr_mode.as_deref().unwrap_or(""))?;
 
     let worker_paths = locate_worker_paths()?;
     let scan_flag = state.in_progress.clone();
@@ -101,6 +103,7 @@ fn start_scan(
             &app,
             &worker_paths,
             &selected_dir,
+            &ocr_mode,
             active_child.clone(),
             cancel_requested.clone(),
         );
@@ -471,6 +474,7 @@ fn run_worker_process(
     app: &AppHandle,
     worker_paths: &WorkerPaths,
     selected_dir: &str,
+    ocr_mode: &str,
     active_child: Arc<Mutex<Option<Child>>>,
     cancel_requested: Arc<Mutex<bool>>,
 ) -> Result<(), String> {
@@ -480,6 +484,8 @@ fn run_worker_process(
         .arg("-u")
         .arg(&worker_paths.worker_script)
         .arg(selected_dir)
+        .arg(ocr_mode)
+        .env("PASSPORT_OCR_PROFILE", ocr_mode)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -672,6 +678,22 @@ fn is_cancel_requested(cancel_requested: &Arc<Mutex<bool>>) -> bool {
     cancel_requested.lock().map(|value| *value).unwrap_or(false)
 }
 
+fn normalize_ocr_mode(value: &str) -> Result<String, String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    let profile = match normalized.as_str() {
+        "" => "speed",
+        "speed" => "speed",
+        "balanced" => "balanced",
+        "heavy" | "accuracy" => "heavy",
+        _ => {
+            return Err(format!(
+                "Mode OCR tidak dikenal: {value}. Pilih speed, balanced, atau heavy."
+            ))
+        }
+    };
+    Ok(profile.to_string())
+}
+
 fn collect_stderr(stderr: impl std::io::Read) -> String {
     let reader = BufReader::new(stderr);
     reader
@@ -766,6 +788,16 @@ mod tests {
         member.insert("status".to_string(), Value::String("VALID".to_string()));
 
         assert_eq!(member_review_status(&member), "VALID");
+    }
+
+    #[test]
+    fn normalize_ocr_mode_accepts_desktop_modes() {
+        assert_eq!(normalize_ocr_mode("").unwrap(), "speed");
+        assert_eq!(normalize_ocr_mode("speed").unwrap(), "speed");
+        assert_eq!(normalize_ocr_mode("balanced").unwrap(), "balanced");
+        assert_eq!(normalize_ocr_mode("heavy").unwrap(), "heavy");
+        assert_eq!(normalize_ocr_mode("accuracy").unwrap(), "heavy");
+        assert!(normalize_ocr_mode("unknown").is_err());
     }
 
     #[test]

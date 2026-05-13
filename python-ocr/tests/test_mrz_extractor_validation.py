@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from services.mrz_extractor import _build_mrz_validation, _build_validation_note, _repair_direct_line2, _repair_extracted_mrz_data  # noqa: E402
+from services.mrz_extractor import _build_mrz_validation, _build_validation_note, _repair_direct_line1, _repair_direct_line2, _repair_extracted_mrz_data  # noqa: E402
 
 
 class MrzExtractorValidationTests(unittest.TestCase):
@@ -56,6 +56,11 @@ class MrzExtractorValidationTests(unittest.TestCase):
 
         self.assertEqual(repaired, "E9229500<3IDN0708270M35071086309062708000270")
         self.assertTrue(_build_mrz_validation({"line2": repaired}).valid)
+
+    def test_repairs_line1_indonesia_country_confusion(self) -> None:
+        repaired = _repair_direct_line1("P<IDHPURNAWAN<<MOHAMAD<KERIEF")
+
+        self.assertTrue(repaired.startswith("P<IDNPURNAWAN"))
 
     def test_repairs_passport_check_digit_letter_confusion(self) -> None:
         repaired = _repair_direct_line2("X8489039<O1DN5807237F31011266303056307000108")

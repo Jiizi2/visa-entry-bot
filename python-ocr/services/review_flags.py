@@ -3,6 +3,18 @@ from __future__ import annotations
 from datetime import date
 
 LOW_CONFIDENCE_THRESHOLD = 0.75
+ENTRY_REQUIRED_PASSPORT_FIELDS = (
+    "passportNumber",
+    "firstName",
+    "familyName",
+    "nationality",
+    "dob",
+    "issueDate",
+    "expiryDate",
+    "gender",
+    "birthCity",
+    "cityOfIssued",
+)
 
 
 def build_review_flags(
@@ -245,7 +257,7 @@ def _apply_record_summary(
     name_fields = ("firstName", "familyName")
     if any("LOW_CONFIDENCE" in passport_flags[field] for field in name_fields):
         record_flags.append("LOW_NAME_CONFIDENCE")
-    if any("MISSING_VALUE" in passport_flags[field] for field in ("passportNumber", "firstName", "familyName")):
+    if any("MISSING_VALUE" in passport_flags[field] for field in ENTRY_REQUIRED_PASSPORT_FIELDS):
         record_flags.append("CRITICAL_FIELD_MISSING")
     if any("SINGLE_WORD_OR_DUPLICATED_NAME" in passport_flags[field] for field in name_fields):
         record_flags.append("SINGLE_WORD_NAME")

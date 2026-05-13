@@ -3,9 +3,13 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import statistics
 import sys
 import threading
+
+WORKER_OCR_PROFILES = {"speed", "balanced", "heavy"}
+WORKER_OCR_PROFILE_ALIASES = {"accuracy": "heavy"}
 
 
 def emit(event: str, **payload: object) -> None:
@@ -32,6 +36,9 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
     visual_ocr_used = 0
     mrz_fallback_used = 0
     ocr_mode_counts: dict[str, int] = {}
+    ocr_profile_counts: dict[str, int] = {}
+    skipped_stage_counts: dict[str, int] = {}
+    budget_exceeded_count = 0
     for member in members:
         metrics = member.get("processingMetrics", {})
         if not isinstance(metrics, dict):
@@ -48,6 +55,17 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
         ocr_mode = str(metrics.get("ocrMode", "") or "")
         if ocr_mode:
             ocr_mode_counts[ocr_mode] = ocr_mode_counts.get(ocr_mode, 0) + 1
+        ocr_profile = str(metrics.get("ocrProfile", "") or "")
+        if ocr_profile:
+            ocr_profile_counts[ocr_profile] = ocr_profile_counts.get(ocr_profile, 0) + 1
+        if metrics.get("budgetExceeded"):
+            budget_exceeded_count += 1
+        skipped_stages = metrics.get("skippedStages", [])
+        if isinstance(skipped_stages, list):
+            for stage_name in skipped_stages:
+                stage = str(stage_name or "")
+                if stage:
+                    skipped_stage_counts[stage] = skipped_stage_counts.get(stage, 0) + 1
 
     if not total_ms_values:
         return {
@@ -59,6 +77,9 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
             "visualOcrUsed": visual_ocr_used,
             "mrzFallbackUsed": mrz_fallback_used,
             "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
+            "ocrProfileCounts": dict(sorted(ocr_profile_counts.items())),
+            "budgetExceededCount": budget_exceeded_count,
+            "skippedStageCounts": dict(sorted(skipped_stage_counts.items())),
         }
 
     sorted_values = sorted(total_ms_values)
@@ -72,6 +93,9 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
         "visualOcrUsed": visual_ocr_used,
         "mrzFallbackUsed": mrz_fallback_used,
         "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
+        "ocrProfileCounts": dict(sorted(ocr_profile_counts.items())),
+        "budgetExceededCount": budget_exceeded_count,
+        "skippedStageCounts": dict(sorted(skipped_stage_counts.items())),
     }
 
 
@@ -92,13 +116,22 @@ def start_boot_heartbeat() -> threading.Event:
     return stop_event
 
 
+def normalize_worker_ocr_profile(value: str) -> str:
+    normalized = str(value or "speed").strip().lower()
+    normalized = WORKER_OCR_PROFILE_ALIASES.get(normalized, normalized)
+    return normalized if normalized in WORKER_OCR_PROFILES else "speed"
+
+
 def main() -> int:
     if len(sys.argv) < 2 or not sys.argv[1].strip():
-        print("Usage: python scan_worker.py <folder>", file=sys.stderr)
+        print("Usage: python scan_worker.py <folder> [speed|balanced|heavy]", file=sys.stderr)
         return 2
 
     selected_dir = sys.argv[1].strip()
-    emit("scan_log", message="Worker Python aktif. Memuat engine OCR...")
+    ocr_profile = normalize_worker_ocr_profile(sys.argv[2] if len(sys.argv) > 2 else "")
+
+    os.environ["PASSPORT_OCR_PROFILE"] = ocr_profile
+    emit("scan_log", message=f"Worker Python aktif. Memuat engine OCR ({ocr_profile})...")
     boot_heartbeat = start_boot_heartbeat()
 
     try:
@@ -109,7 +142,7 @@ def main() -> int:
     finally:
         boot_heartbeat.set()
 
-    emit("scan_log", message="Engine OCR siap. Memeriksa folder passport...")
+    emit("scan_log", message=f"Engine OCR siap. Mode {ocr_profile}. Memeriksa folder passport...")
 
     def on_progress(done: int, total: int, file_name: str) -> None:
         emit("scan_progress", current=done, total=total, fileName=file_name)
@@ -153,6 +186,7 @@ def main() -> int:
             groupDir=target.group_dir,
             passportsDir=target.passports_dir,
             totalFiles=prepared_inputs.total_targets,
+            ocrProfile=ocr_profile,
         )
         with contextlib.redirect_stdout(io.StringIO()):
             result = scan_selected_directory(

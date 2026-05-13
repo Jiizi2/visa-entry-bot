@@ -27,6 +27,7 @@
       ],
       "js": [
         "content/namespace.js",
+        "content/manifest-validator.js",
         "content/constants.js",
         "content/date-utils.js",
         "content/value-utils.js",
@@ -68,7 +69,8 @@
       "resources": [
         "panel.html",
         "panel.css",
-        "panel.js"
+        "panel.js",
+        "content/manifest-validator.js"
       ],
       "matches": [
         "https://masar.nusuk.sa/*",

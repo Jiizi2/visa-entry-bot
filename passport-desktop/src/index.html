@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/styles.css" />
     <script src="/vendor/flatpickr/flatpickr.min.js" defer></script>
     <script src="/vendor/flatpickr/id.js" defer></script>
+    <script src="/browser-bridge.js" defer></script>
     <script type="module" src="/main.js" defer></script>
   </head>
 
@@ -104,7 +105,31 @@
               <input id="folder-path" type="text" placeholder="Pilih folder berisi JPG, PNG, atau PDF passport..." />
             </article>
 
-            <div class="import-side recent-only">
+            <div class="import-side">
+              <article class="side-card ocr-mode-card" aria-label="Pilihan mode OCR">
+                <div class="card-head compact">
+                  <div>
+                    <p class="eyebrow">Mode OCR</p>
+                    <h4>Pilih Model</h4>
+                  </div>
+                </div>
+                <fieldset id="ocr-mode-selector" class="ocr-mode-selector">
+                  <legend class="sr-only">Mode OCR</legend>
+                  <label class="ocr-mode-option">
+                    <input type="radio" name="ocr-mode" value="speed" />
+                    <span><strong>Speed</strong><small>10-15s</small></span>
+                  </label>
+                  <label class="ocr-mode-option">
+                    <input type="radio" name="ocr-mode" value="balanced" />
+                    <span><strong>Balanced</strong><small>20-30s</small></span>
+                  </label>
+                  <label class="ocr-mode-option">
+                    <input type="radio" name="ocr-mode" value="heavy" />
+                    <span><strong>Heavy</strong><small>60s+</small></span>
+                  </label>
+                </fieldset>
+              </article>
+
               <article class="side-card recent-card">
                 <div class="card-head compact">
                   <div>

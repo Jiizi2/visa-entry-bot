@@ -11,55 +11,138 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 FIELDS = ("placeOfBirth", "issuingOffice")
 COMMON_INDONESIAN_LOCATIONS = {
+    "ACEH",
     "AMUNTAI",
+    "AMBON",
+    "BALI",
+    "BALIKPAPAN",
     "BANDUNG",
+    "BANDAR LAMPUNG",
     "BANJARBARU",
     "BANJARMASIN",
+    "BANTUL",
     "BARABAI",
+    "BATAM",
     "BATU AMPAR",
     "BATU REDI",
+    "BEKASI",
+    "BENGKULU",
     "BERAU",
+    "BLITAR",
+    "BLORA",
+    "BOJONEGORO",
     "BOGOR",
+    "BONTANG",
+    "BOYOLALI",
     "BREBES",
     "BUKITTINGGI",
     "BULUNGAN",
-    "CIMAHI",
+    "BANYUMAS",
+    "BANYUWANGI",
+    "CIAMIS",
     "CIANJUR",
+    "CILACAP",
+    "CILEGON",
+    "CIMAHI",
+    "CIREBON",
+    "DENPASAR",
+    "DEPOK",
+    "DUMAI",
+    "GARUT",
+    "GORONTALO",
+    "GRESIK",
+    "JAMBI",
     "JAKARTA",
     "JAKARTA BARAT",
     "JAKARTA PUSAT",
     "JAKARTA SELATAN",
     "JAKARTA TIMUR",
     "JAKARTA UTARA",
+    "JAYAPURA",
+    "JEMBER",
+    "JEPARA",
     "KEDIRI",
+    "KEBUMEN",
     "KENDAL",
     "KARAWANG",
+    "KENDARI",
+    "KLATEN",
     "KOTABARU",
+    "KUDUS",
+    "KUPANG",
+    "LAMONGAN",
+    "LAMPUNG",
     "MAGELANG",
+    "MAGETAN",
     "MAJALENGKA",
     "MAKASSAR",
     "MALANG",
     "MADIUN",
     "MALUANG",
     "MANADO",
+    "MANOKWARI",
     "MARTAPURA",
+    "MATARAM",
+    "MEDAN",
+    "MERAUKE",
+    "MOJOKERTO",
     "NGANJUK",
+    "NGAWI",
     "PACITAN",
     "PALANGKA RAYA",
     "PALANGKARAYA",
+    "PALEMBANG",
+    "PALU",
+    "PANGKAL PINANG",
+    "PATI",
     "PAREPARE",
+    "PASURUAN",
+    "PADANG",
+    "PEKALONGAN",
+    "PEKANBARU",
+    "PEMALANG",
     "PINRANG",
+    "PONTIANAK",
+    "PONOROGO",
+    "PROBOLINGGO",
+    "PURBALINGGA",
+    "PURWOKERTO",
+    "PURWOREJO",
     "RANTAU",
+    "REMBANG",
+    "SALATIGA",
+    "SAMARINDA",
+    "SERANG",
     "SEMARANG",
+    "SIDOARJO",
+    "SINGKAWANG",
+    "SLEMAN",
+    "SOLO",
+    "SORONG",
+    "SRAGEN",
     "SUBANG",
+    "SUKABUMI",
     "SULSEL",
+    "SURABAYA",
+    "SURAKARTA",
     "SUMEDANG",
     "TANAH KAMPUNG",
     "TANJUNG",
+    "TANJUNG PINANG",
     "TANJUNG REDEB",
+    "TANGERANG",
+    "TARAKAN",
     "TASIKMALAYA",
+    "TEGAL",
+    "TEMANGGUNG",
     "TELUK BAYUR",
+    "TERNATE",
+    "TUBAN",
+    "TULUNGAGUNG",
     "UJUNG PANDANG",
+    "WONOGIRI",
+    "WONOSOBO",
+    "YOGYAKARTA",
 }
 BUILTINS = {
     "placeOfBirth": COMMON_INDONESIAN_LOCATIONS,
@@ -74,6 +157,8 @@ CANONICAL_ALIASES = {
     },
     "issuingOffice": {
         "BANJARMA SIN": "BANJARMASIN",
+        "PALANGKA RAYA": "PALANGKARAYA",
+        "PARE PARE": "PAREPARE",
         "TANJONG REDEB": "TANJUNG REDEB",
         "TANJUG REDEB": "TANJUNG REDEB",
     },
@@ -92,6 +177,10 @@ def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
     cleaned = [_canonical_value(field_name, _clean_text(value)) for value in candidates if _clean_text(value)]
     if not cleaned:
         return ""
+    if field_name == "issuingOffice":
+        specific_value = _pick_specific_issuing_office(cleaned)
+        if specific_value:
+            return specific_value
     vocabulary = _known_values(field_name)
     best_value = cleaned[0]
     best_score = -1.0
@@ -109,7 +198,25 @@ def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
         return best_value
     if field_name == "issuingOffice":
         return ""
+    if len(best_value.replace(" ", "")) < 4:
+        return ""
     return best_value if cleaned.count(best_value) > 1 else ""
+
+
+def _pick_specific_issuing_office(candidates: list[str]) -> str:
+    for candidate in candidates:
+        for variant in _variants(candidate):
+            compact = _compact(variant)
+            if (
+                "TANJUNGREDEB" in compact
+                or "TANJUNGREDES" in compact
+                or "TANJONGREDEB" in compact
+                or "TANJUGREDEB" in compact
+            ):
+                return "TANJUNG REDEB"
+            if "TANJ" in compact and compact.endswith(("REDEB", "REDES")):
+                return "TANJUNG REDEB"
+    return ""
 
 
 def _best_vocabulary_match(candidate: str, vocabulary: set[str]) -> tuple[str, float]:
@@ -161,7 +268,7 @@ def _variants(value: str) -> list[str]:
     if compact and compact not in variants:
         variants.append(compact)
     if len(compact) >= 6:
-        for offset in (1, 2):
+        for offset in (1, 2, 3, 4):
             trimmed = compact[offset:]
             if trimmed not in variants:
                 variants.append(trimmed)
@@ -169,7 +276,9 @@ def _variants(value: str) -> list[str]:
 
 
 def _clean_text(value: str) -> str:
-    normalized = re.sub(r"[^A-Z\s-]", " ", str(value or "").upper())
+    digit_table = str.maketrans({"0": "O", "3": "E", "4": "A", "5": "S", "6": "G", "7": "T", "8": "B"})
+    normalized = str(value or "").upper().translate(digit_table)
+    normalized = re.sub(r"[^A-Z\s-]", " ", normalized)
     normalized = normalized.replace("-", " ")
     return re.sub(r"\s+", " ", normalized).strip()
 

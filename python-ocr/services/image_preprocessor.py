@@ -19,6 +19,7 @@ QUALITY_NOTES = (
     (120.0, "Image slightly blurred.", 0.07),
 )
 DEFAULT_PROCESSED_DOCUMENT_MAX_EDGE = 1800
+DEFAULT_MRZ_VARIANT_MAX_EDGE = 2200
 _TEMP_ROOT_PREPARED = False
 _IMAGE_PREPROCESS_STATS = {
     "requestCount": 0,
@@ -38,7 +39,7 @@ def assess_document_quality(file_path: str) -> tuple[float, str]:
     if image is None:
         return 0.0, ""
 
-    document = detect_document_crop(image)
+    document = detect_passport_data_page_crop(image)
     if document is None:
         document = image
     gray = cv2.cvtColor(document, cv2.COLOR_BGR2GRAY)
@@ -98,7 +99,7 @@ def temporary_mrz_variants(file_path: str):
         yield [(file_path, "")]
         return
 
-    document = detect_document_crop(image)
+    document = detect_passport_data_page_crop(image)
     variants = [(file_path, "")]
     temp_root = _ensure_temp_root()
     if not _TEMP_ROOT_PREPARED:
@@ -161,6 +162,125 @@ def detect_document_crop(image: object) -> object | None:
     return _warp_box(image, best_box)
 
 
+def resize_to_max_edge(image: object | None, *, max_edge: int) -> object | None:
+    if image is None or cv2 is None:
+        return image
+    return _resize_to_max_edge(image, max_edge=max_edge)
+
+
+def detect_passport_data_page_crop(image: object) -> object | None:
+    document = detect_document_crop(image)
+    if cv2 is None or image is None or not _should_try_stacked_passport_crop(image):
+        return document
+
+    best = document
+    best_score = _mrz_band_score(best)
+    height = image.shape[0]
+    for start_ratio in (0.35, 0.40, 0.45, 0.50, 0.55, 0.65):
+        lower_band = image[int(height * start_ratio) :, :]
+        candidate = detect_document_crop(lower_band)
+        if candidate is None:
+            candidate = lower_band
+        if not _is_plausible_passport_crop(candidate):
+            continue
+        score = _mrz_band_score(candidate)
+        if _is_better_passport_data_crop(candidate, score, best, best_score):
+            best = candidate
+            best_score = score
+    return best
+
+
+def _should_try_stacked_passport_crop(image: object) -> bool:
+    height, width = image.shape[:2]
+    return height > width * 1.15 and height >= 1000
+
+
+def _is_plausible_passport_crop(image: object | None) -> bool:
+    if image is None:
+        return False
+    height, width = image.shape[:2]
+    if min(height, width) < 200:
+        return False
+    aspect_ratio = max(width, height) / max(min(width, height), 1)
+    return 1.1 <= aspect_ratio <= 2.5
+
+
+def _is_better_passport_data_crop(
+    candidate: object,
+    candidate_score: float,
+    current: object | None,
+    current_score: float,
+) -> bool:
+    if current is not None and _would_overcrop_passport_page(candidate, current) and candidate_score <= current_score + 8.0:
+        return False
+    if candidate_score > current_score:
+        return True
+    if current is None:
+        return candidate_score > 0.0
+    if candidate_score < max(120.0, current_score * 0.92):
+        return False
+    if _has_full_passport_page_aspect(current) and _is_overly_wide_passport_slice(candidate):
+        return False
+    candidate_height = candidate.shape[0]
+    current_height = current.shape[0]
+    return candidate_height < current_height * 0.82
+
+
+def _would_overcrop_passport_page(candidate: object, current: object) -> bool:
+    return _long_side_ratio(candidate) > 1.60 and _long_side_ratio(current) >= 1.18
+
+
+def _has_full_passport_page_aspect(image: object) -> bool:
+    ratio = _long_side_ratio(image)
+    return 1.30 <= ratio <= 1.75
+
+
+def _is_overly_wide_passport_slice(image: object) -> bool:
+    return _long_side_ratio(image) > 1.90
+
+
+def _long_side_ratio(image: object) -> float:
+    height, width = image.shape[:2]
+    return max(width, height) / max(min(width, height), 1)
+
+
+def _mrz_band_score(image: object | None) -> float:
+    if image is None or cv2 is None:
+        return 0.0
+    gray = _to_gray(image)
+    height, width = gray.shape[:2]
+    if height < 120 or width < 300:
+        return 0.0
+    band = gray[int(height * 0.62) : int(height * 0.95), :]
+    if band.size == 0:
+        return 0.0
+    dark = band < 110
+    row_counts = dark.sum(axis=1)
+    strong_rows = row_counts > width * 0.018
+    best_coverage = 0.0
+    best_dark_ratio = 0.0
+    start = None
+    for index, is_strong in enumerate(strong_rows.tolist() + [False]):
+        if is_strong and start is None:
+            start = index
+            continue
+        if is_strong or start is None:
+            continue
+        group = dark[start:index, :]
+        start = None
+        if group.shape[0] < 2:
+            continue
+        columns = group.any(axis=0)
+        coverage = float(columns.sum()) / max(width, 1)
+        dark_ratio = float(group.sum()) / max(group.size, 1)
+        if coverage > best_coverage:
+            best_coverage = coverage
+            best_dark_ratio = dark_ratio
+    if best_coverage < 0.35:
+        return 0.0
+    return best_coverage * 100.0 + best_dark_ratio * 1000.0
+
+
 def _build_mrz_variants(image: object, document: object | None) -> list[tuple[object, str]]:
     variants: list[tuple[object, str]] = []
     seen_shapes: set[tuple[int, int, int]] = set()
@@ -170,6 +290,7 @@ def _build_mrz_variants(image: object, document: object | None) -> list[tuple[ob
     ):
         if base is None:
             continue
+        base = _resize_to_max_edge(base, max_edge=DEFAULT_MRZ_VARIANT_MAX_EDGE)
         shape_key = tuple(base.shape)
         if shape_key in seen_shapes:
             continue
@@ -344,7 +465,7 @@ def _build_processed_document_image_cached(file_path: str, max_edge: int) -> obj
 
 
 def _preprocess_document_for_visual_ocr(image: object, *, max_edge: int) -> object | None:
-    document = detect_document_crop(image)
+    document = detect_passport_data_page_crop(image)
     if document is None:
         document = image
     gray = _to_gray(document)

@@ -260,16 +260,16 @@
       const firstSegment = normalizedRelative.split(/[\\/]+/).filter(Boolean)[0] || "";
 
       if (manifestPath && isAbsoluteFilePath(manifestPath)) {
-        const manifestDir = parentDirectory(manifestPath);
-        if (manifestDir) {
-          candidates.push(joinWindowsPath(manifestDir, normalizedRelative));
-        }
-
         if (firstSegment) {
           const rootBeforeSegment = rootPathBeforeSegment(manifestPath, firstSegment);
           if (rootBeforeSegment) {
             candidates.push(joinWindowsPath(rootBeforeSegment, normalizedRelative));
           }
+        }
+
+        const manifestDir = parentDirectory(manifestPath);
+        if (manifestDir) {
+          candidates.push(joinWindowsPath(manifestDir, normalizedRelative));
         }
       }
 

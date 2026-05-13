@@ -54,7 +54,7 @@ class ResolvedNameRulesTests(unittest.TestCase):
                 "expiryDate": "2031-01-18",
                 "gender": "MALE",
             },
-            {},
+            {"placeOfBirth": "BERAU", "issuingOffice": "TANJUNG REDEB"},
             {"confidence": 0.9, "data": {}},
             "VALID",
             0.9,

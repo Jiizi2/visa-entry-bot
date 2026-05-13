@@ -9,6 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services.nusuk_manifest import build_error_record, build_member_record
 from services.validator import validate_member
 
+VALID_VISUAL_FIELDS = {"placeOfBirth": "BERAU", "issuingOffice": "TANJUNG REDEB"}
+
 
 class ValidatorManifestTests(unittest.TestCase):
     def test_validate_member_requires_nusuk_core_fields(self) -> None:
@@ -22,11 +24,61 @@ class ValidatorManifestTests(unittest.TestCase):
                 "issueDate": "",
                 "expiryDate": "2030-01-01",
                 "gender": "MALE",
+                "birthCity": "JAKARTA",
+                "cityOfIssued": "JAKARTA",
             }
         )
 
         self.assertEqual(status, "ERROR")
         self.assertIn("issueDate", notes)
+
+    def test_validate_member_routes_missing_passport_location_fields_to_review(self) -> None:
+        status, notes = validate_member(
+            {
+                "firstName": "JOHN",
+                "familyName": "DOE",
+                "passportNumber": "A1234567",
+                "nationality": "INDONESIA",
+                "dob": "1990-01-01",
+                "issueDate": "2025-01-01",
+                "expiryDate": "2030-01-01",
+                "gender": "MALE",
+                "birthCity": "",
+                "cityOfIssued": "",
+            }
+        )
+
+        self.assertEqual(status, "VALID")
+        self.assertIn("Review required fields", notes)
+        self.assertIn("birthCity", notes)
+        self.assertIn("cityOfIssued", notes)
+
+    def test_build_member_record_marks_missing_location_fields_for_review_not_error(self) -> None:
+        record = build_member_record(
+            "passport.png",
+            "C:/visa-entry-bot/data/passport.png",
+            {
+                "firstName": "JOHN",
+                "familyName": "DOE",
+                "passportNumber": "A1234567",
+                "nationality": "INDONESIA",
+                "dob": "1990-01-01",
+                "issueDate": "2025-01-01",
+                "expiryDate": "2030-01-01",
+                "gender": "MALE",
+            },
+            {},
+            {"confidence": 1.0, "data": {"country": "IDN"}},
+            "VALID",
+            1.0,
+            "Review required fields: birthCity, cityOfIssued",
+        )
+
+        self.assertEqual(record["status"], "VALID")
+        self.assertEqual(record["reviewStatus"], "NEEDS_REVIEW")
+        self.assertTrue(record["requiresReview"])
+        self.assertIn("CRITICAL_FIELD_MISSING", record["reviewReasons"])
+        self.assertNotIn("RECORD_ERROR", record["reviewReasons"])
 
     def test_build_error_record_keeps_nested_flags(self) -> None:
         record = build_error_record("bad.png", "C:/visa-entry-bot/data/bad.png", "MRZ not detected.")
@@ -58,7 +110,7 @@ class ValidatorManifestTests(unittest.TestCase):
                 "expiryDate": "2030-01-01",
                 "gender": "MALE",
             },
-            {},
+            VALID_VISUAL_FIELDS,
             {"confidence": 0.9, "data": {"country": "USA"}},
             "VALID",
             0.95,
@@ -85,7 +137,7 @@ class ValidatorManifestTests(unittest.TestCase):
                 "expiryDate": "2030-03-11",
                 "gender": "MALE",
             },
-            {},
+            VALID_VISUAL_FIELDS,
             {"confidence": 1.0, "data": {"country": "DNB"}},
             "VALID",
             1.0,
@@ -117,7 +169,7 @@ class ValidatorManifestTests(unittest.TestCase):
                 "expiryDate": "2030-01-08",
                 "gender": "MALE",
             },
-            {},
+            VALID_VISUAL_FIELDS,
             {"confidence": 1.0, "data": {"country": "IDN"}, "mrzValidation": mrz_validation},
             "VALID",
             1.0,
@@ -163,7 +215,7 @@ class ValidatorManifestTests(unittest.TestCase):
                 "expiryDate": "2030-01-08",
                 "gender": "MALE",
             },
-            {},
+            VALID_VISUAL_FIELDS,
             {"confidence": 1.0, "data": {"country": "IDN"}, "mrzValidation": mrz_validation},
             "VALID",
             1.0,
@@ -202,7 +254,7 @@ class ValidatorManifestTests(unittest.TestCase):
                 "expiryDate": "2030-11-26",
                 "gender": "MALE",
             },
-            {},
+            VALID_VISUAL_FIELDS,
             {"confidence": 1.0, "data": {"country": "IDN"}, "mrzValidation": mrz_validation},
             "VALID",
             1.0,

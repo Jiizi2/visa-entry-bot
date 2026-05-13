@@ -5,10 +5,11 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
+from time import perf_counter
 
 import numpy as np
 
-from services.image_preprocessor import _load_image, build_processed_document_image
+from services.image_preprocessor import _load_image, build_processed_document_image, detect_passport_data_page_crop, resize_to_max_edge
 from services.layout_profiles import load_indonesia_passport_layout_profile
 from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.parser import clean_gender
@@ -49,20 +50,44 @@ RAW_LOCATION_PRIMARY_VARIANT_MODE = "fast"
 RAW_LOCATION_VARIANT_MODE = "default"
 SPEED_LOCATION_WINDOWS = {
     "placeOfBirth": (
+        (0.50, 0.62, 0.72, 0.99),
         (0.48, 0.64, 0.68, 0.99),
         (0.50, 0.63, 0.72, 0.99),
         (0.46, 0.66, 0.62, 0.99),
+        (0.48, 0.67, 0.56, 1.00),
     ),
     "issuingOffice": (
+        (0.72, 0.86, 0.66, 0.99),
         (0.66, 0.84, 0.62, 0.99),
         (0.70, 0.90, 0.62, 0.99),
         (0.64, 0.94, 0.58, 1.00),
+        (0.68, 0.94, 0.52, 1.00),
     ),
 }
-SPEED_LOCATION_PSM_VALUES = {"placeOfBirth": (6, 7), "issuingOffice": (6, 7)}
+SPEED_LOCATION_PSM_VALUES = {"placeOfBirth": (7,), "issuingOffice": (7,)}
+SPEED_LOCATION_FALLBACK_PSM_VALUES = {"placeOfBirth": (7, 6), "issuingOffice": (7, 6)}
+SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD = 2
+SPEED_LOCATION_OCR_MAX_EDGE = 1800
+SPEED_LOCATION_DEBUG_SAMPLE_LIMIT = 16
 LABEL_FRAGMENTS = ("BERLA", "BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "MENGELUAR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
 LABEL_NOISE_TOKENS = {"ARKAN", "ELUARKAN", "MENGELUARKAN"}
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
+LOCATION_LABEL_MARKERS = {
+    "placeOfBirth": ("TEMPAT LAHIR", "PLACE OF BIRTH", "BIRTH", "LAHIR"),
+    "issuingOffice": ("KANTOR YANG MENGELUARKAN", "ISSUING OFFICE", "MENGELUARKAN", "OFFICE", "KANTOR"),
+}
+_FAST_LOCATION_OCR_STATS = {
+    "totalMs": 0,
+    "rotationDegrees": 0,
+    "requestedFields": [],
+    "foundFields": [],
+    "fieldAttempts": 0,
+    "cropAttempts": 0,
+    "scanCalls": 0,
+    "preprocessFallbackUsed": False,
+    "debugEnabled": False,
+    "debugSamples": [],
+}
 
 
 @dataclass(frozen=True)
@@ -118,43 +143,70 @@ def extract_fast_location_fields(
     field_names: tuple[str, ...] = ("placeOfBirth", "issuingOffice"),
     rotation_degrees: int = 0,
 ) -> dict[str, str]:
+    reset_fast_location_ocr_stats()
+    started = perf_counter()
+    _FAST_LOCATION_OCR_STATS["rotationDegrees"] = int(rotation_degrees or 0) % 360
     if not configure_tesseract():
         return {}
     requested_fields = tuple(field_name for field_name in field_names if field_name in SPEED_LOCATION_WINDOWS)
+    _FAST_LOCATION_OCR_STATS["requestedFields"] = list(requested_fields)
     if not requested_fields:
         return {}
 
-    image = _orient_image(_load_image(file_path), rotation_degrees)
     extracted: dict[str, str] = {}
-    missing_fields = list(requested_fields)
-    if image is not None:
-        missing_fields = []
-        for field_name in requested_fields:
-            value = _extract_fast_location_from_image(image, field_name)
+    try:
+        image = _orient_image(_load_image(file_path), rotation_degrees)
+        data_page = detect_passport_data_page_crop(image)
+        if data_page is not None:
+            image = data_page
+        image = resize_to_max_edge(image, max_edge=SPEED_LOCATION_OCR_MAX_EDGE)
+        missing_fields = list(requested_fields)
+        if image is not None:
+            missing_fields = []
+            for field_name in requested_fields:
+                value = _extract_fast_location_from_image(image, field_name)
+                if value:
+                    extracted[field_name] = value
+                else:
+                    missing_fields.append(field_name)
+
+        if not missing_fields or not _fast_location_preprocess_enabled():
+            return extracted
+
+        _FAST_LOCATION_OCR_STATS["preprocessFallbackUsed"] = True
+        processed_image = _orient_image(build_processed_document_image(file_path), rotation_degrees)
+        if processed_image is None or _same_image_shape(image, processed_image):
+            return extracted
+
+        for field_name in missing_fields:
+            value = _extract_fast_location_from_image(processed_image, field_name)
             if value:
                 extracted[field_name] = value
-            else:
-                missing_fields.append(field_name)
-
-    if not missing_fields or not _fast_location_preprocess_enabled():
         return extracted
+    finally:
+        _FAST_LOCATION_OCR_STATS["foundFields"] = sorted(extracted)
+        _FAST_LOCATION_OCR_STATS["totalMs"] = max(0, int((perf_counter() - started) * 1000))
 
-    processed_image = _orient_image(build_processed_document_image(file_path), rotation_degrees)
-    if processed_image is None or _same_image_shape(image, processed_image):
-        return extracted
 
-    for field_name in missing_fields:
-        value = _extract_fast_location_from_image(processed_image, field_name)
-        if value:
-            extracted[field_name] = value
-    return extracted
-    for field_name in requested_fields:
-        for image in images:
-            value = _extract_fast_location_from_image(image, field_name)
-            if value:
-                extracted[field_name] = value
-                break
-    return extracted
+def get_fast_location_ocr_stats() -> dict[str, object]:
+    return dict(_FAST_LOCATION_OCR_STATS)
+
+
+def reset_fast_location_ocr_stats() -> None:
+    _FAST_LOCATION_OCR_STATS.update(
+        {
+            "totalMs": 0,
+            "rotationDegrees": 0,
+            "requestedFields": [],
+            "foundFields": [],
+            "fieldAttempts": 0,
+            "cropAttempts": 0,
+            "scanCalls": 0,
+            "preprocessFallbackUsed": False,
+            "debugEnabled": _fast_location_debug_enabled(),
+            "debugSamples": [],
+        }
+    )
 
 
 def merge_visual_fields(parsed: dict[str, str], visual_fields: dict[str, str]) -> dict[str, str]:
@@ -238,6 +290,26 @@ def _fast_location_preprocess_enabled() -> bool:
     return value in {"1", "true", "yes", "on", "fallback"}
 
 
+def _fast_location_psm_values(field_name: str) -> tuple[int, ...]:
+    value = os.environ.get("PASSPORT_LOCATION_OCR_PSM_FALLBACK", "").strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return SPEED_LOCATION_FALLBACK_PSM_VALUES[field_name]
+    return SPEED_LOCATION_PSM_VALUES[field_name]
+
+
+def _fast_location_max_windows() -> int:
+    raw_value = os.environ.get("PASSPORT_LOCATION_OCR_MAX_WINDOWS", "").strip()
+    try:
+        return max(1, min(4, int(raw_value))) if raw_value else SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD
+    except ValueError:
+        return SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD
+
+
+def _fast_location_debug_enabled() -> bool:
+    value = os.environ.get("PASSPORT_LOCATION_OCR_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def _same_image_shape(left: object | None, right: object | None) -> bool:
     if left is None or right is None:
         return False
@@ -265,11 +337,14 @@ def _orient_image(image: object | None, rotation_degrees: int = 0) -> object | N
 def _extract_fast_location_from_image(image: object, field_name: str) -> str:
     config = FIELD_CONFIG[field_name]
     candidates: list[str] = []
-    for window in SPEED_LOCATION_WINDOWS[field_name]:
+    _FAST_LOCATION_OCR_STATS["fieldAttempts"] = int(_FAST_LOCATION_OCR_STATS["fieldAttempts"]) + 1
+    for window_index, window in enumerate(SPEED_LOCATION_WINDOWS[field_name][:_fast_location_max_windows()]):
         region = crop_relative(image, *window)
         if region is None:
             continue
-        for psm in SPEED_LOCATION_PSM_VALUES[field_name]:
+        _FAST_LOCATION_OCR_STATS["cropAttempts"] = int(_FAST_LOCATION_OCR_STATS["cropAttempts"]) + 1
+        for psm in _fast_location_psm_values(field_name):
+            _FAST_LOCATION_OCR_STATS["scanCalls"] = int(_FAST_LOCATION_OCR_STATS["scanCalls"]) + 1
             texts = scan_region_texts(
                 region,
                 psm,
@@ -279,10 +354,14 @@ def _extract_fast_location_from_image(image: object, field_name: str) -> str:
                 stop_when=_field_stop_when(field_name, config["kind"]),
                 include_psm_fallback=False,
             )
-            for text in texts:
+            candidate_texts = _location_candidate_texts(field_name, texts)
+            accepted_values = []
+            for text in candidate_texts:
                 value = _clean_value(field_name, text, config["kind"])
                 if _is_valid(value, field_name):
                     candidates.append(value)
+                    accepted_values.append(value)
+            _record_fast_location_debug(field_name, window_index, psm, texts, candidate_texts, accepted_values)
             best_value = _pick_best_field_value(field_name, candidates)
             if best_value and is_known_location_value(field_name, best_value):
                 return best_value
@@ -349,7 +428,7 @@ def _should_stop_raw_location_scan(field_name: str, candidates: list[str], windo
 
 def _weighted_raw_location_texts(field_name: str, texts: list[str], window_index: int) -> list[tuple[str, int]]:
     if field_name != "issuingOffice":
-        return [(text, 1) for text in texts]
+        return [(text, 1) for text in _location_candidate_texts(field_name, texts)]
     weighted: list[tuple[str, int]] = []
     marker_seen = False
     for line_index, text in enumerate(texts):
@@ -360,7 +439,8 @@ def _weighted_raw_location_texts(field_name: str, texts: list[str], window_index
             weight += 1
         if line_index >= 4:
             weight += 1
-        weighted.append((text, weight))
+        for candidate_text in _location_candidate_texts(field_name, [text]):
+            weighted.append((candidate_text, weight))
         if _has_issuing_office_marker(text):
             marker_seen = True
     return weighted
@@ -369,6 +449,81 @@ def _weighted_raw_location_texts(field_name: str, texts: list[str], window_index
 def _has_issuing_office_marker(text: str) -> bool:
     compact = re.sub(r"[^A-Z]", "", str(text or "").upper())
     return any(fragment in compact for fragment in ("ISSUING", "OFFICE", "KANTOR", "MENGELUARKAN"))
+
+
+def _record_fast_location_debug(
+    field_name: str,
+    window_index: int,
+    psm: int,
+    texts: list[str],
+    candidate_texts: list[str],
+    accepted_values: list[str],
+) -> None:
+    if not _FAST_LOCATION_OCR_STATS.get("debugEnabled"):
+        return
+    samples = _FAST_LOCATION_OCR_STATS.setdefault("debugSamples", [])
+    if not isinstance(samples, list) or len(samples) >= SPEED_LOCATION_DEBUG_SAMPLE_LIMIT:
+        return
+    samples.append(
+        {
+            "field": field_name,
+            "windowIndex": window_index,
+            "psm": psm,
+            "raw": [_debug_text(text) for text in texts[:4]],
+            "candidates": [_debug_text(text) for text in candidate_texts[:6]],
+            "accepted": list(dict.fromkeys(accepted_values))[:4],
+        }
+    )
+
+
+def _debug_text(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text or "").strip())[:80]
+
+
+def _location_candidate_texts(field_name: str, texts: list[str]) -> list[str]:
+    candidates: list[str] = []
+    for index, text in enumerate(texts):
+        candidates.append(text)
+        tail = _extract_location_label_tail(field_name, text)
+        if tail:
+            candidates.append(tail)
+        if _has_location_label_marker(field_name, text) and index + 1 < len(texts):
+            candidates.append(texts[index + 1])
+    return _unique_texts(candidates)
+
+
+def _extract_location_label_tail(field_name: str, text: str) -> str:
+    normalized = _label_normalized_text(text)
+    marker_end = -1
+    for marker in LOCATION_LABEL_MARKERS.get(field_name, ()):
+        for match in re.finditer(re.escape(marker), normalized):
+            marker_end = max(marker_end, match.end())
+    if marker_end < 0:
+        return ""
+    return normalized[marker_end:].strip()
+
+
+def _has_location_label_marker(field_name: str, text: str) -> bool:
+    normalized = _label_normalized_text(text)
+    return any(marker in normalized for marker in LOCATION_LABEL_MARKERS.get(field_name, ()))
+
+
+def _label_normalized_text(text: str) -> str:
+    normalized = re.sub(r"[^A-Z\s-]", " ", str(text or "").upper())
+    normalized = normalized.replace("-", " ")
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _unique_texts(texts: list[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for text in texts:
+        cleaned = str(text or "").strip()
+        if not cleaned or cleaned in seen:
+            continue
+        unique.append(cleaned)
+        seen.add(cleaned)
+    return unique
 
 
 def _extract_full_name(page: object) -> str:
@@ -454,7 +609,7 @@ def _field_stop_when(field_name: str, kind: str) -> object | None:
         return None
 
     def stop_when(lines: list[str]) -> bool:
-        for line in lines:
+        for line in _location_candidate_texts(field_name, lines):
             value = _clean_value(field_name, line, kind)
             if value and is_known_location_value(field_name, value):
                 return True

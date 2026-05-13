@@ -11,15 +11,17 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "url": "index.html",
         "title": "Passport Entry Assistant",
         "width": 1440,
         "height": 920,
         "minWidth": 1120,
-        "minHeight": 760
+        "minHeight": 760,
+        "backgroundColor": "#f9f9fd"
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.xz.style; font-src 'self' https://fonts.xz.style data:; img-src 'self' data: blob: file: asset: http://asset.localhost https://asset.localhost; connect-src 'self' https://masar.nusuk.sa https://*.nusuk.sa;"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.xz.style; font-src 'self' https://fonts.xz.style data:; img-src 'self' data: blob: file: asset: http://asset.localhost https://asset.localhost; connect-src 'self' http://ipc.localhost https://masar.nusuk.sa https://*.nusuk.sa;"
     }
   },
   "bundle": {

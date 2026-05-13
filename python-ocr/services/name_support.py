@@ -31,6 +31,21 @@ def clean_existing_first_name(parsed: dict[str, str]) -> dict[str, str]:
 def repair_single_word_name(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
     updated = dict(parsed)
     family_name = str(updated.get("familyName", "") or "").strip()
+    first_name = str(updated.get("firstName", "") or "").strip()
+    first_tokens = _name_tokens(first_name)
+    family_tokens = _name_tokens(family_name)
+    if (
+        str(updated.get("nationality", "") or "").upper() == "INDONESIA"
+        and len(first_tokens) == 1
+        and len(first_tokens[0]) == 1
+        and first_tokens[0].isalpha()
+        and len(family_tokens) == 1
+        and is_reasonable_token(family_tokens[0])
+    ):
+        full_name = f"{first_tokens[0]} {family_tokens[0]}"
+        updated["firstName"] = full_name
+        updated["familyName"] = full_name
+        return updated, "INITIAL SINGLE-NAME MRZ DUPLICATED TO SATISFY REQUIRED FIELDS"
     if not updated.get("firstName") and family_name and is_reasonable_name_value(family_name) and len(family_name.split()) == 1:
         updated["firstName"] = family_name
         return updated, "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS"
@@ -61,12 +76,12 @@ def repair_common_name_noise(parsed: dict[str, str]) -> tuple[dict[str, str], st
     first_tokens = _name_tokens(updated.get("firstName", ""))
     family_tokens = _name_tokens(updated.get("familyName", ""))
     repaired_first = _repair_given_name_tokens(first_tokens)
-    repaired_family = [_repair_family_token(token) for token in family_tokens]
+    repaired_family = family_tokens if _is_initial_full_name_tokens(family_tokens) else [_repair_family_token(token) for token in family_tokens]
     repaired_family = [token for token in repaired_family if token]
     first_name = " ".join(repaired_first)
     family_name = " ".join(repaired_family)
     changed = False
-    if first_name and first_name != updated.get("firstName", ""):
+    if first_tokens and first_name != updated.get("firstName", ""):
         updated["firstName"] = first_name
         changed = True
     if family_name and family_name != updated.get("familyName", ""):
@@ -193,6 +208,11 @@ def _repair_given_token(token: str, *, index: int) -> list[str]:
     }
     if token in exact_repairs:
         return [exact_repairs[token]]
+    split_x = _split_mrz_x_separator(token)
+    if split_x:
+        return split_x
+    if index == 0 and len(token) == 1 and token.isalpha():
+        return [token]
     if len(token) >= 8 and token.endswith("KDE") and is_reasonable_token(token[:-3]):
         return [token[:-3], "DE"]
     if len(token) >= 7 and token.endswith("DE") and is_reasonable_token(token[:-2]):
@@ -242,6 +262,21 @@ def _repair_family_token(token: str) -> str:
     return token
 
 
+def _split_mrz_x_separator(token: str) -> list[str]:
+    if "X" not in token or len(token) < 8:
+        return []
+    parts = [part for part in token.split("X") if part]
+    if len(parts) != 2:
+        return []
+    if all(len(part) >= 3 and is_reasonable_token(part) for part in parts):
+        return parts
+    return []
+
+
+def _is_initial_full_name_tokens(tokens: list[str]) -> bool:
+    return len(tokens) == 2 and len(tokens[0]) == 1 and tokens[0].isalpha() and is_reasonable_token(tokens[1])
+
+
 def _strip_name_noise_suffix(token: str) -> str:
     if len(token) >= 5 and token.endswith(("KC", "CK")) and is_reasonable_token(token[:-2]):
         return token[:-2]
@@ -260,6 +295,8 @@ def _strip_name_noise_suffix(token: str) -> str:
 
 def _is_short_filler_token(token: str) -> bool:
     if len(token) <= 3 and not any(char in "AEIOUY" for char in token):
+        return True
+    if len(token) >= 4 and set(token) <= {"E", "G", "K", "S"} and re.search(r"(.)\1{2,}", token):
         return True
     return len(token) >= 4 and set(token) <= {"E", "G", "K", "S"} and (token.count("K") + token.count("G")) >= 2
 

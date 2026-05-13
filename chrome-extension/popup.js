@@ -27,13 +27,13 @@ elements.jsonInput.addEventListener("change", async (event) => {
   try {
     const raw = await file.text();
     const manifest = JSON.parse(raw);
-    validateManifest(manifest);
+    const validation = validateManifest(manifest);
 
     state.manifest = manifest;
     state.selectedMemberId = manifest.members[0]?.id || "";
     await persistState();
     render();
-    setStatus(`${manifest.members.length} data jamaah dimuat dari ${file.name}.`);
+    setStatus(window.NusukAutofill.manifestValidator.formatManifestUploadMessage(manifest.members.length, validation, file.name));
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
@@ -48,6 +48,11 @@ elements.memberSelect.addEventListener("change", async (event) => {
 });
 
 elements.autofillBtn.addEventListener("click", async () => {
+  const validationMessage = validateCurrentManifestForRun();
+  if (validationMessage) {
+    setStatus(validationMessage, true);
+    return;
+  }
   const member = getSelectedMember();
   if (!member) {
     setStatus("Pilih data jamaah dulu.", true);
@@ -161,17 +166,29 @@ function buildPreview(member, manifest) {
     releaseDate: resolved.releaseDate || "",
     expiryDate: resolved.expiryDate || "",
     birthCity: resolved.birthCity || "",
+    cityOfIssued: resolved.cityOfIssued || "",
     email: resolved.email || "",
     mobileNumber: resolved.mobileNumber || "",
   };
 }
 
 function validateManifest(manifest) {
-  if (!manifest || typeof manifest !== "object") {
-    throw new Error("Root JSON harus berupa object.");
+  const validator = window.NusukAutofill?.manifestValidator;
+  if (!validator?.validateManifestForEntry) {
+    throw new Error("Validator manifest extension belum dimuat.");
   }
-  if (!Array.isArray(manifest.members) || !manifest.members.length) {
-    throw new Error("JSON harus memiliki members[] yang tidak kosong.");
+  return validator.validateManifestForEntry(manifest);
+}
+
+function validateCurrentManifestForRun() {
+  if (!state.manifest) {
+    return "";
+  }
+  try {
+    validateManifest(state.manifest);
+    return "";
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
 }
 

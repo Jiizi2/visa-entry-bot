@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/tauri-runner.mjs dev",
+    "browser": "node scripts/browser-backend.mjs",
     "build": "node scripts/tauri-runner.mjs build",
     "tauri": "node scripts/tauri-runner.mjs",
     "test": "node --test"

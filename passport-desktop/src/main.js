@@ -65,9 +65,39 @@ function tauriBindings() {
   };
 }
 
+function errorMessage(error) {
+  if (error instanceof Error) {
+    return error.message || error.name || "Terjadi error yang tidak diketahui.";
+  }
+  return String(error ?? "Terjadi error yang tidak diketahui.");
+}
+
+function runAction(action, label = "Aksi aplikasi") {
+  try {
+    const result = typeof action === "function" ? action() : action;
+    if (result && typeof result.then === "function") {
+      result.catch((error) => reportRuntimeError(error, label));
+    }
+  } catch (error) {
+    reportRuntimeError(error, label);
+  }
+}
+
+function closestFromEventTarget(target, selector) {
+  const element = target instanceof Element ? target : target?.parentElement;
+  return element?.closest?.(selector) ?? null;
+}
+
 const STORAGE_KEYS = {
   recentBatches: "passport-assistant-recent-batches-v1",
 };
+const OCR_MODE_VALUES = new Set(["speed", "balanced", "heavy"]);
+const OCR_MODE_LABELS = {
+  speed: "Speed",
+  balanced: "Balanced",
+  heavy: "Heavy",
+};
+const DEFAULT_OCR_MODE = "speed";
 
 const CHILD_AGE_LIMIT = 18;
 const COMPANION_RELATION_OPTIONS = [
@@ -123,6 +153,7 @@ const state = {
   currentPage: "import",
   validationFilter: "all",
   selectedDir: "",
+  ocrMode: DEFAULT_OCR_MODE,
   recentBatches: [],
   manifest: null,
   originalManifest: null,
@@ -160,6 +191,8 @@ const state = {
   statusDetail: "",
   isScanning: false,
   isStoppingScan: false,
+  isStartingScan: false,
+  isChoosingFolder: false,
 };
 
 const dom = {};
@@ -179,28 +212,46 @@ let renderAllHandle = null;
 let renderAllQueued = false;
 let manifestSaveTimer = null;
 let manifestSaveSequence = 0;
+let hasCompletedStartup = false;
 const MANIFEST_SAVE_DELAY_MS = 350;
 
 window.addEventListener("error", (event) => {
-  showFatalScreen(event.error?.message || event.message || "Terjadi error yang tidak diketahui.");
+  const message = errorMessage(event.error ?? event.message ?? "Terjadi error yang tidak diketahui.");
+  if (hasCompletedStartup) {
+    event.preventDefault();
+    reportRuntimeError(message, "Aksi aplikasi");
+    return;
+  }
+  showFatalScreen(message);
 });
 
 window.addEventListener("unhandledrejection", (event) => {
-  const message = event.reason instanceof Error
-    ? event.reason.message
-    : String(event.reason ?? "Promise ditolak tanpa pesan.");
+  const message = errorMessage(event.reason ?? "Promise ditolak tanpa pesan.");
+  if (hasCompletedStartup) {
+    event.preventDefault();
+    reportRuntimeError(message, "Aksi aplikasi");
+    return;
+  }
   showFatalScreen(message);
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     state.recentBatches = loadRecentBatches();
+    state.ocrMode = loadOcrMode();
     bindDom();
     bindActions();
-    await setupEventBridge();
     renderAll();
+    hasCompletedStartup = true;
   } catch (error) {
     showFatalScreen(error instanceof Error ? error.message : String(error));
+    return;
+  }
+
+  try {
+    await setupEventBridge();
+  } catch (error) {
+    reportRuntimeError(error, "Koneksi desktop");
   }
 });
 
@@ -219,6 +270,7 @@ function bindDom() {
   dom.importFooterText = document.querySelector("#import-footer-text");
   dom.folderPath = document.querySelector("#folder-path");
   dom.chooseFolderButton = document.querySelector("#choose-folder-button");
+  dom.ocrModeInputs = [...document.querySelectorAll("input[name='ocr-mode']")];
   dom.scanButton = document.querySelector("#scan-button");
   dom.stopScanButton = document.querySelector("#stop-scan-button");
   dom.importNextButton = document.querySelector("#import-next-button");
@@ -331,29 +383,39 @@ function bindActions() {
 
   dom.chooseFolderButton.addEventListener("click", (event) => {
     event.stopPropagation();
-    void chooseFolder();
+    runAction(() => chooseFolder(), "Pilih folder");
   });
 
   dom.folderDropzone.addEventListener("click", (event) => {
-    if (state.isScanning || event.target.closest("button") || event.target.closest("input")) {
+    if (
+      state.isScanning
+      || state.isChoosingFolder
+      || closestFromEventTarget(event.target, "button")
+      || closestFromEventTarget(event.target, "input")
+    ) {
       return;
     }
-    void chooseFolder();
+    runAction(() => chooseFolder(), "Pilih folder");
   });
 
   dom.folderDropzone.addEventListener("keydown", (event) => {
-    if (state.isScanning) {
+    if (state.isScanning || state.isChoosingFolder) {
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      void chooseFolder();
+      runAction(() => chooseFolder(), "Pilih folder");
     }
   });
 
   dom.scanButton.addEventListener("click", () => {
-    void handleScanButtonClick();
+    runAction(() => handleScanButtonClick(), "Mulai scan");
   });
+  for (const input of dom.ocrModeInputs) {
+    input.addEventListener("change", (event) => {
+      runAction(() => handleOcrModeChange(event), "Ganti mode OCR");
+    });
+  }
   dom.stopScanButton?.addEventListener("click", openStopScanModal);
   dom.importNextButton?.addEventListener("click", () => {
     setPage("validation");
@@ -370,7 +432,7 @@ function bindActions() {
     }
   });
   dom.stopScanConfirmButton?.addEventListener("click", () => {
-    void confirmStopScan();
+    runAction(() => confirmStopScan(), "Stop scan");
   });
   dom.stopScanCancelButton?.addEventListener("click", closeStopScanModal);
   dom.stopScanConfirmModal?.addEventListener("click", (event) => {
@@ -407,7 +469,7 @@ function bindActions() {
   });
   dom.reviewCompleteCancelButton?.addEventListener("click", closeReviewCompleteModal);
   dom.reviewCompleteExportButton?.addEventListener("click", () => {
-    void handlePrepareEntry();
+    runAction(() => handlePrepareEntry(), "Export JSON");
   });
   dom.reviewPreviewExportButton?.addEventListener("click", () => {
     setPage("entry");
@@ -421,7 +483,7 @@ function bindActions() {
     setPage("validation");
   });
   dom.prepareEntryButton?.addEventListener("click", () => {
-    void handlePrepareEntry();
+    runAction(() => handlePrepareEntry(), "Export JSON");
   });
   dom.reviewExportPreviewBody?.addEventListener("click", handleExportPreviewMemberClick);
   dom.entryExportPreviewBody?.addEventListener("click", handleExportPreviewMemberClick);
@@ -460,7 +522,7 @@ function bindActions() {
   });
 
   dom.recentBatchesList.addEventListener("click", (event) => {
-    const editButton = event.target.closest("[data-recent-edit-path]");
+    const editButton = closestFromEventTarget(event.target, "[data-recent-edit-path]");
     if (editButton) {
       event.preventDefault();
       event.stopPropagation();
@@ -468,7 +530,7 @@ function bindActions() {
       return;
     }
 
-    const deleteButton = event.target.closest("[data-recent-delete-path]");
+    const deleteButton = closestFromEventTarget(event.target, "[data-recent-delete-path]");
     if (deleteButton) {
       event.preventDefault();
       event.stopPropagation();
@@ -476,7 +538,7 @@ function bindActions() {
       return;
     }
 
-    const item = event.target.closest("[data-recent-path]");
+    const item = closestFromEventTarget(event.target, "[data-recent-path]");
     if (!item) {
       return;
     }
@@ -484,19 +546,19 @@ function bindActions() {
     if (!recentPath) {
       return;
     }
-    void openRecentBatch(recentPath);
+    runAction(() => openRecentBatch(recentPath), "Buka riwayat");
   });
 
   dom.recentBatchesList.addEventListener("keydown", (event) => {
-    if (event.target.closest("button") || (event.key !== "Enter" && event.key !== " ")) {
+    if (closestFromEventTarget(event.target, "button") || (event.key !== "Enter" && event.key !== " ")) {
       return;
     }
-    const item = event.target.closest("[data-recent-path]");
+    const item = closestFromEventTarget(event.target, "[data-recent-path]");
     if (!item) {
       return;
     }
     event.preventDefault();
-    void openRecentBatch(item.dataset.recentPath ?? "");
+    runAction(() => openRecentBatch(item.dataset.recentPath ?? ""), "Buka riwayat");
   });
 
   for (const button of dom.filterButtons) {
@@ -510,7 +572,7 @@ function bindActions() {
   }
 
   dom.passportList?.addEventListener("click", (event) => {
-    const row = event.target.closest("[data-member-id]");
+    const row = closestFromEventTarget(event.target, "[data-member-id]");
     if (!row) {
       return;
     }
@@ -521,21 +583,21 @@ function bindActions() {
   });
 
   dom.fieldReviewRows.addEventListener("change", (event) => {
-    const companionSelect = event.target.closest("select[data-companion-select]");
+    const companionSelect = closestFromEventTarget(event.target, "select[data-companion-select]");
     if (companionSelect) {
       updateActiveMemberCompanion(companionSelect.value);
       scheduleRenderAll();
       return;
     }
 
-    const companionRelationSelect = event.target.closest("select[data-companion-relation-select]");
+    const companionRelationSelect = closestFromEventTarget(event.target, "select[data-companion-relation-select]");
     if (companionRelationSelect) {
       updateActiveMemberCompanionRelation(companionRelationSelect.value);
       scheduleRenderAll();
       return;
     }
 
-    const input = event.target.closest("input[data-field-key]");
+    const input = closestFromEventTarget(event.target, "input[data-field-key]");
     if (!input) {
       return;
     }
@@ -550,7 +612,7 @@ function bindActions() {
   });
   dom.saveNextButton?.addEventListener("click", handleSaveAndNext);
   dom.fieldCategoryTabs?.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-field-category]");
+    const button = closestFromEventTarget(event.target, "button[data-field-category]");
     if (!button) {
       return;
     }
@@ -598,6 +660,7 @@ async function setupEventBridge() {
     switch (payload.event) {
       case "scan_started":
         state.isScanning = true;
+        state.isStartingScan = false;
         state.isStoppingScan = false;
         state.totalFiles = Number(payload.totalFiles ?? 0);
         state.progressTotal = Number(payload.totalFiles ?? 0);
@@ -609,12 +672,13 @@ async function setupEventBridge() {
         state.lastScanMetric = null;
         state.statusHeadline = "Scan sedang berjalan";
         state.statusDetail = `Menyiapkan ${payload.totalFiles ?? 0} dokumen dari ${payload.groupId ?? "-"}.`;
-        appendScanLog(`Mulai proses ${payload.totalFiles ?? 0} dokumen | grup ${payload.groupId ?? "-"}`);
+        appendScanLog(`Mulai proses ${payload.totalFiles ?? 0} dokumen | grup ${payload.groupId ?? "-"} | OCR ${ocrModeLabel(payload.ocrProfile || state.ocrMode)}`);
         rememberRecentBatch(state.selectedDir, payload.totalFiles);
         renderAll();
         break;
       case "scan_stage":
         state.isScanning = true;
+        state.isStartingScan = false;
         state.progressCurrent = Number(payload.current ?? 0) + Number(payload.fileProgress ?? 0);
         state.progressTotal = Number(payload.total ?? state.progressTotal ?? 0);
         state.progressFileName = payload.fileName ?? "";
@@ -639,6 +703,7 @@ async function setupEventBridge() {
           currentProgress > Math.floor(previousProgress);
 
         state.isScanning = true;
+        state.isStartingScan = false;
         state.progressCurrent = currentProgress;
         state.progressTotal = totalProgress;
         state.progressFileName = currentFileName;
@@ -673,6 +738,7 @@ async function setupEventBridge() {
         break;
       case "scan_stopped":
         state.isScanning = false;
+        state.isStartingScan = false;
         state.isStoppingScan = false;
         state.progressStageLabel = "Dihentikan";
         state.statusHeadline = "Scan dihentikan";
@@ -683,6 +749,7 @@ async function setupEventBridge() {
         break;
       case "scan_complete":
         state.isScanning = false;
+        state.isStartingScan = false;
         state.isStoppingScan = false;
         state.manifestPath = payload.manifestPath ?? "";
         state.resultDir = payload.groupDir ?? "";
@@ -710,6 +777,7 @@ async function setupEventBridge() {
         appendScanLog(`[${code}] ${message} (stage: ${stage})`);
         if (fatal) {
           state.isScanning = false;
+          state.isStartingScan = false;
           state.isStoppingScan = false;
           state.progressStageLabel = "Gagal";
           state.statusHeadline = "Scan gagal";
@@ -748,6 +816,7 @@ async function setupEventBridge() {
       }
       case "scan_failed":
         state.isScanning = false;
+        state.isStartingScan = false;
         state.isStoppingScan = false;
         state.progressStageLabel = "Gagal";
         state.statusHeadline = "Scan gagal";
@@ -772,21 +841,40 @@ async function setupEventBridge() {
 }
 
 async function chooseFolder() {
-  const { open } = tauriBindings();
-  const selected = await open({
-    directory: true,
-    multiple: false,
-    title: "Pilih folder passport",
-  });
+  if (state.isScanning || state.isChoosingFolder) {
+    return;
+  }
 
-  if (typeof selected === "string") {
-    updateSelectedDir(selected);
+  state.isChoosingFolder = true;
+  state.statusHeadline = "Membuka pilihan folder";
+  state.statusDetail = "Pilih folder passport yang ingin diproses.";
+  renderAll();
+
+  try {
+    const { open } = tauriBindings();
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Pilih folder passport",
+    });
+
+    if (typeof selected === "string") {
+      updateSelectedDir(selected);
+    } else {
+      state.statusHeadline = state.selectedDir ? "Folder tetap dipakai" : "Folder belum dipilih";
+      state.statusDetail = state.selectedDir
+        ? `Masih memakai folder ${basenameFromPath(state.selectedDir)}.`
+        : "Pilih folder passport sebelum memulai proses.";
+    }
+  } finally {
+    state.isChoosingFolder = false;
     renderAll();
   }
 }
 
 async function startScan() {
   state.selectedDir = dom.folderPath.value.trim();
+  updateOcrMode(state.ocrMode);
   if (!state.selectedDir) {
     state.statusHeadline = "Folder belum dipilih";
     state.statusDetail = "Pilih folder passport atau folder grup sebelum memulai proses.";
@@ -825,11 +913,12 @@ async function startScan() {
   state.statusHeadline = "Memulai proses";
   state.statusDetail = "Sedang menyiapkan pembacaan data.";
   appendScanLog(`Memulai proses untuk folder ${state.selectedDir}`);
+  appendScanLog(`Mode OCR: ${ocrModeLabel(state.ocrMode)}`);
   renderAll();
 
   try {
     const { invoke } = tauriBindings();
-    await invoke("start_scan", { selectedDir: state.selectedDir });
+    await invoke("start_scan", { selectedDir: state.selectedDir, ocrMode: state.ocrMode });
   } catch (error) {
     state.isScanning = false;
     state.isStoppingScan = false;
@@ -840,16 +929,29 @@ async function startScan() {
 }
 
 async function handleScanButtonClick() {
-  const hasAnyResult = hasAnyScanResult();
-  const hasResultForSelected = hasScanResultForSelectedDir();
-  if (hasAnyResult && !state.isScanning) {
-    const mode = hasResultForSelected ? "rescan-same" : "replace-folder";
-    const confirmed = await requestRescanConfirmation(mode);
-    if (!confirmed) {
-      return;
+  if (state.isScanning || state.isStartingScan) {
+    return;
+  }
+
+  state.isStartingScan = true;
+  renderAll();
+  try {
+    const hasAnyResult = hasAnyScanResult();
+    const hasResultForSelected = hasScanResultForSelectedDir();
+    if (hasAnyResult) {
+      const mode = hasResultForSelected ? "rescan-same" : "replace-folder";
+      const confirmed = await requestRescanConfirmation(mode);
+      if (!confirmed) {
+        return;
+      }
+    }
+    await startScan();
+  } finally {
+    if (!state.isScanning) {
+      state.isStartingScan = false;
+      renderAll();
     }
   }
-  await startScan();
 }
 
 function openStopScanModal() {
@@ -857,7 +959,7 @@ function openStopScanModal() {
     return;
   }
   if (!dom.stopScanConfirmModal) {
-    void confirmStopScan();
+    runAction(() => confirmStopScan(), "Stop scan");
     return;
   }
 
@@ -1127,6 +1229,14 @@ async function handlePrepareEntry() {
     return;
   }
 
+  const requiredFieldsIssue = requiredFieldBlockingIssueForBatch();
+  if (!requiredFieldsIssue.ok) {
+    state.exportError = requiredFieldsIssue.message;
+    appendEntryLog(`Gagal export: ${requiredFieldsIssue.message}`, "warn");
+    showBatchReviewBlockingMessage(requiredFieldsIssue);
+    return;
+  }
+
   const companionValidation = validateCompanionsBeforeExport();
   if (!companionValidation.ok) {
     state.exportError = companionValidation.message;
@@ -1314,6 +1424,41 @@ function reviewCompletionValidation(member) {
   }
 
   return { ok: true, message: "", categoryId: "", fieldKey: "" };
+}
+
+function requiredFieldBlockingIssueForBatch() {
+  for (const member of manifestMembers()) {
+    if (memberReviewStatus(member) === "ERROR") {
+      continue;
+    }
+
+    const missingFields = missingRequiredReviewFields(member);
+    if (!missingFields.length) {
+      continue;
+    }
+
+    const visibleLabels = missingFields.slice(0, 3).map((item) => item.label).join(", ");
+    const suffix = missingFields.length > 3 ? ` dan ${missingFields.length - 3} lainnya` : "";
+    return {
+      ok: false,
+      target: "field",
+      memberId: String(member.id || ""),
+      message: `${memberDisplayName(member)} belum lengkap: ${visibleLabels}${suffix}.`,
+      categoryId: missingFields[0].categoryId,
+      fieldKey: missingFields[0].key,
+    };
+  }
+
+  return { ok: true, message: "", categoryId: "", fieldKey: "", memberId: "" };
+}
+
+function showBatchReviewBlockingMessage(validation) {
+  if (validation.memberId) {
+    state.activeMemberId = validation.memberId;
+    syncPassportPageWithActiveMember();
+  }
+  state.currentPage = "validation";
+  showReviewBlockingMessage(validation);
 }
 
 function companionBlockingIssue(member) {
@@ -1549,6 +1694,11 @@ function handleSaveAndNext() {
   const nextPair = FIELD_CATEGORY_PAIRS[currentPairIndex + 1] || null;
 
   if (isFinalReviewCompleteAction(member)) {
+    const validation = reviewCompletionValidation(member);
+    if (!validation.ok) {
+      showReviewBlockingMessage(validation);
+      return;
+    }
     openReviewCompleteModal();
     return;
   }
@@ -1659,7 +1809,7 @@ function moveActiveMember(step) {
 }
 
 function handleExportPreviewMemberClick(event) {
-  const button = event.target.closest("[data-review-member-id]");
+  const button = closestFromEventTarget(event.target, "[data-review-member-id]");
   if (!button) {
     return;
   }
@@ -1725,6 +1875,12 @@ function setPage(page) {
       state.statusDetail = `Masih ada ${review.remaining} passport yang perlu ditandai dicek sebelum preview/export JSON.`;
       state.currentPage = "validation";
       renderAll();
+      return;
+    }
+
+    const requiredFieldsIssue = requiredFieldBlockingIssueForBatch();
+    if (!requiredFieldsIssue.ok) {
+      showBatchReviewBlockingMessage(requiredFieldsIssue);
       return;
     }
   }
@@ -1945,6 +2101,7 @@ function currentTopbarStatus() {
 
 function renderImportPage() {
   dom.folderPath.value = state.selectedDir;
+  renderOcrModeSelector();
 
   if (state.selectedDir) {
     dom.selectedFolderName.textContent = basenameFromPath(state.selectedDir);
@@ -1959,7 +2116,9 @@ function renderImportPage() {
   const hasResultForSelected = hasScanResultForSelectedDir();
   dom.importNextButton?.classList.toggle("is-hidden", !hasResultForSelected);
   dom.scanButton.className = hasAnyResult ? "secondary-button" : "primary-action";
-  dom.scanButton.textContent = state.isScanning
+  dom.scanButton.textContent = state.isStartingScan
+    ? "Menyiapkan..."
+    : state.isScanning
     ? state.isStoppingScan
       ? "Menghentikan..."
       : "Sedang Memproses..."
@@ -1970,7 +2129,7 @@ function renderImportPage() {
         : hasAnyResult
           ? "Proses Folder Ini"
           : "Mulai Proses";
-  dom.scanButton.setAttribute("aria-busy", state.isScanning ? "true" : "false");
+  dom.scanButton.setAttribute("aria-busy", state.isScanning || state.isStartingScan ? "true" : "false");
   if (dom.stopScanButton) {
     dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
     dom.stopScanButton.textContent = state.isStoppingScan ? "Menghentikan..." : "Stop Scan";
@@ -1981,6 +2140,31 @@ function renderImportPage() {
   renderMiniStatus(dom.systemValidationStatus, { label: "Siap", tone: "ready" });
   renderMiniStatus(dom.systemRuntimeStatus, { label: "Tersedia", tone: "ready" });
   renderRecentBatches();
+}
+
+function renderOcrModeSelector() {
+  for (const input of dom.ocrModeInputs || []) {
+    const mode = normalizeOcrMode(input.value);
+    input.checked = mode === normalizeOcrMode(state.ocrMode);
+    input.disabled = state.isScanning;
+  }
+}
+
+function handleOcrModeChange(event) {
+  const target = event.target;
+  if (state.isScanning || !(target instanceof HTMLInputElement) || !target.checked) {
+    renderOcrModeSelector();
+    return;
+  }
+
+  const nextMode = normalizeOcrMode(target.value);
+  updateOcrMode(nextMode);
+  state.statusHeadline = `Mode OCR: ${ocrModeLabel(nextMode)}`;
+  state.statusDetail = "Mode akan dipakai saat scan berikutnya dimulai.";
+
+  renderOcrModeSelector();
+  renderMiniStatus(dom.systemOcrStatus, ocrStatusDescriptor());
+  updateActionAvailability();
 }
 
 function importFooterMessage() {
@@ -3173,7 +3357,7 @@ function updateActionAvailability() {
   const hasActiveMember = Boolean(activeMember());
   const navigation = activeNavigationState();
 
-  dom.scanButton.disabled = state.isScanning || !hasSelectedDir;
+  dom.scanButton.disabled = state.isScanning || state.isStartingScan || !hasSelectedDir;
   if (dom.stopScanButton) {
     dom.stopScanButton.disabled = !state.isScanning || state.isStoppingScan;
     dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
@@ -3184,11 +3368,14 @@ function updateActionAvailability() {
     dom.importNextButton.disabled = !canGoNext;
     dom.importNextButton.setAttribute("aria-disabled", dom.importNextButton.disabled ? "true" : "false");
   }
-  dom.chooseFolderButton.disabled = state.isScanning;
+  dom.chooseFolderButton.disabled = state.isScanning || state.isChoosingFolder;
   dom.folderPath.disabled = state.isScanning;
-  dom.folderDropzone.classList.toggle("is-busy", state.isScanning);
-  dom.folderDropzone.setAttribute("aria-disabled", state.isScanning ? "true" : "false");
-  dom.folderDropzone.setAttribute("aria-busy", state.isScanning ? "true" : "false");
+  for (const input of dom.ocrModeInputs || []) {
+    input.disabled = state.isScanning;
+  }
+  dom.folderDropzone.classList.toggle("is-busy", state.isScanning || state.isChoosingFolder);
+  dom.folderDropzone.setAttribute("aria-disabled", state.isScanning || state.isChoosingFolder ? "true" : "false");
+  dom.folderDropzone.setAttribute("aria-busy", state.isScanning || state.isChoosingFolder ? "true" : "false");
 
   if (dom.reviewPreviewExportButton) {
     const hasManifest = Boolean(state.manifestPath && state.manifest && manifestMembers().length);
@@ -3863,6 +4050,23 @@ function saveRecentBatches(entries) {
   saveRecentBatchesToStorage(STORAGE_KEYS.recentBatches, entries);
 }
 
+function normalizeOcrMode(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return OCR_MODE_VALUES.has(normalized) ? normalized : DEFAULT_OCR_MODE;
+}
+
+function ocrModeLabel(value) {
+  return OCR_MODE_LABELS[normalizeOcrMode(value)];
+}
+
+function loadOcrMode() {
+  return DEFAULT_OCR_MODE;
+}
+
+function updateOcrMode(value) {
+  state.ocrMode = normalizeOcrMode(value);
+}
+
 function initializeWorkspaceDatePickers() {
   const factory = window.flatpickr;
   if (typeof factory !== "function" || !dom.fieldReviewRows) {
@@ -3914,6 +4118,21 @@ function syncDatePickerValue(instance, dateStr) {
 
   instance.input.value = nextValue;
   instance.input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function reportRuntimeError(error, label = "Aksi aplikasi") {
+  const message = errorMessage(error);
+  state.statusHeadline = `${label} gagal`;
+  state.statusDetail = message;
+  state.isChoosingFolder = false;
+  state.isStartingScan = false;
+  appendScanLog(`[APP] ${label} gagal | ${message}`);
+
+  try {
+    renderAll();
+  } catch (renderError) {
+    showFatalScreen(`${label}: ${message}\n\nRender: ${errorMessage(renderError)}`);
+  }
 }
 
 function showFatalScreen(message) {

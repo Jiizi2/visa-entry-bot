@@ -2,33 +2,56 @@ from __future__ import annotations
 
 from datetime import date
 
+ERROR_REQUIRED_MEMBER_FIELDS = (
+    "passportNumber",
+    "firstName",
+    "familyName",
+    "nationality",
+    "dob",
+    "issueDate",
+    "expiryDate",
+    "gender",
+)
+
+REVIEW_REQUIRED_MEMBER_FIELDS = (
+    "birthCity",
+    "cityOfIssued",
+)
+
+REQUIRED_MEMBER_FIELDS = ERROR_REQUIRED_MEMBER_FIELDS + REVIEW_REQUIRED_MEMBER_FIELDS
+
 
 def validate_member(member: dict[str, str]) -> tuple[str, str]:
-    missing_fields = []
-    required_fields = ("passportNumber", "firstName", "familyName", "nationality", "dob", "issueDate", "expiryDate", "gender")
-    for field_name in required_fields:
+    missing_error_fields = []
+    for field_name in ERROR_REQUIRED_MEMBER_FIELDS:
         if not member.get(field_name):
-            missing_fields.append(field_name)
+            missing_error_fields.append(field_name)
+    missing_review_fields = []
+    for field_name in REVIEW_REQUIRED_MEMBER_FIELDS:
+        if not member.get(field_name):
+            missing_review_fields.append(field_name)
     invalid_fields = [field_name for field_name in ("dob", "issueDate", "expiryDate") if member.get(field_name) and not _is_iso_date(member[field_name])]
     if member.get("gender") and member["gender"] not in {"MALE", "FEMALE"}:
         invalid_fields.append("gender")
     if _has_invalid_date_order(member):
         invalid_fields.append("dateOrder")
 
-    if missing_fields:
-        return "ERROR", f"Missing required fields: {', '.join(missing_fields)}"
+    if missing_error_fields:
+        return "ERROR", f"Missing required fields: {', '.join(missing_error_fields)}"
     if invalid_fields:
         return "ERROR", f"Invalid fields: {', '.join(invalid_fields)}"
+    if missing_review_fields:
+        return "VALID", f"Review required fields: {', '.join(missing_review_fields)}"
     return "VALID", ""
 
 
 def calculate_confidence(base_confidence: float, member: dict[str, str], status: str) -> float:
     populated_fields = sum(
         1
-        for key in ("firstName", "familyName", "passportNumber", "nationality", "dob", "expiryDate", "gender")
+        for key in REQUIRED_MEMBER_FIELDS
         if member.get(key)
     )
-    score = float(base_confidence) + (populated_fields / 7) * 0.15
+    score = float(base_confidence) + (populated_fields / len(REQUIRED_MEMBER_FIELDS)) * 0.15
     if status == "ERROR":
         score -= 0.2
     return round(min(max(score, 0.0), 1.0), 2)

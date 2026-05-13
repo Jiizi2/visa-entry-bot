@@ -18,7 +18,13 @@ class LocationNormalizerTests(unittest.TestCase):
     def test_normalizes_split_banjarmasin_and_tanjong_redeb_aliases(self) -> None:
         self.assertEqual(normalize_location_value("placeOfBirth", "BANJARMA SIN"), "BANJARMASIN")
         self.assertEqual(normalize_location_value("placeOfBirth", "PALANGKARAYA"), "PALANGKA RAYA")
+        self.assertEqual(normalize_location_value("issuingOffice", "PALANGKA RAYA"), "PALANGKARAYA")
         self.assertEqual(normalize_location_value("issuingOffice", "TANJONG REDEB"), "TANJUNG REDEB")
+        self.assertEqual(
+            pick_best_location_value("issuingOffice", ["TANJUNGREDES", "TANJUNGREDEB", "TANJUNG", "TANJUNG"]),
+            "TANJUNG REDEB",
+        )
+        self.assertEqual(normalize_location_value("issuingOffice", "TANJUNGREDES"), "TANJUNG REDEB")
         self.assertTrue(is_known_location_value("placeOfBirth", "SEMARANG"))
         self.assertTrue(is_known_location_value("placeOfBirth", "PACITAN"))
 
@@ -30,6 +36,14 @@ class LocationNormalizerTests(unittest.TestCase):
         self.assertEqual(normalize_location_value("issuingOffice", "BSSCIANIJUR"), "CIANJUR")
         self.assertEqual(normalize_location_value("issuingOffice", "JAKARTA PUSAT"), "JAKARTA PUSAT")
         self.assertEqual(pick_best_location_value("placeOfBirth", ["BSSBOG OR"]), "BOGOR")
+        self.assertEqual(pick_best_location_value("placeOfBirth", ["LT", "LT"]), "")
+
+    def test_common_ocr_confusions_and_more_cities_are_normalized(self) -> None:
+        self.assertEqual(normalize_location_value("placeOfBirth", "8ANDUNG"), "BANDUNG")
+        self.assertEqual(normalize_location_value("placeOfBirth", "JAKAR7A"), "JAKARTA")
+        self.assertEqual(normalize_location_value("issuingOffice", "PARE-PARE"), "PAREPARE")
+        self.assertEqual(normalize_location_value("placeOfBirth", "SURABAYA"), "SURABAYA")
+        self.assertEqual(normalize_location_value("issuingOffice", "DENPASAR"), "DENPASAR")
 
 
 if __name__ == "__main__":

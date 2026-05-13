@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "browser": "npm --prefix passport-desktop run browser --",
+    "desktop:browser": "npm --prefix passport-desktop run browser --",
+    "desktop:build": "npm --prefix passport-desktop run build --",
+    "desktop:test": "npm --prefix passport-desktop test"
+  }
+}

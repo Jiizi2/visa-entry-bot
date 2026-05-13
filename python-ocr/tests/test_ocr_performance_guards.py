@@ -11,7 +11,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.date_field_extractor import extract_document_dates
 from services.expiry_date_extractor import extract_expiry_date
-from services.indonesia_field_ocr import _extract_field, _extract_raw_location_field, extract_fast_location_fields, extract_visual_fields
+from services.indonesia_field_ocr import (
+    _extract_field,
+    _extract_raw_location_field,
+    extract_fast_location_fields,
+    extract_visual_fields,
+    get_fast_location_ocr_stats,
+)
 from services.issue_date_extractor import extract_issue_date
 from services.mrz_extractor import DirectMrzResult, _extract_direct_mrz_from_region, _read_best_mrz, _read_direct_mrz, _repair_direct_line2, _score_direct_line2
 from services.ocr_result_cache import clear_ocr_result_cache
@@ -24,16 +30,24 @@ from main import (
     _apply_indonesian_visual_repairs,
     _apply_verified_mrz_name_repairs,
     _apply_verified_single_word_name,
+    _build_budget_notes,
     _can_infer_missing_issue_date,
+    _has_ocr_budget_for_elapsed,
+    _is_heavy_scan,
     _is_speed_first_scan,
+    _ocr_budget_ms,
+    _ocr_profile,
+    _missing_speed_location_panel_fields,
     _ocr_rotation_degrees,
     _pick_preferred_full_name,
     _repair_impossible_expiry_date,
+    _select_heavy_visual_field_names,
     _select_panel_field_names,
     _select_speed_visual_field_names,
     _select_visual_field_names,
     _should_refine_names,
     _should_skip_panel_for_direct_location_only,
+    _should_try_speed_location_ocr,
     _visual_fields_need_aligned_page,
 )
 
@@ -291,6 +305,30 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(scanner.call_count, 2)
         self.assertTrue(all(call.kwargs["variant_mode"] == "fast" for call in scanner.call_args_list))
         self.assertTrue(all(call.kwargs["include_psm_fallback"] is False for call in scanner.call_args_list))
+        stats = get_fast_location_ocr_stats()
+        self.assertEqual(stats["requestedFields"], ["placeOfBirth", "issuingOffice"])
+        self.assertEqual(stats["foundFields"], ["issuingOffice", "placeOfBirth"])
+        self.assertEqual(stats["cropAttempts"], 2)
+        self.assertEqual(stats["scanCalls"], 2)
+        self.assertEqual(stats["debugSamples"], [])
+
+    def test_fast_location_debug_records_raw_candidates_when_enabled(self) -> None:
+        image = np.zeros((100, 100, 3), dtype=np.uint8)
+        region = np.zeros((10, 10), dtype=np.uint8)
+        with (
+            patch.dict("os.environ", {"PASSPORT_LOCATION_OCR_DEBUG": "1"}, clear=False),
+            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
+            patch("services.indonesia_field_ocr._load_image", return_value=image),
+            patch("services.indonesia_field_ocr.crop_relative", return_value=region),
+            patch("services.indonesia_field_ocr.scan_region_texts", return_value=["TEMPAT LAHIR PAREPARE"]),
+        ):
+            result = extract_fast_location_fields("file.png", field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "PAREPARE"})
+        stats = get_fast_location_ocr_stats()
+        self.assertTrue(stats["debugEnabled"])
+        self.assertEqual(stats["debugSamples"][0]["field"], "placeOfBirth")
+        self.assertIn("TEMPAT LAHIR PAREPARE", stats["debugSamples"][0]["raw"])
 
     def test_fast_location_preprocess_is_opt_in_fallback_for_missing_fields(self) -> None:
         image = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -312,6 +350,24 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(extractor.call_args_list[0].args, (image, "placeOfBirth"))
         self.assertEqual(extractor.call_args_list[1].args, (image, "issuingOffice"))
         self.assertEqual(extractor.call_args_list[2].args, (processed, "placeOfBirth"))
+
+    def test_fast_location_fields_use_label_neighbor_value_without_extra_windows(self) -> None:
+        image = np.zeros((100, 100, 3), dtype=np.uint8)
+        region = np.zeros((10, 10), dtype=np.uint8)
+        with (
+            patch.dict("os.environ", {"PASSPORT_FAST_LOCATION_PREPROCESS": ""}, clear=False),
+            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
+            patch("services.indonesia_field_ocr._load_image", return_value=image),
+            patch("services.indonesia_field_ocr.crop_relative", return_value=region),
+            patch(
+                "services.indonesia_field_ocr.scan_region_texts",
+                return_value=["TEMPAT LAHIR PLACE OF BIRTH", "PARE-PARE"],
+            ) as scanner,
+        ):
+            result = extract_fast_location_fields("file.png", field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "PAREPARE"})
+        self.assertEqual(scanner.call_count, 1)
 
     def test_fast_location_fields_rotate_raw_image_for_upside_down_passport(self) -> None:
         image = np.arange(12, dtype=np.uint8).reshape((2, 2, 3))
@@ -515,6 +571,67 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(_select_speed_visual_field_names(parsed, extraction), ("placeOfBirth", "issuingOffice"))
         self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"line2": "A1234567<8USA9001011M3001012<<<<<<<<<<<<<<04"}}), ())
 
+    def test_speed_location_ocr_skips_ambiguous_indonesian_passport_numbers_by_default(self) -> None:
+        parsed = {
+            "passportNumber": "E8710852",
+            "nationality": "",
+            "dob": "2019-06-01",
+            "expiryDate": "2030-01-08",
+            "gender": "MALE",
+        }
+
+        with patch.dict("os.environ", {"PASSPORT_LOCATION_OCR_AMBIGUOUS": ""}, clear=False):
+            self.assertFalse(_should_try_speed_location_ocr(parsed, {"data": {"country": ""}}))
+            self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ())
+
+    def test_speed_location_ocr_can_opt_in_for_ambiguous_indonesian_passport_numbers(self) -> None:
+        parsed = {
+            "passportNumber": "E8710852",
+            "nationality": "",
+            "dob": "2019-06-01",
+            "expiryDate": "2030-01-08",
+            "gender": "MALE",
+        }
+
+        with patch.dict("os.environ", {"PASSPORT_LOCATION_OCR_AMBIGUOUS": "1"}, clear=False):
+            self.assertTrue(_should_try_speed_location_ocr(parsed, {"data": {"country": ""}}))
+            self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ("placeOfBirth", "issuingOffice"))
+
+    def test_speed_location_ocr_skips_clear_non_indonesian_mrz(self) -> None:
+        parsed = {
+            "passportNumber": "A1234567",
+            "nationality": "UNITED STATES",
+            "dob": "1990-01-01",
+            "expiryDate": "2030-01-01",
+            "gender": "MALE",
+        }
+        extraction = {"data": {"country": "USA", "line1": "P<USADOE<<JOHN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"}}
+
+        self.assertFalse(_should_try_speed_location_ocr(parsed, extraction))
+        self.assertEqual(_select_speed_visual_field_names(parsed, extraction), ())
+
+    def test_speed_panel_fallback_targets_only_missing_location_fields(self) -> None:
+        self.assertEqual(
+            _missing_speed_location_panel_fields(("placeOfBirth", "issuingOffice"), {}),
+            ("placeOfBirth", "issuingOffice"),
+        )
+        self.assertEqual(
+            _missing_speed_location_panel_fields(
+                ("placeOfBirth", "issuingOffice"),
+                {"placeOfBirth": "BERAU", "issuingOffice": ""},
+            ),
+            ("issuingOffice",),
+        )
+        self.assertEqual(
+            _missing_speed_location_panel_fields(
+                ("placeOfBirth", "issuingOffice", "fullName"),
+                {"placeOfBirth": "BERAU", "issuingOffice": "TANJUNG REDEB"},
+            ),
+            (),
+        )
+        self.assertEqual(_missing_speed_location_panel_fields((), {}), ())
+        self.assertEqual(_missing_speed_location_panel_fields(None, {}), ())
+
     def test_ocr_rotation_degrees_uses_direct_mrz_orientation_hint(self) -> None:
         self.assertEqual(_ocr_rotation_degrees({"data": {"rotationDegrees": 90}}), 90)
         self.assertEqual(_ocr_rotation_degrees({"data": {"rotationDegrees": 180}}), 180)
@@ -633,6 +750,56 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(parsed["firstName"], "HAMDI")
         self.assertEqual(parsed["familyName"], "HAMDI")
         self.assertEqual(note, "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS")
+
+    def test_verified_indonesian_initial_single_name_duplicates_full_mrz_name(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_mrz_name_repairs(
+            {"firstName": "M", "familyName": "HAMDI", "nationality": "INDONESIA"},
+            extraction,
+            file_name="M HAMDI 1.png",
+        )
+
+        self.assertEqual(parsed["firstName"], "M HAMDI")
+        self.assertEqual(parsed["familyName"], "M HAMDI")
+        self.assertEqual(note, "INITIAL SINGLE-NAME MRZ DUPLICATED TO SATISFY REQUIRED FIELDS")
+
+        parsed, note = _apply_final_name_repairs(parsed)
+
+        self.assertEqual(parsed["firstName"], "M HAMDI")
+        self.assertEqual(parsed["familyName"], "M HAMDI")
+        self.assertEqual(note, "")
+
+    def test_verified_name_repairs_drop_repeated_filler_tokens(self) -> None:
+        extraction = {"confidence": 1.0, "mrzValidation": {"valid": True}}
+
+        parsed, note = _apply_verified_mrz_name_repairs(
+            {"firstName": "SITI SSSSSSSSSSESSES", "familyName": "HADIJAH", "nationality": "INDONESIA"},
+            extraction,
+        )
+
+        self.assertEqual(parsed["firstName"], "SITI")
+        self.assertEqual(parsed["familyName"], "HADIJAH")
+        self.assertEqual(note, "COMMON NAME OCR NOISE REPAIRED")
+
+        parsed, note = _apply_verified_mrz_name_repairs(
+            {"firstName": "SSSKSSSSEEE", "familyName": "SUDARWATI", "nationality": "INDONESIA"},
+            extraction,
+        )
+
+        self.assertEqual(parsed["firstName"], "SUDARWATI")
+        self.assertEqual(parsed["familyName"], "SUDARWATI")
+        self.assertEqual(
+            note,
+            "COMMON NAME OCR NOISE REPAIRED; SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS",
+        )
+
+    def test_name_repairs_split_mrz_separator_read_as_x(self) -> None:
+        parsed, note = _apply_final_name_repairs({"firstName": "ALSAXSALSABILA", "familyName": "SUDRAJAT"})
+
+        self.assertEqual(parsed["firstName"], "ALSA SALSABILA")
+        self.assertEqual(parsed["familyName"], "SUDRAJAT")
+        self.assertEqual(note, "COMMON NAME OCR NOISE REPAIRED")
 
     def test_preferred_full_name_does_not_use_filename_for_name_repair(self) -> None:
         self.assertEqual(
@@ -817,6 +984,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_speed_profile_is_default_and_fast_date_repair_avoids_ocr_scan(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
             self.assertTrue(_is_speed_first_scan())
+            self.assertEqual(_ocr_budget_ms(), 15_000)
 
         parsed, note = _apply_fast_date_repairs(
             {"dob": "1984-07-16", "issueDate": "", "expiryDate": "2033-03-20"}
@@ -828,6 +996,50 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_accuracy_profile_can_be_enabled_for_deep_scan(self) -> None:
         with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "accuracy"}):
             self.assertFalse(_is_speed_first_scan())
+            self.assertTrue(_is_heavy_scan())
+            self.assertEqual(_ocr_profile(), "heavy")
+            self.assertEqual(_ocr_budget_ms(), 90_000)
+
+    def test_balanced_profile_uses_recovery_path_without_heavy_visual_scope(self) -> None:
+        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "balanced"}):
+            self.assertFalse(_is_speed_first_scan())
+            self.assertFalse(_is_heavy_scan())
+            self.assertEqual(_ocr_profile(), "balanced")
+            self.assertEqual(_ocr_budget_ms(), 30_000)
+
+    def test_ocr_budget_gates_optional_stages_by_remaining_time(self) -> None:
+        self.assertTrue(_has_ocr_budget_for_elapsed(10_000, 15_000, "speed_panel"))
+        self.assertFalse(_has_ocr_budget_for_elapsed(13_000, 15_000, "speed_panel"))
+        self.assertTrue(_has_ocr_budget_for_elapsed(82_000, 90_000, "names"))
+        self.assertEqual(_build_budget_notes(["panel", "dates"]), "OCR TIME BUDGET SKIPPED: panel, dates")
+
+    def test_heavy_visual_scope_rechecks_all_indonesian_visual_fields(self) -> None:
+        parsed = {
+            "firstName": "ANI",
+            "familyName": "YUNINGSIH",
+            "passportNumber": "X3238127",
+            "nationality": "INDONESIA",
+            "dob": "1963-01-03",
+            "issueDate": "2024-08-02",
+            "expiryDate": "2034-08-02",
+            "gender": "FEMALE",
+        }
+
+        result = _select_heavy_visual_field_names(parsed, {"confidence": 1.0}, {})
+
+        self.assertEqual(
+            result,
+            (
+                "placeOfBirth",
+                "issuingOffice",
+                "issueDate",
+                "expiryDate",
+                "dob",
+                "gender",
+                "nationality",
+                "fullName",
+            ),
+        )
 
     def test_preferred_full_name_cannot_use_filename_when_family_matches(self) -> None:
         result = _pick_preferred_full_name(
@@ -935,7 +1147,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         )
         with (
             patch("services.mrz_extractor.cv2.imread", return_value=image),
-            patch("services.mrz_extractor.detect_document_crop", return_value=image),
+            patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._rotate_image_180", return_value=rotated),
             patch("services.mrz_extractor._extract_direct_mrz_from_region", side_effect=[None, None, direct]) as extractor,
         ):
@@ -955,7 +1167,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         )
         with (
             patch("services.mrz_extractor.cv2.imread", return_value=image),
-            patch("services.mrz_extractor.detect_document_crop", return_value=image),
+            patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._rotate_image_180", return_value=image),
             patch("services.mrz_extractor._rotate_image_90", return_value=rotated_90),
             patch("services.mrz_extractor._extract_direct_mrz_from_region", side_effect=[None, None, None, None, direct]) as extractor,
@@ -965,6 +1177,21 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result.rotation_degrees, 90)
         self.assertEqual(extractor.call_count, 5)
+
+    def test_direct_mrz_skips_rotations_for_upright_landscape_mrz_band(self) -> None:
+        image = np.zeros((100, 200, 3), dtype=np.uint8)
+        with (
+            patch("services.mrz_extractor.cv2.imread", return_value=image),
+            patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
+            patch("services.mrz_extractor._mrz_band_score", return_value=180.0),
+            patch("services.mrz_extractor._rotate_image_180") as rotate_180,
+            patch("services.mrz_extractor._extract_direct_mrz_from_region", return_value=None) as extractor,
+        ):
+            result = _read_direct_mrz("file.png")
+
+        self.assertIsNone(result)
+        self.assertEqual(extractor.call_count, 2)
+        rotate_180.assert_not_called()
 
     def test_direct_mrz_region_stops_after_high_confidence_candidate(self) -> None:
         region = np.zeros((40, 2000), dtype=np.uint8)

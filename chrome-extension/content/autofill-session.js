@@ -1,6 +1,7 @@
 (function () {
   const root = window.NusukAutofill = window.NusukAutofill || {};
   const { AUTOFILL_MODE_LABEL, SLOW_MODE_ENABLED } = root.constants || {};
+  const { ENTRY_BATCH_SCHEMA_VERSION, validateManifestForEntry } = root.manifestValidator || {};
 
   function createAutofillSession({
     state,
@@ -29,6 +30,9 @@
           postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada checkpoint resume yang bisa dilanjutkan." });
           return;
         }
+        if (!validatePayloadReadyForEntry(state.currentRunPayload)) {
+          return;
+        }
         state.executionState = "running";
         await persistState();
         appendLog("success", "Autofill dilanjutkan.");
@@ -50,6 +54,9 @@
           tone: "error",
           message: "Pilih folder/file passport sebelum mulai.",
         });
+        return;
+      }
+      if (!validateManifestReadyForEntry(state.manifest)) {
         return;
       }
 
@@ -81,6 +88,12 @@
 
     async function resumeAutofillAfterReload() {
       if (!["running", "paused"].includes(state.executionState) || !isRunnablePayload(state.currentRunPayload) || activeRunPromise) {
+        return false;
+      }
+      if (!validatePayloadReadyForEntry(state.currentRunPayload)) {
+        state.executionState = "paused";
+        await persistState();
+        postPanelState();
         return false;
       }
       const remainingCount = countRunPayloadMembers(state.currentRunPayload);
@@ -163,6 +176,31 @@
 
     function isRunnablePayload(payload) {
       return Array.isArray(payload?.members) && payload.members.some((member) => member && typeof member === "object");
+    }
+
+    function validateManifestReadyForEntry(manifest) {
+      if (!validateManifestForEntry) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Validator manifest extension belum dimuat." });
+        return false;
+      }
+      try {
+        validateManifestForEntry(manifest);
+        return true;
+      } catch (error) {
+        postToPanel("NUSUK_PANEL_STATUS", {
+          tone: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+      }
+    }
+
+    function validatePayloadReadyForEntry(payload) {
+      return validateManifestReadyForEntry({
+        schemaVersion: ENTRY_BATCH_SCHEMA_VERSION || "nusuk-entry-batch-v1",
+        contractVersion: String(state.manifest?.contractVersion || ""),
+        members: Array.isArray(payload?.members) ? payload.members : [],
+      });
     }
 
     function countRunPayloadMembers(payload) {

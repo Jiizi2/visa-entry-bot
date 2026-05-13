@@ -4,7 +4,7 @@ import re
 from datetime import date
 
 from services.expiry_date_extractor import pick_expiry_date
-from services.image_preprocessor import _load_image, detect_document_crop
+from services.image_preprocessor import _load_image, detect_passport_data_page_crop, resize_to_max_edge
 from services.issue_date_extractor import infer_issue_date, pick_issue_date
 from services.layout_profiles import load_indonesia_panel_modes
 from services.location_normalizer import is_known_location_value, pick_best_location_value
@@ -15,6 +15,38 @@ from services.passport_page import collect_ocr_lines, crop_relative
 LOW_CONFIDENCE_THRESHOLD = 0.6
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 TEXT_FIELDS = {"placeOfBirth", "issuingOffice", "nationality", "gender"}
+PANEL_OCR_MAX_EDGE = 1800
+ISSUING_OFFICE_TIGHT_FOCUS_WINDOWS = (
+    ((0.26, 0.52, 0.60, 1.00), True),
+    ((0.30, 0.55, 0.62, 1.00), True),
+    ((0.34, 0.58, 0.64, 1.00), True),
+)
+ISSUING_OFFICE_STANDARD_FOCUS_WINDOWS = (
+    ((0.52, 0.75, 0.62, 1.00), True),
+    ((0.54, 0.75, 0.68, 0.99), True),
+    ((0.56, 0.76, 0.70, 0.99), True),
+    ((0.58, 0.80, 0.68, 1.00), False),
+    ((0.60, 0.80, 0.70, 1.00), False),
+)
+ISSUING_OFFICE_FOCUS_WINDOWS = ISSUING_OFFICE_STANDARD_FOCUS_WINDOWS + ISSUING_OFFICE_TIGHT_FOCUS_WINDOWS
+ISSUING_OFFICE_LABEL_MARKERS = (
+    "KANTORYANGMENGELUARKAN",
+    "MENGELUARKAN",
+    "ISSUINGOFFICE",
+    "KANTOR",
+    "OFFICE",
+)
+ISSUING_OFFICE_NOISE_FRAGMENTS = (
+    "BERLAKU",
+    "DATE",
+    "EXPIRY",
+    "EXPIBY",
+    "HABIS",
+    "ISSUING",
+    "KANTOR",
+    "MENGELUARKAN",
+    "OFFICE",
+)
 DEFAULT_PANEL_FIELDS = (
     "fullName",
     "passportNumber",
@@ -110,9 +142,10 @@ def fuse_panel_fields(parsed: dict[str, str], extraction: dict[str, object] | No
 
 def _build_panel(file_path: str) -> tuple[object | None, str]:
     image = _load_image(file_path)
-    crop = detect_document_crop(image)
+    crop = detect_passport_data_page_crop(image)
     if crop is None:
         return None, "compact"
+    crop = resize_to_max_edge(crop, max_edge=PANEL_OCR_MAX_EDGE)
     height, width = crop.shape[:2]
     return (crop[int(height * 0.48) : int(height * 0.98), : int(width * 0.98)], "panel") if height >= width else (crop, "compact")
 
@@ -183,6 +216,10 @@ def _neighbor_prefixed_passports(lines: list[str], index: int, digits: str) -> l
 def _extract_simple_field(panel: object, windows: tuple[tuple[float, float, float, float], ...], field_name: str) -> str:
     whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ " if field_name in TEXT_FIELDS else "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ "
     candidates: list[str] = []
+    if field_name == "issuingOffice":
+        focused_value = _extract_issuing_office_focus(panel, allow_value_only=False)
+        if focused_value:
+            return focused_value
     for psm_values in _simple_field_psm_passes(field_name):
         for window in windows:
             for line in collect_ocr_lines(
@@ -202,8 +239,106 @@ def _extract_simple_field(panel: object, windows: tuple[tuple[float, float, floa
     if field_name == "dob":
         return min(candidates, default="")
     if field_name in {"placeOfBirth", "issuingOffice"}:
-        return pick_best_location_value(field_name, candidates)
+        focused_value = _extract_issuing_office_focus(panel) if field_name == "issuingOffice" else ""
+        return focused_value or pick_best_location_value(field_name, candidates)
     return max(set(candidates), key=lambda value: (candidates.count(value), len(value))) if candidates else ""
+
+
+def _extract_issuing_office_focus(panel: object, allow_value_only: bool = True) -> str:
+    candidates: list[str] = []
+    for window, requires_label in _issuing_office_focus_windows(panel):
+        if not requires_label and not allow_value_only:
+            continue
+        region = crop_relative(panel, *window)
+        if region is None:
+            continue
+        for psm_values in ((6,), (7,), (11,)):
+            lines = collect_ocr_lines(
+                region,
+                psm_values=psm_values,
+                whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
+                variant_mode="fast",
+                max_lines=10,
+                stop_when=_issuing_office_focus_stop_when(requires_label),
+            )
+            for text in _issuing_office_focus_texts(lines, requires_label):
+                value = pick_best_location_value("issuingOffice", [_clean_issuing_office_candidate(text)])
+                if value and is_known_location_value("issuingOffice", value):
+                    candidates.append(value)
+            stable = _pick_stable_simple_field("issuingOffice", candidates)
+            if stable:
+                return stable
+    return pick_best_location_value("issuingOffice", candidates)
+
+
+def _issuing_office_focus_windows(panel: object) -> tuple[tuple[tuple[float, float, float, float], bool], ...]:
+    height, width = getattr(panel, "shape", (0, 0))[:2]
+    if height and width and (height < 560 or height / max(width, 1) < 0.55):
+        return ISSUING_OFFICE_TIGHT_FOCUS_WINDOWS + ISSUING_OFFICE_STANDARD_FOCUS_WINDOWS
+    return ISSUING_OFFICE_STANDARD_FOCUS_WINDOWS + ISSUING_OFFICE_TIGHT_FOCUS_WINDOWS
+
+
+def _issuing_office_focus_stop_when(requires_label: bool) -> object:
+    def stop_when(lines: list[str]) -> bool:
+        for text in _issuing_office_focus_texts(lines, requires_label):
+            value = pick_best_location_value("issuingOffice", [_clean_issuing_office_candidate(text)])
+            if value and is_known_location_value("issuingOffice", value):
+                return True
+        return False
+
+    return stop_when
+
+
+def _issuing_office_focus_texts(lines: list[str], requires_label: bool) -> list[str]:
+    candidates: list[str] = []
+    label_seen = not requires_label
+    for line in lines:
+        tail = _issuing_office_label_tail(line)
+        has_marker = bool(tail) or _has_issuing_office_label(line)
+        if tail:
+            candidates.append(tail)
+        if has_marker:
+            label_seen = True
+            continue
+        if label_seen:
+            candidates.append(line)
+    return _unique_texts(candidates)
+
+
+def _issuing_office_label_tail(value: str) -> str:
+    compact = re.sub(r"[^A-Z]", "", str(value or "").upper())
+    for marker in ISSUING_OFFICE_LABEL_MARKERS:
+        marker_index = compact.find(marker)
+        if marker_index < 0:
+            continue
+        tail = compact[marker_index + len(marker) :]
+        return tail if len(tail) >= 4 else ""
+    return ""
+
+
+def _has_issuing_office_label(value: str) -> bool:
+    compact = re.sub(r"[^A-Z]", "", str(value or "").upper())
+    return any(marker in compact for marker in ISSUING_OFFICE_LABEL_MARKERS)
+
+
+def _clean_issuing_office_candidate(value: str) -> str:
+    return " ".join(
+        token
+        for token in _clean_text(value).split()
+        if not any(fragment in token for fragment in ISSUING_OFFICE_NOISE_FRAGMENTS)
+    )
+
+
+def _unique_texts(values: list[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        cleaned = str(value or "").strip()
+        if not cleaned or cleaned in seen:
+            continue
+        unique.append(cleaned)
+        seen.add(cleaned)
+    return unique
 
 
 def _extract_date_fields(
@@ -355,7 +490,7 @@ def _pick_stable_simple_field(field_name: str, candidates: list[str]) -> str:
 
 def _simple_field_psm_passes(field_name: str) -> tuple[tuple[int, ...], ...]:
     if field_name in {"placeOfBirth", "issuingOffice"}:
-        return ((6,), (7,))
+        return ((6,), (11,), (7,))
     return ((6, 7),)
 
 

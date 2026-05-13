@@ -5,15 +5,20 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.panel_fallback import (
     _best_passport_candidate,
+    _build_panel,
     _clean_date,
+    _extract_issuing_office_focus,
     _extract_date_fields,
     _extract_passport_number,
     _extract_passport_candidates_from_lines,
     _extract_simple_field,
+    _simple_field_psm_passes,
     fuse_panel_fields,
     _pick_stable_simple_field,
     _pick_strong_name_candidate,
@@ -120,11 +125,26 @@ class PanelFallbackTests(unittest.TestCase):
         extract_dates.assert_not_called()
         self.assertEqual([call.args[2] for call in extract_simple.call_args_list], ["placeOfBirth", "issuingOffice"])
 
+    def test_build_panel_downscales_large_data_page_before_windowing(self) -> None:
+        large_crop = np.full((3600, 5200, 3), 255, dtype=np.uint8)
+        resized_crop = np.full((1246, 1800, 3), 255, dtype=np.uint8)
+
+        with (
+            patch("services.panel_fallback._load_image", return_value=object()),
+            patch("services.panel_fallback.detect_passport_data_page_crop", return_value=large_crop),
+            patch("services.panel_fallback.resize_to_max_edge", return_value=resized_crop) as resize,
+        ):
+            panel, mode = _build_panel("sample.jpg")
+
+        resize.assert_called_once_with(large_crop, max_edge=1800)
+        self.assertEqual(mode, "compact")
+        self.assertEqual(panel.shape, resized_crop.shape)
+
     def test_panel_location_candidate_can_stop_after_known_match(self) -> None:
         self.assertEqual(_pick_stable_simple_field("issuingOffice", ["TANJUNGREDEB"]), "TANJUNG REDEB")
         self.assertEqual(_pick_stable_simple_field("placeOfBirth", ["SDINRANG"]), "PINRANG")
 
-    def test_panel_location_uses_psm7_only_after_psm6_misses(self) -> None:
+    def test_panel_location_uses_psm11_before_psm7_after_psm6_misses(self) -> None:
         with (
             patch("services.panel_fallback.crop_relative", return_value=object()),
             patch("services.panel_fallback.collect_ocr_lines", side_effect=[["NOISE"], ["BERAU"]]) as collector,
@@ -132,7 +152,8 @@ class PanelFallbackTests(unittest.TestCase):
             result = _extract_simple_field(object(), ((0, 1, 0, 1),), "placeOfBirth")
 
         self.assertEqual(result, "BERAU")
-        self.assertEqual([call.kwargs["psm_values"] for call in collector.call_args_list], [(6,), (7,)])
+        self.assertEqual([call.kwargs["psm_values"] for call in collector.call_args_list], [(6,), (11,)])
+        self.assertEqual(_simple_field_psm_passes("issuingOffice"), ((6,), (11,), (7,)))
 
     def test_panel_location_uses_known_location_early_stop(self) -> None:
         with (
@@ -144,6 +165,37 @@ class PanelFallbackTests(unittest.TestCase):
         self.assertEqual(result, "TANJUNG REDEB")
         self.assertTrue(callable(collector.call_args.kwargs["stop_when"]))
         self.assertTrue(collector.call_args.kwargs["stop_when"](["TANJUNG REDEB"]))
+
+    def test_issuing_office_focus_reads_value_after_label(self) -> None:
+        with (
+            patch("services.panel_fallback.crop_relative", return_value=object()),
+            patch(
+                "services.panel_fallback.collect_ocr_lines",
+                return_value=["KANTOR YANG MENGELUARKAN", "ISSUING OFFICE", "BANDUNG"],
+            ) as collector,
+        ):
+            result = _extract_issuing_office_focus(object())
+
+        self.assertEqual(result, "BANDUNG")
+        self.assertTrue(collector.call_args.kwargs["stop_when"](["KANTOR YANG MENGELUARKAN", "BANDUNG"]))
+
+    def test_panel_location_falls_back_to_issuing_office_focus_when_generic_windows_miss(self) -> None:
+        with (
+            patch("services.panel_fallback.crop_relative", return_value=object()),
+            patch(
+                "services.panel_fallback.collect_ocr_lines",
+                side_effect=[
+                    [],
+                    [],
+                    [],
+                    ["KANTOR YANG MENGELUARKAN", "BANDUNG"],
+                ],
+            ) as collector,
+        ):
+            result = _extract_simple_field(object(), ((0, 1, 0, 1),), "issuingOffice")
+
+        self.assertEqual(result, "BANDUNG")
+        self.assertEqual(collector.call_count, 4)
 
     def test_panel_name_prioritizes_value_window_when_family_hint_exists(self) -> None:
         windows = ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12))

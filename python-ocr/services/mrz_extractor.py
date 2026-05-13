@@ -23,7 +23,7 @@ try:
 except ImportError:  # pragma: no cover - depends on local environment
     pytesseract = None
 
-from services.image_preprocessor import assess_document_quality, detect_document_crop, temporary_mrz_variants
+from services.image_preprocessor import _mrz_band_score, assess_document_quality, detect_passport_data_page_crop, resize_to_max_edge, temporary_mrz_variants
 from services.mrz_validation import MrzValidationResult, validate_td3_line2
 from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
 
@@ -36,6 +36,7 @@ FIELD_NAMES = (
     "expiration_date",
     "sex",
 )
+DIRECT_MRZ_MAX_EDGE = 2200
 
 
 @dataclass(frozen=True)
@@ -143,9 +144,10 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
     image = cv2.imread(file_path)
     if image is None:
         return None
-    document = detect_document_crop(image)
+    document = detect_passport_data_page_crop(image)
     if document is None:
         document = image
+    document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
 
     best_result: DirectMrzResult | None = None
     for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
@@ -165,9 +167,18 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
 
 def _direct_mrz_orientation_candidates(document: object):
     yield document, 0
+    if not _should_try_direct_mrz_rotations(document):
+        return
     yield _rotate_image_180(document), 180
     yield _rotate_image_90(document), 90
     yield _rotate_image_270(document), 270
+
+
+def _should_try_direct_mrz_rotations(document: object) -> bool:
+    height, width = document.shape[:2]
+    if width >= height and _mrz_band_score(document) >= 120.0:
+        return False
+    return True
 
 
 def _rotate_image_180(image: object) -> object:
@@ -263,6 +274,8 @@ def _clean_direct_mrz_lines(text: str) -> list[str]:
 
 def _repair_direct_line1(value: str) -> str:
     line = value.replace("P1", "P<", 1).replace("PI", "P<", 1)
+    if line.startswith("P<ID") and len(line) >= 5 and line[4] != "N":
+        line = f"P<IDN{line[5:]}"
     return line[:44].ljust(44, "<")
 
 
