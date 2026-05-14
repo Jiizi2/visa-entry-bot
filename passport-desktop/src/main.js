@@ -214,6 +214,39 @@ let manifestSaveTimer = null;
 let manifestSaveSequence = 0;
 let hasCompletedStartup = false;
 const MANIFEST_SAVE_DELAY_MS = 350;
+const RENDERER_HEARTBEAT_INTERVAL_MS = 10000;
+
+function startRendererKeepAlive() {
+  if (window.__PASSPORT_BROWSER_BRIDGE__) {
+    return;
+  }
+
+  const lockRequest = window.navigator?.locks?.request;
+  if (typeof lockRequest !== "function") {
+    return;
+  }
+
+  lockRequest.call(window.navigator.locks, "passport-assistant-renderer-keepalive", () => new Promise(() => {}))
+    .catch(() => {});
+}
+
+function startRendererHeartbeat() {
+  if (window.__PASSPORT_BROWSER_BRIDGE__) {
+    return;
+  }
+
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (typeof invoke !== "function") {
+    return;
+  }
+
+  const sendHeartbeat = () => {
+    invoke("renderer_heartbeat").catch(() => {});
+  };
+
+  sendHeartbeat();
+  window.setInterval(sendHeartbeat, RENDERER_HEARTBEAT_INTERVAL_MS);
+}
 
 window.addEventListener("error", (event) => {
   const message = errorMessage(event.error ?? event.message ?? "Terjadi error yang tidak diketahui.");
@@ -243,6 +276,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     bindActions();
     renderAll();
     hasCompletedStartup = true;
+    startRendererKeepAlive();
+    startRendererHeartbeat();
   } catch (error) {
     showFatalScreen(error instanceof Error ? error.message : String(error));
     return;

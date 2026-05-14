@@ -3,14 +3,15 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     collections::HashSet,
-    fs,
-    io::{BufRead, BufReader},
+    fs::{self, OpenOptions},
+    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::{Child, Command, ExitStatus, Stdio},
     sync::{Arc, Mutex},
     thread,
+    time::{Duration, Instant, SystemTime},
 };
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -20,6 +21,25 @@ struct ScanState {
     in_progress: Arc<Mutex<bool>>,
     active_child: Arc<Mutex<Option<Child>>>,
     cancel_requested: Arc<Mutex<bool>>,
+}
+
+#[derive(Clone)]
+struct RendererHealth {
+    last_heartbeat: Arc<Mutex<Instant>>,
+    has_heartbeat: Arc<Mutex<bool>>,
+    recovery_attempts: Arc<Mutex<u32>>,
+    window_focused: Arc<Mutex<bool>>,
+}
+
+impl Default for RendererHealth {
+    fn default() -> Self {
+        Self {
+            last_heartbeat: Arc::new(Mutex::new(Instant::now())),
+            has_heartbeat: Arc::new(Mutex::new(false)),
+            recovery_attempts: Arc::new(Mutex::new(0)),
+            window_focused: Arc::new(Mutex::new(true)),
+        }
+    }
 }
 
 struct WorkerPaths {
@@ -33,6 +53,228 @@ struct WorkerPaths {
 struct PassportImageData {
     path: String,
     data_url: String,
+}
+
+const RENDERER_WATCHDOG_INTERVAL: Duration = Duration::from_secs(15);
+const RENDERER_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(75);
+const RENDERER_WATCHDOG_PING_SCRIPT: &str = r#"(() => ({
+  ok: true,
+  href: window.location.href,
+  bodyLength: document.body ? document.body.innerText.length : -1,
+  timestamp: Date.now()
+}))()"#;
+
+fn diagnostics_log_path() -> PathBuf {
+    std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("passport-desktop")
+        .join("diagnostics.log")
+}
+
+fn log_diagnostic(message: impl AsRef<str>) {
+    let path = diagnostics_log_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "[{:?}] {}", SystemTime::now(), message.as_ref());
+    }
+}
+
+fn mark_renderer_seen(health: &RendererHealth) -> Result<bool, String> {
+    let is_first_heartbeat = {
+        let mut has_heartbeat = health
+            .has_heartbeat
+            .lock()
+            .map_err(|_| "Gagal mengunci status heartbeat renderer.".to_string())?;
+        let is_first = !*has_heartbeat;
+        *has_heartbeat = true;
+        is_first
+    };
+
+    {
+        let mut last_heartbeat = health
+            .last_heartbeat
+            .lock()
+            .map_err(|_| "Gagal memperbarui heartbeat renderer.".to_string())?;
+        *last_heartbeat = Instant::now();
+    }
+
+    if let Ok(mut recovery_attempts) = health.recovery_attempts.lock() {
+        *recovery_attempts = 0;
+    }
+
+    Ok(is_first_heartbeat)
+}
+
+#[cfg(target_os = "windows")]
+fn configure_webview2_runtime() {
+    const DISABLED_EDGE_FEATURES: &str = concat!(
+        "CalculateNativeWinOcclusion,",
+        "msDesktopMam,",
+        "msMamDlp,",
+        "msAllowMamDevToolsBlock,",
+        "msAllowMamEnrollmentForAffiliatedProfiles,",
+        "msAllowMamEnrollmentWithConflictingDlp,",
+        "msAllowMamEnrollmentWithoutCABlock,",
+        "msAllowMamOnMdm,",
+        "msAllowMamScreenCaptureBlock,",
+        "msDlpUseOneDriveForMAMDownloadBlock,",
+        "msEnableMamAuthFlow,",
+        "msEnableMamEnrollmentPage,",
+        "msEnableMamTelemetry,",
+        "msEnableMamWorkplaceJoinEnforcement,",
+        "msDataProtection,",
+        "msEnableDataControls,",
+        "msSingleSignOnOSForPrimaryAccountIsShared,",
+        "msAutoToggleAADPrtSSOForNonAADProfile,",
+        "msBrowserSignInAllowedByPolicy,",
+        "msEdgeOnlineAccounts,",
+        "msEdgeOSAccountInfoManagerCache,",
+        "msEdgeOSAccountInfoSubstrate,",
+        "msEdgeProfileIntegratedAccountsInfo,",
+        "msEdgeSignInAccountPicker,",
+        "msEdgeSignInAccountPickerFRE,",
+        "msEdgeSignInAccountPickerProfileCard,",
+        "msEdgeSignInAccountPickerSettingsPage,",
+        "msEnableAADWebToBrowserSignIn,",
+        "msEnableProfileAADAccountSSO,",
+        "msEnableWebToBrowserSignIn,",
+        "msForceBrowserSignIn,",
+        "msForceSigninManagedBar,",
+        "edge-desktop-mam,",
+        "edge-saas-dlp,",
+        "edge-purview-dlp-paste,",
+        "edge-llm-dlp-purview,",
+        "edge-mip-enabled-pdf,",
+        "edge-managed-site-indicator-dlp-policy-view,",
+        "edge-sso-ignore-profile,",
+        "profile-signals-reporting-enabled"
+    );
+    let webview_args = [
+        "--disable-gpu".to_string(),
+        "--disable-background-networking".to_string(),
+        "--disable-component-update".to_string(),
+        "--disable-renderer-backgrounding".to_string(),
+        "--disable-background-timer-throttling".to_string(),
+        "--dlp-protection-type=none".to_string(),
+        format!("--disable-features={DISABLED_EDGE_FEATURES}"),
+    ];
+
+    let mut args = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
+    for arg in webview_args {
+        if !args.contains(&arg) {
+            if !args.trim().is_empty() {
+                args.push(' ');
+            }
+            args.push_str(&arg);
+        }
+    }
+
+    std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", &args);
+    log_diagnostic(format!("configured WebView2 args: {args}"));
+}
+
+#[cfg(not(target_os = "windows"))]
+fn configure_webview2_runtime() {}
+
+fn ping_renderer(app: &AppHandle, health: &RendererHealth) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    let health = health.clone();
+    if let Err(err) = window.eval_with_callback(RENDERER_WATCHDOG_PING_SCRIPT, move |_| {
+        if let Ok(is_first_heartbeat) = mark_renderer_seen(&health) {
+            if is_first_heartbeat {
+                log_diagnostic("renderer heartbeat started by host ping");
+            }
+        }
+    }) {
+        log_diagnostic(format!("renderer host ping failed: {err}"));
+    }
+}
+
+fn start_renderer_watchdog(app: AppHandle, health: RendererHealth) {
+    thread::spawn(move || loop {
+        thread::sleep(RENDERER_WATCHDOG_INTERVAL);
+
+        let window_focused = health
+            .window_focused
+            .lock()
+            .map(|value| *value)
+            .unwrap_or(true);
+        if !window_focused {
+            continue;
+        }
+
+        ping_renderer(&app, &health);
+
+        let has_heartbeat = health
+            .has_heartbeat
+            .lock()
+            .map(|value| *value)
+            .unwrap_or(false);
+        if !has_heartbeat {
+            continue;
+        }
+
+        let elapsed = health
+            .last_heartbeat
+            .lock()
+            .map(|value| value.elapsed())
+            .unwrap_or_else(|_| Duration::from_secs(0));
+        if elapsed < RENDERER_HEARTBEAT_TIMEOUT {
+            continue;
+        }
+
+        let recovery_attempt = health
+            .recovery_attempts
+            .lock()
+            .map(|mut value| {
+                *value += 1;
+                *value
+            })
+            .unwrap_or(2);
+
+        if recovery_attempt == 1 {
+            log_diagnostic(format!(
+                "renderer heartbeat stale for {}s; reloading main window",
+                elapsed.as_secs()
+            ));
+
+            match app.get_webview_window("main") {
+                Some(window) => {
+                    if let Err(err) = window.reload() {
+                        log_diagnostic(format!("main window reload failed: {err}"));
+                    } else {
+                        log_diagnostic("main window reload requested by renderer watchdog");
+                    }
+                }
+                None => log_diagnostic("renderer watchdog could not find main window"),
+            }
+
+            continue;
+        }
+
+        log_diagnostic(format!(
+            "renderer heartbeat still stale after reload attempt; restarting app after {}s",
+            elapsed.as_secs()
+        ));
+        app.restart();
+    });
+}
+
+#[tauri::command]
+fn renderer_heartbeat(state: State<'_, RendererHealth>) -> Result<(), String> {
+    let is_first_heartbeat = mark_renderer_seen(&state)?;
+    if is_first_heartbeat {
+        log_diagnostic("renderer heartbeat started");
+    }
+
+    Ok(())
 }
 
 fn emit_scan_error(app: &AppHandle, code: &str, message: String, stage: &str, fatal: bool) {
@@ -872,11 +1114,45 @@ mod tests {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    configure_webview2_runtime();
+
+    let renderer_health = RendererHealth::default();
+    let renderer_health_for_setup = renderer_health.clone();
+    let renderer_health_for_window_events = renderer_health.clone();
+
     tauri::Builder::default()
         .manage(ScanState::default())
+        .manage(renderer_health)
+        .setup(move |app| {
+            log_diagnostic("tauri setup complete");
+            start_renderer_watchdog(app.handle().clone(), renderer_health_for_setup.clone());
+            Ok(())
+        })
+        .on_page_load(|webview, payload| {
+            log_diagnostic(format!(
+                "page load {:?} label={} url={}",
+                payload.event(),
+                webview.label(),
+                payload.url()
+            ));
+        })
+        .on_window_event(move |window, event| {
+            if let tauri::WindowEvent::Focused(focused) = event {
+                if let Ok(mut window_focused) =
+                    renderer_health_for_window_events.window_focused.lock()
+                {
+                    *window_focused = *focused;
+                }
+            }
+            log_diagnostic(format!(
+                "window event label={} event={event:?}",
+                window.label()
+            ));
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            renderer_heartbeat,
             start_scan,
             stop_scan,
             load_manifest,

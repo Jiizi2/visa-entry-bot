@@ -3,6 +3,8 @@
     return;
   }
 
+  window.__PASSPORT_BROWSER_BRIDGE__ = true;
+
   const listeners = new Map();
 
   async function requestJson(path, payload) {
