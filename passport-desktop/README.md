@@ -39,9 +39,9 @@ npm run dev
 
 ## Catatan Windows
 
-Pada sesi ini, `cargo check` belum bisa selesai karena mesin ini belum punya linker MSVC (`link.exe`). Log error terakhir menunjukkan Build Tools Windows butuh approval/UAC saat instalasi.
+Build desktop membutuhkan linker MSVC (`link.exe`). Jika belum tersedia, install Visual Studio Build Tools 2022 dengan workload C++/MSVC.
 
-Kalau Build Tools sudah terpasang, verifikasi ulang dengan:
+Kalau Build Tools sudah terpasang, verifikasi dengan:
 
 ```powershell
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
@@ -55,8 +55,33 @@ npm run dev
 - Tombol `Export JSON` membuat `nusuk-entry-batch.json` di folder hasil scan.
 - Desktop app tidak membuka browser, tidak menjalankan Playwright, dan tidak mengirim command ke extension.
 - User membuka Nusuk secara normal, lalu memakai extension `chrome-extension` untuk upload JSON dan menjalankan autofill.
-- Extension tidak memakai `chrome.debugger`. Untuk upload passport, user memilih folder/file passport dari panel extension, lalu extension mencocokkan file berdasarkan `fileName` atau `passportImagePath`.
+- Untuk release cepat/internal, extension tetap memakai permission `chrome.debugger` sebagai fallback upload file passport di halaman Nusuk.
+- User memilih folder/file passport dari panel extension, lalu extension mencocokkan file berdasarkan `fileName` atau `passportImagePath`.
+- Passport asli, manifest hasil scan, dan review artifact disimpan lokal per device dan tidak perlu diupload ke GitHub.
+
+## Packaging Lokal
+
+Build desktop installer:
+
+```powershell
+npm run desktop:build
+```
+
+Build paket lokal lengkap dari root repo:
+
+```powershell
+npm run package:local
+```
+
+Output berada di `.local-release/visa-entry-bot-<version>-<timestamp>/` dan berisi:
+
+- satu file installer desktop `.exe` yang sudah membawa `scan_worker.exe` dan Tesseract
+- ZIP extension untuk di-extract lalu dipasang dengan `Load unpacked`
+- README singkat instalasi lokal
+
+Paket lokal tidak menyertakan passport, review artifact, atau data group lokal.
+Device target tidak perlu install Python atau Tesseract manual. Untuk kebutuhan debug portable, jalankan `powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -IncludePortable` dari root repo.
 
 ## Cleanup
 
-Flow lama berbasis Playwright/CDP, native-host, dan bridge command sudah dihapus dari desktop app. Flow utama sekarang tetap sederhana: scan, review, export JSON, lalu upload JSON ke extension.
+Flow lama berbasis Playwright/CDP, native-host, dan bridge command sudah dihapus dari desktop app. Flow utama sekarang tetap sederhana: scan, export JSON, lalu upload JSON ke extension.

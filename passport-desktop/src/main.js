@@ -26,6 +26,8 @@ import {
   clampFieldValue,
   normalizeInputValueForField,
   isDateFieldKey,
+  arabicFieldForLatinName,
+  transliteratedArabicValueForField,
 } from "./main-fields.js";
 import {
   humanizeFieldPath,
@@ -1617,12 +1619,19 @@ function updateActiveMemberField(fieldKey, nextValue) {
 
   clearReviewBlock();
   const resolved = ensureResolvedProfile(member);
-  setValueByPath(resolved, fieldKey, normalizeInputValueForField(fieldKey, nextValue));
+  const normalizedValue = normalizeInputValueForField(fieldKey, nextValue);
+  setValueByPath(resolved, fieldKey, normalizedValue);
+  const syncedArabicFieldKey = arabicFieldForLatinName(fieldKey);
+  if (syncedArabicFieldKey) {
+    setValueByPath(resolved, syncedArabicFieldKey, transliteratedArabicValueForField(fieldKey, normalizedValue));
+  }
   syncMemberChildMetadata(member);
   clearMemberReviewConfirmation(member);
   scheduleManifestSave();
   state.statusHeadline = "Perubahan lokal tersimpan";
-  state.statusDetail = `${humanizeFieldPath(`resolvedProfile.${fieldKey}`)} diperbarui di sesi review.`;
+  state.statusDetail = syncedArabicFieldKey
+    ? `${humanizeFieldPath(`resolvedProfile.${fieldKey}`)} diperbarui, ${humanizeFieldPath(`resolvedProfile.${syncedArabicFieldKey}`)} ikut disinkronkan.`
+    : `${humanizeFieldPath(`resolvedProfile.${fieldKey}`)} diperbarui di sesi review.`;
 }
 
 function updateActiveMemberCompanion(companionMemberId) {

@@ -43,13 +43,13 @@ Tanggung jawab extension:
 - Menerima upload JSON dari user.
 - Menampilkan daftar member.
 - Menjalankan autofill pada tab Nusuk aktif.
-- Mengelola upload file passport dengan input manual user, bukan debugger browser.
+- Mengelola upload file passport dari pilihan user.
+- Untuk release cepat/internal, `chrome.debugger` tetap menjadi dependency aktif untuk fallback upload file ke halaman Nusuk.
 
 Yang tidak lagi menjadi tanggung jawab extension:
 
 - Native messaging ke app desktop.
 - Polling command dari app.
-- Menggunakan `chrome.debugger`.
 
 ## Hasil Scan Repo
 
@@ -110,14 +110,21 @@ Folder `chrome-extension/` lebih cocok dijadikan basis karena sudah memiliki:
 
 Skeleton bridge di dalam desktop app sudah dihapus; extension utama tetap `chrome-extension/`.
 
-### 3. Browser debug harus dihapus dari flow user
+### 3. Browser debug dipertahankan untuk release internal
 
-Flow lama yang memakai Playwright/CDP/browser debug tidak praktis untuk user. Target baru tidak boleh mewajibkan:
+Flow lama yang memakai Playwright/CDP dan browser debug profile tetap tidak dipakai. Namun permission extension `chrome.debugger` dipertahankan untuk release cepat/internal karena upload file passport di halaman Nusuk membutuhkan fallback `DOM.setFileInputFiles`.
+
+Target release internal:
 
 - Edge/Chrome dengan remote debugging.
 - Browser dev/debug profile.
-- `chrome.debugger`.
 - Native messaging host.
+
+Hal yang tetap aktif:
+
+- Permission `debugger` di `chrome-extension/manifest.json`.
+- Message `NUSUK_DEBUGGER_SET_FILE` di `chrome-extension/background.js`.
+- Fallback debugger dari `chrome-extension/content/upload-manager.js`.
 
 ### 4. Upload file tidak bisa hanya dari path JSON
 
@@ -150,24 +157,49 @@ Alternatif lain adalah memasukkan file sebagai base64 di JSON, tetapi ini tidak 
 - Selesai: skeleton bridge, native-host, dan runtime bridge contract dihapus.
 - Selesai: command bridge backend dihapus.
 
-### Fase 4: Refactor extension agar tanpa debugger
+### Fase 4: Stabilkan extension internal dengan debugger aktif
 
-- Hapus permission `debugger` dari `chrome-extension/manifest.json`.
-- Hapus `chrome.debugger` flow dari `chrome-extension/background.js`.
-- Tambahkan input folder/file passport di panel extension.
+- Pertahankan permission `debugger` di `chrome-extension/manifest.json`.
+- Pertahankan flow `NUSUK_DEBUGGER_SET_FILE` di `chrome-extension/background.js`.
+- Pertahankan input folder/file passport di panel extension.
 - Simpan file handle atau daftar file yang dipilih user di session extension.
 - Mapping file berdasarkan `fileName` atau basename dari `passportImagePath`.
-- Jalankan autofill DOM seperti sekarang, tetapi upload file memakai file yang dipilih user.
+- Jalankan autofill DOM seperti sekarang, dengan fallback debugger hanya saat upload normal tidak cukup.
 
-### Fase 5: Verifikasi end-to-end
+### Fase 5: Data lokal per device
+
+- Passport asli, review artifact, dan manifest hasil scan disimpan lokal di device masing-masing.
+- Jangan upload folder passport atau hasil review ke GitHub.
+- Repo hanya perlu menyimpan kode, fixture yang memang aman, dan dokumentasi.
+- Folder release lokal dibuat di `.local-release/` dan tidak ikut git.
+
+### Fase 6: Verifikasi end-to-end manual
 
 - Scan folder passport dari desktop app.
 - Export JSON.
 - Upload JSON di extension.
 - Pilih folder/file passport di extension.
-- Buka Nusuk normal, bukan browser debug.
+- Buka Nusuk normal, tanpa remote debugging browser.
 - Jalankan autofill untuk minimal satu member.
-- Pastikan tidak ada permission `debugger` dan tidak ada kebutuhan remote debugging.
+- Pastikan upload passport berhasil; fallback `chrome.debugger` boleh aktif.
+
+### Fase 7: Packaging lokal
+
+- Build desktop installer:
+
+```powershell
+npm run desktop:build
+```
+
+- Build paket lokal lengkap:
+
+```powershell
+npm run package:local
+```
+
+- Output lokal berada di `.local-release/visa-entry-bot-<version>-<timestamp>/`.
+- Paket berisi satu file installer desktop yang sudah membawa OCR worker executable + Tesseract, dan ZIP extension.
+- Paket tidak berisi passport, review artifact, atau manifest group lokal.
 
 ## File Kandidat Perubahan
 
@@ -205,6 +237,7 @@ Project dianggap sesuai target ketika:
 - Desktop app tidak menjalankan browser automation.
 - Extension bisa menerima JSON dari user.
 - Extension bisa autofill di browser normal.
-- Extension tidak memakai `chrome.debugger`.
+- Extension tetap memakai permission `chrome.debugger` sebagai dependency upload internal.
 - Tidak ada kewajiban menjalankan Chrome/Edge dengan remote debugging.
 - Dokumentasi utama menjelaskan alur manual app -> JSON -> extension.
+- Packaging lokal menghasilkan satu file installer desktop dan ZIP extension tanpa data passport/review.

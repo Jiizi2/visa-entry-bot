@@ -49,6 +49,28 @@ OCR_PROFILE_BUDGET_MS = {
     OCR_PROFILE_BALANCED: 30_000,
     OCR_PROFILE_HEAVY: 90_000,
 }
+OCR_BALANCED_PANEL_RECOVERY_FIELDS = ("placeOfBirth", "issuingOffice", "issueDate")
+OCR_FULL_PANEL_FIELD_SCOPE = (
+    "fullName",
+    "passportNumber",
+    "nationality",
+    "dob",
+    "gender",
+    "placeOfBirth",
+    "issueDate",
+    "expiryDate",
+    "issuingOffice",
+)
+OCR_FULL_VISUAL_FIELD_SCOPE = (
+    "placeOfBirth",
+    "issuingOffice",
+    "issueDate",
+    "expiryDate",
+    "dob",
+    "gender",
+    "nationality",
+    "fullName",
+)
 OCR_STAGE_MIN_REMAINING_MS = {
     "visual": 1_000,
     "panel": 3_000,
@@ -69,6 +91,10 @@ def _ocr_profile() -> str:
 
 def _is_speed_first_scan() -> bool:
     return _ocr_profile() == OCR_PROFILE_SPEED
+
+
+def _is_balanced_scan() -> bool:
+    return _ocr_profile() == OCR_PROFILE_BALANCED
 
 
 def _is_heavy_scan() -> bool:
@@ -216,8 +242,9 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         panel_fields: dict[str, str] = {}
         panel_notes = ""
         skipped_panel_field_names: tuple[str, ...] = ()
-        if not speed_first_scan and (heavy_scan or should_use_panel_fallback(extraction)):
-            panel_field_names = _select_panel_field_names(parsed, extraction)
+        panel_recovery_field_names: tuple[str, ...] = ()
+        if _should_run_initial_panel_scan(ocr_profile, extraction):
+            panel_field_names = _select_profile_panel_field_names(ocr_profile, parsed, extraction)
             if _should_skip_panel_for_direct_location_only(parsed, extraction, panel_field_names):
                 skipped_panel_field_names = panel_field_names
                 panel_field_names = ()
@@ -243,6 +270,8 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
 
         is_indonesian_passport = _is_indonesian_passport(parsed, extraction, panel_fields) or (
             speed_first_scan and _should_try_speed_location_ocr(parsed, extraction)
+        ) or (
+            not speed_first_scan and _should_try_recovery_location_ocr(parsed, extraction)
         )
         if is_indonesian_passport:
             if speed_first_scan:
@@ -250,7 +279,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             elif heavy_scan:
                 visual_field_names = _select_heavy_visual_field_names(parsed, extraction, panel_fields)
             else:
-                visual_field_names = _select_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
+                visual_field_names = _select_balanced_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
             report_step("visual", "Membaca field visual", 0.46, "  - reading visual fields")
             stage_started = time.perf_counter()
             if visual_field_names != ():
@@ -309,8 +338,40 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
                     stage_durations_ms["panel"] = stage_durations_ms.get("panel", 0) + _elapsed_ms(stage_started)
                 else:
                     _skip_ocr_stage(skipped_ocr_stages, "speed_panel")
+        if not speed_first_scan:
+            missing_profile_panel_fields = _missing_profile_visual_panel_fields(
+                ocr_profile,
+                visual_field_names,
+                visual_fields,
+                panel_fields,
+            )
+            if missing_profile_panel_fields:
+                if _can_spend_ocr_time(started_at, ocr_budget_ms, "panel"):
+                    panel_recovery_field_names = tuple(dict.fromkeys((*panel_recovery_field_names, *missing_profile_panel_fields)))
+                    panel_fallback_used = True
+                    report_step("panel", "Memperkuat field dokumen", 0.52, "  - reinforcing document fields")
+                    stage_started = time.perf_counter()
+                    recovery_panel_fields = extract_document_panel_fields(
+                        file_path,
+                        family_hint=parsed.get("familyName", ""),
+                        given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
+                        field_names=missing_profile_panel_fields,
+                        current_dob=parsed.get("dob", ""),
+                        current_issue_date=parsed.get("issueDate", ""),
+                        current_expiry_date=parsed.get("expiryDate", ""),
+                    )
+                    panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value and not panel_fields.get(key)})
+                    parsed, recovery_panel_notes = fuse_panel_fields(parsed, extraction, recovery_panel_fields)
+                    panel_notes = join_notes(panel_notes, recovery_panel_notes)
+                    stage_durations_ms["panel"] = stage_durations_ms.get("panel", 0) + _elapsed_ms(stage_started)
+                else:
+                    _skip_ocr_stage(skipped_ocr_stages, "panel")
         if skipped_panel_field_names and not speed_first_scan:
-            missing_panel_fields = tuple(field_name for field_name in skipped_panel_field_names if not visual_fields.get(field_name))
+            missing_panel_fields = tuple(
+                field_name
+                for field_name in skipped_panel_field_names
+                if not visual_fields.get(field_name) and not panel_fields.get(field_name)
+            )
             if missing_panel_fields and visual_fields:
                 if _can_spend_ocr_time(started_at, ocr_budget_ms, "visual_recovery"):
                     stage_started = time.perf_counter()
@@ -330,7 +391,11 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
                     stage_durations_ms["visual"] = stage_durations_ms.get("visual", 0) + _elapsed_ms(stage_started)
                 else:
                     _skip_ocr_stage(skipped_ocr_stages, "visual_recovery")
-                missing_panel_fields = tuple(field_name for field_name in skipped_panel_field_names if not visual_fields.get(field_name))
+                missing_panel_fields = tuple(
+                    field_name
+                    for field_name in skipped_panel_field_names
+                    if not visual_fields.get(field_name) and not panel_fields.get(field_name)
+                )
             if missing_panel_fields:
                 if _can_spend_ocr_time(started_at, ocr_budget_ms, "panel"):
                     panel_fallback_used = True
@@ -450,7 +515,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "totalMs": _elapsed_ms(started_at),
             "stagesMs": stage_durations_ms,
             "panelFallbackUsed": panel_fallback_used,
-            "panelFieldScope": list(panel_field_names),
+            "panelFieldScope": list(dict.fromkeys((*panel_field_names, *panel_recovery_field_names))),
             "visualOcrUsed": visual_ocr_used,
             "visualFieldScope": list(visual_field_names) if visual_field_names is not None else "all",
             "mrzFallbackUsed": bool(mrz_error),
@@ -526,6 +591,24 @@ def _has_ocr_budget_for_elapsed(elapsed_ms: int, budget_ms: int, stage_name: str
 
 def _can_spend_ocr_time(started_at: float, budget_ms: int, stage_name: str) -> bool:
     return _has_ocr_budget_for_elapsed(_elapsed_ms(started_at), budget_ms, stage_name)
+
+
+def _should_run_initial_panel_scan(ocr_profile: str, extraction: dict[str, object]) -> bool:
+    if ocr_profile == OCR_PROFILE_SPEED:
+        return False
+    if ocr_profile == OCR_PROFILE_HEAVY:
+        return True
+    return ocr_profile == OCR_PROFILE_BALANCED and should_use_panel_fallback(extraction)
+
+
+def _select_profile_panel_field_names(
+    ocr_profile: str,
+    parsed: dict[str, str],
+    extraction: dict[str, object],
+) -> tuple[str, ...]:
+    if ocr_profile == OCR_PROFILE_HEAVY:
+        return OCR_FULL_PANEL_FIELD_SCOPE
+    return _select_panel_field_names(parsed, extraction)
 
 
 def _budget_exceeded(started_at: float, budget_ms: int) -> bool:
@@ -763,6 +846,24 @@ def _select_visual_field_names(
     return tuple(dict.fromkeys(fields))
 
 
+def _select_balanced_visual_field_names(
+    parsed: dict[str, str],
+    extraction: dict[str, object],
+    panel_fallback_used: bool,
+    panel_fields: dict[str, str],
+) -> tuple[str, ...] | None:
+    fields = _select_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
+    if fields is None or fields == ():
+        return fields
+
+    expanded = list(fields)
+    if not panel_fields.get("issueDate"):
+        expanded.append("issueDate")
+    if _has_failed_mrz_validation(extraction) and not panel_fields.get("expiryDate"):
+        expanded.append("expiryDate")
+    return tuple(dict.fromkeys(expanded))
+
+
 def _select_speed_visual_field_names(parsed: dict[str, str], extraction: dict[str, object]) -> tuple[str, ...]:
     if not _should_try_speed_location_ocr(parsed, extraction):
         return ()
@@ -776,15 +877,31 @@ def _select_heavy_visual_field_names(
 ) -> tuple[str, ...] | None:
     if not _has_reliable_mrz_for_fast_path(parsed, extraction, panel_fallback_used=bool(panel_fields)):
         return None
-    return (
-        "placeOfBirth",
-        "issuingOffice",
-        "issueDate",
-        "expiryDate",
-        "dob",
-        "gender",
-        "nationality",
-        "fullName",
+    return OCR_FULL_VISUAL_FIELD_SCOPE
+
+
+def _missing_profile_visual_panel_fields(
+    ocr_profile: str,
+    visual_field_names: tuple[str, ...] | None,
+    visual_fields: dict[str, str],
+    panel_fields: dict[str, str],
+) -> tuple[str, ...]:
+    if ocr_profile == OCR_PROFILE_SPEED:
+        return ()
+    if visual_field_names is None:
+        requested_fields = OCR_FULL_VISUAL_FIELD_SCOPE
+    else:
+        requested_fields = tuple(visual_field_names)
+    if not requested_fields:
+        return ()
+    if ocr_profile == OCR_PROFILE_BALANCED:
+        requested_fields = tuple(field_name for field_name in OCR_BALANCED_PANEL_RECOVERY_FIELDS if field_name in requested_fields)
+    elif ocr_profile != OCR_PROFILE_HEAVY:
+        return ()
+    return tuple(
+        field_name
+        for field_name in requested_fields
+        if field_name in OCR_FULL_PANEL_FIELD_SCOPE and not visual_fields.get(field_name) and not panel_fields.get(field_name)
     )
 
 
@@ -813,6 +930,18 @@ def _should_try_speed_location_ocr(parsed: dict[str, str], extraction: dict[str,
         return True
     nationality = str(parsed.get("nationality", "") or "")
     return _looks_like_noisy_indonesia_code(nationality)
+
+
+def _should_try_recovery_location_ocr(parsed: dict[str, str], extraction: dict[str, object]) -> bool:
+    if _is_indonesian_passport(parsed, extraction, {}) or _has_indonesian_mrz_hint(extraction):
+        return True
+    if _has_clear_non_indonesian_mrz_hint(parsed, extraction):
+        return False
+    passport_number = str(parsed.get("passportNumber", "") or "").upper()
+    if re.fullmatch(r"[EX]\d{7}", passport_number):
+        return True
+    nationality = str(parsed.get("nationality", "") or "")
+    return bool(nationality and _looks_like_noisy_indonesia_code(nationality))
 
 
 def _location_ocr_ambiguous_enabled() -> bool:
@@ -907,6 +1036,11 @@ def _is_direct_mrz_extraction(extraction: dict[str, object]) -> bool:
 def _has_valid_mrz_validation(extraction: dict[str, object]) -> bool:
     validation = extraction.get("mrzValidation", {})
     return isinstance(validation, dict) and bool(validation.get("valid"))
+
+
+def _has_failed_mrz_validation(extraction: dict[str, object]) -> bool:
+    validation = extraction.get("mrzValidation", {})
+    return isinstance(validation, dict) and bool(validation.get("checks")) and validation.get("valid") is not True
 
 
 def _apply_verified_single_word_name(

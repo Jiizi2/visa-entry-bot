@@ -33,20 +33,26 @@ from main import (
     _build_budget_notes,
     _can_infer_missing_issue_date,
     _has_ocr_budget_for_elapsed,
+    _is_balanced_scan,
     _is_heavy_scan,
     _is_speed_first_scan,
+    _missing_profile_visual_panel_fields,
     _ocr_budget_ms,
     _ocr_profile,
     _missing_speed_location_panel_fields,
     _ocr_rotation_degrees,
     _pick_preferred_full_name,
     _repair_impossible_expiry_date,
+    _select_balanced_visual_field_names,
     _select_heavy_visual_field_names,
     _select_panel_field_names,
+    _select_profile_panel_field_names,
     _select_speed_visual_field_names,
     _select_visual_field_names,
+    _should_run_initial_panel_scan,
     _should_refine_names,
     _should_skip_panel_for_direct_location_only,
+    _should_try_recovery_location_ocr,
     _should_try_speed_location_ocr,
     _visual_fields_need_aligned_page,
 )
@@ -558,6 +564,22 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
         self.assertEqual(result, ("placeOfBirth", "issuingOffice"))
 
+    def test_balanced_visual_scope_rechecks_issue_date_even_when_it_can_be_inferred(self) -> None:
+        parsed = {
+            "firstName": "MUHAMMAD FADIL",
+            "familyName": "HAZIQ",
+            "passportNumber": "E9229500",
+            "nationality": "INDONESIA",
+            "dob": "2007-08-27",
+            "issueDate": "",
+            "expiryDate": "2035-07-10",
+            "gender": "MALE",
+        }
+
+        result = _select_balanced_visual_field_names(parsed, {"confidence": 1.0}, False, {})
+
+        self.assertEqual(result, ("placeOfBirth", "issuingOffice", "issueDate"))
+
     def test_speed_visual_scope_only_reads_location_fields_for_indonesian_hint(self) -> None:
         parsed = {
             "passportNumber": "X6725064",
@@ -597,6 +619,23 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             self.assertTrue(_should_try_speed_location_ocr(parsed, {"data": {"country": ""}}))
             self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ("placeOfBirth", "issuingOffice"))
 
+    def test_recovery_location_ocr_allows_ambiguous_indonesian_passport_without_speed_opt_in(self) -> None:
+        parsed = {
+            "passportNumber": "E8710852",
+            "nationality": "",
+            "dob": "2019-06-01",
+            "expiryDate": "2030-01-08",
+            "gender": "MALE",
+        }
+
+        self.assertTrue(_should_try_recovery_location_ocr(parsed, {"data": {"country": ""}}))
+        self.assertFalse(
+            _should_try_recovery_location_ocr(
+                {**parsed, "passportNumber": "A1234567", "nationality": "UNITED STATES"},
+                {"data": {"country": "USA"}},
+            )
+        )
+
     def test_speed_location_ocr_skips_clear_non_indonesian_mrz(self) -> None:
         parsed = {
             "passportNumber": "A1234567",
@@ -632,6 +671,29 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(_missing_speed_location_panel_fields((), {}), ())
         self.assertEqual(_missing_speed_location_panel_fields(None, {}), ())
 
+    def test_balanced_panel_recovery_targets_missing_review_fields_only(self) -> None:
+        result = _missing_profile_visual_panel_fields(
+            "balanced",
+            ("placeOfBirth", "issuingOffice", "issueDate", "fullName"),
+            {"placeOfBirth": "BERAU"},
+            {},
+        )
+
+        self.assertEqual(result, ("issuingOffice", "issueDate"))
+
+    def test_heavy_panel_recovery_targets_full_missing_visual_scope(self) -> None:
+        result = _missing_profile_visual_panel_fields(
+            "heavy",
+            None,
+            {"placeOfBirth": "BERAU"},
+            {"passportNumber": "E8710852"},
+        )
+
+        self.assertEqual(
+            result,
+            ("issuingOffice", "issueDate", "expiryDate", "dob", "gender", "nationality", "fullName"),
+        )
+
     def test_ocr_rotation_degrees_uses_direct_mrz_orientation_hint(self) -> None:
         self.assertEqual(_ocr_rotation_degrees({"data": {"rotationDegrees": 90}}), 90)
         self.assertEqual(_ocr_rotation_degrees({"data": {"rotationDegrees": 180}}), 180)
@@ -655,6 +717,37 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         result = _select_panel_field_names(parsed, {"notes": "MRZ recovered from direct lower-band OCR."})
 
         self.assertEqual(result, ("placeOfBirth", "issuingOffice"))
+
+    def test_profile_panel_policy_keeps_balanced_selective_and_heavy_full_scope(self) -> None:
+        parsed = {
+            "firstName": "KARIM ALFARIZI",
+            "familyName": "RAMADAN",
+            "passportNumber": "E8710852",
+            "nationality": "INDONESIA",
+            "dob": "2019-06-01",
+            "issueDate": "",
+            "expiryDate": "2030-01-08",
+            "gender": "MALE",
+        }
+        extraction = {"confidence": 1.0, "notes": ""}
+
+        self.assertFalse(_should_run_initial_panel_scan("speed", extraction))
+        self.assertFalse(_should_run_initial_panel_scan("balanced", extraction))
+        self.assertTrue(_should_run_initial_panel_scan("heavy", extraction))
+        self.assertEqual(
+            _select_profile_panel_field_names("heavy", parsed, extraction),
+            (
+                "fullName",
+                "passportNumber",
+                "nationality",
+                "dob",
+                "gender",
+                "placeOfBirth",
+                "issueDate",
+                "expiryDate",
+                "issuingOffice",
+            ),
+        )
 
     def test_direct_mrz_location_only_panel_scope_can_use_visual_path(self) -> None:
         parsed = {
@@ -984,6 +1077,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_speed_profile_is_default_and_fast_date_repair_avoids_ocr_scan(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
             self.assertTrue(_is_speed_first_scan())
+            self.assertFalse(_is_balanced_scan())
             self.assertEqual(_ocr_budget_ms(), 15_000)
 
         parsed, note = _apply_fast_date_repairs(
@@ -1003,6 +1097,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_balanced_profile_uses_recovery_path_without_heavy_visual_scope(self) -> None:
         with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "balanced"}):
             self.assertFalse(_is_speed_first_scan())
+            self.assertTrue(_is_balanced_scan())
             self.assertFalse(_is_heavy_scan())
             self.assertEqual(_ocr_profile(), "balanced")
             self.assertEqual(_ocr_budget_ms(), 30_000)

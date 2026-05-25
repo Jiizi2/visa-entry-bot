@@ -44,8 +44,9 @@ impl Default for RendererHealth {
 
 struct WorkerPaths {
     repo_root: PathBuf,
-    python_executable: PathBuf,
-    worker_script: PathBuf,
+    command_executable: PathBuf,
+    worker_script: Option<PathBuf>,
+    working_dir: PathBuf,
 }
 
 #[derive(Serialize)]
@@ -720,11 +721,17 @@ fn run_worker_process(
     active_child: Arc<Mutex<Option<Child>>>,
     cancel_requested: Arc<Mutex<bool>>,
 ) -> Result<(), String> {
-    let mut command = Command::new(&worker_paths.python_executable);
+    let mut command = Command::new(&worker_paths.command_executable);
+    configure_worker_tesseract_environment(&mut command, &worker_paths.repo_root);
     command
-        .current_dir(worker_paths.repo_root.join("python-ocr"))
-        .arg("-u")
-        .arg(&worker_paths.worker_script)
+        .current_dir(&worker_paths.working_dir)
+        .env("PYTHONUNBUFFERED", "1");
+
+    if let Some(worker_script) = &worker_paths.worker_script {
+        command.arg("-u").arg(worker_script);
+    }
+
+    command
         .arg(selected_dir)
         .arg(ocr_mode)
         .env("PASSPORT_OCR_PROFILE", ocr_mode)
@@ -738,8 +745,8 @@ fn run_worker_process(
 
     let mut child = command.spawn().map_err(|err| {
         format!(
-            "Gagal menjalankan worker Python {}: {err}",
-            worker_paths.python_executable.display()
+            "Gagal menjalankan worker OCR {}: {err}",
+            worker_paths.command_executable.display()
         )
     })?;
 
@@ -840,6 +847,55 @@ fn run_worker_process(
     }
 
     Ok(())
+}
+
+fn configure_worker_tesseract_environment(command: &mut Command, repo_root: &Path) {
+    let Some(tesseract_cmd) = resolve_bundled_tesseract_cmd(repo_root) else {
+        return;
+    };
+
+    command.env("TESSERACT_CMD", &tesseract_cmd);
+    if let Some(tesseract_dir) = tesseract_cmd.parent() {
+        prepend_command_path(command, "PATH", tesseract_dir);
+        let tessdata_dir = tesseract_dir.join("tessdata");
+        if tessdata_dir.is_dir() {
+            command.env("TESSDATA_PREFIX", tessdata_dir);
+        }
+    }
+}
+
+fn resolve_bundled_tesseract_cmd(repo_root: &Path) -> Option<PathBuf> {
+    let executable_name = if cfg!(target_os = "windows") {
+        "tesseract.exe"
+    } else {
+        "tesseract"
+    };
+
+    [
+        repo_root.join("tesseract").join(executable_name),
+        repo_root.join("Tesseract-OCR").join(executable_name),
+        repo_root
+            .join("python-ocr")
+            .join("tesseract")
+            .join(executable_name),
+    ]
+    .into_iter()
+    .find(|candidate| candidate.is_file())
+}
+
+fn prepend_command_path(command: &mut Command, env_name: &str, directory: &Path) {
+    if !directory.is_dir() {
+        return;
+    }
+
+    let mut paths = vec![directory.to_path_buf()];
+    if let Some(current_path) = std::env::var_os(env_name) {
+        paths.extend(std::env::split_paths(&current_path));
+    }
+
+    if let Ok(joined_path) = std::env::join_paths(paths) {
+        command.env(env_name, joined_path);
+    }
 }
 
 fn terminate_active_child(active_child: &Arc<Mutex<Option<Child>>>) -> Result<(), String> {
@@ -972,6 +1028,18 @@ fn locate_worker_paths() -> Result<WorkerPaths, String> {
             continue;
         }
 
+        if let Some(worker_executable) = resolve_worker_executable(&candidate) {
+            return Ok(WorkerPaths {
+                repo_root: candidate.clone(),
+                command_executable: worker_executable.clone(),
+                worker_script: None,
+                working_dir: worker_executable
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| candidate.clone()),
+            });
+        }
+
         let python_root = candidate.join("python-ocr");
         let worker_script = python_root.join("scan_worker.py");
         let windows_python = python_root.join(".venv").join("Scripts").join("python.exe");
@@ -988,13 +1056,32 @@ fn locate_worker_paths() -> Result<WorkerPaths, String> {
         if worker_script.is_file() {
             return Ok(WorkerPaths {
                 repo_root: candidate,
-                python_executable,
-                worker_script,
+                command_executable: python_executable,
+                worker_script: Some(worker_script),
+                working_dir: python_root,
             });
         }
     }
 
-    Err("Folder python-ocr atau virtualenv Python tidak ditemukan. Pastikan repo ini lengkap dan venv OCR sudah siap.".to_string())
+    Err("Worker OCR tidak ditemukan. Paket release harus membawa python-ocr-dist/scan_worker.exe, atau development repo harus memiliki python-ocr/.venv.".to_string())
+}
+
+fn resolve_worker_executable(repo_root: &Path) -> Option<PathBuf> {
+    let executable_name = if cfg!(target_os = "windows") {
+        "scan_worker.exe"
+    } else {
+        "scan_worker"
+    };
+
+    [
+        repo_root.join("python-ocr-dist").join(executable_name),
+        repo_root
+            .join("python-ocr-dist")
+            .join("scan_worker")
+            .join(executable_name),
+    ]
+    .into_iter()
+    .find(|candidate| candidate.is_file())
 }
 
 fn ancestor_chain(path: &Path) -> Vec<PathBuf> {

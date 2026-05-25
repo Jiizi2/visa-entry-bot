@@ -1,4 +1,5 @@
 import { normalizeDateToNusuk } from "./main-utils.js";
+import { transliterateName } from "./main-transliterator.js";
 
 export const REVIEW_FIELDS = [
   ["firstName", "Nama Depan (English)"],
@@ -109,6 +110,13 @@ const DATE_FIELD_KEYS = new Set([
   "expiryDate",
 ]);
 
+const LATIN_NAME_TO_ARABIC_FIELD = Object.freeze({
+  firstName: "arabic.firstName",
+  fatherName: "arabic.fatherName",
+  grandfatherName: "arabic.grandfatherName",
+  familyName: "arabic.familyName",
+});
+
 export function maxLengthForField(fieldKey) {
   return NUSUK_NAME_FIELDS.has(String(fieldKey ?? "")) ? NUSUK_NAME_FIELD_MAX_LENGTH : null;
 }
@@ -132,4 +140,16 @@ export function normalizeInputValueForField(fieldKey, value) {
 
 export function isDateFieldKey(fieldKey) {
   return DATE_FIELD_KEYS.has(String(fieldKey ?? "").trim());
+}
+
+export function arabicFieldForLatinName(fieldKey) {
+  return LATIN_NAME_TO_ARABIC_FIELD[String(fieldKey ?? "").trim()] || "";
+}
+
+export function transliteratedArabicValueForField(fieldKey, value) {
+  const arabicFieldKey = arabicFieldForLatinName(fieldKey);
+  if (!arabicFieldKey) {
+    return "";
+  }
+  return normalizeInputValueForField(arabicFieldKey, transliterateName(value));
 }

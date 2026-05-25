@@ -15,8 +15,10 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 try:
     from passporteye import read_mrz
-except ImportError:  # pragma: no cover - depends on local environment
+    PASSPORTEYE_IMPORT_ERROR = ""
+except ImportError as exc:  # pragma: no cover - depends on local environment
     read_mrz = None
+    PASSPORTEYE_IMPORT_ERROR = str(exc)
 
 try:
     import pytesseract
@@ -72,7 +74,8 @@ class DirectMrzResult:
 
 def extract_mrz_data(file_path: str) -> dict[str, Any]:
     if read_mrz is None:
-        raise RuntimeError("passporteye is not installed.")
+        detail = f": {PASSPORTEYE_IMPORT_ERROR}" if PASSPORTEYE_IMPORT_ERROR else "."
+        raise RuntimeError(f"passporteye is not installed{detail}")
     if pytesseract is None:
         raise RuntimeError("pytesseract is not installed.")
     tesseract_cmd = _resolve_tesseract_cmd()

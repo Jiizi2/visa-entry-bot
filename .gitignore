@@ -1,4 +1,6 @@
 python-ocr/.venv/
+python-ocr/.review/
+python-ocr/.dist/
 **/__pycache__/
 *.pyc
 **/.pytest_cache/
@@ -9,6 +11,9 @@ python-ocr/.tmp/
 /package-lock.json
 .codex-target/
 .codex-write-test/
+.local-release/
+passport-desktop/src-tauri/release-resources/
+passport-desktop/src-tauri/tauri.local-release.conf.json
 
 data/*/manifest.json
 data/*/manifest.xlsx
