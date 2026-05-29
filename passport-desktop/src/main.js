@@ -20,7 +20,6 @@ import {
   setupScanEventBridge,
 } from "./main-scan-events.js";
 import {
-  refreshCompactLogsForState,
   renderProgressPanelView,
   renderScanLogsView,
 } from "./main-scan-render.js";
@@ -48,7 +47,6 @@ import {
 } from "./main-actions.js";
 import {
   createInitialState,
-  STORAGE_KEYS,
 } from "./main-state.js";
 import {
   ocrStatusDescriptor as ocrStatusDescriptorForState,
@@ -66,10 +64,8 @@ import {
   createRuntimeController,
 } from "./main-runtime.js";
 import {
-  buildRememberedRecentBatches,
-  loadRecentBatches as loadRecentBatchesFromStorage,
-  saveRecentBatches as saveRecentBatchesToStorage,
-} from "./main-recent-batches.js";
+  createSessionDataController,
+} from "./main-session-data.js";
 import {
   createRecentBatchActions,
 } from "./main-recent-actions.js";
@@ -143,6 +139,18 @@ const {
   dom,
   requestFrame,
   renderAll: () => renderAll(),
+});
+const {
+  appendScanLog,
+  loadRecentBatches,
+  recentEntryByPath,
+  refreshCompactLogs,
+  rememberRecentBatch,
+  saveRecentBatches,
+  updateOcrMode,
+} = createSessionDataController({
+  state,
+  manifestMembers,
 });
 const {
   renderAll,
@@ -582,11 +590,6 @@ function renderEntryPage() {
   renderEntryLogs();
 }
 
-function recentEntryByPath(path) {
-  const targetPath = String(path || "").trim();
-  return state.recentBatches.find((entry) => entry.path === targetPath) || null;
-}
-
 function renderProgressPanel() {
   renderProgressPanelView({ dom, state, members: manifestMembers() });
 }
@@ -666,42 +669,5 @@ function canAdvanceToNextPassport(navigation) {
 
 function hasFolderSelectionConflict() {
   return Boolean(state.selectedDir && hasAnyScanResult() && !hasScanResultForSelectedDir());
-}
-
-function appendScanLog(message) {
-  const trimmed = String(message ?? "").trim();
-  if (!trimmed) {
-    return;
-  }
-
-  state.lastWorkerMessage = trimmed;
-  refreshCompactLogs();
-}
-
-function refreshCompactLogs() {
-  refreshCompactLogsForState(state, manifestMembers());
-}
-
-function rememberRecentBatch(path, totalFiles = 0, manifestPath = "") {
-  state.recentBatches = buildRememberedRecentBatches(
-    state.recentBatches,
-    path,
-    totalFiles,
-    manifestPath,
-    basenameFromPath,
-  );
-  saveRecentBatches(state.recentBatches);
-}
-
-function loadRecentBatches() {
-  return loadRecentBatchesFromStorage(STORAGE_KEYS.recentBatches, basenameFromPath);
-}
-
-function saveRecentBatches(entries) {
-  saveRecentBatchesToStorage(STORAGE_KEYS.recentBatches, entries);
-}
-
-function updateOcrMode(value) {
-  state.ocrMode = normalizeOcrMode(value);
 }
 
