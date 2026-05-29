@@ -1,6 +1,10 @@
 import { basenameFromPath, formatDurationMs } from "./main-utils.js";
 import { memberScanTotalMs } from "./main-metrics.js";
 import { memberDisplayName } from "./main-members.js";
+import {
+  passportCropApplied,
+  passportPreviewImagePathForMember,
+} from "./main-passport-image.js";
 
 export const PASSPORT_PREVIEW_ZOOM_DEFAULT = 1;
 export const PASSPORT_PREVIEW_ZOOM_MIN = 0.85;
@@ -41,6 +45,10 @@ export function createPassportPreviewController({
         dom.passportPreviewStatus.textContent = "Menunggu";
         dom.passportPreviewStatus.className = "passport-preview-status neutral";
       }
+      if (dom.passportPreviewCropStatus) {
+        dom.passportPreviewCropStatus.textContent = "Belum ada foto";
+        dom.passportPreviewCropStatus.className = "passport-crop-status neutral";
+      }
       resetZoomState();
       return;
     }
@@ -49,7 +57,8 @@ export function createPassportPreviewController({
       dom.passportPreviewName.textContent = memberDisplayName(member);
     }
     if (dom.passportPreviewFile) {
-      const fileLabel = member.fileName || basenameFromPath(member.passportImagePath || "");
+      const imagePath = passportPreviewImagePathForMember(member);
+      const fileLabel = member.fileName || basenameFromPath(imagePath || "");
       const scanDurationMs = memberScanTotalMs(member);
       dom.passportPreviewFile.textContent = scanDurationMs > 0
         ? `${fileLabel} | Scan ${formatDurationMs(scanDurationMs)}`
@@ -59,6 +68,11 @@ export function createPassportPreviewController({
       const reviewed = isMemberReviewConfirmed(member);
       dom.passportPreviewStatus.textContent = reviewed ? "Sudah direview" : "Belum direview";
       dom.passportPreviewStatus.className = `passport-preview-status ${reviewed ? "valid" : "warn"}`;
+    }
+    if (dom.passportPreviewCropStatus) {
+      const cropped = passportCropApplied(member);
+      dom.passportPreviewCropStatus.textContent = cropped ? "Crop Nusuk siap" : "Belum dicrop";
+      dom.passportPreviewCropStatus.className = `passport-crop-status ${cropped ? "valid" : "neutral"}`;
     }
 
     void ensureImageForMember(member);
@@ -87,7 +101,7 @@ export function createPassportPreviewController({
     try {
       const imageData = await loadPassportImageData({
         manifestPath: state.manifestPath,
-        imagePath: String(member.passportImagePath || ""),
+        imagePath: passportPreviewImagePathForMember(member),
         fileName: String(member.fileName || ""),
       });
       const result = imageData?.dataUrl
@@ -253,6 +267,10 @@ export function createPassportPreviewController({
     }
     if (dom.passportZoomResetButton) {
       dom.passportZoomResetButton.disabled = !hasImage || Math.abs(zoom - PASSPORT_PREVIEW_ZOOM_DEFAULT) < 0.001;
+    }
+    if (dom.passportCropButton) {
+      dom.passportCropButton.disabled = !hasImage;
+      dom.passportCropButton.setAttribute("aria-disabled", dom.passportCropButton.disabled ? "true" : "false");
     }
   }
 

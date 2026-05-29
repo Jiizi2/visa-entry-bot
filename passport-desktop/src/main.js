@@ -71,6 +71,9 @@ import {
   createPassportPreviewActions,
 } from "./main-passport-preview-actions.js";
 import {
+  createPassportCropController,
+} from "./main-passport-crop.js";
+import {
   errorMessage,
   startRendererHeartbeat,
   startRendererKeepAlive,
@@ -83,6 +86,7 @@ let actionAvailabilityController = null;
 let importViewController = null;
 let manifestWorkflow = null;
 let pageFlow = null;
+let passportCropActions = null;
 let passportPreviewActions = null;
 let viewController = null;
 const requestFrame = typeof window.requestAnimationFrame === "function"
@@ -319,6 +323,34 @@ passportPreviewActions = createPassportPreviewActions({
     });
   },
 });
+passportCropActions = createPassportCropController({
+  state,
+  dom,
+  requestFrame,
+  activeMember,
+  replaceMemberInManifest,
+  scheduleManifestSave,
+  renderAll,
+  loadPassportImageData: async ({ manifestPath, imagePath, fileName }) => {
+    const { invoke } = tauriBindings();
+    return invoke("load_passport_image_data", {
+      manifestPath,
+      imagePath,
+      fileName,
+    });
+  },
+  saveCroppedPassportImage: async ({ manifestPath, memberId, fileName, sourceImagePath, dataUrl, crop }) => {
+    const { invoke } = tauriBindings();
+    return invoke("save_cropped_passport_image", {
+      manifestPath,
+      memberId,
+      fileName,
+      sourceImagePath,
+      dataUrl,
+      crop,
+    });
+  },
+});
 const {
   openRecentDeleteModal,
   closeRecentDeleteModal,
@@ -498,6 +530,16 @@ function bindActions() {
     resetPassportPreviewZoom: () => passportPreviewActions?.resetPassportPreviewZoom(),
     handlePassportPreviewWheel: (event) => passportPreviewActions?.handlePassportPreviewWheel(event),
     handlePassportPreviewKeydown: (event) => passportPreviewActions?.handlePassportPreviewKeydown(event),
+    openPassportCropModal: () => passportCropActions?.openCropModal(),
+    closePassportCropModal: () => passportCropActions?.closeCropModal(),
+    resetPassportCropRect: () => passportCropActions?.resetCropRect(),
+    savePassportCrop: () => passportCropActions?.saveCrop(),
+    handlePassportCropPointerDown: (event) => passportCropActions?.handleCanvasPointerDown(event),
+    handlePassportCropPointerMove: (event) => passportCropActions?.handleCanvasPointerMove(event),
+    handlePassportCropPointerUp: (event) => passportCropActions?.handleCanvasPointerUp(event),
+    handlePassportCropKeydown: (event) => passportCropActions?.handleCanvasKeydown(event),
+    handlePassportCropZoomInput: (event) => passportCropActions?.handleZoomInput(event),
+    handlePassportCropResize: () => passportCropActions?.handleResize(),
   });
 }
 

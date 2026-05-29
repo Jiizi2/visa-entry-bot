@@ -11,6 +11,9 @@ import {
   setValueByPath,
 } from "./main-utils.js";
 import {
+  preservePassportCropFields,
+} from "./main-passport-image.js";
+import {
   buildCompanionSnapshot,
   ensureResolvedProfile,
   inferDefaultCompanionRelation,
@@ -146,7 +149,7 @@ export function createReviewActions({
       return;
     }
 
-    const resetMember = cloneJson(originalMember);
+    const resetMember = preservePassportCropFields(member, cloneJson(originalMember));
     delete resetMember.reviewConfirmed;
     replaceMemberInManifest(member.id, resetMember);
     state.reviewedMemberIds.delete(member.id);

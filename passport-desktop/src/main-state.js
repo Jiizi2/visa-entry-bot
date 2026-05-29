@@ -45,6 +45,7 @@ export function createInitialState() {
     activeFieldCategory: "identity",
     passportImageCache: new Map(),
     passportPreviewZoom: PASSPORT_PREVIEW_ZOOM_DEFAULT,
+    passportCropZoom: 1,
     reviewBlock: null,
     statusHeadline: "",
     statusDetail: "",

@@ -128,9 +128,9 @@ export function createEntryFlow({
       });
       state.exportedBatchPath = batchPath;
       appendEntryLog(`JSON untuk extension dibuat: ${batchPath}`, "success");
-      appendEntryLog("Buka extension Nusuk Autofill, upload file JSON ini, lalu pilih folder/file passport di panel extension.");
+      appendEntryLog("Buka extension Nusuk Autofill, upload JSON ini, lalu pilih folder output batch atau file dari folder nusuk-crops bila ada hasil crop.");
       state.statusHeadline = "JSON siap diupload";
-      state.statusDetail = `File dibuat di ${batchPath}. Upload file ini ke extension Nusuk Autofill.`;
+      state.statusDetail = `File dibuat di ${batchPath}. Upload JSON ini ke extension, lalu pilih folder output batch agar file crop Nusuk ikut tersedia.`;
       renderAll();
     } catch (error) {
       const rawError = String(error ?? "");

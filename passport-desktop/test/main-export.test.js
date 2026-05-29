@@ -88,3 +88,22 @@ test("buildManifestForEntryExport enriches child companion data and keeps adults
   });
   assert.equal(manifest.members[0].companion, undefined);
 });
+
+test("buildManifestForEntryExport uses cropped passport image path for Nusuk upload", () => {
+  const manifest = {
+    members: [{
+      id: "adult",
+      status: "VALID",
+      reviewStatus: "VALID",
+      reviewConfirmed: true,
+      passportImagePath: "data/passports/adult.jpg",
+      croppedPassportImagePath: "data/output/nusuk-crops/adult-crop.jpg",
+      resolvedProfile: { firstName: "Adult", dob: "1990/01/01" },
+    }],
+  };
+
+  const result = buildManifestForEntryExport(manifest, new Set(["adult"]));
+
+  assert.equal(result.manifest.members[0].passportImagePath, "data/output/nusuk-crops/adult-crop.jpg");
+  assert.equal(manifest.members[0].passportImagePath, "data/passports/adult.jpg");
+});

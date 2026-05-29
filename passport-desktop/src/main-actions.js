@@ -45,6 +45,16 @@ export function bindActions({
   resetPassportPreviewZoom,
   handlePassportPreviewWheel,
   handlePassportPreviewKeydown,
+  openPassportCropModal = () => {},
+  closePassportCropModal = () => {},
+  resetPassportCropRect = () => {},
+  savePassportCrop = () => {},
+  handlePassportCropPointerDown = () => {},
+  handlePassportCropPointerMove = () => {},
+  handlePassportCropPointerUp = () => {},
+  handlePassportCropKeydown = () => {},
+  handlePassportCropZoomInput = () => {},
+  handlePassportCropResize = () => {},
   appWindow = window,
 }) {
   for (const button of dom.navButtons) {
@@ -192,8 +202,13 @@ export function bindActions({
     }
     if (event.key === "Escape" && !dom.reviewCompleteModal?.classList.contains("is-hidden")) {
       closeReviewCompleteModal();
+      return;
+    }
+    if (event.key === "Escape" && !dom.passportCropModal?.classList.contains("is-hidden")) {
+      closePassportCropModal();
     }
   });
+  appWindow.addEventListener("resize", handlePassportCropResize);
   dom.scanLogToggle?.addEventListener("click", () => {
     state.showFullScanLog = !state.showFullScanLog;
     renderScanLogs();
@@ -312,6 +327,25 @@ export function bindActions({
   dom.passportZoomResetButton?.addEventListener("click", resetPassportPreviewZoom);
   dom.passportPreviewFrame?.addEventListener("wheel", handlePassportPreviewWheel, { passive: false });
   dom.passportPreviewFrame?.addEventListener("keydown", handlePassportPreviewKeydown);
+  dom.passportCropButton?.addEventListener("click", () => {
+    runAction(() => openPassportCropModal(), "Crop foto passport");
+  });
+  dom.passportCropCancelButton?.addEventListener("click", closePassportCropModal);
+  dom.passportCropModal?.addEventListener("click", (event) => {
+    if (event.target === dom.passportCropModal) {
+      closePassportCropModal();
+    }
+  });
+  dom.passportCropResetButton?.addEventListener("click", resetPassportCropRect);
+  dom.passportCropSaveButton?.addEventListener("click", () => {
+    runAction(() => savePassportCrop(), "Simpan crop foto");
+  });
+  dom.passportCropZoomInput?.addEventListener("input", handlePassportCropZoomInput);
+  dom.passportCropCanvas?.addEventListener("pointerdown", handlePassportCropPointerDown);
+  dom.passportCropCanvas?.addEventListener("pointermove", handlePassportCropPointerMove);
+  dom.passportCropCanvas?.addEventListener("pointerup", handlePassportCropPointerUp);
+  dom.passportCropCanvas?.addEventListener("pointercancel", handlePassportCropPointerUp);
+  dom.passportCropCanvas?.addEventListener("keydown", handlePassportCropKeydown);
 
   for (const button of dom.workspacePrevButtons) {
     button.addEventListener("click", () => {

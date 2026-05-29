@@ -226,7 +226,10 @@
                   <span id="passport-zoom-label" class="passport-zoom-label" aria-live="polite">100%</span>
                   <button id="passport-zoom-in-button" class="passport-zoom-button" type="button" aria-label="Perbesar foto passport" title="Perbesar" disabled>+</button>
                 </div>
-                <button id="passport-zoom-reset-button" class="passport-zoom-reset" type="button" disabled>Reset</button>
+                <div class="passport-preview-actions">
+                  <button id="passport-crop-button" class="passport-crop-button" type="button" disabled>Crop Foto</button>
+                  <button id="passport-zoom-reset-button" class="passport-zoom-reset" type="button" disabled>Reset</button>
+                </div>
               </div>
 
               <div id="passport-preview-frame" class="passport-preview-frame" tabindex="0">
@@ -238,6 +241,7 @@
                 <div>
                   <strong id="passport-preview-name">Belum ada data</strong>
                   <span id="passport-preview-file">Jalankan scan atau buka riwayat terlebih dahulu.</span>
+                  <span id="passport-preview-crop-status" class="passport-crop-status neutral">Belum dicrop</span>
                 </div>
                 <span id="passport-preview-status" class="passport-preview-status neutral">Menunggu</span>
               </div>
@@ -512,6 +516,43 @@
         <div class="confirm-modal-actions">
           <button id="review-complete-cancel-button" class="secondary-button" type="button">Tetap Review</button>
           <button id="review-complete-export-button" class="primary-action" type="button">Export to JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="passport-crop-modal"
+      class="passport-crop-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="passport-crop-title"
+      aria-hidden="true"
+    >
+      <div class="passport-crop-card">
+        <div class="passport-crop-head">
+          <div>
+            <p class="eyebrow">Foto Nusuk</p>
+            <h4 id="passport-crop-title">Crop Foto Passport</h4>
+          </div>
+          <span id="passport-crop-status" class="passport-crop-modal-status neutral">Menunggu foto</span>
+        </div>
+
+        <div id="passport-crop-stage" class="passport-crop-stage">
+          <canvas id="passport-crop-canvas" class="passport-crop-canvas" tabindex="0"></canvas>
+        </div>
+
+        <div class="passport-crop-controls">
+          <label class="passport-crop-zoom" for="passport-crop-zoom-input">
+            <span>Zoom</span>
+            <input id="passport-crop-zoom-input" type="range" min="0.75" max="2" step="0.05" value="1" disabled />
+            <strong id="passport-crop-zoom-value">100%</strong>
+          </label>
+          <button id="passport-crop-reset-button" class="secondary-button" type="button" disabled>Reset Area</button>
+        </div>
+
+        <div class="confirm-modal-actions">
+          <button id="passport-crop-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="passport-crop-save-button" class="primary-action" type="button" disabled>Simpan Crop</button>
         </div>
       </div>
     </div>

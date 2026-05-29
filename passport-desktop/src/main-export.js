@@ -7,6 +7,9 @@ import {
   memberDisplayName,
   normalizeCompanionRelation,
 } from "./main-members.js";
+import {
+  passportUploadImagePathForMember,
+} from "./main-passport-image.js";
 
 export function defaultSelectedIds(manifest) {
   if (!Array.isArray(manifest?.members)) {
@@ -105,6 +108,10 @@ export function buildManifestForEntryExport(manifest, selectedIds = new Set()) {
 
 export function enrichMemberForEntry(member, allMembers) {
   const nextMember = cloneJson(member);
+  const uploadImagePath = passportUploadImagePathForMember(nextMember);
+  if (uploadImagePath) {
+    nextMember.passportImagePath = uploadImagePath;
+  }
   const info = childInfoForMember(nextMember);
   nextMember.isChild = info.isChild;
   nextMember.ageAtReview = Number.isFinite(info.age) ? info.age : null;

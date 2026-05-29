@@ -14,6 +14,7 @@ test("createInitialState returns default app state", () => {
   assert.equal(state.ocrMode, "speed");
   assert.equal(state.passportListPageSize, 8);
   assert.equal(state.passportPreviewZoom, 1);
+  assert.equal(state.passportCropZoom, 1);
   assert.equal(state.isScanning, false);
   assert.ok(state.selectedIds instanceof Set);
   assert.ok(state.reviewedMemberIds instanceof Set);

@@ -69,6 +69,8 @@ function previewDom() {
     passportPreviewName: fakeElement(),
     passportPreviewFile: fakeElement(),
     passportPreviewStatus: fakeElement(),
+    passportPreviewCropStatus: fakeElement(),
+    passportCropButton: fakeElement(),
     passportZoomOutButton: fakeElement(),
     passportZoomInButton: fakeElement(),
     passportZoomResetButton: fakeElement(),
@@ -107,9 +109,12 @@ test("passport preview renders empty state when no member is active", () => {
 
 test("passport preview loads and displays active member image", async () => {
   const dom = previewDom();
+  let loadPayload = null;
   const member = {
     id: "m1",
     fileName: "passport.jpg",
+    passportImagePath: "data/original.jpg",
+    croppedPassportImagePath: "data/crop.jpg",
     resolvedProfile: { firstName: "Ali" },
   };
   const state = {
@@ -123,7 +128,10 @@ test("passport preview loads and displays active member image", async () => {
     requestFrame: (callback) => callback(),
     activeMember: () => member,
     isMemberReviewConfirmed: () => true,
-    loadPassportImageData: async () => ({ dataUrl: "data:image/png;base64,abc", path: "passport.jpg" }),
+    loadPassportImageData: async (payload) => {
+      loadPayload = payload;
+      return { dataUrl: "data:image/png;base64,abc", path: "passport.jpg" };
+    },
   });
 
   controller.render();
@@ -131,6 +139,8 @@ test("passport preview loads and displays active member image", async () => {
 
   assert.equal(dom.passportPreviewName.textContent, "Ali");
   assert.equal(dom.passportPreviewStatus.textContent, "Sudah direview");
+  assert.equal(dom.passportPreviewCropStatus.textContent, "Crop Nusuk siap");
   assert.equal(dom.passportPreviewImage.src, "data:image/png;base64,abc");
+  assert.equal(loadPayload.imagePath, "data/crop.jpg");
   assert.equal(state.passportImageCache.get("m1").status, "ready");
 });

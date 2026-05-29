@@ -56,6 +56,13 @@ struct PassportImageData {
     data_url: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SavedPassportCrop {
+    path: String,
+    relative_path: String,
+}
+
 const RENDERER_WATCHDOG_INTERVAL: Duration = Duration::from_secs(15);
 const RENDERER_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(75);
 const RENDERER_WATCHDOG_PING_SCRIPT: &str = r#"(() => ({
@@ -551,6 +558,114 @@ fn load_passport_image_data(
     }
 
     Ok(None)
+}
+
+#[tauri::command]
+fn save_cropped_passport_image(
+    manifest_path: String,
+    member_id: String,
+    file_name: String,
+    source_image_path: String,
+    data_url: String,
+    crop: Value,
+) -> Result<SavedPassportCrop, String> {
+    let manifest = PathBuf::from(manifest_path.trim());
+    if manifest.as_os_str().is_empty() || !is_manifest_file(&manifest) {
+        return Err("Lokasi manifest tidak valid.".to_string());
+    }
+    let output_dir = manifest
+        .parent()
+        .ok_or_else(|| "Lokasi output crop tidak valid.".to_string())?
+        .join("nusuk-crops");
+    fs::create_dir_all(&output_dir)
+        .map_err(|err| format!("Gagal membuat folder crop {}: {err}", output_dir.display()))?;
+
+    let bytes = decode_image_data_url(&data_url)?;
+    let base_name = crop_file_base_name(&member_id, &file_name, &source_image_path);
+    let output_path = output_dir.join(format!("{base_name}.jpg"));
+    fs::write(&output_path, bytes)
+        .map_err(|err| format!("Gagal menyimpan crop {}: {err}", output_path.display()))?;
+
+    let resolved = fs::canonicalize(&output_path).unwrap_or(output_path);
+    let relative_path =
+        repo_relative_path(&resolved).unwrap_or_else(|| resolved.to_string_lossy().to_string());
+    log_diagnostic(format!(
+        "Saved cropped passport image for member {} with crop metadata {}",
+        member_id.trim(),
+        crop
+    ));
+    Ok(SavedPassportCrop {
+        path: resolved.to_string_lossy().to_string(),
+        relative_path,
+    })
+}
+
+fn decode_image_data_url(data_url: &str) -> Result<Vec<u8>, String> {
+    let trimmed = data_url.trim();
+    let (meta, payload) = trimmed
+        .split_once(',')
+        .ok_or_else(|| "Payload crop tidak valid.".to_string())?;
+    let normalized_meta = meta.to_ascii_lowercase();
+    if !normalized_meta.starts_with("data:image/") || !normalized_meta.contains(";base64") {
+        return Err("Payload crop harus berupa data URL gambar base64.".to_string());
+    }
+    if !(normalized_meta.contains("image/jpeg") || normalized_meta.contains("image/jpg")) {
+        return Err("Hasil crop harus berformat JPEG.".to_string());
+    }
+    let bytes = general_purpose::STANDARD
+        .decode(payload)
+        .map_err(|err| format!("Payload crop tidak bisa dibaca: {err}"))?;
+    if bytes.is_empty() {
+        return Err("Hasil crop kosong.".to_string());
+    }
+    if bytes.len() > 25 * 1024 * 1024 {
+        return Err("Hasil crop terlalu besar.".to_string());
+    }
+    Ok(bytes)
+}
+
+fn crop_file_base_name(member_id: &str, file_name: &str, source_image_path: &str) -> String {
+    let source_stem = Path::new(file_name.trim())
+        .file_stem()
+        .or_else(|| Path::new(source_image_path.trim()).file_stem())
+        .and_then(|value| value.to_str())
+        .unwrap_or("passport");
+    let member_suffix = sanitize_file_segment(member_id)
+        .chars()
+        .take(8)
+        .collect::<String>();
+    let stem = sanitize_file_segment(source_stem);
+    if member_suffix.is_empty() {
+        format!("{stem}-crop")
+    } else {
+        format!("{stem}-{member_suffix}-crop")
+    }
+}
+
+fn sanitize_file_segment(value: &str) -> String {
+    let mut output = String::new();
+    for ch in value.trim().chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
+            output.push(ch);
+        } else if ch == ' ' || ch == '.' {
+            output.push('-');
+        }
+        if output.len() >= 80 {
+            break;
+        }
+    }
+    let cleaned = output.trim_matches('-').to_string();
+    if cleaned.is_empty() {
+        "passport".to_string()
+    } else {
+        cleaned
+    }
+}
+
+fn repo_relative_path(path: &Path) -> Option<String> {
+    let worker_paths = locate_worker_paths().ok()?;
+    let relative = path.strip_prefix(worker_paths.repo_root).ok()?;
+    Some(relative.to_string_lossy().replace('\\', "/"))
 }
 
 fn passport_image_candidates(
@@ -1247,6 +1362,7 @@ pub fn run() {
             find_manifest_path,
             resolve_passport_image_path,
             load_passport_image_data,
+            save_cropped_passport_image,
             create_nusuk_batch
         ])
         .run(tauri::generate_context!())

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -99,6 +99,8 @@ async function handleInvoke(command, args) {
       return resolvePassportImagePath(args.manifestPath, args.imagePath, args.fileName);
     case "load_passport_image_data":
       return loadPassportImageData(args.manifestPath, args.imagePath, args.fileName);
+    case "save_cropped_passport_image":
+      return saveCroppedPassportImage(args);
     case "create_nusuk_batch":
       return createNusukBatch(args.manifestPath, args.selectedIds, args.manifestData);
     default:
@@ -347,6 +349,62 @@ async function loadPassportImageData(manifestPath, imagePath, fileName) {
     };
   }
   return null;
+}
+
+async function saveCroppedPassportImage(args = {}) {
+  const manifestPath = requiredPath(args.manifestPath, "Lokasi manifest tidak valid.");
+  if (!isManifestFile(manifestPath)) {
+    throw new Error("Lokasi manifest tidak valid.");
+  }
+  const outputDir = join(dirname(manifestPath), "nusuk-crops");
+  await mkdir(outputDir, { recursive: true });
+  const bytes = decodeImageDataUrl(args.dataUrl);
+  const fileBase = cropFileBaseName(args.memberId, args.fileName, args.sourceImagePath);
+  const outputPath = join(outputDir, `${fileBase}.jpg`);
+  await writeFile(outputPath, bytes);
+  const relativePath = relative(repoRoot, outputPath).replace(/\\/g, "/");
+  return {
+    path: outputPath,
+    relativePath: relativePath && !relativePath.startsWith("..") ? relativePath : outputPath,
+  };
+}
+
+function decodeImageDataUrl(value) {
+  const text = String(value || "").trim();
+  const match = /^data:image\/jpe?g;base64,(.+)$/i.exec(text);
+  if (!match) {
+    throw new Error("Payload crop harus berupa JPEG base64.");
+  }
+  const bytes = Buffer.from(match[1], "base64");
+  if (!bytes.length) {
+    throw new Error("Hasil crop kosong.");
+  }
+  if (bytes.length > 25 * 1024 * 1024) {
+    throw new Error("Hasil crop terlalu besar.");
+  }
+  return bytes;
+}
+
+function cropFileBaseName(memberId, fileName, sourceImagePath) {
+  const sourceStem = stripFileExtension(basename(String(fileName || sourceImagePath || "passport")));
+  const memberSuffix = sanitizeFileSegment(memberId).slice(0, 8);
+  const stem = sanitizeFileSegment(sourceStem);
+  return memberSuffix ? `${stem}-${memberSuffix}-crop` : `${stem}-crop`;
+}
+
+function stripFileExtension(value) {
+  return String(value || "").replace(/\.[^.\\/]+$/, "");
+}
+
+function sanitizeFileSegment(value) {
+  const text = String(value || "").trim();
+  const cleaned = text
+    .replace(/[^a-z0-9 _.-]/gi, "")
+    .replace(/[ .]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return cleaned || "passport";
 }
 
 function passportImageCandidates(manifestPath, imagePath, fileName) {

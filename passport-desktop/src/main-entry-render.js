@@ -2,6 +2,9 @@ import { entryStatusLabel, entryStatusTone, memberReviewStatus } from "./main-en
 import { isMemberReadyForJson } from "./main-export.js";
 import { escapeHtml } from "./main-utils.js";
 import { memberDisplayName, memberPassport } from "./main-members.js";
+import {
+  passportCropApplied,
+} from "./main-passport-image.js";
 
 export function buildExportPreviewState({
   members = [],
@@ -142,12 +145,13 @@ export function renderReviewExportPreviewRow(member, selectedIds, reviewedMember
   const passport = memberPassport(member) || "-";
   const name = memberDisplayName(member);
   const fileName = member.fileName || "-";
+  const fileLabel = passportCropApplied(member) ? `${fileName} | Crop Nusuk` : fileName;
   const exportLabel = ready ? "Masuk JSON" : "Tidak diexport";
   return `
     <tr>
       <td>
         <strong>${escapeHtml(passport)}</strong>
-        <small>${escapeHtml(fileName)}</small>
+        <small>${escapeHtml(fileLabel)}</small>
       </td>
       <td>
         <button class="review-export-member-link" type="button" data-review-member-id="${escapeHtml(member.id ?? "")}">
