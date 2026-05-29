@@ -49,14 +49,11 @@ import {
   createInitialState,
 } from "./main-state.js";
 import {
-  ocrStatusDescriptor as ocrStatusDescriptorForState,
-  renderImportPageView,
-  renderMiniStatus,
-  renderOcrModeSelectorView,
-} from "./main-import-render.js";
-import {
   createImportWorkflow,
 } from "./main-import-flow.js";
+import {
+  createImportViewController,
+} from "./main-import-view.js";
 import {
   createWorkspaceDatePickerController,
 } from "./main-date-pickers.js";
@@ -87,8 +84,6 @@ import {
 } from "./main-export.js";
 import {
   loadOcrMode,
-  normalizeOcrMode,
-  ocrModeLabel,
 } from "./main-ocr.js";
 import {
   createPassportPreviewController,
@@ -104,6 +99,7 @@ const state = createInitialState();
 const dom = {};
 let passportPreviewController = null;
 let actionAvailabilityController = null;
+let importViewController = null;
 const requestFrame = typeof window.requestAnimationFrame === "function"
   ? window.requestAnimationFrame.bind(window)
   : (callback) => window.setTimeout(callback, 16);
@@ -255,6 +251,14 @@ const {
     const { invoke } = tauriBindings();
     return invoke("find_manifest_path", { basePath });
   },
+});
+importViewController = createImportViewController({
+  dom,
+  state,
+  hasAnyScanResult,
+  hasScanResultForSelectedDir,
+  updateActionAvailability,
+  updateOcrMode,
 });
 const pageFlow = createPageFlow({
   dom,
@@ -544,41 +548,19 @@ function setPage(page) {
 }
 
 function renderImportPage() {
-  renderImportPageView({
-    dom,
-    state,
-    hasAnyScanResult,
-    hasScanResultForSelectedDir,
-  });
+  importViewController?.renderImportPage();
 }
 
 function renderOcrModeSelector() {
-  renderOcrModeSelectorView({ dom, state });
+  importViewController?.renderOcrModeSelector();
 }
 
 function handleOcrModeChange(event) {
-  const target = event.target;
-  if (state.isScanning || !(target instanceof HTMLInputElement) || !target.checked) {
-    renderOcrModeSelector();
-    return;
-  }
-
-  const nextMode = normalizeOcrMode(target.value);
-  updateOcrMode(nextMode);
-  state.statusHeadline = `Mode OCR: ${ocrModeLabel(nextMode)}`;
-  state.statusDetail = "Mode akan dipakai saat scan berikutnya dimulai.";
-
-  renderOcrModeSelector();
-  renderMiniStatus(dom.systemOcrStatus, ocrStatusDescriptor());
-  updateActionAvailability();
+  importViewController?.handleOcrModeChange(event);
 }
 
 function ocrStatusDescriptor() {
-  return ocrStatusDescriptorForState({
-    state,
-    hasAnyScanResult,
-    hasScanResultForSelectedDir,
-  });
+  return importViewController?.ocrStatusDescriptor();
 }
 
 function renderReviewExportModal() {
