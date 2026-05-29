@@ -1,0 +1,56 @@
+import { DEFAULT_OCR_MODE } from "./main-ocr.js";
+import { PASSPORT_PREVIEW_ZOOM_DEFAULT } from "./main-passport-preview.js";
+
+export const STORAGE_KEYS = {
+  recentBatches: "passport-assistant-recent-batches-v1",
+};
+
+export const MANIFEST_SAVE_DELAY_MS = 350;
+
+export function createInitialState() {
+  return {
+    currentPage: "import",
+    validationFilter: "all",
+    selectedDir: "",
+    ocrMode: DEFAULT_OCR_MODE,
+    recentBatches: [],
+    manifest: null,
+    originalManifest: null,
+    manifestPath: "",
+    resultDir: "",
+    resultSourceDir: "",
+    activeMemberId: "",
+    selectedIds: new Set(),
+    reviewedMemberIds: new Set(),
+    passportListPage: 1,
+    passportListPageSize: 8,
+    totalFiles: 0,
+    validCount: 0,
+    errorCount: 0,
+    reviewCount: 0,
+    progressCurrent: 0,
+    progressTotal: 0,
+    progressFileName: "",
+    progressStageLabel: "",
+    isEntryRunning: false,
+    exportedBatchPath: "",
+    exportError: "",
+    entryLogs: [],
+    lastWorkerMessage: "",
+    scanLogs: [],
+    scanPerfSummary: null,
+    scanMetricRecords: [],
+    lastScanMetric: null,
+    showFullScanLog: false,
+    activeFieldCategory: "identity",
+    passportImageCache: new Map(),
+    passportPreviewZoom: PASSPORT_PREVIEW_ZOOM_DEFAULT,
+    reviewBlock: null,
+    statusHeadline: "",
+    statusDetail: "",
+    isScanning: false,
+    isStoppingScan: false,
+    isStartingScan: false,
+    isChoosingFolder: false,
+  };
+}
