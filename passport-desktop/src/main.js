@@ -1,11 +1,6 @@
 import {
   basenameFromPath,
-  cloneJson,
 } from "./main-utils.js";
-import {
-  activeCategoryPairForState,
-  renderWorkspaceView,
-} from "./main-review-workspace.js";
 import {
   createReviewActions,
 } from "./main-review-actions.js";
@@ -13,20 +8,8 @@ import {
   createReviewFlow,
 } from "./main-review-flow.js";
 import {
-  requiredFieldBlockingIssueForBatch as requiredFieldBlockingIssueForMembers,
-  reviewCompletionValidation as reviewCompletionValidationForMember,
-} from "./main-review-validation.js";
-import {
   setupScanEventBridge,
 } from "./main-scan-events.js";
-import {
-  renderProgressPanelView,
-  renderScanLogsView,
-} from "./main-scan-render.js";
-import {
-  renderEntryPageView,
-  renderReviewExportModalView,
-} from "./main-entry-render.js";
 import {
   createEntryFlow,
 } from "./main-entry-flow.js";
@@ -55,6 +38,9 @@ import {
   createImportViewController,
 } from "./main-import-view.js";
 import {
+  createManifestWorkflow,
+} from "./main-manifest-workflow.js";
+import {
   createWorkspaceDatePickerController,
 } from "./main-date-pickers.js";
 import {
@@ -64,14 +50,14 @@ import {
   createSessionDataController,
 } from "./main-session-data.js";
 import {
+  createViewController,
+} from "./main-view-controller.js";
+import {
   createRecentBatchActions,
 } from "./main-recent-actions.js";
 import {
   createMainRenderer,
 } from "./main-render-shell.js";
-import {
-  renderPassportListView,
-} from "./main-passport-list-render.js";
 import {
   createPassportDeleteActions,
 } from "./main-passport-delete-actions.js";
@@ -79,15 +65,11 @@ import {
   createManifestPersistence,
 } from "./main-manifest-persistence.js";
 import {
-  confirmedReviewIds,
-  defaultSelectedIds,
-} from "./main-export.js";
-import {
   loadOcrMode,
 } from "./main-ocr.js";
 import {
-  createPassportPreviewController,
-} from "./main-passport-preview.js";
+  createPassportPreviewActions,
+} from "./main-passport-preview-actions.js";
 import {
   errorMessage,
   startRendererHeartbeat,
@@ -97,9 +79,12 @@ import {
 
 const state = createInitialState();
 const dom = {};
-let passportPreviewController = null;
 let actionAvailabilityController = null;
 let importViewController = null;
+let manifestWorkflow = null;
+let pageFlow = null;
+let passportPreviewActions = null;
+let viewController = null;
 const requestFrame = typeof window.requestAnimationFrame === "function"
   ? window.requestAnimationFrame.bind(window)
   : (callback) => window.setTimeout(callback, 16);
@@ -159,15 +144,15 @@ const {
   documentRef: document,
   refreshCompactLogs,
   ensureVisibleActiveMember,
-  renderImportPage,
-  renderProgressPanel,
-  renderScanLogs,
-  renderPassportList,
-  renderPassportPreview,
-  renderWorkspace,
-  renderReviewExportModal,
-  renderEntryPage,
-  updateActionAvailability,
+  renderImportPage: () => importViewController?.renderImportPage(),
+  renderProgressPanel: () => viewController?.renderProgressPanel(),
+  renderScanLogs: () => viewController?.renderScanLogs(),
+  renderPassportList: () => viewController?.renderPassportList(),
+  renderPassportPreview: () => passportPreviewActions?.renderPassportPreview(),
+  renderWorkspace: () => viewController?.renderWorkspace(),
+  renderReviewExportModal: () => viewController?.renderReviewExportModal(),
+  renderEntryPage: () => viewController?.renderEntryPage(),
+  updateActionAvailability: () => actionAvailabilityController?.updateActionAvailability(),
   reviewCompletionState,
   isEntryAccessible,
 });
@@ -228,10 +213,10 @@ const {
   requestFrame,
   runAction,
   renderAll,
-  setPage,
+  setPage: (page) => pageFlow?.setPage(page),
   appendScanLog,
   rememberRecentBatch,
-  loadManifest,
+  loadManifest: () => manifestWorkflow?.loadManifest(),
   recalculateMetrics,
   manifestMembers,
   updateOcrMode,
@@ -252,22 +237,37 @@ const {
     return invoke("find_manifest_path", { basePath });
   },
 });
+manifestWorkflow = createManifestWorkflow({
+  state,
+  manifestMembers,
+  syncManifestChildMetadata,
+  firstMemberId,
+  recalculateMetrics,
+  ensureVisibleActiveMember,
+  renderAll,
+  hasAnyScanResult,
+  hasScanResultForSelectedDir,
+  loadManifestCommand: async (manifestPath) => {
+    const { invoke } = tauriBindings();
+    return invoke("load_manifest", { manifestPath });
+  },
+});
 importViewController = createImportViewController({
   dom,
   state,
   hasAnyScanResult,
   hasScanResultForSelectedDir,
-  updateActionAvailability,
+  updateActionAvailability: () => actionAvailabilityController?.updateActionAvailability(),
   updateOcrMode,
 });
-const pageFlow = createPageFlow({
+pageFlow = createPageFlow({
   dom,
   state,
   manifestMembers,
   reviewCompletionState,
-  requiredFieldBlockingIssueForBatch,
+  requiredFieldBlockingIssueForBatch: () => manifestWorkflow?.requiredFieldBlockingIssueForBatch(),
   showBatchReviewBlockingMessage,
-  hasFolderSelectionConflict,
+  hasFolderSelectionConflict: () => Boolean(manifestWorkflow?.hasFolderSelectionConflict()),
   renderAll,
 });
 const {
@@ -290,9 +290,9 @@ const {
   manifestMembers,
   filteredMembers,
   activeNavigationState,
-  activeCategoryPair,
+  activeCategoryPair: () => viewController?.activeCategoryPair(),
   reviewCompletionState,
-  reviewCompletionValidation,
+  reviewCompletionValidation: (member) => manifestWorkflow?.reviewCompletionValidation(member),
   clearReviewBlock,
   showReviewBlockingMessage,
   openReviewCompleteModal,
@@ -303,6 +303,21 @@ const {
   scrollPassportListToTop,
   originalMemberById,
   replaceMemberInManifest,
+});
+passportPreviewActions = createPassportPreviewActions({
+  state,
+  dom,
+  requestFrame,
+  activeMember,
+  isMemberReviewConfirmed,
+  loadPassportImageData: async ({ manifestPath, imagePath, fileName }) => {
+    const { invoke } = tauriBindings();
+    return invoke("load_passport_image_data", {
+      manifestPath,
+      imagePath,
+      fileName,
+    });
+  },
 });
 const {
   openRecentDeleteModal,
@@ -349,12 +364,12 @@ const {
   state,
   manifestMembers,
   reviewCompletionState,
-  requiredFieldBlockingIssueForBatch,
+  requiredFieldBlockingIssueForBatch: () => manifestWorkflow?.requiredFieldBlockingIssueForBatch(),
   showBatchReviewBlockingMessage,
   syncPassportPageWithActiveMember,
   isEntryAccessible,
   renderAll,
-  renderReviewExportModal,
+  renderReviewExportModal: () => viewController?.renderReviewExportModal(),
   flushManifestSave,
   createNusukBatch: async ({ manifestPath, selectedIds, manifestData }) => {
     const { invoke } = tauriBindings();
@@ -364,6 +379,22 @@ const {
       manifestData,
     });
   },
+});
+viewController = createViewController({
+  dom,
+  state,
+  documentRef: document,
+  activeMember,
+  activeNavigationState,
+  canAdvanceToNextPassport: (navigation) => Boolean(actionAvailabilityController?.canAdvanceToNextPassport(navigation)),
+  exportPreviewState,
+  filteredMembers,
+  initializeWorkspaceDatePickers,
+  isMemberReviewConfirmed,
+  manifestMembers,
+  renderEntryLogs,
+  reviewCompletionState,
+  reviewPrimaryActionLabel,
 });
 actionAvailabilityController = createActionAvailabilityController({
   dom,
@@ -375,7 +406,7 @@ actionAvailabilityController = createActionAvailabilityController({
   reviewCompletionState,
   canExportReviewedJson,
   isMemberReviewConfirmed,
-  reviewCompletionValidation,
+  reviewCompletionValidation: (member) => manifestWorkflow?.reviewCompletionValidation(member),
 });
 let hasCompletedStartup = false;
 
@@ -404,7 +435,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     state.recentBatches = loadRecentBatches();
     state.ocrMode = loadOcrMode();
     bindDom(dom);
-    initializePassportPreviewController();
+    passportPreviewActions?.initializePassportPreviewController();
     bindActions();
     renderAll();
     hasCompletedStartup = true;
@@ -422,36 +453,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-function initializePassportPreviewController() {
-  passportPreviewController = createPassportPreviewController({
-    state,
-    dom,
-    requestFrame,
-    activeMember,
-    isMemberReviewConfirmed,
-    loadPassportImageData: async ({ manifestPath, imagePath, fileName }) => {
-      const { invoke } = tauriBindings();
-      return invoke("load_passport_image_data", {
-        manifestPath,
-        imagePath,
-        fileName,
-      });
-    },
-  });
-}
-
 function bindActions() {
   bindAppActions({
     dom,
     state,
     runAction,
-    setPage,
+    setPage: (page) => pageFlow?.setPage(page),
     updateSelectedDir,
-    renderImportPage,
-    updateActionAvailability,
+    renderImportPage: () => importViewController?.renderImportPage(),
+    updateActionAvailability: () => actionAvailabilityController?.updateActionAvailability(),
     chooseFolder,
     handleScanButtonClick,
-    handleOcrModeChange,
+    handleOcrModeChange: (event) => importViewController?.handleOcrModeChange(event),
     openStopScanModal,
     resolveRescanConfirmation,
     confirmStopScan,
@@ -479,12 +492,12 @@ function bindActions() {
     resetActiveMemberFields,
     openPassportDeleteModal,
     handleSaveAndNext,
-    renderWorkspace,
+    renderWorkspace: () => viewController?.renderWorkspace(),
     moveActiveMember,
-    changePassportPreviewZoom,
-    resetPassportPreviewZoom,
-    handlePassportPreviewWheel,
-    handlePassportPreviewKeydown,
+    changePassportPreviewZoom: (delta) => passportPreviewActions?.changePassportPreviewZoom(delta),
+    resetPassportPreviewZoom: () => passportPreviewActions?.resetPassportPreviewZoom(),
+    handlePassportPreviewWheel: (event) => passportPreviewActions?.handlePassportPreviewWheel(event),
+    handlePassportPreviewKeydown: (event) => passportPreviewActions?.handlePassportPreviewKeydown(event),
   });
 }
 
@@ -497,159 +510,8 @@ async function setupEventBridge() {
     rememberRecentBatch,
     renderAll,
     scheduleRenderAll,
-    loadManifest,
+    loadManifest: () => manifestWorkflow?.loadManifest(),
     closeStopScanModal,
   });
-}
-
-async function loadManifest() {
-  if (!state.manifestPath) {
-    return;
-  }
-
-  const { invoke } = tauriBindings();
-  const manifest = await invoke("load_manifest", { manifestPath: state.manifestPath });
-  syncManifestChildMetadata(manifest);
-  state.manifest = manifest;
-  state.originalManifest = cloneJson(manifest);
-  state.activeMemberId = firstMemberId(manifest);
-  state.selectedIds = new Set(defaultSelectedIds(manifest));
-  state.reviewedMemberIds = confirmedReviewIds(manifest);
-  state.passportImageCache.clear();
-  state.exportedBatchPath = "";
-  state.exportError = "";
-  recalculateMetrics();
-  ensureVisibleActiveMember();
-}
-
-function toggleMemberSelection(memberId, checked) {
-  if (!memberId) {
-    return;
-  }
-
-  if (checked) {
-    state.selectedIds.add(memberId);
-  } else {
-    state.selectedIds.delete(memberId);
-  }
-  renderAll();
-}
-
-function reviewCompletionValidation(member) {
-  return reviewCompletionValidationForMember(member, manifestMembers());
-}
-
-function requiredFieldBlockingIssueForBatch() {
-  return requiredFieldBlockingIssueForMembers(manifestMembers());
-}
-
-function setPage(page) {
-  pageFlow.setPage(page);
-}
-
-function renderImportPage() {
-  importViewController?.renderImportPage();
-}
-
-function renderOcrModeSelector() {
-  importViewController?.renderOcrModeSelector();
-}
-
-function handleOcrModeChange(event) {
-  importViewController?.handleOcrModeChange(event);
-}
-
-function ocrStatusDescriptor() {
-  return importViewController?.ocrStatusDescriptor();
-}
-
-function renderReviewExportModal() {
-  renderReviewExportModalView({ dom, state, preview: exportPreviewState() });
-}
-
-function renderEntryPage() {
-  renderEntryPageView({ dom, state, preview: exportPreviewState() });
-  renderEntryLogs();
-}
-
-function renderProgressPanel() {
-  renderProgressPanelView({ dom, state, members: manifestMembers() });
-}
-
-function renderScanLogs() {
-  renderScanLogsView({ dom, state });
-}
-
-function renderPassportList() {
-  renderPassportListView({
-    dom,
-    state,
-    allMembers: manifestMembers(),
-    visibleMembers: filteredMembers(),
-    review: reviewCompletionState(),
-    isMemberReviewConfirmed,
-    activeNavigationState,
-    canAdvanceToNextPassport,
-  });
-}
-
-function renderPassportPreview() {
-  passportPreviewController?.render();
-}
-
-function changePassportPreviewZoom(delta) {
-  passportPreviewController?.changeZoom(delta);
-}
-
-function resetPassportPreviewZoom() {
-  passportPreviewController?.resetZoom();
-}
-
-function resetPassportPreviewZoomState() {
-  passportPreviewController?.resetZoomState();
-}
-
-function handlePassportPreviewWheel(event) {
-  passportPreviewController?.handleWheel(event);
-}
-
-function handlePassportPreviewKeydown(event) {
-  passportPreviewController?.handleKeydown(event);
-}
-
-function renderPassportPreviewZoomControls() {
-  passportPreviewController?.renderZoomControls();
-}
-
-function isPassportPreviewImageReady() {
-  return Boolean(passportPreviewController?.isImageReady());
-}
-
-function renderWorkspace() {
-  renderWorkspaceView({
-    dom,
-    state,
-    documentRef: document,
-    activeMember,
-    manifestMembers,
-    initializeWorkspaceDatePickers,
-    reviewPrimaryActionLabel,
-  });
-}
-
-function activeCategoryPair() {
-  return activeCategoryPairForState(state);
-}
-
-function updateActionAvailability() {
-  actionAvailabilityController?.updateActionAvailability();
-}
-
-function canAdvanceToNextPassport(navigation) {
-  return Boolean(actionAvailabilityController?.canAdvanceToNextPassport(navigation));
-}
-
-function hasFolderSelectionConflict() {
-  return Boolean(state.selectedDir && hasAnyScanResult() && !hasScanResultForSelectedDir());
 }
 
