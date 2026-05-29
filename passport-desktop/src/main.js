@@ -1,12 +1,8 @@
 import {
   basenameFromPath,
-  normalizeDateToNusuk,
   cloneJson,
   escapeHtml,
 } from "./main-utils.js";
-import {
-  isDateFieldKey,
-} from "./main-fields.js";
 import {
   activeCategoryPairForState,
   renderWorkspaceView,
@@ -64,6 +60,9 @@ import {
 import {
   createImportWorkflow,
 } from "./main-import-flow.js";
+import {
+  createWorkspaceDatePickerController,
+} from "./main-date-pickers.js";
 import {
   buildRememberedRecentBatches,
   loadRecentBatches as loadRecentBatchesFromStorage,
@@ -124,6 +123,13 @@ const requestFrame = typeof window.requestAnimationFrame === "function"
 const cancelFrame = typeof window.cancelAnimationFrame === "function"
   ? window.cancelAnimationFrame.bind(window)
   : (handle) => window.clearTimeout(handle);
+const {
+  initializeWorkspaceDatePickers,
+} = createWorkspaceDatePickerController({
+  dom,
+  appWindow: window,
+  documentRef: document,
+});
 const {
   activeMember,
   activeNavigationState,
@@ -696,59 +702,6 @@ function saveRecentBatches(entries) {
 
 function updateOcrMode(value) {
   state.ocrMode = normalizeOcrMode(value);
-}
-
-function initializeWorkspaceDatePickers() {
-  const factory = window.flatpickr;
-  if (typeof factory !== "function" || !dom.fieldReviewRows) {
-    return;
-  }
-
-  const dateInputs = [...dom.fieldReviewRows.querySelectorAll("input.js-date-input[data-field-key]")];
-  for (const input of dateInputs) {
-    const fieldKey = String(input.dataset.fieldKey ?? "");
-    if (!isDateFieldKey(fieldKey)) {
-      continue;
-    }
-
-    const normalized = normalizeDateToNusuk(input.value);
-    input.value = normalized;
-
-    if (input._flatpickr) {
-      input._flatpickr.destroy();
-    }
-
-    factory(input, {
-      locale: factory?.l10ns?.id || "default",
-      dateFormat: "Y/m/d",
-      altInput: false,
-      allowInput: true,
-      disableMobile: true,
-      defaultDate: normalized || null,
-      appendTo: document.body,
-      positionElement: input,
-      position: "below left",
-      monthSelectorType: "static",
-      onValueUpdate: (_selectedDates, dateStr, instance) => {
-        syncDatePickerValue(instance, dateStr);
-      },
-    });
-  }
-}
-
-function syncDatePickerValue(instance, dateStr) {
-  if (!instance?.input) {
-    return;
-  }
-
-  const nextValue = normalizeDateToNusuk(dateStr || instance.input.value || "");
-  const currentValue = String(instance.input.value ?? "").trim();
-  if (nextValue === currentValue) {
-    return;
-  }
-
-  instance.input.value = nextValue;
-  instance.input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function reportRuntimeError(error, label = "Aksi aplikasi") {
