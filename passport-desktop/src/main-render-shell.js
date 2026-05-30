@@ -190,6 +190,9 @@ export function currentTopbarStatus(state) {
   if (state.manifestPath) {
     return { label: "Siap", tone: "ready" };
   }
+  if (state.preparedSession) {
+    return { label: "Preview Siap", tone: "ready" };
+  }
   if (state.selectedDir) {
     return { label: "Sudah Dipilih", tone: "neutral" };
   }

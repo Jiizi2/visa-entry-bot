@@ -64,7 +64,7 @@ test("session data appends compact scan logs from the latest worker message", ()
 
   assert.equal(state.lastWorkerMessage, "Worker online");
   assert.deepEqual(state.scanLogs, [
-    "1 selesai | +1 aktif | -1 sisa",
+    "1 selesai | 1 aktif | 1 sisa",
     "active.jpg | OCR",
     "Worker online",
   ]);

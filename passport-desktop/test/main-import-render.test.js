@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  importPhaseDescriptors,
   importFooterMessage,
   ocrStatusDescriptor,
   renderMiniStatus,
@@ -38,6 +39,42 @@ test("ocrStatusDescriptor maps import state to mini status", () => {
     hasAnyScanResult: () => false,
     hasScanResultForSelectedDir: () => false,
   }), { label: "Siap", tone: "ready" });
+  assert.deepEqual(ocrStatusDescriptor({
+    state: {
+      selectedDir: "C:/batch",
+      preparedSession: {
+        selectedDir: "C:/batch",
+        preparedManifestPath: "C:/batch/.passport-prepared/prepared_manifest.json",
+      },
+    },
+    hasAnyScanResult: () => false,
+    hasScanResultForSelectedDir: () => false,
+  }), { label: "Preview Siap", tone: "ready" });
+});
+
+test("importPhaseDescriptors reflects the pre-scan flow", () => {
+  assert.deepEqual(importPhaseDescriptors({
+    state: { selectedDir: "" },
+    hasPreparedForSelected: false,
+    hasResultForSelected: false,
+  }), [
+    { id: "folder", state: "active", caption: "Menunggu folder" },
+    { id: "preview", state: "pending", caption: "Belum disiapkan" },
+    { id: "scan", state: "pending", caption: "Belum discan" },
+  ]);
+
+  assert.deepEqual(importPhaseDescriptors({
+    state: {
+      selectedDir: "C:/batch",
+      preparedSession: { items: [{ id: "a" }, { id: "b" }] },
+    },
+    hasPreparedForSelected: true,
+    hasResultForSelected: false,
+  }), [
+    { id: "folder", state: "complete", caption: "Folder dipilih" },
+    { id: "preview", state: "active", caption: "2 foto siap preview" },
+    { id: "scan", state: "pending", caption: "Belum discan" },
+  ]);
 });
 
 test("renderMiniStatus updates node label and tone", () => {

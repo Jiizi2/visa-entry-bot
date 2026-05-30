@@ -61,15 +61,25 @@ export function createPreparedPreviewController({
 
   function renderSummary(items) {
     const editedCount = items.filter((item) => Boolean(item.editedPath)).length;
+    const convertedCount = Number(state.preparedSession?.convertedCount || 0);
+    const errorCount = Number(state.preparedSession?.errorCount || 0);
     if (dom.preparePreviewTitle) {
       dom.preparePreviewTitle.textContent = items.length
-        ? `${items.length} foto siap dicek`
+        ? "Preview dan rapikan foto"
         : "Belum ada foto siap preview";
     }
     if (dom.preparePreviewSubtitle) {
-      const convertedCount = Number(state.preparedSession?.convertedCount || 0);
-      const errorCount = Number(state.preparedSession?.errorCount || 0);
-      dom.preparePreviewSubtitle.textContent = `${convertedCount} hasil PDF | ${editedCount} diedit | ${errorCount} error`;
+      const parts = [`${items.length} foto siap scan`];
+      if (convertedCount > 0) {
+        parts.push(`${convertedCount} hasil PDF`);
+      }
+      if (editedCount > 0) {
+        parts.push(`${editedCount} sudah dirapikan`);
+      }
+      if (errorCount > 0) {
+        parts.push(`${errorCount} error`);
+      }
+      dom.preparePreviewSubtitle.textContent = parts.join(" | ");
     }
   }
 
@@ -89,7 +99,7 @@ export function createPreparedPreviewController({
       const sourceLabel = preparedItemSourceLabel(item);
       const edited = Boolean(item.editedPath);
       return `
-        <button class="prepared-passport-item ${itemId === activeId ? "is-active" : ""}" type="button" data-prepared-id="${escapeHtml(itemId)}">
+        <button class="prepared-passport-item ${itemId === activeId ? "is-active" : ""}" type="button" data-prepared-id="${escapeHtml(itemId)}" aria-pressed="${itemId === activeId ? "true" : "false"}">
           <span class="prepared-thumb-frame">
             <img class="prepared-thumb-image" data-prepared-thumb-id="${escapeHtml(itemId)}" alt="" />
           </span>
@@ -97,7 +107,7 @@ export function createPreparedPreviewController({
             <strong>${escapeHtml(fileName)}</strong>
             <small>${escapeHtml(sourceLabel)}</small>
           </span>
-          <span class="prepared-item-status ${edited ? "valid" : "neutral"}">${edited ? "Edited" : "Asli"}</span>
+          <span class="prepared-item-status ${edited ? "valid" : "neutral"}">${edited ? "Dirapikan" : "Siap"}</span>
         </button>
       `;
     }).join("");
@@ -140,7 +150,8 @@ export function createPreparedPreviewController({
       dom.preparedPreviewName.textContent = item.fileName || basenameFromPath(effectivePreparedImagePath(item));
     }
     if (dom.preparedPreviewFile) {
-      dom.preparedPreviewFile.textContent = preparedItemSourceLabel(item);
+      const editedCopy = item.editedPath ? " | Sudah dirapikan" : "";
+      dom.preparedPreviewFile.textContent = `Sumber: ${preparedItemSourceLabel(item)}${editedCopy}`;
     }
 
     void ensureActiveImage(item);
@@ -227,7 +238,7 @@ export function createPreparedPreviewController({
     });
     applyPreparedSession(session, String(item.id || ""));
     state.statusHeadline = "Rotasi foto tersimpan";
-    state.statusDetail = "Foto hasil rotasi akan dipakai saat scan.";
+    state.statusDetail = "Foto hasil rotasi akan dipakai saat scan OCR.";
     renderAll();
   }
 

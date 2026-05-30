@@ -14,6 +14,26 @@ export const PASSPORT_CROP_OUTPUT_QUALITY = 0.92;
 export const PASSPORT_CROP_MIN_IMAGE_SIZE = 48;
 export const PASSPORT_CROP_HANDLE_SIZE = 12;
 
+export function passportCropModeDescriptor(mode) {
+  if (mode === "prepared") {
+    return {
+      eyebrow: "Persiapan OCR",
+      title: "Rapikan Foto Scan",
+      loadingStatus: "Memuat foto untuk dirapikan...",
+      savingStatus: "Menyimpan foto...",
+      saveLabel: "Simpan Foto",
+    };
+  }
+
+  return {
+    eyebrow: "Foto Nusuk",
+    title: "Crop Foto Passport",
+    loadingStatus: "Memuat foto untuk crop...",
+    savingStatus: "Menyimpan hasil crop...",
+    saveLabel: "Simpan Crop",
+  };
+}
+
 function numberOr(value, fallback) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -86,7 +106,7 @@ export function createPassportCropController({
 
     showModal();
     setBusy(true);
-    setStatus("Memuat foto untuk crop...", "neutral");
+    setStatus(passportCropModeDescriptor(cropMode).loadingStatus, "neutral");
     resetCanvasState();
 
     const requestId = ++cropRequestId;
@@ -132,7 +152,7 @@ export function createPassportCropController({
 
     showModal();
     setBusy(true);
-    setStatus("Memuat foto untuk crop...", "neutral");
+    setStatus(passportCropModeDescriptor(cropMode).loadingStatus, "neutral");
     resetCanvasState();
 
     const requestId = ++cropRequestId;
@@ -289,7 +309,7 @@ export function createPassportCropController({
     }
 
     setBusy(true);
-    setStatus("Menyimpan hasil crop...", "neutral");
+    setStatus(passportCropModeDescriptor(cropMode).savingStatus, "neutral");
     try {
       const cropPayload = buildCropPayload();
       const dataUrl = renderCropDataUrl(cropPayload.rect);
@@ -326,7 +346,7 @@ export function createPassportCropController({
     }
 
     setBusy(true);
-    setStatus("Menyimpan hasil crop...", "neutral");
+    setStatus(passportCropModeDescriptor(cropMode).savingStatus, "neutral");
     try {
       const cropPayload = buildCropPayload();
       const sourceImagePath = imageData.path || imageData.imagePath || effectivePreparedImagePath(item);
@@ -428,6 +448,7 @@ export function createPassportCropController({
   }
 
   function showModal() {
+    syncModalCopy();
     dom.passportCropModal?.classList.remove("is-hidden");
     dom.passportCropModal?.setAttribute("aria-hidden", "false");
     requestFrame(() => {
@@ -446,9 +467,10 @@ export function createPassportCropController({
   }
 
   function setBusy(isBusy) {
+    const descriptor = passportCropModeDescriptor(cropMode);
     if (dom.passportCropSaveButton) {
       dom.passportCropSaveButton.disabled = Boolean(isBusy || !image || !cropRect);
-      dom.passportCropSaveButton.textContent = isBusy ? "Menyimpan..." : "Simpan Crop";
+      dom.passportCropSaveButton.textContent = isBusy ? "Memproses..." : descriptor.saveLabel;
     }
     if (dom.passportCropResetButton) {
       dom.passportCropResetButton.disabled = Boolean(isBusy || !image);
@@ -464,6 +486,19 @@ export function createPassportCropController({
     }
     dom.passportCropStatus.textContent = String(message || "");
     dom.passportCropStatus.className = `passport-crop-modal-status ${tone || "neutral"}`;
+  }
+
+  function syncModalCopy() {
+    const descriptor = passportCropModeDescriptor(cropMode);
+    if (dom.passportCropEyebrow) {
+      dom.passportCropEyebrow.textContent = descriptor.eyebrow;
+    }
+    if (dom.passportCropTitle) {
+      dom.passportCropTitle.textContent = descriptor.title;
+    }
+    if (dom.passportCropSaveButton && !dom.passportCropSaveButton.disabled) {
+      dom.passportCropSaveButton.textContent = descriptor.saveLabel;
+    }
   }
 
   function syncZoomControl() {

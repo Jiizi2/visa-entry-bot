@@ -9,6 +9,9 @@ export function renderImportPageView({
 }) {
   dom.folderPath.value = state.selectedDir;
   renderOcrModeSelectorView({ dom, state });
+  const hasAnyResult = hasAnyScanResult();
+  const hasResultForSelected = hasScanResultForSelectedDir();
+  const hasPreparedForSelected = hasPreparedSessionForSelectedDir(state);
 
   if (state.selectedDir) {
     dom.selectedFolderName.textContent = basenameFromPath(state.selectedDir);
@@ -20,12 +23,17 @@ export function renderImportPageView({
 
   dom.importFooterText.textContent = importFooterMessage({
     state,
-    hasAnyScanResult,
-    hasScanResultForSelectedDir,
+    hasAnyScanResult: () => hasAnyResult,
+    hasScanResultForSelectedDir: () => hasResultForSelected,
   });
-  const hasAnyResult = hasAnyScanResult();
-  const hasResultForSelected = hasScanResultForSelectedDir();
-  const hasPreparedForSelected = hasPreparedSessionForSelectedDir(state);
+  renderImportPhaseView({
+    dom,
+    phases: importPhaseDescriptors({
+      state,
+      hasPreparedForSelected,
+      hasResultForSelected,
+    }),
+  });
   dom.importNextButton?.classList.toggle("is-hidden", !hasResultForSelected);
   dom.scanButton.className = hasAnyResult ? "secondary-button" : "primary-action";
   dom.scanButton.textContent = state.isStartingScan
@@ -44,8 +52,8 @@ export function renderImportPageView({
         ? "Siapkan Foto"
       : hasResultForSelected
         ? "Scan Ulang Folder Ini"
-      : hasAnyResult
-        ? "Proses Folder Ini"
+        : hasAnyResult
+          ? "Proses Folder Ini"
           : "Mulai Scan";
   dom.scanButton.setAttribute("aria-busy", state.isScanning || state.isStartingScan || state.isPreparingImages ? "true" : "false");
   if (dom.stopScanButton) {
@@ -56,8 +64,8 @@ export function renderImportPageView({
 
   renderMiniStatus(dom.systemOcrStatus, ocrStatusDescriptor({
     state,
-    hasAnyScanResult,
-    hasScanResultForSelectedDir,
+    hasAnyScanResult: () => hasAnyResult,
+    hasScanResultForSelectedDir: () => hasResultForSelected,
   }));
   renderMiniStatus(dom.systemValidationStatus, { label: "Siap", tone: "ready" });
   renderMiniStatus(dom.systemRuntimeStatus, { label: "Tersedia", tone: "ready" });
@@ -86,6 +94,9 @@ export function importFooterMessage({
   if (state.isScanning) {
     return "";
   }
+  if (hasScanResultForSelectedDir()) {
+    return `Proses terakhir sudah selesai. ${state.validCount} data siap dipakai, ${state.reviewCount} perlu review, dan ${state.errorCount} error.`;
+  }
   if (state.preparedSession && hasPreparedSessionForSelectedDir(state)) {
     return "Preview foto sudah siap. Rapikan crop atau rotasi jika perlu, lalu mulai scan.";
   }
@@ -94,8 +105,8 @@ export function importFooterMessage({
     const selectedFolder = basenameFromPath(state.selectedDir);
     return `Data aktif saat ini berasal dari folder ${activeFolder}. Jika lanjut, proses akan mengganti data dengan folder ${selectedFolder}.`;
   }
-  if (hasScanResultForSelectedDir()) {
-    return `Proses terakhir sudah selesai. ${state.validCount} data siap dipakai, ${state.reviewCount} perlu review, dan ${state.errorCount} error.`;
+  if (state.selectedDir) {
+    return "Siapkan foto terlebih dahulu agar PDF diubah ke gambar dan preview bisa dirapikan sebelum OCR.";
   }
   return "";
 }
@@ -117,10 +128,78 @@ export function ocrStatusDescriptor({
   if (hasAnyScanResult() && !hasScanResultForSelectedDir()) {
     return { label: "Data Lama Aktif", tone: "warn" };
   }
+  if (state.preparedSession && hasPreparedSessionForSelectedDir(state)) {
+    return { label: "Preview Siap", tone: "ready" };
+  }
   if (state.selectedDir || state.manifestPath) {
     return { label: "Siap", tone: "ready" };
   }
   return { label: "Menunggu", tone: "idle" };
+}
+
+export function importPhaseDescriptors({
+  state,
+  hasPreparedForSelected = hasPreparedSessionForSelectedDir(state),
+  hasResultForSelected = false,
+}) {
+  const preparedCount = preparedItemCount(state);
+  const folderState = state.selectedDir ? "complete" : "active";
+  const previewState = state.isPreparingImages
+    ? "active"
+    : hasPreparedForSelected && !hasResultForSelected
+      ? "active"
+      : hasPreparedForSelected
+        ? "complete"
+        : "pending";
+  const scanState = state.isScanning
+    ? "active"
+    : hasResultForSelected
+      ? "complete"
+      : "pending";
+
+  return [
+    {
+      id: "folder",
+      state: folderState,
+      caption: state.selectedDir ? "Folder dipilih" : "Menunggu folder",
+    },
+    {
+      id: "preview",
+      state: previewState,
+      caption: state.isPreparingImages
+        ? "Menyiapkan foto"
+        : hasPreparedForSelected
+          ? `${preparedCount} foto siap preview`
+          : "Belum disiapkan",
+    },
+    {
+      id: "scan",
+      state: scanState,
+      caption: state.isScanning
+        ? "Sedang OCR"
+        : hasResultForSelected
+          ? "Scan selesai"
+          : "Belum discan",
+    },
+  ];
+}
+
+export function renderImportPhaseView({ dom, phases }) {
+  const phaseById = new Map((phases || []).map((phase) => [phase.id, phase]));
+  for (const step of dom.importPhaseSteps || []) {
+    const phase = phaseById.get(step.dataset?.importPhase || "");
+    if (!phase) {
+      continue;
+    }
+    step.classList.toggle("is-active", phase.state === "active");
+    step.classList.toggle("is-complete", phase.state === "complete");
+    step.classList.toggle("is-pending", phase.state === "pending");
+    step.setAttribute("aria-current", phase.state === "active" ? "step" : "false");
+    const caption = step.querySelector?.("[data-import-phase-caption]");
+    if (caption) {
+      caption.textContent = phase.caption;
+    }
+  }
 }
 
 function hasPreparedSessionForSelectedDir(state) {
@@ -135,6 +214,11 @@ function normalizePathForCompare(path) {
     .replace(/[\\/]+$/, "")
     .replace(/\//g, "\\")
     .toLowerCase();
+}
+
+function preparedItemCount(state) {
+  const items = state.preparedSession?.items;
+  return Array.isArray(items) ? items.length : 0;
 }
 
 export function renderMiniStatus(node, descriptor) {
