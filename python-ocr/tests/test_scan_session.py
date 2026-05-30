@@ -8,7 +8,18 @@ from unittest.mock import ANY, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scan_session import PDF_IMAGE_DIR_NAME, list_scan_source_files, prepare_scan_inputs, resolve_scan_target, scan_selected_directory
+from scan_session import (
+    PDF_IMAGE_DIR_NAME,
+    PREPARED_SCAN_FILE_NAME,
+    PreparedScanInputs,
+    PreparedScanItem,
+    load_prepared_scan_inputs,
+    list_scan_source_files,
+    prepare_preview_session,
+    prepare_scan_inputs,
+    resolve_scan_target,
+    scan_selected_directory,
+)
 from services.pdf_image_converter import PdfImageConversionResult
 
 
@@ -97,16 +108,20 @@ class ScanSessionTests(unittest.TestCase):
             passports_dir = Path(temp_dir) / "passports"
             nested_dir = passports_dir / "45 PAX"
             pdf_cache_dir = passports_dir / PDF_IMAGE_DIR_NAME
+            nusuk_crops_dir = passports_dir / "nusuk-crops"
             nested_dir.mkdir(parents=True)
             pdf_cache_dir.mkdir(parents=True)
+            nusuk_crops_dir.mkdir(parents=True)
             root_image = passports_dir / "A.jpg"
             nested_image = nested_dir / "B.png"
             nested_pdf = nested_dir / "C.pdf"
             cached_image = pdf_cache_dir / "old_page_001.jpg"
+            crop_image = nusuk_crops_dir / "A-crop.jpg"
             root_image.write_bytes(b"jpg")
             nested_image.write_bytes(b"png")
             nested_pdf.write_bytes(b"%PDF")
             cached_image.write_bytes(b"jpg")
+            crop_image.write_bytes(b"jpg")
 
             files = list_scan_source_files(str(passports_dir))
 
@@ -132,6 +147,24 @@ class ScanSessionTests(unittest.TestCase):
             self.assertEqual(prepared.passport_files, [str(image_path), str(converted_path)])
             self.assertEqual(prepared.error_records, [])
             self.assertEqual(prepared.converted_count, 1)
+            self.assertEqual(len(prepared.prepared_items or []), 2)
+
+    def test_prepare_preview_session_writes_manifest_and_loads_scan_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            group_dir = Path(temp_dir) / "group-preview"
+            passports_dir = group_dir / "passports"
+            passports_dir.mkdir(parents=True)
+            image_path = passports_dir / "sample-passport.jpg"
+            image_path.write_bytes(b"jpg")
+
+            session = prepare_preview_session(str(group_dir))
+            prepared_path = Path(str(session["preparedManifestPath"]))
+            loaded = load_prepared_scan_inputs(str(prepared_path))
+
+            self.assertEqual(prepared_path.name, PREPARED_SCAN_FILE_NAME)
+            self.assertEqual(session["imageCount"], 1)
+            self.assertEqual(loaded.passport_files, [str(image_path)])
+            self.assertEqual((loaded.prepared_items or [])[0].source_type, "image")
 
     def test_prepare_scan_inputs_drops_skipped_pdf_pages_from_manifest_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -186,6 +219,46 @@ class ScanSessionTests(unittest.TestCase):
             self.assertEqual(result.members[1]["fileName"], "bad.pdf")
             self.assertEqual(result.members[1]["reviewStatus"], "ERROR")
             self.assertIn("broken pdf", str(result.members[1]["notes"]))
+
+    def test_scan_selected_directory_accepts_windows_extended_prepared_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            group_dir = Path(temp_dir) / "group-extended"
+            passports_dir = group_dir / "passports"
+            passports_dir.mkdir(parents=True)
+            image_path = passports_dir / "good.jpg"
+            image_path.write_bytes(b"jpg")
+            extended_path = f"\\\\?\\{image_path}"
+            prepared = PreparedScanInputs(
+                source_files=[str(image_path)],
+                passport_files=[extended_path],
+                error_records=[],
+                prepared_items=[
+                    PreparedScanItem(
+                        id="prep-0001",
+                        source_type="image",
+                        source_path=extended_path,
+                        scan_path=extended_path,
+                        original_scan_path=extended_path,
+                        file_name="good.jpg",
+                        source_file_name="good.jpg",
+                    )
+                ],
+            )
+            scanned_record = {
+                "id": "good",
+                "fileName": "good.jpg",
+                "passportImagePath": extended_path,
+                "status": "VALID",
+                "reviewStatus": "VALID",
+                "processingMetrics": {"totalMs": 1},
+            }
+
+            with patch("scan_session.process_passport", return_value=scanned_record) as process_passport:
+                result = scan_selected_directory(str(group_dir), prepared_inputs=prepared)
+
+            process_passport.assert_called_once_with(str(image_path), step_callback=ANY)
+            self.assertEqual(result.members[0]["passportImagePath"].endswith("group-extended/passports/good.jpg"), True)
+            self.assertNotIn("\\\\?\\", str(result.members[0]["imagePrepMetadata"]))
 
 
 if __name__ == "__main__":

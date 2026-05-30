@@ -122,20 +122,59 @@ def normalize_worker_ocr_profile(value: str) -> str:
     return normalized if normalized in WORKER_OCR_PROFILES else "speed"
 
 
+def prepare_main() -> int:
+    if len(sys.argv) < 3 or not sys.argv[2].strip():
+        emit_error("PREPARE_USAGE_ERROR", "Usage: python scan_worker.py --prepare <folder>", stage="prepare", fatal=False)
+        emit("prepare_failed", message="[PREPARE_USAGE_ERROR] Folder passport belum dipilih.")
+        return 2
+
+    selected_dir = sys.argv[2].strip()
+    emit("prepare_log", message="Menyiapkan daftar foto passport...")
+    try:
+        from scan_session import prepare_preview_session
+    except Exception as exc:  # noqa: BLE001
+        emit_error("PREPARE_BOOT_FAILURE", str(exc), stage="prepare_boot", fatal=False)
+        emit("prepare_failed", message=f"[PREPARE_BOOT_FAILURE] {exc}")
+        return 1
+
+    try:
+        session = prepare_preview_session(
+            selected_dir,
+            log_callback=lambda message: emit("prepare_log", message=message),
+        )
+    except Exception as exc:  # noqa: BLE001
+        emit_error("PREPARE_EXECUTION_FAILED", str(exc), stage="prepare_session", fatal=False)
+        emit("prepare_failed", message=f"[PREPARE_EXECUTION_FAILED] {exc}")
+        return 1
+
+    emit(
+        "prepare_complete",
+        session=session,
+        imageCount=session.get("imageCount", 0),
+        errorCount=session.get("errorCount", 0),
+        convertedCount=session.get("convertedCount", 0),
+    )
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--prepare":
+        return prepare_main()
+
     if len(sys.argv) < 2 or not sys.argv[1].strip():
-        print("Usage: python scan_worker.py <folder> [speed|balanced|heavy]", file=sys.stderr)
+        print("Usage: python scan_worker.py <folder> [speed|balanced|heavy] [prepared-inputs.json]", file=sys.stderr)
         return 2
 
     selected_dir = sys.argv[1].strip()
     ocr_profile = normalize_worker_ocr_profile(sys.argv[2] if len(sys.argv) > 2 else "")
+    prepared_manifest_path = sys.argv[3].strip() if len(sys.argv) > 3 else ""
 
     os.environ["PASSPORT_OCR_PROFILE"] = ocr_profile
     emit("scan_log", message=f"Worker Python aktif. Memuat engine OCR ({ocr_profile})...")
     boot_heartbeat = start_boot_heartbeat()
 
     try:
-        from scan_session import prepare_scan_inputs, resolve_scan_target, scan_selected_directory
+        from scan_session import load_prepared_scan_inputs, prepare_scan_inputs, resolve_scan_target, scan_selected_directory
     except Exception as exc:  # noqa: BLE001
         emit_error("OCR_BOOT_FAILURE", str(exc), stage="bootstrap", fatal=True)
         return 1
@@ -169,10 +208,14 @@ def main() -> int:
 
     try:
         target = resolve_scan_target(selected_dir)
-        prepared_inputs = prepare_scan_inputs(
-            target,
-            log_callback=lambda message: emit("scan_log", message=message),
-        )
+        if prepared_manifest_path:
+            emit("scan_log", message="Memakai foto yang sudah disiapkan dari preview.")
+            prepared_inputs = load_prepared_scan_inputs(prepared_manifest_path)
+        else:
+            prepared_inputs = prepare_scan_inputs(
+                target,
+                log_callback=lambda message: emit("scan_log", message=message),
+            )
         emit(
             "scan_log",
             message=(

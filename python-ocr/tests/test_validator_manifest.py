@@ -96,6 +96,12 @@ class ValidatorManifestTests(unittest.TestCase):
         self.assertIn("passportExtracted", record["confidenceLevel"])
         self.assertIn("resolvedProfile", record["confidenceLevel"])
 
+    def test_build_error_record_normalizes_windows_extended_paths(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        record = build_error_record("bad.png", f"\\\\?\\{repo_root}\\data\\bad.png", "MRZ not detected.")
+
+        self.assertEqual(record["passportImagePath"], "data/bad.png")
+
     def test_country_of_issued_prefers_mrz_issuing_country(self) -> None:
         record = build_member_record(
             "passport.png",

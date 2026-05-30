@@ -405,4 +405,18 @@ def _age(birth_date: date) -> int:
 
 
 def _relative_path(path: str) -> str:
-    return os.path.relpath(path, ROOT_DIR).replace(os.sep, "/")
+    normalized_path = _normalize_filesystem_path(path)
+    normalized_root = _normalize_filesystem_path(ROOT_DIR)
+    try:
+        return os.path.relpath(normalized_path, normalized_root).replace(os.sep, "/")
+    except ValueError:
+        return normalized_path.replace(os.sep, "/")
+
+
+def _normalize_filesystem_path(path: str) -> str:
+    text = str(path or "").strip()
+    if text.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + text[8:]
+    if text.startswith("\\\\?\\"):
+        return text[4:]
+    return text
