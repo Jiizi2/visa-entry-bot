@@ -5,6 +5,7 @@ import {
   clampPassportCropZoom,
   defaultPassportCropRect,
   normalizeCropRect,
+  passportCropModeDescriptor,
   updateCropRectForInteraction,
 } from "../src/main-passport-crop.js";
 
@@ -13,6 +14,13 @@ test("clampPassportCropZoom keeps crop zoom within supported bounds", () => {
   assert.equal(clampPassportCropZoom(3), 2);
   assert.equal(clampPassportCropZoom(1.234), 1.23);
   assert.equal(clampPassportCropZoom("bad"), 1);
+});
+
+test("passportCropModeDescriptor separates prepared and Nusuk crop copy", () => {
+  assert.equal(passportCropModeDescriptor("prepared").title, "Rapikan Foto Scan");
+  assert.equal(passportCropModeDescriptor("prepared").saveLabel, "Simpan Foto");
+  assert.equal(passportCropModeDescriptor("member").title, "Crop Foto Passport");
+  assert.equal(passportCropModeDescriptor("member").saveLabel, "Simpan Crop");
 });
 
 test("normalizeCropRect clamps crop rectangle inside image bounds", () => {

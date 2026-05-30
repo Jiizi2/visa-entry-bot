@@ -144,11 +144,35 @@
             </div>
           </div>
 
+          <section id="import-phase-strip" class="import-phase-strip" aria-label="Tahap proses import">
+            <div class="import-phase-step is-active" data-import-phase="folder">
+              <span class="import-phase-index">1</span>
+              <span class="import-phase-copy">
+                <strong>Folder</strong>
+                <small data-import-phase-caption>Menunggu folder</small>
+              </span>
+            </div>
+            <div class="import-phase-step" data-import-phase="preview">
+              <span class="import-phase-index">2</span>
+              <span class="import-phase-copy">
+                <strong>Preview Foto</strong>
+                <small data-import-phase-caption>Belum disiapkan</small>
+              </span>
+            </div>
+            <div class="import-phase-step" data-import-phase="scan">
+              <span class="import-phase-index">3</span>
+              <span class="import-phase-copy">
+                <strong>Scan OCR</strong>
+                <small data-import-phase-caption>Belum discan</small>
+              </span>
+            </div>
+          </section>
+
           <section id="prepare-preview-panel" class="prepare-preview-panel is-hidden" aria-label="Preview foto sebelum scan">
             <div class="prepare-preview-head">
               <div>
                 <p class="eyebrow">Preview Foto</p>
-                <h4 id="prepare-preview-title">Belum ada foto siap preview</h4>
+                <h4 id="prepare-preview-title">Preview dan rapikan foto</h4>
                 <span id="prepare-preview-subtitle">Pilih folder lalu siapkan foto.</span>
               </div>
               <div class="prepare-preview-tools" aria-label="Aksi foto aktif">
@@ -159,16 +183,17 @@
             </div>
 
             <div class="prepare-preview-body">
-              <div id="prepared-passport-list" class="prepared-passport-list" aria-label="Daftar foto passport"></div>
-              <div class="prepared-preview-stage">
-                <img id="prepared-preview-image" class="prepared-preview-image is-hidden" alt="Preview passport" />
-                <div id="prepared-preview-empty" class="prepared-preview-empty">Belum ada foto dipilih.</div>
+              <div class="prepared-preview-workspace">
+                <div class="prepared-preview-stage">
+                  <img id="prepared-preview-image" class="prepared-preview-image is-hidden" alt="Preview passport" />
+                  <div id="prepared-preview-empty" class="prepared-preview-empty">Belum ada foto dipilih.</div>
+                </div>
+                <div class="prepared-preview-meta">
+                  <strong id="prepared-preview-name">Belum ada foto</strong>
+                  <span id="prepared-preview-file">Siapkan folder terlebih dahulu.</span>
+                </div>
               </div>
-            </div>
-
-            <div class="prepared-preview-meta">
-              <strong id="prepared-preview-name">Belum ada foto</strong>
-              <span id="prepared-preview-file">Siapkan folder terlebih dahulu.</span>
+              <div id="prepared-passport-list" class="prepared-passport-list" aria-label="Daftar foto passport"></div>
             </div>
           </section>
 
@@ -559,7 +584,7 @@
       <div class="passport-crop-card">
         <div class="passport-crop-head">
           <div>
-            <p class="eyebrow">Foto Nusuk</p>
+            <p id="passport-crop-eyebrow" class="eyebrow">Foto Nusuk</p>
             <h4 id="passport-crop-title">Crop Foto Passport</h4>
           </div>
           <span id="passport-crop-status" class="passport-crop-modal-status neutral">Menunggu foto</span>

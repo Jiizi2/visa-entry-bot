@@ -2,9 +2,10 @@ import { formatDurationMs, formatProgressValue } from "./main-utils.js";
 import { scanTimingSummary } from "./main-metrics.js";
 
 export function renderProgressPanelView({ dom, state, members = [] }) {
-  const total = state.progressTotal || state.totalFiles || 0;
-  const current = Math.min(state.progressCurrent || 0, total || 0);
-  const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+  const progress = progressSnapshotForState(state);
+  const total = progress.total;
+  const current = progress.current;
+  const percentage = progress.percentage;
   const lastLog = state.lastWorkerMessage || state.scanLogs[state.scanLogs.length - 1] || "";
   const timing = scanTimingSummary({
     scanPerfSummary: state.scanPerfSummary,
@@ -13,13 +14,11 @@ export function renderProgressPanelView({ dom, state, members = [] }) {
     members,
   });
 
-  dom.progressTitle.textContent = state.isScanning
-    ? `Proses berjalan ${percentage}%`
-    : state.manifestPath
-      ? "Proses selesai"
-      : "Belum ada proses aktif";
+  dom.progressTitle.textContent = progress.title;
 
-  if (state.progressFileName && state.progressStageLabel) {
+  if (progress.caption) {
+    dom.progressCaption.textContent = progress.caption;
+  } else if (state.progressFileName && state.progressStageLabel) {
     dom.progressCaption.textContent =
       `${state.progressFileName} | ${state.progressStageLabel} | ${formatProgressValue(current)}/${total || "?"}`;
   } else if (state.progressFileName) {
@@ -82,16 +81,25 @@ export function refreshCompactLogsForState(state, members = []) {
 }
 
 export function compactScanLogs(state, members = []) {
-  const total = Number(state.progressTotal || state.totalFiles || 0);
+  const total = Math.max(0, Number(state.progressTotal || state.totalFiles || 0));
   const completed = Math.min(Math.max(Math.floor(Number(state.progressCurrent || 0)), 0), total || 0);
   const active = state.isScanning && state.progressFileName && state.progressStageLabel !== "Selesai" ? 1 : 0;
   const remaining = Math.max(total - completed - active, 0);
+  const preparedCount = preparedItemCount(state);
+  const editedCount = preparedEditedCount(state);
   const lines = [];
 
-  if (total > 0) {
-    lines.push(`${completed} selesai | +${active} aktif | -${remaining} sisa`);
+  if (state.isPreparingImages) {
+    lines.push("Menyiapkan foto untuk preview...");
+  } else if (state.isScanning && total > 0) {
+    lines.push(`${completed} selesai | ${active} aktif | ${remaining} sisa`);
   } else if (state.isScanning) {
     lines.push("Menyiapkan scan...");
+  } else if (!state.manifestPath && preparedCount > 0) {
+    lines.push(`Preview siap | ${preparedCount} foto`);
+    if (editedCount > 0) {
+      lines.push(`${editedCount} foto sudah dirapikan`);
+    }
   }
 
   if (state.progressFileName && active) {
@@ -120,11 +128,73 @@ export function compactScanLogs(state, members = []) {
 }
 
 export function scanConsoleStatusDescriptor(state) {
+  if (state.isPreparingImages) {
+    return { label: "Menyiapkan", tone: "info" };
+  }
   if (state.isScanning) {
     return { label: "Berjalan", tone: "info" };
   }
   if (state.manifestPath) {
     return { label: "Selesai", tone: "ready" };
   }
+  if (preparedItemCount(state) > 0) {
+    return { label: "Siap Preview", tone: "ready" };
+  }
   return { label: "Menunggu", tone: "neutral" };
+}
+
+export function progressSnapshotForState(state) {
+  const preparedCount = preparedItemCount(state);
+  if (state.isPreparingImages) {
+    const total = Math.max(0, Number(state.progressTotal || state.totalFiles || preparedCount || 0));
+    const current = clampProgressValue(state.progressCurrent, total);
+    return {
+      total,
+      current,
+      percentage: total > 0 ? Math.round((current / total) * 100) : 0,
+      title: "Menyiapkan foto",
+      caption: "PDF sedang dikonversi dan daftar preview sedang dibuat.",
+    };
+  }
+
+  if (!state.isScanning && !state.manifestPath && preparedCount > 0) {
+    return {
+      total: preparedCount,
+      current: preparedCount,
+      percentage: 100,
+      title: "Preview foto siap",
+      caption: `${preparedCount} foto siap dirapikan sebelum scan OCR.`,
+    };
+  }
+
+  const total = Math.max(0, Number(state.progressTotal || state.totalFiles || 0));
+  const current = clampProgressValue(state.progressCurrent, total);
+  return {
+    total,
+    current,
+    percentage: total > 0 ? Math.round((current / total) * 100) : 0,
+    title: state.isScanning
+      ? `Proses berjalan ${total > 0 ? Math.round((current / total) * 100) : 0}%`
+      : state.manifestPath
+        ? "Proses selesai"
+        : "Belum ada proses aktif",
+    caption: "",
+  };
+}
+
+function clampProgressValue(value, total) {
+  const numeric = Number(value || 0);
+  const safeValue = Number.isFinite(numeric) ? numeric : 0;
+  const safeTotal = Math.max(0, Number(total || 0));
+  return Math.min(Math.max(safeValue, 0), safeTotal || 0);
+}
+
+function preparedItemCount(state) {
+  const items = state.preparedSession?.items;
+  return Array.isArray(items) ? items.length : 0;
+}
+
+function preparedEditedCount(state) {
+  const items = state.preparedSession?.items;
+  return Array.isArray(items) ? items.filter((item) => Boolean(item?.editedPath)).length : 0;
 }
