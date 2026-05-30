@@ -323,12 +323,17 @@ fn start_scan(
     state: State<'_, ScanState>,
     selected_dir: String,
     ocr_mode: Option<String>,
+    prepared_manifest_path: Option<String>,
 ) -> Result<(), String> {
     let selected_dir = selected_dir.trim().to_string();
     if selected_dir.is_empty() {
         return Err("Folder passport belum dipilih.".to_string());
     }
     let ocr_mode = normalize_ocr_mode(ocr_mode.as_deref().unwrap_or(""))?;
+    let prepared_manifest_path = prepared_manifest_path
+        .unwrap_or_default()
+        .trim()
+        .to_string();
 
     let worker_paths = locate_worker_paths()?;
     let scan_flag = state.in_progress.clone();
@@ -354,6 +359,7 @@ fn start_scan(
             &worker_paths,
             &selected_dir,
             &ocr_mode,
+            &prepared_manifest_path,
             active_child.clone(),
             cancel_requested.clone(),
         );
@@ -379,6 +385,189 @@ fn start_scan(
     });
 
     Ok(())
+}
+
+#[tauri::command]
+fn prepare_passport_images(selected_dir: String) -> Result<Value, String> {
+    let selected_dir = selected_dir.trim().to_string();
+    if selected_dir.is_empty() {
+        return Err("Folder passport belum dipilih.".to_string());
+    }
+
+    let worker_paths = locate_worker_paths()?;
+    let mut command = Command::new(&worker_paths.command_executable);
+    configure_worker_tesseract_environment(&mut command, &worker_paths.repo_root);
+    command
+        .current_dir(&worker_paths.working_dir)
+        .env("PYTHONUNBUFFERED", "1");
+
+    if let Some(worker_script) = &worker_paths.worker_script {
+        command.arg("-u").arg(worker_script);
+    }
+
+    command
+        .arg("--prepare")
+        .arg(&selected_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    {
+        command.creation_flags(0x08000000);
+    }
+
+    let output = command.output().map_err(|err| {
+        format!(
+            "Gagal menjalankan prepare worker {}: {err}",
+            worker_paths.command_executable.display()
+        )
+    })?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let mut prepared_session: Option<Value> = None;
+    let mut worker_failure: Option<String> = None;
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let Ok(payload) = serde_json::from_str::<Value>(trimmed) else {
+            log_diagnostic(format!("prepare worker log: {trimmed}"));
+            continue;
+        };
+        match payload.get("event").and_then(Value::as_str).unwrap_or("") {
+            "prepare_complete" => {
+                prepared_session = payload.get("session").cloned();
+            }
+            "prepare_failed" => {
+                worker_failure = payload
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+            }
+            "prepare_log" | "scan_log" => {
+                if let Some(message) = payload.get("message").and_then(Value::as_str) {
+                    log_diagnostic(format!("prepare worker: {message}"));
+                }
+            }
+            "scan_error" => {
+                if let Some(message) = payload.get("message").and_then(Value::as_str) {
+                    worker_failure = Some(message.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(session) = prepared_session {
+        return Ok(session);
+    }
+
+    if let Some(message) = worker_failure {
+        return Err(message);
+    }
+
+    if !output.status.success() {
+        let message = if stderr.trim().is_empty() {
+            format!(
+                "Prepare worker berhenti dengan kode {:?}.",
+                output.status.code()
+            )
+        } else {
+            stderr.trim().to_string()
+        };
+        return Err(message);
+    }
+
+    Err("Prepare worker selesai tanpa mengirim daftar foto.".to_string())
+}
+
+#[tauri::command]
+fn save_prepared_passport_image(
+    prepared_manifest_path: String,
+    item_id: String,
+    source_image_path: String,
+    data_url: String,
+    crop: Value,
+    rotation_degrees: Option<i64>,
+) -> Result<Value, String> {
+    let manifest_path = resolve_prepared_manifest_path(&prepared_manifest_path)?;
+    let content = fs::read_to_string(&manifest_path).map_err(|err| {
+        format!(
+            "Gagal membaca prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+    let mut manifest: Value = serde_json::from_str(&content)
+        .map_err(|err| format!("Prepared manifest tidak valid: {err}"))?;
+    if manifest.get("schemaVersion").and_then(Value::as_str) != Some("passport-prepared-inputs-v1")
+    {
+        return Err("Prepared manifest tidak dikenali.".to_string());
+    }
+
+    let output_dir = manifest_path
+        .parent()
+        .ok_or_else(|| "Lokasi prepared manifest tidak valid.".to_string())?
+        .join("edited-images");
+    fs::create_dir_all(&output_dir).map_err(|err| {
+        format!(
+            "Gagal membuat folder edited image {}: {err}",
+            output_dir.display()
+        )
+    })?;
+
+    let bytes = decode_image_data_url(&data_url)?;
+    let base_name = crop_file_base_name(&item_id, "", &source_image_path);
+    let output_path = output_dir.join(format!("{base_name}.jpg"));
+    fs::write(&output_path, bytes).map_err(|err| {
+        format!(
+            "Gagal menyimpan foto prepared {}: {err}",
+            output_path.display()
+        )
+    })?;
+    let resolved = fs::canonicalize(&output_path).unwrap_or(output_path);
+    let edited_path = path_to_display_string(&resolved);
+    let rotation = rotation_degrees.unwrap_or(0);
+
+    let items = manifest
+        .get_mut("items")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "Prepared manifest tidak memiliki daftar items.".to_string())?;
+    let mut found = false;
+    for item in items {
+        let is_target = item
+            .get("id")
+            .and_then(Value::as_str)
+            .map(|value| value == item_id.trim())
+            .unwrap_or(false);
+        if !is_target {
+            continue;
+        }
+        let Some(map) = item.as_object_mut() else {
+            continue;
+        };
+        map.insert("editedPath".to_string(), Value::String(edited_path.clone()));
+        map.insert("rotationDegrees".to_string(), json!(rotation));
+        map.insert("cropMetadata".to_string(), crop.clone());
+        found = true;
+        break;
+    }
+
+    if !found {
+        return Err("Prepared item tidak ditemukan.".to_string());
+    }
+
+    let serialized = serde_json::to_string_pretty(&manifest)
+        .map_err(|err| format!("Gagal menyiapkan prepared manifest: {err}"))?;
+    fs::write(&manifest_path, serialized).map_err(|err| {
+        format!(
+            "Gagal menyimpan prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+
+    Ok(manifest)
 }
 
 #[tauri::command]
@@ -519,7 +708,7 @@ fn resolve_passport_image_path(
             continue;
         }
         let resolved = fs::canonicalize(&candidate).unwrap_or(candidate);
-        return Ok(Some(resolved.to_string_lossy().to_string()));
+        return Ok(Some(path_to_display_string(&resolved)));
     }
 
     Ok(None)
@@ -552,7 +741,7 @@ fn load_passport_image_data(
         let encoded = general_purpose::STANDARD.encode(bytes);
 
         return Ok(Some(PassportImageData {
-            path: resolved.to_string_lossy().to_string(),
+            path: path_to_display_string(&resolved),
             data_url: format!("data:{mime_type};base64,{encoded}"),
         }));
     }
@@ -588,14 +777,14 @@ fn save_cropped_passport_image(
 
     let resolved = fs::canonicalize(&output_path).unwrap_or(output_path);
     let relative_path =
-        repo_relative_path(&resolved).unwrap_or_else(|| resolved.to_string_lossy().to_string());
+        repo_relative_path(&resolved).unwrap_or_else(|| path_to_display_string(&resolved));
     log_diagnostic(format!(
         "Saved cropped passport image for member {} with crop metadata {}",
         member_id.trim(),
         crop
     ));
     Ok(SavedPassportCrop {
-        path: resolved.to_string_lossy().to_string(),
+        path: path_to_display_string(&resolved),
         relative_path,
     })
 }
@@ -666,6 +855,20 @@ fn repo_relative_path(path: &Path) -> Option<String> {
     let worker_paths = locate_worker_paths().ok()?;
     let relative = path.strip_prefix(worker_paths.repo_root).ok()?;
     Some(relative.to_string_lossy().replace('\\', "/"))
+}
+
+fn path_to_display_string(path: &Path) -> String {
+    strip_windows_extended_prefix(&path.to_string_lossy())
+}
+
+fn strip_windows_extended_prefix(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    if let Some(rest) = path.strip_prefix(r"\\?\") {
+        return rest.to_string();
+    }
+    path.to_string()
 }
 
 fn passport_image_candidates(
@@ -833,6 +1036,7 @@ fn run_worker_process(
     worker_paths: &WorkerPaths,
     selected_dir: &str,
     ocr_mode: &str,
+    prepared_manifest_path: &str,
     active_child: Arc<Mutex<Option<Child>>>,
     cancel_requested: Arc<Mutex<bool>>,
 ) -> Result<(), String> {
@@ -849,9 +1053,13 @@ fn run_worker_process(
     command
         .arg(selected_dir)
         .arg(ocr_mode)
-        .env("PASSPORT_OCR_PROFILE", ocr_mode)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .env("PASSPORT_OCR_PROFILE", ocr_mode);
+
+    if !prepared_manifest_path.trim().is_empty() {
+        command.arg(prepared_manifest_path.trim());
+    }
+
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
 
     #[cfg(target_os = "windows")]
     {
@@ -1123,6 +1331,27 @@ fn is_manifest_file(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+fn resolve_prepared_manifest_path(path: &str) -> Result<PathBuf, String> {
+    let candidate = PathBuf::from(path.trim());
+    if candidate.as_os_str().is_empty() {
+        return Err("Lokasi prepared manifest tidak valid.".to_string());
+    }
+    let manifest_path = if candidate.is_dir() {
+        candidate
+            .join(".passport-assistant-prepared")
+            .join("prepared-inputs.json")
+    } else {
+        candidate
+    };
+    if !manifest_path.is_file() {
+        return Err(format!(
+            "Prepared manifest tidak ditemukan: {}",
+            manifest_path.display()
+        ));
+    }
+    Ok(manifest_path)
+}
+
 fn locate_worker_paths() -> Result<WorkerPaths, String> {
     let mut candidates = Vec::new();
 
@@ -1355,6 +1584,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             renderer_heartbeat,
+            prepare_passport_images,
             start_scan,
             stop_scan,
             load_manifest,
@@ -1363,6 +1593,7 @@ pub fn run() {
             resolve_passport_image_path,
             load_passport_image_data,
             save_cropped_passport_image,
+            save_prepared_passport_image,
             create_nusuk_batch
         ])
         .run(tauri::generate_context!())

@@ -60,6 +60,17 @@ export function bindDom(dom, root = document) {
   dom.systemOcrStatus = root.querySelector("#system-ocr-status");
   dom.systemValidationStatus = root.querySelector("#system-validation-status");
   dom.systemRuntimeStatus = root.querySelector("#system-runtime-status");
+  dom.preparePreviewPanel = root.querySelector("#prepare-preview-panel");
+  dom.preparePreviewTitle = root.querySelector("#prepare-preview-title");
+  dom.preparePreviewSubtitle = root.querySelector("#prepare-preview-subtitle");
+  dom.preparedPassportList = root.querySelector("#prepared-passport-list");
+  dom.preparedPreviewImage = root.querySelector("#prepared-preview-image");
+  dom.preparedPreviewEmpty = root.querySelector("#prepared-preview-empty");
+  dom.preparedPreviewName = root.querySelector("#prepared-preview-name");
+  dom.preparedPreviewFile = root.querySelector("#prepared-preview-file");
+  dom.preparedCropButton = root.querySelector("#prepared-crop-button");
+  dom.preparedRotateLeftButton = root.querySelector("#prepared-rotate-left-button");
+  dom.preparedRotateRightButton = root.querySelector("#prepared-rotate-right-button");
 
   dom.progressTitle = root.querySelector("#progress-title");
   dom.progressCaption = root.querySelector("#progress-caption");

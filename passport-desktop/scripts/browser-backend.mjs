@@ -85,6 +85,8 @@ function handleEvents(request, response) {
 
 async function handleInvoke(command, args) {
   switch (String(command || "")) {
+    case "prepare_passport_images":
+      return preparePassportImages(args.selectedDir);
     case "start_scan":
       return startScan(args);
     case "stop_scan":
@@ -101,6 +103,8 @@ async function handleInvoke(command, args) {
       return loadPassportImageData(args.manifestPath, args.imagePath, args.fileName);
     case "save_cropped_passport_image":
       return saveCroppedPassportImage(args);
+    case "save_prepared_passport_image":
+      return savePreparedPassportImage(args);
     case "create_nusuk_batch":
       return createNusukBatch(args.manifestPath, args.selectedIds, args.manifestData);
     default:
@@ -118,6 +122,7 @@ async function startScan(args) {
   }
 
   const ocrMode = normalizeOcrMode(args?.ocrMode);
+  const preparedManifestPath = String(args?.preparedManifestPath || "").trim();
   const worker = locateWorkerPaths();
   scanState.inProgress = true;
   scanState.cancelRequested = false;
@@ -128,7 +133,7 @@ async function startScan(args) {
 
   const child = spawn(
     worker.pythonExecutable,
-    ["-u", worker.workerScript, selectedDir, ocrMode],
+    ["-u", worker.workerScript, selectedDir, ocrMode, ...(preparedManifestPath ? [preparedManifestPath] : [])],
     {
       cwd: join(worker.repoRoot, "python-ocr"),
       env: { ...process.env, PASSPORT_OCR_PROFILE: ocrMode },
@@ -153,6 +158,57 @@ async function startScan(args) {
   });
 
   return null;
+}
+
+async function preparePassportImages(selectedDir) {
+  const folder = String(selectedDir || "").trim();
+  if (!folder) {
+    throw new Error("Folder passport belum dipilih.");
+  }
+  const worker = locateWorkerPaths();
+  let stdout = "";
+  let stderr = "";
+  try {
+    const output = await execFilePromise(
+      worker.pythonExecutable,
+      ["-u", worker.workerScript, "--prepare", folder],
+      {
+        cwd: join(worker.repoRoot, "python-ocr"),
+        env: { ...process.env, PYTHONUNBUFFERED: "1" },
+        windowsHide: true,
+        maxBuffer: 1024 * 1024 * 20,
+      },
+    );
+    stdout = output.stdout;
+    stderr = output.stderr;
+  } catch (error) {
+    stdout = error?.stdout || "";
+    stderr = error?.stderr || errorMessage(error);
+  }
+
+  let session = null;
+  let failure = "";
+  for (const line of String(stdout || "").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      const payload = JSON.parse(trimmed);
+      if (payload?.event === "prepare_complete") {
+        session = payload.session || null;
+      } else if (payload?.event === "prepare_failed" || payload?.event === "scan_error") {
+        failure = payload.message || failure;
+      }
+    } catch {
+      // Plain logs are ignored here; the UI writes its own prepare status.
+    }
+  }
+
+  if (session) {
+    return session;
+  }
+  throw new Error(failure || String(stderr || "").trim() || "Prepare worker selesai tanpa mengirim daftar foto.");
 }
 
 function stopScan() {
@@ -367,6 +423,44 @@ async function saveCroppedPassportImage(args = {}) {
     path: outputPath,
     relativePath: relativePath && !relativePath.startsWith("..") ? relativePath : outputPath,
   };
+}
+
+async function savePreparedPassportImage(args = {}) {
+  const manifestPath = resolvePreparedManifestPath(args.preparedManifestPath);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  if (manifest?.schemaVersion !== "passport-prepared-inputs-v1" || !Array.isArray(manifest.items)) {
+    throw new Error("Prepared manifest tidak dikenali.");
+  }
+
+  const outputDir = join(dirname(manifestPath), "edited-images");
+  await mkdir(outputDir, { recursive: true });
+  const bytes = decodeImageDataUrl(args.dataUrl);
+  const fileBase = cropFileBaseName(args.itemId, "", args.sourceImagePath);
+  const outputPath = join(outputDir, `${fileBase}.jpg`);
+  await writeFile(outputPath, bytes);
+
+  const item = manifest.items.find((candidate) => String(candidate?.id || "") === String(args.itemId || ""));
+  if (!item) {
+    throw new Error("Prepared item tidak ditemukan.");
+  }
+  item.editedPath = outputPath;
+  item.rotationDegrees = Number(args.rotationDegrees || 0);
+  item.cropMetadata = args.crop && typeof args.crop === "object" ? args.crop : {};
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return manifest;
+}
+
+function resolvePreparedManifestPath(value) {
+  const rawPath = requiredPath(value, "Lokasi prepared manifest tidak valid.");
+  const candidate = resolve(rawPath);
+  if (existsSync(candidate) && basename(candidate).toLowerCase() === "prepared-inputs.json") {
+    return candidate;
+  }
+  const nested = join(candidate, ".passport-assistant-prepared", "prepared-inputs.json");
+  if (existsSync(nested)) {
+    return nested;
+  }
+  throw new Error(`Prepared manifest tidak ditemukan: ${rawPath}`);
 }
 
 function decodeImageDataUrl(value) {
@@ -586,6 +680,20 @@ function openDirectoryDialog(options) {
         resolveDialog(selected || null);
       },
     );
+  });
+}
+
+function execFilePromise(file, args, options = {}) {
+  return new Promise((resolveExec, rejectExec) => {
+    execFile(file, args, options, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        rejectExec(error);
+        return;
+      }
+      resolveExec({ stdout, stderr });
+    });
   });
 }
 

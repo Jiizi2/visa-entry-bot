@@ -25,6 +25,7 @@ export function createImportWorkflow({
   manifestMembers,
   updateOcrMode,
   openFolderDialog,
+  prepareImagesCommand = async () => ({ items: [], preparedManifestPath: "" }),
   startScanCommand,
   stopScanCommand,
   findManifestPath,
@@ -62,6 +63,53 @@ export function createImportWorkflow({
     }
   }
 
+  async function prepareImages() {
+    state.selectedDir = String(dom.folderPath?.value ?? state.selectedDir ?? "").trim();
+    if (!state.selectedDir) {
+      state.statusHeadline = "Folder belum dipilih";
+      state.statusDetail = "Pilih folder passport atau folder grup sebelum menyiapkan foto.";
+      state.currentPage = "import";
+      renderAll();
+      return;
+    }
+
+    state.isPreparingImages = true;
+    state.statusHeadline = "Menyiapkan foto";
+    state.statusDetail = "PDF akan diubah ke JPG dan semua foto disiapkan untuk preview.";
+    state.preparedSession = null;
+    state.activePreparedItemId = "";
+    state.preparedImageCache = new Map();
+    state.scanLogs = [];
+    appendScanLog(`Menyiapkan foto dari folder ${state.selectedDir}`);
+    renderAll();
+
+    try {
+      const session = await prepareImagesCommand({ selectedDir: state.selectedDir });
+      state.preparedSession = session;
+      const items = Array.isArray(session?.items) ? session.items : [];
+      state.activePreparedItemId = String(items[0]?.id || "");
+      state.preparedImageCache = new Map();
+      state.totalFiles = items.length;
+      state.progressCurrent = 0;
+      state.progressTotal = items.length;
+      state.progressFileName = "";
+      state.progressStageLabel = "Foto siap preview";
+      state.statusHeadline = "Foto siap dicek";
+      state.statusDetail = `${items.length} foto siap dipreview sebelum scan.`;
+      appendScanLog(`Foto siap preview | ${items.length} gambar | ${Number(session?.convertedCount || 0)} hasil PDF`);
+    } catch (error) {
+      state.preparedSession = null;
+      state.activePreparedItemId = "";
+      state.preparedImageCache = new Map();
+      state.statusHeadline = "Prepare foto gagal";
+      state.statusDetail = String(error);
+      appendScanLog(`Prepare foto gagal | ${state.statusDetail}`);
+    } finally {
+      state.isPreparingImages = false;
+      renderAll();
+    }
+  }
+
   async function startScan() {
     state.selectedDir = String(dom.folderPath?.value ?? "").trim();
     updateOcrMode(state.ocrMode);
@@ -72,6 +120,9 @@ export function createImportWorkflow({
       renderAll();
       return;
     }
+    const preparedManifestPath = hasPreparedSessionForSelectedDir()
+      ? String(state.preparedSession?.preparedManifestPath || "")
+      : "";
 
     state.manifest = null;
     state.originalManifest = null;
@@ -107,7 +158,7 @@ export function createImportWorkflow({
     renderAll();
 
     try {
-      await startScanCommand({ selectedDir: state.selectedDir, ocrMode: state.ocrMode });
+      await startScanCommand({ selectedDir: state.selectedDir, ocrMode: state.ocrMode, preparedManifestPath });
     } catch (error) {
       state.isScanning = false;
       state.isStoppingScan = false;
@@ -118,13 +169,17 @@ export function createImportWorkflow({
   }
 
   async function handleScanButtonClick() {
-    if (state.isScanning || state.isStartingScan) {
+    if (state.isScanning || state.isStartingScan || state.isPreparingImages) {
       return;
     }
 
     state.isStartingScan = true;
     renderAll();
     try {
+      if (!hasPreparedSessionForSelectedDir()) {
+        await prepareImages();
+        return;
+      }
       const hasAnyResult = hasAnyScanResult();
       const hasResultForSelected = hasScanResultForSelectedDir();
       if (hasAnyResult) {
@@ -250,6 +305,18 @@ export function createImportWorkflow({
     return hasScanResultForPath(state.selectedDir);
   }
 
+  function hasPreparedSessionForSelectedDir() {
+    const preparedPath = normalizePathForCompare(state.preparedSession?.selectedDir || "");
+    const selectedPath = normalizePathForCompare(state.selectedDir || dom.folderPath?.value || "");
+    return Boolean(preparedPath && selectedPath && preparedPath === selectedPath && state.preparedSession?.preparedManifestPath);
+  }
+
+  function clearPreparedSession() {
+    state.preparedSession = null;
+    state.activePreparedItemId = "";
+    state.preparedImageCache = new Map();
+  }
+
   function updateSelectedDir(nextDir) {
     const nextValue = String(nextDir ?? "").trim();
     const previousValue = String(state.selectedDir ?? "").trim();
@@ -258,6 +325,9 @@ export function createImportWorkflow({
     }
 
     state.selectedDir = nextValue;
+    if (!hasPreparedSessionForSelectedDir()) {
+      clearPreparedSession();
+    }
     if (!nextValue || state.isScanning || !hasAnyScanResult()) {
       return;
     }
@@ -278,6 +348,7 @@ export function createImportWorkflow({
     }
 
     state.selectedDir = normalizedPath;
+    clearPreparedSession();
     state.currentPage = "import";
     state.scanPerfSummary = null;
     state.scanMetricRecords = [];
@@ -363,6 +434,7 @@ export function createImportWorkflow({
 
   return {
     chooseFolder,
+    prepareImages,
     startScan,
     handleScanButtonClick,
     openStopScanModal,
@@ -373,6 +445,7 @@ export function createImportWorkflow({
     hasAnyScanResult,
     hasScanResultForPath,
     hasScanResultForSelectedDir,
+    hasPreparedSessionForSelectedDir,
     updateSelectedDir,
     openRecentBatch,
     resolveManifestPathForRecent,

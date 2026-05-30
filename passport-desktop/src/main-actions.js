@@ -12,6 +12,9 @@ export function bindActions({
   chooseFolder,
   handleScanButtonClick,
   handleOcrModeChange,
+  selectPreparedPassport = () => {},
+  rotatePreparedPassport = () => {},
+  openPreparedCropModal = () => {},
   openStopScanModal,
   resolveRescanConfirmation,
   confirmStopScan,
@@ -77,6 +80,7 @@ export function bindActions({
   dom.folderDropzone.addEventListener("click", (event) => {
     if (
       state.isScanning
+      || state.isPreparingImages
       || state.isChoosingFolder
       || closestFromEventTarget(event.target, "button")
       || closestFromEventTarget(event.target, "input")
@@ -87,7 +91,7 @@ export function bindActions({
   });
 
   dom.folderDropzone.addEventListener("keydown", (event) => {
-    if (state.isScanning || state.isChoosingFolder) {
+    if (state.isScanning || state.isChoosingFolder || state.isPreparingImages) {
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
@@ -212,6 +216,23 @@ export function bindActions({
   dom.scanLogToggle?.addEventListener("click", () => {
     state.showFullScanLog = !state.showFullScanLog;
     renderScanLogs();
+  });
+
+  dom.preparedPassportList?.addEventListener("click", (event) => {
+    const item = closestFromEventTarget(event.target, "[data-prepared-id]");
+    if (!item) {
+      return;
+    }
+    selectPreparedPassport(item.dataset.preparedId ?? "");
+  });
+  dom.preparedRotateLeftButton?.addEventListener("click", () => {
+    runAction(() => rotatePreparedPassport(-1), "Putar foto");
+  });
+  dom.preparedRotateRightButton?.addEventListener("click", () => {
+    runAction(() => rotatePreparedPassport(1), "Putar foto");
+  });
+  dom.preparedCropButton?.addEventListener("click", () => {
+    runAction(() => openPreparedCropModal(), "Crop foto sebelum scan");
   });
 
   dom.recentBatchesList.addEventListener("click", (event) => {

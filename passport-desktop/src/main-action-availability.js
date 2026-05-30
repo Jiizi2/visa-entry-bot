@@ -17,7 +17,8 @@ export function createActionAvailabilityController({
     const hasActiveMember = Boolean(activeMember());
     const navigation = activeNavigationState();
 
-    dom.scanButton.disabled = state.isScanning || state.isStartingScan || !hasSelectedDir;
+    const importBusy = Boolean(state.isScanning || state.isStartingScan || state.isPreparingImages);
+    dom.scanButton.disabled = importBusy || !hasSelectedDir;
     if (dom.stopScanButton) {
       dom.stopScanButton.disabled = !state.isScanning || state.isStoppingScan;
       dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
@@ -28,14 +29,15 @@ export function createActionAvailabilityController({
       dom.importNextButton.disabled = !canGoNext;
       dom.importNextButton.setAttribute("aria-disabled", dom.importNextButton.disabled ? "true" : "false");
     }
-    dom.chooseFolderButton.disabled = state.isScanning || state.isChoosingFolder;
-    dom.folderPath.disabled = state.isScanning;
+    dom.chooseFolderButton.disabled = Boolean(state.isScanning || state.isChoosingFolder || state.isPreparingImages);
+    dom.folderPath.disabled = Boolean(state.isScanning || state.isPreparingImages);
     for (const input of dom.ocrModeInputs || []) {
-      input.disabled = state.isScanning;
+      input.disabled = Boolean(state.isScanning || state.isPreparingImages);
     }
-    dom.folderDropzone.classList.toggle("is-busy", state.isScanning || state.isChoosingFolder);
-    dom.folderDropzone.setAttribute("aria-disabled", state.isScanning || state.isChoosingFolder ? "true" : "false");
-    dom.folderDropzone.setAttribute("aria-busy", state.isScanning || state.isChoosingFolder ? "true" : "false");
+    const folderBusy = Boolean(state.isScanning || state.isChoosingFolder || state.isPreparingImages);
+    dom.folderDropzone.classList.toggle("is-busy", folderBusy);
+    dom.folderDropzone.setAttribute("aria-disabled", folderBusy ? "true" : "false");
+    dom.folderDropzone.setAttribute("aria-busy", folderBusy ? "true" : "false");
 
     if (dom.reviewPreviewExportButton) {
       const hasManifest = Boolean(state.manifestPath && state.manifest && manifestMembers().length);

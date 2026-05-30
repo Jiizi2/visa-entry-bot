@@ -74,6 +74,9 @@ import {
   createPassportCropController,
 } from "./main-passport-crop.js";
 import {
+  createPreparedPreviewController,
+} from "./main-prepared-preview.js";
+import {
   errorMessage,
   startRendererHeartbeat,
   startRendererKeepAlive,
@@ -88,6 +91,7 @@ let manifestWorkflow = null;
 let pageFlow = null;
 let passportCropActions = null;
 let passportPreviewActions = null;
+let preparedPreviewController = null;
 let viewController = null;
 const requestFrame = typeof window.requestAnimationFrame === "function"
   ? window.requestAnimationFrame.bind(window)
@@ -149,6 +153,7 @@ const {
   refreshCompactLogs,
   ensureVisibleActiveMember,
   renderImportPage: () => importViewController?.renderImportPage(),
+  renderPreparedPreview: () => preparedPreviewController?.render(),
   renderProgressPanel: () => viewController?.renderProgressPanel(),
   renderScanLogs: () => viewController?.renderScanLogs(),
   renderPassportList: () => viewController?.renderPassportList(),
@@ -227,6 +232,10 @@ const {
   openFolderDialog: async (options) => {
     const { open } = tauriBindings();
     return open(options);
+  },
+  prepareImagesCommand: async ({ selectedDir }) => {
+    const { invoke } = tauriBindings();
+    return invoke("prepare_passport_images", { selectedDir });
   },
   startScanCommand: async (payload) => {
     const { invoke } = tauriBindings();
@@ -323,11 +332,45 @@ passportPreviewActions = createPassportPreviewActions({
     });
   },
 });
+preparedPreviewController = createPreparedPreviewController({
+  state,
+  dom,
+  requestFrame,
+  renderAll,
+  loadPreparedImageData: async ({ imagePath, fileName }) => {
+    const { invoke } = tauriBindings();
+    return invoke("load_passport_image_data", {
+      manifestPath: "",
+      imagePath,
+      fileName,
+    });
+  },
+  savePreparedPassportImage: async ({
+    preparedManifestPath,
+    itemId,
+    sourceImagePath,
+    dataUrl,
+    crop,
+    rotationDegrees,
+  }) => {
+    const { invoke } = tauriBindings();
+    return invoke("save_prepared_passport_image", {
+      preparedManifestPath,
+      itemId,
+      sourceImagePath,
+      dataUrl,
+      crop,
+      rotationDegrees,
+    });
+  },
+  openPreparedCropModal: (item) => passportCropActions?.openPreparedCropModal(item),
+});
 passportCropActions = createPassportCropController({
   state,
   dom,
   requestFrame,
   activeMember,
+  activePreparedItem: () => preparedPreviewController?.activePreparedItem(),
   replaceMemberInManifest,
   scheduleManifestSave,
   renderAll,
@@ -350,6 +393,33 @@ passportCropActions = createPassportCropController({
       crop,
     });
   },
+  loadPreparedImageData: async ({ imagePath, fileName }) => {
+    const { invoke } = tauriBindings();
+    return invoke("load_passport_image_data", {
+      manifestPath: "",
+      imagePath,
+      fileName,
+    });
+  },
+  savePreparedPassportImage: async ({
+    preparedManifestPath,
+    itemId,
+    sourceImagePath,
+    dataUrl,
+    crop,
+    rotationDegrees,
+  }) => {
+    const { invoke } = tauriBindings();
+    return invoke("save_prepared_passport_image", {
+      preparedManifestPath,
+      itemId,
+      sourceImagePath,
+      dataUrl,
+      crop,
+      rotationDegrees,
+    });
+  },
+  applyPreparedSession: (session, activeId) => preparedPreviewController?.applyPreparedSession(session, activeId),
 });
 const {
   openRecentDeleteModal,
@@ -497,6 +567,9 @@ function bindActions() {
     chooseFolder,
     handleScanButtonClick,
     handleOcrModeChange: (event) => importViewController?.handleOcrModeChange(event),
+    selectPreparedPassport: (itemId) => preparedPreviewController?.selectPreparedItem(itemId),
+    rotatePreparedPassport: (direction) => preparedPreviewController?.rotateActivePreparedItem(direction),
+    openPreparedCropModal: () => preparedPreviewController?.openCropActive(),
     openStopScanModal,
     resolveRescanConfirmation,
     confirmStopScan,

@@ -9,6 +9,7 @@ export function createMainRenderer({
   refreshCompactLogs,
   ensureVisibleActiveMember,
   renderImportPage,
+  renderPreparedPreview = () => {},
   renderProgressPanel,
   renderScanLogs,
   renderPassportList,
@@ -31,6 +32,7 @@ export function createMainRenderer({
     renderPageVisibility({ dom, state, documentRef });
     renderTopbar({ dom, state, documentRef });
     renderImportPage();
+    renderPreparedPreview();
     renderProgressPanel();
     renderScanLogs();
     renderPassportList();
@@ -76,7 +78,11 @@ export function renderNavigation({ dom, state, reviewCompletionState, isEntryAcc
   const review = reviewCompletionState();
   const entryReady = isEntryAccessible();
   const subtitleByPage = {
-    import: state.manifestPath ? "Scan selesai, lanjut review" : "Pilih folder dan jalankan scan",
+    import: state.manifestPath
+      ? "Scan selesai, lanjut review"
+      : state.preparedSession
+        ? "Foto siap discan"
+        : "Pilih folder dan siapkan foto",
     validation: review.remaining > 0 ? `Sisa review: ${review.remaining} data` : "Semua data sudah dicek",
     entry: entryReady ? "Siap preview/export JSON" : "Selesaikan review dulu",
   };
@@ -166,6 +172,9 @@ export function topbarDescriptor(state) {
 }
 
 export function currentTopbarStatus(state) {
+  if (state.isPreparingImages) {
+    return { label: "Menyiapkan Foto", tone: "info" };
+  }
   if (state.isStoppingScan) {
     return { label: "Menghentikan", tone: "warn" };
   }

@@ -25,22 +25,29 @@ export function renderImportPageView({
   });
   const hasAnyResult = hasAnyScanResult();
   const hasResultForSelected = hasScanResultForSelectedDir();
+  const hasPreparedForSelected = hasPreparedSessionForSelectedDir(state);
   dom.importNextButton?.classList.toggle("is-hidden", !hasResultForSelected);
   dom.scanButton.className = hasAnyResult ? "secondary-button" : "primary-action";
   dom.scanButton.textContent = state.isStartingScan
-    ? "Menyiapkan..."
+    ? state.isPreparingImages
+      ? "Menyiapkan Foto..."
+      : "Menyiapkan..."
     : state.isScanning
     ? state.isStoppingScan
       ? "Menghentikan..."
       : "Sedang Memproses..."
+    : state.isPreparingImages
+      ? "Menyiapkan Foto..."
     : !state.selectedDir
       ? "Pilih Folder Dulu"
+      : !hasPreparedForSelected
+        ? "Siapkan Foto"
       : hasResultForSelected
         ? "Scan Ulang Folder Ini"
-        : hasAnyResult
-          ? "Proses Folder Ini"
-          : "Mulai Proses";
-  dom.scanButton.setAttribute("aria-busy", state.isScanning || state.isStartingScan ? "true" : "false");
+      : hasAnyResult
+        ? "Proses Folder Ini"
+          : "Mulai Scan";
+  dom.scanButton.setAttribute("aria-busy", state.isScanning || state.isStartingScan || state.isPreparingImages ? "true" : "false");
   if (dom.stopScanButton) {
     dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
     dom.stopScanButton.textContent = state.isStoppingScan ? "Menghentikan..." : "Stop Scan";
@@ -61,7 +68,7 @@ export function renderOcrModeSelectorView({ dom, state }) {
   for (const input of dom.ocrModeInputs || []) {
     const mode = normalizeOcrMode(input.value);
     input.checked = mode === normalizeOcrMode(state.ocrMode);
-    input.disabled = state.isScanning;
+    input.disabled = Boolean(state.isScanning || state.isPreparingImages);
   }
 }
 
@@ -73,8 +80,14 @@ export function importFooterMessage({
   if (state.isStoppingScan) {
     return "Worker OCR sedang dihentikan. Tunggu sampai status berubah sebelum memilih folder lain.";
   }
+  if (state.isPreparingImages) {
+    return "Sedang menyiapkan foto. Setelah preview tampil, crop atau rotate foto yang perlu dirapikan.";
+  }
   if (state.isScanning) {
     return "";
+  }
+  if (state.preparedSession && hasPreparedSessionForSelectedDir(state)) {
+    return "Preview foto sudah siap. Rapikan crop atau rotasi jika perlu, lalu mulai scan.";
   }
   if (hasAnyScanResult() && !hasScanResultForSelectedDir() && state.selectedDir) {
     const activeFolder = basenameFromPath(state.resultSourceDir || state.resultDir || "-");
@@ -92,6 +105,9 @@ export function ocrStatusDescriptor({
   hasAnyScanResult,
   hasScanResultForSelectedDir,
 }) {
+  if (state.isPreparingImages) {
+    return { label: "Prepare Foto", tone: "info" };
+  }
   if (state.isStoppingScan) {
     return { label: "Menghentikan", tone: "warn" };
   }
@@ -105,6 +121,20 @@ export function ocrStatusDescriptor({
     return { label: "Siap", tone: "ready" };
   }
   return { label: "Menunggu", tone: "idle" };
+}
+
+function hasPreparedSessionForSelectedDir(state) {
+  const preparedPath = normalizePathForCompare(state.preparedSession?.selectedDir || "");
+  const selectedPath = normalizePathForCompare(state.selectedDir || "");
+  return Boolean(preparedPath && selectedPath && preparedPath === selectedPath && state.preparedSession?.preparedManifestPath);
+}
+
+function normalizePathForCompare(path) {
+  return String(path ?? "")
+    .trim()
+    .replace(/[\\/]+$/, "")
+    .replace(/\//g, "\\")
+    .toLowerCase();
 }
 
 export function renderMiniStatus(node, descriptor) {

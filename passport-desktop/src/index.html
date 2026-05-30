@@ -144,6 +144,34 @@
             </div>
           </div>
 
+          <section id="prepare-preview-panel" class="prepare-preview-panel is-hidden" aria-label="Preview foto sebelum scan">
+            <div class="prepare-preview-head">
+              <div>
+                <p class="eyebrow">Preview Foto</p>
+                <h4 id="prepare-preview-title">Belum ada foto siap preview</h4>
+                <span id="prepare-preview-subtitle">Pilih folder lalu siapkan foto.</span>
+              </div>
+              <div class="prepare-preview-tools" aria-label="Aksi foto aktif">
+                <button id="prepared-rotate-left-button" class="secondary-button icon-action" type="button" title="Putar kiri" aria-label="Putar kiri" disabled>&#8634;</button>
+                <button id="prepared-rotate-right-button" class="secondary-button icon-action" type="button" title="Putar kanan" aria-label="Putar kanan" disabled>&#8635;</button>
+                <button id="prepared-crop-button" class="secondary-button" type="button" disabled>Crop Foto</button>
+              </div>
+            </div>
+
+            <div class="prepare-preview-body">
+              <div id="prepared-passport-list" class="prepared-passport-list" aria-label="Daftar foto passport"></div>
+              <div class="prepared-preview-stage">
+                <img id="prepared-preview-image" class="prepared-preview-image is-hidden" alt="Preview passport" />
+                <div id="prepared-preview-empty" class="prepared-preview-empty">Belum ada foto dipilih.</div>
+              </div>
+            </div>
+
+            <div class="prepared-preview-meta">
+              <strong id="prepared-preview-name">Belum ada foto</strong>
+              <span id="prepared-preview-file">Siapkan folder terlebih dahulu.</span>
+            </div>
+          </section>
+
           <section class="scan-console-card" aria-label="Ringkasan proses">
             <div class="scan-console-head" role="status" aria-live="polite">
               <div class="scan-console-titles">

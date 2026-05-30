@@ -3,6 +3,9 @@ import {
   passportCropSourceImageCandidates,
 } from "./main-passport-image.js";
 import {
+  effectivePreparedImagePath,
+} from "./main-prepared-preview.js";
+import {
   basenameFromPath,
 } from "./main-utils.js";
 
@@ -51,8 +54,12 @@ export function createPassportCropController({
   dom,
   requestFrame,
   activeMember,
+  activePreparedItem = () => null,
   loadPassportImageData,
+  loadPreparedImageData = null,
   saveCroppedPassportImage,
+  savePreparedPassportImage = null,
+  applyPreparedSession = () => {},
   replaceMemberInManifest,
   scheduleManifestSave,
   renderAll,
@@ -66,12 +73,16 @@ export function createPassportCropController({
   let interaction = null;
   let cropRequestId = 0;
   let drawScheduled = false;
+  let cropMode = "member";
+  let preparedCropItem = null;
 
   async function openCropModal() {
     const member = activeMember();
     if (!member) {
       return;
     }
+    cropMode = "member";
+    preparedCropItem = null;
 
     showModal();
     setBusy(true);
@@ -112,11 +123,59 @@ export function createPassportCropController({
     }
   }
 
+  async function openPreparedCropModal(item = activePreparedItem()) {
+    if (!item || !loadPreparedImageData || !savePreparedPassportImage) {
+      return;
+    }
+    cropMode = "prepared";
+    preparedCropItem = item;
+
+    showModal();
+    setBusy(true);
+    setStatus("Memuat foto untuk crop...", "neutral");
+    resetCanvasState();
+
+    const requestId = ++cropRequestId;
+    try {
+      const loaded = await loadSourceImageForPreparedItem(item);
+      if (requestId !== cropRequestId) {
+        return;
+      }
+      if (!loaded?.dataUrl) {
+        setStatus("Foto passport tidak ditemukan.", "error");
+        setBusy(false);
+        return;
+      }
+
+      imageData = loaded;
+      image = await loadImage(loaded.dataUrl);
+      if (requestId !== cropRequestId) {
+        return;
+      }
+      const previousRect = item?.cropMetadata?.rect;
+      cropRect = normalizeCropRect(previousRect || defaultPassportCropRect(image.naturalWidth, image.naturalHeight), image.naturalWidth, image.naturalHeight);
+      state.passportCropZoom = clampPassportCropZoom(state.passportCropZoom || 1);
+      syncZoomControl();
+      refreshCanvasSize();
+      setStatus(`Sumber: ${basenameFromPath(loaded.path || loaded.imagePath || item.fileName || "")}`, "neutral");
+      setBusy(false);
+      scheduleDraw();
+    } catch (error) {
+      if (requestId !== cropRequestId) {
+        return;
+      }
+      setStatus(`Gagal membuka crop: ${error instanceof Error ? error.message : String(error)}`, "error");
+      setBusy(false);
+    }
+  }
+
   function closeCropModal() {
     cropRequestId += 1;
     hideModal();
     resetCanvasState();
     interaction = null;
+    cropMode = "member";
+    preparedCropItem = null;
   }
 
   function resetCropRect() {
@@ -219,6 +278,11 @@ export function createPassportCropController({
   }
 
   async function saveCrop() {
+    if (cropMode === "prepared") {
+      await savePreparedCrop();
+      return;
+    }
+
     const member = activeMember();
     if (!member || !image || !imageData || !cropRect) {
       return;
@@ -255,6 +319,42 @@ export function createPassportCropController({
     }
   }
 
+  async function savePreparedCrop() {
+    const item = preparedCropItem || activePreparedItem();
+    if (!item || !image || !imageData || !cropRect || !savePreparedPassportImage) {
+      return;
+    }
+
+    setBusy(true);
+    setStatus("Menyimpan hasil crop...", "neutral");
+    try {
+      const cropPayload = buildCropPayload();
+      const sourceImagePath = imageData.path || imageData.imagePath || effectivePreparedImagePath(item);
+      const dataUrl = renderCropDataUrl(cropPayload.rect);
+      const session = await savePreparedPassportImage({
+        preparedManifestPath: String(state.preparedSession?.preparedManifestPath || ""),
+        itemId: String(item.id || ""),
+        sourceImagePath,
+        dataUrl,
+        crop: {
+          ...cropPayload,
+          operation: "crop",
+          sourceImagePath,
+        },
+        rotationDegrees: Number(item.rotationDegrees || 0),
+      });
+      applyPreparedSession(session, String(item.id || ""));
+      state.statusHeadline = "Crop foto tersimpan";
+      state.statusDetail = "Foto hasil crop akan dipakai saat scan.";
+      closeCropModal();
+      renderAll();
+    } catch (error) {
+      setStatus(`Gagal menyimpan crop: ${error instanceof Error ? error.message : String(error)}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadSourceImageForMember(member) {
     const candidates = passportCropSourceImageCandidates(member);
     if (!candidates.length && member.fileName) {
@@ -271,6 +371,15 @@ export function createPassportCropController({
       }
     }
     return null;
+  }
+
+  async function loadSourceImageForPreparedItem(item) {
+    const imagePath = effectivePreparedImagePath(item);
+    const loaded = await loadPreparedImageData({
+      imagePath,
+      fileName: String(item.fileName || ""),
+    });
+    return loaded?.dataUrl ? { ...loaded, imagePath } : null;
   }
 
   function buildCropPayload() {
@@ -555,6 +664,7 @@ export function createPassportCropController({
     handleResize,
     handleZoomInput,
     openCropModal,
+    openPreparedCropModal,
     resetCropRect,
     saveCrop,
   };

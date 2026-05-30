@@ -48,6 +48,7 @@ function createWorkflowFixture(overrides = {}) {
     exportError: "",
     exportedBatchPath: "",
     isChoosingFolder: false,
+    isPreparingImages: false,
     isScanning: false,
     isStartingScan: false,
     isStoppingScan: false,
@@ -58,6 +59,9 @@ function createWorkflowFixture(overrides = {}) {
     originalManifest: null,
     ocrMode: "speed",
     passportListPage: 1,
+    activePreparedItemId: "",
+    preparedImageCache: new Map(),
+    preparedSession: null,
     progressCurrent: 0,
     progressFileName: "",
     progressStageLabel: "",
@@ -87,6 +91,7 @@ function createWorkflowFixture(overrides = {}) {
     appendScanLog: [],
     findManifestPath: [],
     openFolderDialog: [],
+    prepareImagesCommand: [],
     rememberRecentBatch: [],
     renderAll: 0,
     setPage: [],
@@ -127,6 +132,15 @@ function createWorkflowFixture(overrides = {}) {
     openFolderDialog: async (options) => {
       calls.openFolderDialog.push(options);
       return "C:/chosen";
+    },
+    prepareImagesCommand: async (payload) => {
+      calls.prepareImagesCommand.push(payload);
+      return {
+        selectedDir: payload.selectedDir,
+        preparedManifestPath: `${payload.selectedDir}/.passport-assistant-prepared/prepared-inputs.json`,
+        convertedCount: 0,
+        items: [{ id: "prep-0001", fileName: "passport.jpg" }],
+      };
     },
     startScanCommand: async (payload) => {
       calls.startScanCommand.push(payload);
@@ -169,16 +183,40 @@ test("import workflow updates selected folder conflict state", () => {
 });
 
 test("import workflow starts scan from folder input", async () => {
-  const { actions, calls, state } = createWorkflowFixture();
+  const { actions, calls, state } = createWorkflowFixture({
+    state: {
+      preparedSession: {
+        selectedDir: "C:/batch-a",
+        preparedManifestPath: "C:/batch-a/.passport-assistant-prepared/prepared-inputs.json",
+        items: [{ id: "prep-0001" }],
+      },
+    },
+  });
 
   await actions.handleScanButtonClick();
 
   assert.equal(state.selectedDir, "C:/batch-a");
   assert.equal(state.isScanning, true);
   assert.equal(state.isStartingScan, true);
-  assert.deepEqual(calls.startScanCommand, [{ selectedDir: "C:/batch-a", ocrMode: "speed" }]);
+  assert.deepEqual(calls.startScanCommand, [{
+    selectedDir: "C:/batch-a",
+    ocrMode: "speed",
+    preparedManifestPath: "C:/batch-a/.passport-assistant-prepared/prepared-inputs.json",
+  }]);
   assert.deepEqual(calls.updateOcrMode, ["speed"]);
   assert.match(calls.appendScanLog.join("\n"), /Mode OCR: Speed/);
+});
+
+test("import workflow prepares images before first scan click", async () => {
+  const { actions, calls, state } = createWorkflowFixture();
+
+  await actions.handleScanButtonClick();
+
+  assert.equal(state.isScanning, false);
+  assert.equal(state.preparedSession.preparedManifestPath, "C:/batch-a/.passport-assistant-prepared/prepared-inputs.json");
+  assert.equal(state.activePreparedItemId, "prep-0001");
+  assert.deepEqual(calls.prepareImagesCommand, [{ selectedDir: "C:/batch-a" }]);
+  assert.deepEqual(calls.startScanCommand, []);
 });
 
 test("import workflow resolves rescan modal promise", async () => {
