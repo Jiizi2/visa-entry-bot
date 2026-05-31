@@ -1,4 +1,4 @@
-# Visa Entry Bot Project Plan
+# EntryMate By Ghaniya Project Plan
 
 ## Ringkasan Tujuan
 
@@ -13,7 +13,7 @@ Aplikasi desktop dan extension tidak perlu saling berkomunikasi. User menjadi pe
 
 ```text
 Folder passport
-  -> Passport Desktop App
+  -> EntryMate By Ghaniya Desktop App
   -> OCR scan
   -> manifest.json / nusuk-entry-batch.json
   -> User upload JSON ke extension
@@ -197,7 +197,7 @@ npm run desktop:build
 npm run package:local
 ```
 
-- Output lokal berada di `.local-release/visa-entry-bot-<version>-<timestamp>/`.
+- Output lokal berada di `.local-release/entrymate-by-ghaniya-<version>-<timestamp>/`.
 - Paket berisi satu file installer desktop yang sudah membawa OCR worker executable + Tesseract, dan ZIP extension.
 - Paket tidak berisi passport, review artifact, atau manifest group lokal.
 

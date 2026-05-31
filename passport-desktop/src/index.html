@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Passport Assistant</title>
+    <title>EntryMate By Ghaniya</title>
     <style>
       html, body { margin: 0; min-height: 100%; background: #f9f9fd; color: #191c1e; }
     </style>
@@ -20,31 +20,48 @@
       <aside class="sidebar" aria-label="Navigasi utama">
         <div class="top-nav-left">
           <div class="brand-block">
-            <h1 class="brand-title">Passport Authority</h1>
+            <img class="brand-logo" src="/assets/brand/entrymate-icon.png" alt="" aria-hidden="true" />
+            <h1 class="brand-title">EntryMate By Ghaniya</h1>
           </div>
 
           <nav class="nav-stack" aria-label="Progress tahapan">
             <button class="nav-link is-active" data-page="import" type="button">
               <span class="nav-step-badge" data-step-badge aria-hidden="true">1</span>
               <span class="nav-text">
-                <strong>Import &amp; Scan</strong>
-                <small data-step-subtitle>Upload and run OCR</small>
+                <strong>Folder</strong>
+                <small data-step-subtitle>Pilih folder kerja</small>
+              </span>
+            </button>
+            <span class="nav-connector" data-step-connector aria-hidden="true"></span>
+            <button class="nav-link" data-page="prepare" type="button">
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">2</span>
+              <span class="nav-text">
+                <strong>Prepare</strong>
+                <small data-step-subtitle>Review foto</small>
+              </span>
+            </button>
+            <span class="nav-connector" data-step-connector aria-hidden="true"></span>
+            <button class="nav-link" data-page="scan" type="button">
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">3</span>
+              <span class="nav-text">
+                <strong>Scan</strong>
+                <small data-step-subtitle>Progress OCR</small>
               </span>
             </button>
             <span class="nav-connector" data-step-connector aria-hidden="true"></span>
             <button class="nav-link" data-page="validation" type="button">
-              <span class="nav-step-badge" data-step-badge aria-hidden="true">2</span>
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">4</span>
               <span class="nav-text">
-                <strong>Review Data</strong>
-                <small data-step-subtitle>Review extracted info</small>
+                <strong>Review</strong>
+                <small data-step-subtitle>Validasi data</small>
               </span>
             </button>
             <span class="nav-connector" data-step-connector aria-hidden="true"></span>
             <button class="nav-link" data-page="entry" type="button">
-              <span class="nav-step-badge" data-step-badge aria-hidden="true">3</span>
+              <span class="nav-step-badge" data-step-badge aria-hidden="true">5</span>
               <span class="nav-text">
-                <strong>Export JSON</strong>
-                <small data-step-subtitle>Preview reviewed passports</small>
+                <strong>Export</strong>
+                <small data-step-subtitle>JSON final</small>
               </span>
             </button>
           </nav>
@@ -57,7 +74,7 @@
           </label>
           <button class="top-nav-icon" type="button" aria-label="Notifikasi"></button>
           <button class="top-nav-icon" type="button" aria-label="Pengaturan"></button>
-          <div class="top-nav-avatar" aria-hidden="true">PA</div>
+          <div class="top-nav-avatar" aria-hidden="true">EM</div>
         </div>
       </aside>
 
@@ -86,7 +103,7 @@
               <div class="dropzone-mark" aria-hidden="true">
                 <span class="dropzone-folder-icon"></span>
               </div>
-              <h4>Pilih Folder</h4>
+              <h4>Folder Passport</h4>
               <p id="dropzone-description" class="dropzone-copy">
                 Klik area ini atau gunakan browse untuk memilih folder berisi foto passport atau PDF yang ingin diproses.
               </p>
@@ -141,33 +158,33 @@
                   <div class="friendly-empty">Belum ada folder yang pernah dipakai.</div>
                 </div>
               </article>
+
+              <article class="side-card last-scan-card">
+                <div class="card-head compact">
+                  <div>
+                    <p class="eyebrow">Hasil Terakhir</p>
+                    <h4 id="last-scan-title">Belum ada hasil scan</h4>
+                  </div>
+                  <span id="last-scan-status" class="status-chip neutral">Menunggu</span>
+                </div>
+                <p id="last-scan-detail" class="last-scan-detail">
+                  Setelah scan selesai, ringkasan hasil terakhir akan tampil di sini.
+                </p>
+                <button id="last-scan-open-button" class="secondary-button compact" type="button" disabled>Buka Hasil Scan</button>
+              </article>
             </div>
           </div>
 
-          <section id="import-phase-strip" class="import-phase-strip" aria-label="Tahap proses import">
-            <div class="import-phase-step is-active" data-import-phase="folder">
-              <span class="import-phase-index">1</span>
-              <span class="import-phase-copy">
-                <strong>Folder</strong>
-                <small data-import-phase-caption>Menunggu folder</small>
-              </span>
+          <div class="import-action-bar">
+            <p id="import-footer-text"></p>
+            <div class="import-action-buttons">
+              <button id="scan-button" class="primary-action" type="button">Siapkan Foto</button>
+              <button id="import-next-button" class="secondary-button is-hidden" type="button">Lanjut Review</button>
             </div>
-            <div class="import-phase-step" data-import-phase="preview">
-              <span class="import-phase-index">2</span>
-              <span class="import-phase-copy">
-                <strong>Preview Foto</strong>
-                <small data-import-phase-caption>Belum disiapkan</small>
-              </span>
-            </div>
-            <div class="import-phase-step" data-import-phase="scan">
-              <span class="import-phase-index">3</span>
-              <span class="import-phase-copy">
-                <strong>Scan OCR</strong>
-                <small data-import-phase-caption>Belum discan</small>
-              </span>
-            </div>
-          </section>
+          </div>
+        </section>
 
+        <section id="page-prepare" class="page-section is-hidden">
           <section id="prepare-preview-panel" class="prepare-preview-panel is-hidden" aria-label="Preview foto sebelum scan">
             <div class="prepare-preview-head">
               <div>
@@ -176,9 +193,17 @@
                 <span id="prepare-preview-subtitle">Pilih folder lalu siapkan foto.</span>
               </div>
               <div class="prepare-preview-tools" aria-label="Aksi foto aktif">
+                <button id="prepared-zoom-out-button" class="secondary-button icon-action" type="button" title="Zoom out" aria-label="Zoom out" disabled>-</button>
+                <span id="prepared-zoom-label" class="zoom-label" aria-live="polite">100%</span>
+                <button id="prepared-zoom-in-button" class="secondary-button icon-action" type="button" title="Zoom in" aria-label="Zoom in" disabled>+</button>
+                <button id="prepared-zoom-reset-button" class="secondary-button compact" type="button" disabled>Reset</button>
                 <button id="prepared-rotate-left-button" class="secondary-button icon-action" type="button" title="Putar kiri" aria-label="Putar kiri" disabled>&#8634;</button>
                 <button id="prepared-rotate-right-button" class="secondary-button icon-action" type="button" title="Putar kanan" aria-label="Putar kanan" disabled>&#8635;</button>
+                <button id="prepared-flip-horizontal-button" class="secondary-button icon-action" type="button" title="Flip horizontal" aria-label="Flip horizontal" disabled>&#8644;</button>
+                <button id="prepared-flip-vertical-button" class="secondary-button icon-action" type="button" title="Flip vertical" aria-label="Flip vertical" disabled>&#8645;</button>
+                <button id="prepared-preview-large-button" class="secondary-button" type="button" disabled>Preview Besar</button>
                 <button id="prepared-crop-button" class="secondary-button" type="button" disabled>Crop Foto</button>
+                <button id="prepared-delete-button" class="danger-button" type="button" disabled>Hapus Foto</button>
               </div>
             </div>
 
@@ -197,6 +222,16 @@
             </div>
           </section>
 
+          <div class="import-action-bar">
+            <p id="prepare-footer-text">Pastikan semua foto sudah terbaca jelas sebelum OCR dimulai.</p>
+            <div class="import-action-buttons">
+              <button id="prepare-back-button" class="secondary-button" type="button">Kembali Folder</button>
+              <button id="start-scan-button" class="primary-action" type="button">Start Scan</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-scan" class="page-section is-hidden">
           <section class="scan-console-card" aria-label="Ringkasan proses">
             <div class="scan-console-head" role="status" aria-live="polite">
               <div class="scan-console-titles">
@@ -227,9 +262,27 @@
                 <span>Terakhir</span>
                 <strong id="scan-stat-last-time">-</strong>
               </article>
+              <article class="scan-stat">
+                <span>Estimasi</span>
+                <strong id="scan-stat-eta">-</strong>
+              </article>
             </div>
 
             <div class="scan-console-progress">
+              <div class="scan-progress-hero" aria-live="polite">
+                <div id="progress-ring" class="scan-progress-ring" aria-hidden="true">
+                  <span id="progress-percent" class="scan-progress-percent">0%</span>
+                </div>
+                <div class="scan-progress-copy">
+                  <strong id="progress-stage">Menunggu OCR</strong>
+                  <span id="progress-file">Belum ada file aktif</span>
+                </div>
+                <div id="scan-activity-dots" class="scan-activity-dots" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
               <div
                 class="progress-track"
                 role="progressbar"
@@ -253,11 +306,9 @@
           </section>
 
           <div class="import-action-bar">
-            <p id="import-footer-text"></p>
+            <p id="scan-footer-text">OCR sedang berjalan. Kamu bisa menghentikan proses jika folder yang dipilih salah.</p>
             <div class="import-action-buttons">
-              <button id="scan-button" class="secondary-button" type="button">Mulai Proses</button>
               <button id="stop-scan-button" class="danger-button is-hidden" type="button">Stop Scan</button>
-              <button id="import-next-button" class="primary-action is-hidden" type="button">Next</button>
             </div>
           </div>
         </section>
@@ -569,6 +620,50 @@
         <div class="confirm-modal-actions">
           <button id="review-complete-cancel-button" class="secondary-button" type="button">Tetap Review</button>
           <button id="review-complete-export-button" class="primary-action" type="button">Export to JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="prepared-delete-modal"
+      class="confirm-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="prepared-delete-modal-title"
+      aria-describedby="prepared-delete-modal-desc"
+      aria-hidden="true"
+    >
+      <div class="confirm-modal-card">
+        <h4 id="prepared-delete-modal-title">Hapus foto dari persiapan?</h4>
+        <p id="prepared-delete-modal-desc">
+          Foto ini akan dikeluarkan dari antrean OCR dan dipindahkan dari folder kerja.
+        </p>
+        <div class="confirm-modal-actions">
+          <button id="prepared-delete-cancel-button" class="secondary-button" type="button">Batal</button>
+          <button id="prepared-delete-confirm-button" class="danger-button" type="button">Hapus Foto</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="prepared-preview-modal"
+      class="passport-crop-modal is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="prepared-preview-modal-title"
+      aria-hidden="true"
+    >
+      <div class="passport-crop-card prepared-large-card">
+        <div class="passport-crop-head">
+          <div>
+            <p class="eyebrow">Preview Foto</p>
+            <h4 id="prepared-preview-modal-title">Preview Besar</h4>
+          </div>
+          <button id="prepared-preview-modal-close-button" class="secondary-button compact" type="button">Tutup</button>
+        </div>
+        <div class="prepared-large-stage">
+          <img id="prepared-preview-modal-image" class="prepared-large-image is-hidden" alt="Preview besar passport" />
+          <div id="prepared-preview-modal-empty" class="prepared-preview-empty">Belum ada foto dipilih.</div>
         </div>
       </div>
     </div>

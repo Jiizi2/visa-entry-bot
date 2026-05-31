@@ -28,7 +28,7 @@ $TauriConfig = Get-Content $TauriConfigPath -Raw | ConvertFrom-Json
 $ExtensionManifest = Get-Content $ExtensionManifestPath -Raw | ConvertFrom-Json
 $Version = if ($TauriConfig.version) { [string]$TauriConfig.version } else { "0.0.0" }
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$ReleaseDir = Join-Path (Join-Path $RepoRoot $ReleaseRoot) "visa-entry-bot-$Version-$Stamp"
+$ReleaseDir = Join-Path (Join-Path $RepoRoot $ReleaseRoot) "entrymate-by-ghaniya-$Version-$Stamp"
 $DesktopPortableDir = Join-Path $ReleaseDir "desktop-portable"
 $ExtensionReleaseDir = Join-Path $ReleaseDir "extension"
 $TauriReleaseResourcesDir = Join-Path $DesktopDir "src-tauri\release-resources"
@@ -214,7 +214,7 @@ function Stage-DesktopInstallerResources {
 }
 
 function Copy-OptionalPortableDesktop {
-  $DesktopExe = Join-Path $DesktopDir "src-tauri\target\release\passport-desktop.exe"
+  $DesktopExe = Join-Path $DesktopDir "src-tauri\target\release\entrymate-by-ghaniya.exe"
   if (-not (Test-Path $DesktopExe)) {
     throw "Executable desktop tidak ditemukan: $DesktopExe"
   }
@@ -249,7 +249,7 @@ try {
     throw "NSIS installer desktop tidak ditemukan di $BundleDir"
   }
 
-  $DesktopInstallerName = "visa-entry-bot-desktop-$Version-setup.exe"
+  $DesktopInstallerName = "entrymate-by-ghaniya-desktop-$Version-setup.exe"
   $DesktopInstallerOutput = Join-Path $ReleaseDir $DesktopInstallerName
   Copy-Item -LiteralPath $Installer.FullName -Destination $DesktopInstallerOutput -Force
 
@@ -258,8 +258,8 @@ try {
   }
 
   $ExtensionVersion = if ($ExtensionManifest.version) { [string]$ExtensionManifest.version } else { $Version }
-  $ExtensionZip = Join-Path $ExtensionReleaseDir "nusuk-autofill-extension-$ExtensionVersion.zip"
-  $ExtensionStage = Join-Path $ExtensionReleaseDir "nusuk-autofill-extension"
+  $ExtensionZip = Join-Path $ExtensionReleaseDir "entrymate-by-ghaniya-extension-$ExtensionVersion.zip"
+  $ExtensionStage = Join-Path $ExtensionReleaseDir "entrymate-by-ghaniya-extension"
   if (Test-Path $ExtensionStage) {
     Assert-ChildPath -Parent $ReleaseDir -Child $ExtensionStage
     Remove-Item -LiteralPath $ExtensionStage -Recurse -Force
@@ -270,6 +270,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $ExtensionDir $Item) -Destination $ExtensionStage
   }
   Copy-Item -LiteralPath (Join-Path $ExtensionDir "content") -Destination $ExtensionStage -Recurse
+  Copy-Item -LiteralPath (Join-Path $ExtensionDir "icons") -Destination $ExtensionStage -Recurse
 
   if (Test-Path $ExtensionZip) {
     Remove-Item -LiteralPath $ExtensionZip -Force
@@ -278,7 +279,7 @@ try {
 
   $NotesPath = Join-Path $ReleaseDir "README_LOCAL_RELEASE.md"
   @"
-# Visa Entry Bot Local Release
+# EntryMate By Ghaniya Local Release
 
 Version: $Version
 Generated: $((Get-Date).ToString("yyyy-MM-dd HH:mm:ss"))
@@ -293,7 +294,7 @@ Installer desktop sudah membawa OCR worker executable dan Tesseract, jadi device
 
 ## Chrome Extension
 
-File extension ada di extension/nusuk-autofill-extension-$ExtensionVersion.zip.
+File extension ada di extension/entrymate-by-ghaniya-extension-$ExtensionVersion.zip.
 
 Untuk install internal:
 

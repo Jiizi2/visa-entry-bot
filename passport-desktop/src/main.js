@@ -206,6 +206,7 @@ const {
 const {
   chooseFolder,
   handleScanButtonClick,
+  handleStartScanButtonClick,
   openStopScanModal,
   closeStopScanModal,
   confirmStopScan,
@@ -332,7 +333,7 @@ passportPreviewActions = createPassportPreviewActions({
     });
   },
 });
-preparedPreviewController = createPreparedPreviewController({
+  preparedPreviewController = createPreparedPreviewController({
   state,
   dom,
   requestFrame,
@@ -361,6 +362,13 @@ preparedPreviewController = createPreparedPreviewController({
       dataUrl,
       crop,
       rotationDegrees,
+    });
+  },
+  removePreparedPassportImage: async ({ preparedManifestPath, itemId }) => {
+    const { invoke } = tauriBindings();
+    return invoke("remove_prepared_passport_image", {
+      preparedManifestPath,
+      itemId,
     });
   },
   openPreparedCropModal: (item) => passportCropActions?.openPreparedCropModal(item),
@@ -566,10 +574,19 @@ function bindActions() {
     updateActionAvailability: () => actionAvailabilityController?.updateActionAvailability(),
     chooseFolder,
     handleScanButtonClick,
+    handleStartScanButtonClick,
     handleOcrModeChange: (event) => importViewController?.handleOcrModeChange(event),
     selectPreparedPassport: (itemId) => preparedPreviewController?.selectPreparedItem(itemId),
     rotatePreparedPassport: (direction) => preparedPreviewController?.rotateActivePreparedItem(direction),
+    flipPreparedPassport: (axis) => preparedPreviewController?.flipActivePreparedItem(axis),
+    changePreparedPreviewZoom: (delta) => preparedPreviewController?.changeZoom(delta),
+    resetPreparedPreviewZoom: () => preparedPreviewController?.resetZoom(),
+    openPreparedLargePreview: () => preparedPreviewController?.openLargePreview(),
+    closePreparedLargePreview: () => preparedPreviewController?.closeLargePreview(),
     openPreparedCropModal: () => preparedPreviewController?.openCropActive(),
+    openPreparedDeleteModal: () => preparedPreviewController?.openDeleteActive(),
+    closePreparedDeleteModal: () => preparedPreviewController?.closeDeleteModal(),
+    confirmPreparedDelete: () => preparedPreviewController?.confirmDeleteActive(),
     openStopScanModal,
     resolveRescanConfirmation,
     confirmStopScan,

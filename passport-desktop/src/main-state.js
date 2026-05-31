@@ -47,6 +47,7 @@ export function createInitialState() {
     preparedSession: null,
     activePreparedItemId: "",
     preparedImageCache: new Map(),
+    preparedPreviewZoom: 1,
     passportPreviewZoom: PASSPORT_PREVIEW_ZOOM_DEFAULT,
     passportCropZoom: 1,
     reviewBlock: null,

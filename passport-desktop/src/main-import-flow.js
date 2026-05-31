@@ -51,6 +51,12 @@ export function createImportWorkflow({
 
       if (typeof selected === "string") {
         updateSelectedDir(selected);
+        if (dom.folderPath) {
+          dom.folderPath.value = state.selectedDir;
+        }
+        if (state.selectedDir) {
+          await prepareImages();
+        }
       } else {
         state.statusHeadline = state.selectedDir ? "Folder tetap dipakai" : "Folder belum dipilih";
         state.statusDetail = state.selectedDir
@@ -64,7 +70,7 @@ export function createImportWorkflow({
   }
 
   async function prepareImages() {
-    state.selectedDir = String(dom.folderPath?.value ?? state.selectedDir ?? "").trim();
+    state.selectedDir = String(state.selectedDir || dom.folderPath?.value || "").trim();
     if (!state.selectedDir) {
       state.statusHeadline = "Folder belum dipilih";
       state.statusDetail = "Pilih folder passport atau folder grup sebelum menyiapkan foto.";
@@ -97,6 +103,7 @@ export function createImportWorkflow({
       state.statusHeadline = "Foto siap dicek";
       state.statusDetail = `${items.length} foto siap dipreview sebelum scan.`;
       appendScanLog(`Foto siap preview | ${items.length} gambar | ${Number(session?.convertedCount || 0)} hasil PDF`);
+      setPage("prepare");
     } catch (error) {
       state.preparedSession = null;
       state.activePreparedItemId = "";
@@ -111,7 +118,7 @@ export function createImportWorkflow({
   }
 
   async function startScan() {
-    state.selectedDir = String(dom.folderPath?.value ?? "").trim();
+    state.selectedDir = String(state.selectedDir || dom.folderPath?.value || "").trim();
     updateOcrMode(state.ocrMode);
     if (!state.selectedDir) {
       state.statusHeadline = "Folder belum dipilih";
@@ -151,6 +158,7 @@ export function createImportWorkflow({
     state.passportListPage = 1;
     state.isScanning = true;
     state.isStoppingScan = false;
+    state.currentPage = "scan";
     state.statusHeadline = "Memulai proses";
     state.statusDetail = "Sedang menyiapkan pembacaan data.";
     appendScanLog(`Memulai proses untuk folder ${state.selectedDir}`);
@@ -178,6 +186,29 @@ export function createImportWorkflow({
     try {
       if (!hasPreparedSessionForSelectedDir()) {
         await prepareImages();
+        return;
+      }
+      setPage("prepare");
+    } finally {
+      if (!state.isScanning) {
+        state.isStartingScan = false;
+        renderAll();
+      }
+    }
+  }
+
+  async function handleStartScanButtonClick() {
+    if (state.isScanning || state.isStartingScan || state.isPreparingImages) {
+      return;
+    }
+
+    state.isStartingScan = true;
+    renderAll();
+    try {
+      if (!hasPreparedSessionForSelectedDir()) {
+        await prepareImages();
+      }
+      if (!hasPreparedSessionForSelectedDir()) {
         return;
       }
       const hasAnyResult = hasAnyScanResult();
@@ -437,6 +468,7 @@ export function createImportWorkflow({
     prepareImages,
     startScan,
     handleScanButtonClick,
+    handleStartScanButtonClick,
     openStopScanModal,
     closeStopScanModal,
     confirmStopScan,

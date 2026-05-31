@@ -1,4 +1,4 @@
-# Passport Entry Assistant
+# EntryMate By Ghaniya
 
 Desktop shell berbasis `Tauri + Rust` yang memakai worker `Python OCR` dari repo ini.
 
@@ -9,7 +9,7 @@ Desktop shell berbasis `Tauri + Rust` yang memakai worker `Python OCR` dari repo
 3. Worker Python memproses passport dan menulis `manifest.json`.
 4. Frontend Tauri menampilkan hasil scan dalam tabel dan panel detail.
 5. User mengekspor `nusuk-entry-batch.json` dari hasil scan terpilih.
-6. User mengupload JSON tersebut ke browser extension Nusuk Autofill.
+6. User mengupload JSON tersebut ke browser extension EntryMate By Ghaniya.
 7. Extension menjalankan autofill di tab Nusuk normal, tanpa komunikasi langsung dengan aplikasi desktop.
 
 ## Struktur
@@ -18,7 +18,7 @@ Desktop shell berbasis `Tauri + Rust` yang memakai worker `Python OCR` dari repo
 - `src-tauri/src/lib.rs`: command Rust untuk scan, load manifest, dan export JSON
 - `../python-ocr/scan_worker.py`: worker OCR untuk Tauri
 - `../python-ocr/scan_session.py`: helper scan reusable
-- `../chrome-extension`: extension Nusuk Autofill berbasis upload JSON manual
+- `../chrome-extension`: extension EntryMate By Ghaniya berbasis upload JSON manual
 
 ## Menjalankan Saat Development
 
@@ -73,7 +73,7 @@ Build paket lokal lengkap dari root repo:
 npm run package:local
 ```
 
-Output berada di `.local-release/visa-entry-bot-<version>-<timestamp>/` dan berisi:
+Output berada di `.local-release/entrymate-by-ghaniya-<version>-<timestamp>/` dan berisi:
 
 - satu file installer desktop `.exe` yang sudah membawa `scan_worker.exe` dan Tesseract
 - ZIP extension untuk di-extract lalu dipasang dengan `Load unpacked`

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -105,6 +105,8 @@ async function handleInvoke(command, args) {
       return saveCroppedPassportImage(args);
     case "save_prepared_passport_image":
       return savePreparedPassportImage(args);
+    case "remove_prepared_passport_image":
+      return removePreparedPassportImage(args);
     case "create_nusuk_batch":
       return createNusukBatch(args.manifestPath, args.selectedIds, args.manifestData);
     default:
@@ -450,6 +452,31 @@ async function savePreparedPassportImage(args = {}) {
   return manifest;
 }
 
+async function removePreparedPassportImage(args = {}) {
+  const manifestPath = resolvePreparedManifestPath(args.preparedManifestPath);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  if (manifest?.schemaVersion !== "passport-prepared-inputs-v1" || !Array.isArray(manifest.items)) {
+    throw new Error("Prepared manifest tidak dikenali.");
+  }
+
+  const itemId = String(args.itemId || "").trim();
+  const index = manifest.items.findIndex((candidate) => String(candidate?.id || "") === itemId);
+  if (index < 0) {
+    throw new Error("Prepared item tidak ditemukan.");
+  }
+
+  const [removedItem] = manifest.items.splice(index, 1);
+  await moveRemovedPreparedFiles(manifestPath, removedItem, itemId);
+  manifest.items.forEach((item, itemIndex) => {
+    item.index = itemIndex + 1;
+  });
+  manifest.imageCount = manifest.items.length;
+  manifest.removedItems = Array.isArray(manifest.removedItems) ? manifest.removedItems : [];
+  manifest.removedItems.push(removedItem);
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return manifest;
+}
+
 function resolvePreparedManifestPath(value) {
   const rawPath = requiredPath(value, "Lokasi prepared manifest tidak valid.");
   const candidate = resolve(rawPath);
@@ -461,6 +488,53 @@ function resolvePreparedManifestPath(value) {
     return nested;
   }
   throw new Error(`Prepared manifest tidak ditemukan: ${rawPath}`);
+}
+
+async function moveRemovedPreparedFiles(manifestPath, item, itemId) {
+  const removedDir = join(dirname(manifestPath), "removed-images");
+  await mkdir(removedDir, { recursive: true });
+  const sourceType = String(item?.sourceType || "image").toLowerCase();
+  const candidates = [
+    item?.editedPath,
+    item?.scanPath,
+    sourceType === "image" ? item?.sourcePath : "",
+  ].filter(Boolean);
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const sourcePath = String(candidate || "").trim();
+    if (!sourcePath || !existsSync(sourcePath)) {
+      continue;
+    }
+    const info = await stat(sourcePath).catch(() => null);
+    if (!info?.isFile()) {
+      continue;
+    }
+    const key = resolve(sourcePath).toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    await moveFileToRemovedDir(sourcePath, removedDir, itemId);
+  }
+}
+
+async function moveFileToRemovedDir(sourcePath, removedDir, itemId) {
+  const parsedBase = stripFileExtension(basename(sourcePath));
+  const extension = extname(sourcePath);
+  const safeItem = sanitizeFileSegment(itemId);
+  const safeBase = sanitizeFileSegment(parsedBase);
+  let targetPath = join(removedDir, `${safeItem}-${safeBase}${extension}`);
+  let suffix = 2;
+  while (existsSync(targetPath)) {
+    targetPath = join(removedDir, `${safeItem}-${safeBase}-${suffix}${extension}`);
+    suffix += 1;
+  }
+  try {
+    await rename(sourcePath, targetPath);
+  } catch {
+    await copyFile(sourcePath, targetPath);
+    await rm(sourcePath, { force: true });
+  }
 }
 
 function decodeImageDataUrl(value) {
@@ -563,7 +637,7 @@ async function createNusukBatch(manifestPath, selectedIds, manifestData) {
     schemaVersion: "nusuk-entry-batch-v1",
     groupId: manifest.groupId || "",
     manifestPath: path,
-    generatedBy: "passport-desktop-browser",
+    generatedBy: "entrymate-by-ghaniya-browser",
     members: filteredMembers,
   };
   await writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
@@ -742,7 +816,7 @@ function openBrowser(url) {
   const browser = findBrowserExecutable();
   if (browser) {
     const profileRoot = process.env.LOCALAPPDATA || tmpdir();
-    const profileDir = join(profileRoot, "passport-desktop-browser-profile");
+    const profileDir = join(profileRoot, "entrymate-by-ghaniya-browser-profile");
     const child = spawn(
       browser,
       [`--app=${url}`, `--user-data-dir=${profileDir}`, "--no-first-run"],

@@ -16,9 +16,24 @@ export function createActionAvailabilityController({
     const hasSelectedDir = Boolean(state.selectedDir.trim());
     const hasActiveMember = Boolean(activeMember());
     const navigation = activeNavigationState();
+    const preparedCount = Array.isArray(state.preparedSession?.items) ? state.preparedSession.items.length : 0;
 
     const importBusy = Boolean(state.isScanning || state.isStartingScan || state.isPreparingImages);
     dom.scanButton.disabled = importBusy || !hasSelectedDir;
+    if (dom.startScanButton) {
+      dom.startScanButton.disabled = importBusy || preparedCount <= 0;
+      dom.startScanButton.setAttribute("aria-disabled", dom.startScanButton.disabled ? "true" : "false");
+      dom.startScanButton.setAttribute("aria-busy", state.isStartingScan || state.isScanning ? "true" : "false");
+    }
+    if (dom.prepareBackButton) {
+      dom.prepareBackButton.disabled = importBusy;
+      dom.prepareBackButton.setAttribute("aria-disabled", dom.prepareBackButton.disabled ? "true" : "false");
+    }
+    if (dom.lastScanOpenButton) {
+      const canOpenLastScan = Boolean(state.manifestPath && state.manifest && manifestMembers().length && !state.isScanning);
+      dom.lastScanOpenButton.disabled = !canOpenLastScan;
+      dom.lastScanOpenButton.setAttribute("aria-disabled", dom.lastScanOpenButton.disabled ? "true" : "false");
+    }
     if (dom.stopScanButton) {
       dom.stopScanButton.disabled = !state.isScanning || state.isStoppingScan;
       dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);

@@ -35,27 +35,19 @@ export function renderImportPageView({
     }),
   });
   dom.importNextButton?.classList.toggle("is-hidden", !hasResultForSelected);
-  dom.scanButton.className = hasAnyResult ? "secondary-button" : "primary-action";
+  dom.scanButton.className = hasPreparedForSelected ? "secondary-button" : "primary-action";
   dom.scanButton.textContent = state.isStartingScan
     ? state.isPreparingImages
       ? "Menyiapkan Foto..."
       : "Menyiapkan..."
-    : state.isScanning
-    ? state.isStoppingScan
-      ? "Menghentikan..."
-      : "Sedang Memproses..."
     : state.isPreparingImages
       ? "Menyiapkan Foto..."
     : !state.selectedDir
       ? "Pilih Folder Dulu"
-      : !hasPreparedForSelected
-        ? "Siapkan Foto"
-      : hasResultForSelected
-        ? "Scan Ulang Folder Ini"
-        : hasAnyResult
-          ? "Proses Folder Ini"
-          : "Mulai Scan";
-  dom.scanButton.setAttribute("aria-busy", state.isScanning || state.isStartingScan || state.isPreparingImages ? "true" : "false");
+      : hasPreparedForSelected
+        ? "Buka Review Foto"
+        : "Siapkan Foto";
+  dom.scanButton.setAttribute("aria-busy", state.isStartingScan || state.isPreparingImages ? "true" : "false");
   if (dom.stopScanButton) {
     dom.stopScanButton.classList.toggle("is-hidden", !state.isScanning);
     dom.stopScanButton.textContent = state.isStoppingScan ? "Menghentikan..." : "Stop Scan";
@@ -69,6 +61,7 @@ export function renderImportPageView({
   }));
   renderMiniStatus(dom.systemValidationStatus, { label: "Siap", tone: "ready" });
   renderMiniStatus(dom.systemRuntimeStatus, { label: "Tersedia", tone: "ready" });
+  renderLastScanSummary({ dom, state, hasAnyResult });
   renderRecentBatchesView({ dom, state });
 }
 
@@ -92,13 +85,13 @@ export function importFooterMessage({
     return "Sedang menyiapkan foto. Setelah preview tampil, crop atau rotate foto yang perlu dirapikan.";
   }
   if (state.isScanning) {
-    return "";
+    return "Scan sedang berjalan di halaman Progress OCR.";
   }
   if (hasScanResultForSelectedDir()) {
     return `Proses terakhir sudah selesai. ${state.validCount} data siap dipakai, ${state.reviewCount} perlu review, dan ${state.errorCount} error.`;
   }
   if (state.preparedSession && hasPreparedSessionForSelectedDir(state)) {
-    return "Preview foto sudah siap. Rapikan crop atau rotasi jika perlu, lalu mulai scan.";
+    return "Preview foto sudah siap. Buka halaman persiapan untuk crop, rotate, hapus foto, lalu mulai scan.";
   }
   if (hasAnyScanResult() && !hasScanResultForSelectedDir() && state.selectedDir) {
     const activeFolder = basenameFromPath(state.resultSourceDir || state.resultDir || "-");
@@ -109,6 +102,32 @@ export function importFooterMessage({
     return "Siapkan foto terlebih dahulu agar PDF diubah ke gambar dan preview bisa dirapikan sebelum OCR.";
   }
   return "";
+}
+
+export function renderLastScanSummary({ dom, state, hasAnyResult }) {
+  if (!dom.lastScanTitle || !dom.lastScanDetail || !dom.lastScanStatus || !dom.lastScanOpenButton) {
+    return;
+  }
+
+  if (!hasAnyResult) {
+    dom.lastScanTitle.textContent = "Belum ada hasil scan";
+    dom.lastScanDetail.textContent = "Setelah scan selesai, ringkasan hasil terakhir akan tampil di sini.";
+    dom.lastScanStatus.textContent = "Menunggu";
+    dom.lastScanStatus.className = "status-chip neutral";
+    dom.lastScanOpenButton.disabled = true;
+    dom.lastScanOpenButton.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  const valid = Number(state.validCount || 0);
+  const review = Number(state.reviewCount || 0);
+  const error = Number(state.errorCount || 0);
+  dom.lastScanTitle.textContent = basenameFromPath(state.resultSourceDir || state.resultDir || state.selectedDir || "Scan terakhir");
+  dom.lastScanDetail.textContent = `${valid} valid, ${review} perlu review, ${error} error. Manifest: ${state.manifestPath || "-"}`;
+  dom.lastScanStatus.textContent = error > 0 || review > 0 ? "Perlu Review" : "Siap";
+  dom.lastScanStatus.className = `status-chip ${error > 0 || review > 0 ? "warn" : "ready"}`;
+  dom.lastScanOpenButton.disabled = false;
+  dom.lastScanOpenButton.setAttribute("aria-disabled", "false");
 }
 
 export function ocrStatusDescriptor({

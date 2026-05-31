@@ -169,7 +169,7 @@ test("bindActions wraps scan actions with runAction labels", () => {
   dom.chooseFolderButton.dispatch("click");
 
   assert.deepEqual(calls.slice(0, 4), [
-    ["runAction", "Mulai scan"],
+    ["runAction", "Siapkan foto"],
     ["handleScanButtonClick"],
     ["runAction", "Pilih folder"],
     ["chooseFolder"],

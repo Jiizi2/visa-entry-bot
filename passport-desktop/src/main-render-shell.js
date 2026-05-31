@@ -1,4 +1,4 @@
-const PAGE_ORDER = ["import", "validation", "entry"];
+const PAGE_ORDER = ["import", "prepare", "scan", "validation", "entry"];
 
 export function createMainRenderer({
   dom,
@@ -79,10 +79,20 @@ export function renderNavigation({ dom, state, reviewCompletionState, isEntryAcc
   const entryReady = isEntryAccessible();
   const subtitleByPage = {
     import: state.manifestPath
-      ? "Scan selesai, lanjut review"
-      : state.preparedSession
-        ? "Foto siap discan"
-        : "Pilih folder dan siapkan foto",
+      ? "Riwayat tersedia"
+      : state.selectedDir
+        ? "Folder dipilih"
+        : "Pilih folder kerja",
+    prepare: state.preparedSession
+      ? `${preparedItemCount(state)} foto siap`
+      : state.isPreparingImages
+        ? "Menyiapkan foto"
+        : "Rapikan foto",
+    scan: state.isScanning
+      ? "OCR berjalan"
+      : state.manifestPath
+        ? "Scan selesai"
+        : "Menunggu scan",
     validation: review.remaining > 0 ? `Sisa review: ${review.remaining} data` : "Semua data sudah dicek",
     entry: entryReady ? "Siap preview/export JSON" : "Selesaikan review dulu",
   };
@@ -117,8 +127,10 @@ export function renderNavigation({ dom, state, reviewCompletionState, isEntryAcc
 }
 
 export function renderPageVisibility({ dom, state, documentRef = globalThis.document }) {
-  dom.pageImport.classList.toggle("is-hidden", state.currentPage !== "import");
-  dom.pageValidation.classList.toggle("is-hidden", state.currentPage !== "validation");
+  dom.pageImport?.classList.toggle("is-hidden", state.currentPage !== "import");
+  dom.pagePrepare?.classList.toggle("is-hidden", state.currentPage !== "prepare");
+  dom.pageScan?.classList.toggle("is-hidden", state.currentPage !== "scan");
+  dom.pageValidation?.classList.toggle("is-hidden", state.currentPage !== "validation");
   dom.pageEntry?.classList.toggle("is-hidden", state.currentPage !== "entry");
   const topbarNode = documentRef?.querySelector?.(".topbar");
   if (topbarNode) {
@@ -143,10 +155,32 @@ export function topbarDescriptor(state) {
   if (state.currentPage === "import") {
     return {
       eyebrow: "",
-      title: "Pilih Dokumen",
+      title: "Pilih Folder",
       statusLabel: status.label,
       statusTone: status.tone,
       compact: true,
+    };
+  }
+
+  if (state.currentPage === "prepare") {
+    return {
+      eyebrow: "",
+      title: "Review & Persiapan Foto",
+      statusLabel: status.label,
+      statusTone: status.tone,
+      compact: true,
+      hidden: false,
+    };
+  }
+
+  if (state.currentPage === "scan") {
+    return {
+      eyebrow: "",
+      title: "Progress OCR",
+      statusLabel: status.label,
+      statusTone: status.tone,
+      compact: true,
+      hidden: false,
     };
   }
 
@@ -169,6 +203,11 @@ export function topbarDescriptor(state) {
     compact: true,
     hidden: false,
   };
+}
+
+function preparedItemCount(state) {
+  const items = state.preparedSession?.items;
+  return Array.isArray(items) ? items.length : 0;
 }
 
 export function currentTopbarStatus(state) {
