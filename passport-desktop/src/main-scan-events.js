@@ -45,6 +45,7 @@ export async function handleScanEventPayload(payload, {
       state.isScanning = true;
       state.isStartingScan = false;
       state.isStoppingScan = false;
+      state.currentPage = "scan";
       state.totalFiles = Number(payload.totalFiles ?? 0);
       state.progressTotal = Number(payload.totalFiles ?? 0);
       state.progressCurrent = 0;
@@ -149,6 +150,7 @@ export async function handleScanEventPayload(payload, {
       appendScanLog(`Scan selesai | VALID ${payload.validCount ?? 0} | ERROR ${payload.errorCount ?? 0} | REVIEW ${payload.reviewCount ?? 0}`);
       rememberRecentBatch(state.selectedDir || state.resultDir, state.totalFiles, state.manifestPath);
       await loadManifest();
+      state.currentPage = "validation";
       closeStopScanModal();
       renderAll();
       break;

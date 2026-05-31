@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "passport-desktop",
+  "productName": "EntryMate By Ghaniya",
   "version": "1.0.0",
-  "identifier": "com.visaentry.passportdesktop",
+  "identifier": "com.ghaniya.entrymate",
   "build": {
     "devUrl": "http://127.0.0.1:1430",
     "frontendDist": "../src"
@@ -12,9 +12,10 @@
     "windows": [
       {
         "url": "index.html",
-        "title": "Passport Entry Assistant",
+        "title": "EntryMate By Ghaniya",
         "width": 1440,
         "height": 920,
+        "center": true,
         "minWidth": 1120,
         "minHeight": 760,
         "backgroundColor": "#f9f9fd",

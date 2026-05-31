@@ -77,7 +77,7 @@
       panelFrame = document.createElement("iframe");
       panelFrame.id = PANEL_FRAME_ID;
       panelFrame.src = chrome.runtime.getURL("panel.html");
-      panelFrame.title = "Panel Nusuk Autofill";
+      panelFrame.title = "Panel EntryMate By Ghaniya";
       Object.assign(panelFrame.style, {
         width: "100%",
         height: "100%",

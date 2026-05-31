@@ -9,7 +9,7 @@ public class Win32 {
 }
 public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 "@
-$p = Start-Process -FilePath 'C:\visa-entry-bot\passport-desktop\src-tauri\target\release\passport-desktop.exe' -PassThru
+$p = Start-Process -FilePath 'C:\visa-entry-bot\passport-desktop\src-tauri\target\release\entrymate-by-ghaniya.exe' -PassThru
 Start-Sleep -Seconds 5
 $p.Refresh()
 $hwnd = $p.MainWindowHandle

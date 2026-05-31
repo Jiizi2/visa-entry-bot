@@ -76,7 +76,7 @@ fn diagnostics_log_path() -> PathBuf {
     std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)
-        .join("passport-desktop")
+        .join("entrymate-by-ghaniya")
         .join("diagnostics.log")
 }
 
@@ -571,6 +571,81 @@ fn save_prepared_passport_image(
 }
 
 #[tauri::command]
+fn remove_prepared_passport_image(
+    prepared_manifest_path: String,
+    item_id: String,
+) -> Result<Value, String> {
+    let manifest_path = resolve_prepared_manifest_path(&prepared_manifest_path)?;
+    let content = fs::read_to_string(&manifest_path).map_err(|err| {
+        format!(
+            "Gagal membaca prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+    let mut manifest: Value = serde_json::from_str(&content)
+        .map_err(|err| format!("Prepared manifest tidak valid: {err}"))?;
+    if manifest.get("schemaVersion").and_then(Value::as_str) != Some("passport-prepared-inputs-v1")
+    {
+        return Err("Prepared manifest tidak dikenali.".to_string());
+    }
+
+    let trimmed_item_id = item_id.trim();
+    let removed_item = {
+        let items = manifest
+            .get_mut("items")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| "Prepared manifest tidak memiliki daftar items.".to_string())?;
+        let Some(index) = items.iter().position(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .map(|value| value == trimmed_item_id)
+                .unwrap_or(false)
+        }) else {
+            return Err("Prepared item tidak ditemukan.".to_string());
+        };
+
+        items.remove(index)
+    };
+
+    move_removed_prepared_files(&manifest_path, &removed_item, trimmed_item_id)?;
+
+    let next_image_count =
+        if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
+            for (index, item) in items.iter_mut().enumerate() {
+                if let Some(map) = item.as_object_mut() {
+                    map.insert("index".to_string(), json!(index + 1));
+                }
+            }
+            Some(items.len())
+        } else {
+            None
+        };
+
+    if let Some(map) = manifest.as_object_mut() {
+        if let Some(count) = next_image_count {
+            map.insert("imageCount".to_string(), json!(count));
+        }
+        let removed_log = map
+            .entry("removedItems".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if let Some(list) = removed_log.as_array_mut() {
+            list.push(removed_item);
+        }
+    }
+
+    let serialized = serde_json::to_string_pretty(&manifest)
+        .map_err(|err| format!("Gagal menyiapkan prepared manifest: {err}"))?;
+    fs::write(&manifest_path, serialized).map_err(|err| {
+        format!(
+            "Gagal menyimpan prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+
+    Ok(manifest)
+}
+
+#[tauri::command]
 fn stop_scan(app: AppHandle, state: State<'_, ScanState>) -> Result<(), String> {
     let in_progress = state
         .in_progress
@@ -831,6 +906,103 @@ fn crop_file_base_name(member_id: &str, file_name: &str, source_image_path: &str
     }
 }
 
+fn move_removed_prepared_files(
+    manifest_path: &Path,
+    item: &Value,
+    item_id: &str,
+) -> Result<(), String> {
+    let prepared_dir = manifest_path
+        .parent()
+        .ok_or_else(|| "Lokasi prepared manifest tidak valid.".to_string())?;
+    let removed_dir = prepared_dir.join("removed-images");
+    fs::create_dir_all(&removed_dir).map_err(|err| {
+        format!(
+            "Gagal membuat folder removed image {}: {err}",
+            removed_dir.display()
+        )
+    })?;
+
+    let source_type = item
+        .get("sourceType")
+        .and_then(Value::as_str)
+        .unwrap_or("image")
+        .to_ascii_lowercase();
+    let mut candidates = Vec::new();
+    if let Some(path) = item.get("editedPath").and_then(Value::as_str) {
+        candidates.push(path.to_string());
+    }
+    if let Some(path) = item.get("scanPath").and_then(Value::as_str) {
+        candidates.push(path.to_string());
+    }
+    if source_type == "image" {
+        if let Some(path) = item.get("sourcePath").and_then(Value::as_str) {
+            candidates.push(path.to_string());
+        }
+    }
+
+    let mut seen = HashSet::new();
+    for candidate in candidates {
+        let source_path = PathBuf::from(candidate.trim());
+        if source_path.as_os_str().is_empty() || !source_path.is_file() {
+            continue;
+        }
+        let key = source_path.to_string_lossy().to_ascii_lowercase();
+        if !seen.insert(key) {
+            continue;
+        }
+        move_file_to_removed_dir(&source_path, &removed_dir, item_id)?;
+    }
+
+    Ok(())
+}
+
+fn move_file_to_removed_dir(
+    source_path: &Path,
+    removed_dir: &Path,
+    item_id: &str,
+) -> Result<(), String> {
+    let file_name = source_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("passport.jpg");
+    let stem = source_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("passport");
+    let extension = source_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| format!(".{value}"))
+        .unwrap_or_default();
+    let safe_item = sanitize_file_segment(item_id);
+    let safe_stem = sanitize_file_segment(stem);
+    let mut target_path = removed_dir.join(format!("{safe_item}-{safe_stem}{extension}"));
+    let mut counter = 2;
+    while target_path.exists() {
+        target_path = removed_dir.join(format!("{safe_item}-{safe_stem}-{counter}{extension}"));
+        counter += 1;
+    }
+
+    fs::rename(source_path, &target_path)
+        .or_else(|rename_err| {
+            fs::copy(source_path, &target_path)
+                .and_then(|_| fs::remove_file(source_path))
+                .map_err(|copy_err| {
+                    std::io::Error::new(
+                        copy_err.kind(),
+                        format!("rename: {rename_err}; copy/remove: {copy_err}"),
+                    )
+                })
+        })
+        .map_err(|err| {
+            format!(
+                "Gagal memindahkan foto {} ke removed-images: {err}",
+                file_name
+            )
+        })?;
+    Ok(())
+}
+
 fn sanitize_file_segment(value: &str) -> String {
     let mut output = String::new();
     for ch in value.trim().chars() {
@@ -986,7 +1158,7 @@ fn create_nusuk_batch(
         "schemaVersion": "nusuk-entry-batch-v1",
         "groupId": manifest.get("groupId").cloned().unwrap_or(Value::String(String::new())),
         "manifestPath": manifest_path,
-        "generatedBy": "passport-desktop",
+        "generatedBy": "entrymate-by-ghaniya",
         "members": filtered_members
     });
 
@@ -1594,6 +1766,7 @@ pub fn run() {
             load_passport_image_data,
             save_cropped_passport_image,
             save_prepared_passport_image,
+            remove_prepared_passport_image,
             create_nusuk_batch
         ])
         .run(tauri::generate_context!())

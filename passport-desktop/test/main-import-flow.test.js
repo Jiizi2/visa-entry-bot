@@ -193,11 +193,12 @@ test("import workflow starts scan from folder input", async () => {
     },
   });
 
-  await actions.handleScanButtonClick();
+  await actions.handleStartScanButtonClick();
 
   assert.equal(state.selectedDir, "C:/batch-a");
   assert.equal(state.isScanning, true);
   assert.equal(state.isStartingScan, true);
+  assert.equal(state.currentPage, "scan");
   assert.deepEqual(calls.startScanCommand, [{
     selectedDir: "C:/batch-a",
     ocrMode: "speed",
@@ -215,8 +216,24 @@ test("import workflow prepares images before first scan click", async () => {
   assert.equal(state.isScanning, false);
   assert.equal(state.preparedSession.preparedManifestPath, "C:/batch-a/.passport-assistant-prepared/prepared-inputs.json");
   assert.equal(state.activePreparedItemId, "prep-0001");
+  assert.equal(state.currentPage, "prepare");
   assert.deepEqual(calls.prepareImagesCommand, [{ selectedDir: "C:/batch-a" }]);
   assert.deepEqual(calls.startScanCommand, []);
+});
+
+test("import workflow keeps dialog folder selection before prepare starts", async () => {
+  const { actions, calls, dom, state } = createWorkflowFixture({
+    dom: {
+      folderPath: { value: "" },
+    },
+  });
+
+  await actions.chooseFolder();
+
+  assert.equal(state.selectedDir, "C:/chosen");
+  assert.equal(dom.folderPath.value, "C:/chosen");
+  assert.deepEqual(calls.prepareImagesCommand, [{ selectedDir: "C:/chosen" }]);
+  assert.equal(state.currentPage, "prepare");
 });
 
 test("import workflow resolves rescan modal promise", async () => {

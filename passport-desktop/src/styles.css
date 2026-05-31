@@ -145,6 +145,13 @@ input:focus-visible,
   padding: 0;
 }
 
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+}
+
 .brand-title {
   margin: 0;
   font-size: 1.22rem;
@@ -1353,6 +1360,7 @@ input:focus {
 }
 
 .progress-track {
+  position: relative;
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
@@ -1360,11 +1368,29 @@ input:focus {
 }
 
 .progress-fill {
+  position: relative;
   width: 0;
   height: 100%;
-  border-radius: 0;
+  overflow: hidden;
+  border-radius: inherit;
   background: var(--primary);
   transition: width 220ms ease;
+}
+
+.progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.44), transparent),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0 10px, transparent 10px 20px);
+  transform: translateX(-100%);
+}
+
+.progress-track.is-active .progress-fill::after {
+  opacity: 1;
+  animation: scan-progress-sheen 1.35s linear infinite;
 }
 
 .scan-log-box {
@@ -3986,6 +4012,7 @@ tbody tr:hover {
   max-width: 100%;
   max-height: 76vh;
   object-fit: contain;
+  transition: transform 160ms ease;
 }
 
 .prepared-preview-empty {
@@ -3999,6 +4026,54 @@ tbody tr:hover {
   padding: 10px 12px;
   border-radius: var(--radius-md);
   background: var(--surface-soft);
+}
+
+.last-scan-card {
+  display: grid;
+  gap: 12px;
+}
+
+.last-scan-detail {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.zoom-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.prepared-large-card {
+  grid-template-rows: auto minmax(280px, 1fr);
+}
+
+.prepared-large-stage {
+  display: grid;
+  place-items: center;
+  min-height: min(72vh, 680px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #111827;
+}
+
+.prepared-large-image {
+  display: block;
+  max-width: 100%;
+  max-height: 76vh;
+  object-fit: contain;
 }
 
 .scan-console-head {
@@ -4021,7 +4096,107 @@ tbody tr:hover {
 
 .scan-console-progress {
   display: grid;
+  gap: 12px;
+}
+
+.scan-progress-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid rgba(100, 116, 139, 0.14);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+}
+
+.scan-progress-ring {
+  --progress-angle: 0deg;
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, #ffffff 0 58%, transparent 59%),
+    conic-gradient(var(--primary) var(--progress-angle), rgba(100, 116, 139, 0.18) 0);
+  box-shadow: inset 0 0 0 1px rgba(100, 116, 139, 0.12), 0 10px 24px rgba(37, 99, 235, 0.12);
+  transition: background 220ms ease, box-shadow 220ms ease;
+}
+
+.scan-progress-ring.is-active {
+  animation: scan-ring-breathe 1.8s ease-in-out infinite;
+}
+
+.scan-progress-ring.is-complete {
+  background:
+    radial-gradient(circle at center, #ffffff 0 58%, transparent 59%),
+    conic-gradient(var(--success) 360deg, rgba(100, 116, 139, 0.18) 0);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.18), 0 10px 24px rgba(15, 118, 110, 0.12);
+}
+
+.scan-progress-percent {
+  color: var(--ink);
+  font-size: 1.5rem;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.scan-progress-copy {
+  display: grid;
   gap: 6px;
+  min-width: 0;
+}
+
+.scan-progress-copy strong {
+  font-size: 1.05rem;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.scan-progress-copy span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.scan-activity-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 58px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1px solid rgba(100, 116, 139, 0.14);
+}
+
+.scan-activity-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.34);
+}
+
+.scan-activity-dots.is-active span {
+  background: var(--primary);
+  animation: scan-dot-pulse 1s ease-in-out infinite;
+}
+
+.scan-activity-dots.is-active span:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.scan-activity-dots.is-active span:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.scan-activity-dots.is-complete span {
+  background: var(--success);
 }
 
 .scan-console-stats {
@@ -4996,6 +5171,87 @@ select:hover,
   border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
+.nav-stack {
+  gap: 5px;
+}
+
+.nav-link {
+  width: 104px;
+}
+
+.nav-step-badge {
+  flex: 0 0 auto;
+}
+
+.scan-console-card {
+  min-height: clamp(420px, 58vh, 620px);
+  align-content: start;
+  padding: 24px;
+}
+
+#page-scan .progress-track {
+  height: 18px;
+  padding: 3px;
+  background: #dbe5f1;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+#page-scan .progress-fill {
+  min-width: 0;
+  background: linear-gradient(90deg, #2563eb 0%, #0891b2 54%, #0f766e 100%);
+  box-shadow: 0 0 18px rgba(37, 99, 235, 0.22);
+}
+
+#page-scan .progress-track.is-active {
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08), 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+#page-scan .progress-track.is-complete .progress-fill {
+  background: linear-gradient(90deg, #0f766e, #16a34a);
+  box-shadow: 0 0 18px rgba(15, 118, 110, 0.2);
+}
+
+@keyframes scan-progress-sheen {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes scan-ring-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: inset 0 0 0 1px rgba(100, 116, 139, 0.12), 0 10px 24px rgba(37, 99, 235, 0.12);
+  }
+  50% {
+    transform: scale(1.025);
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.22), 0 12px 30px rgba(37, 99, 235, 0.2);
+  }
+}
+
+@keyframes scan-dot-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.42;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-track.is-active .progress-fill::after,
+  .scan-progress-ring.is-active,
+  .scan-activity-dots.is-active span {
+    animation: none;
+  }
+}
+
 @media (max-width: 760px) {
   .sidebar {
     height: auto;
@@ -5033,6 +5289,21 @@ select:hover,
 
   .prepare-preview-body {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scan-progress-hero {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .scan-progress-ring {
+    width: 92px;
+    height: 92px;
+    justify-self: center;
+  }
+
+  .scan-activity-dots {
+    justify-self: start;
   }
 
   .prepared-passport-list {

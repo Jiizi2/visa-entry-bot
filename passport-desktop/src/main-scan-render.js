@@ -30,7 +30,11 @@ export function renderProgressPanelView({ dom, state, members = [] }) {
   }
 
   dom.progressFill.style.width = `${percentage}%`;
-  dom.progressFill.parentElement?.setAttribute("aria-valuenow", String(percentage));
+  const progressTrack = dom.progressFill.parentElement;
+  progressTrack?.setAttribute("aria-valuenow", String(percentage));
+  progressTrack?.classList?.toggle("is-active", Boolean(state.isScanning));
+  progressTrack?.classList?.toggle("is-complete", Boolean(!state.isScanning && percentage >= 100 && total > 0));
+  renderAnimatedProgressView({ dom, state, total, current, percentage });
 
   if (dom.scanStatTotal) {
     dom.scanStatTotal.textContent = String(total || 0);
@@ -47,11 +51,49 @@ export function renderProgressPanelView({ dom, state, members = [] }) {
   if (dom.scanStatLastTime) {
     dom.scanStatLastTime.textContent = formatDurationMs(timing.latest?.totalMs);
   }
+  if (dom.scanStatEta) {
+    const remaining = Math.max((total || 0) - Math.floor(current || 0), 0);
+    const avgMs = Number(timing.avgTotalMs || 0);
+    dom.scanStatEta.textContent = state.isScanning && remaining > 0 && avgMs > 0
+      ? formatDurationMs(remaining * avgMs)
+      : "-";
+  }
 
   if (dom.scanConsoleState) {
     const status = scanConsoleStatusDescriptor(state);
     dom.scanConsoleState.textContent = status.label;
     dom.scanConsoleState.className = `status-chip ${status.tone}`;
+  }
+}
+
+function renderAnimatedProgressView({ dom, state, total, current, percentage }) {
+  if (dom.progressPercent) {
+    dom.progressPercent.textContent = `${percentage}%`;
+  }
+  if (dom.progressRing) {
+    dom.progressRing.style.setProperty("--progress-angle", `${percentage * 3.6}deg`);
+    dom.progressRing.classList.toggle("is-active", Boolean(state.isScanning));
+    dom.progressRing.classList.toggle("is-complete", Boolean(!state.isScanning && percentage >= 100 && total > 0));
+  }
+  if (dom.progressStage) {
+    dom.progressStage.textContent = state.isScanning
+      ? state.progressStageLabel || "Memproses OCR"
+      : percentage >= 100 && total > 0
+        ? "Proses selesai"
+        : "Menunggu OCR";
+  }
+  if (dom.progressFile) {
+    if (state.progressFileName) {
+      dom.progressFile.textContent = `${state.progressFileName} | ${formatProgressValue(current)}/${total || "?"}`;
+    } else if (state.isScanning) {
+      dom.progressFile.textContent = "Menyiapkan antrean file";
+    } else {
+      dom.progressFile.textContent = "Belum ada file aktif";
+    }
+  }
+  if (dom.scanActivityDots) {
+    dom.scanActivityDots.classList.toggle("is-active", Boolean(state.isScanning));
+    dom.scanActivityDots.classList.toggle("is-complete", Boolean(!state.isScanning && percentage >= 100 && total > 0));
   }
 }
 

@@ -11,10 +11,19 @@ export function bindActions({
   updateActionAvailability,
   chooseFolder,
   handleScanButtonClick,
+  handleStartScanButtonClick = handleScanButtonClick,
   handleOcrModeChange,
   selectPreparedPassport = () => {},
   rotatePreparedPassport = () => {},
+  flipPreparedPassport = () => {},
+  changePreparedPreviewZoom = () => {},
+  resetPreparedPreviewZoom = () => {},
+  openPreparedLargePreview = () => {},
+  closePreparedLargePreview = () => {},
   openPreparedCropModal = () => {},
+  openPreparedDeleteModal = () => {},
+  closePreparedDeleteModal = () => {},
+  confirmPreparedDelete = () => {},
   openStopScanModal,
   resolveRescanConfirmation,
   confirmStopScan,
@@ -101,7 +110,16 @@ export function bindActions({
   });
 
   dom.scanButton.addEventListener("click", () => {
-    runAction(() => handleScanButtonClick(), "Mulai scan");
+    runAction(() => handleScanButtonClick(), "Siapkan foto");
+  });
+  dom.startScanButton?.addEventListener("click", () => {
+    runAction(() => handleStartScanButtonClick(), "Mulai scan");
+  });
+  dom.prepareBackButton?.addEventListener("click", () => {
+    setPage("import");
+  });
+  dom.lastScanOpenButton?.addEventListener("click", () => {
+    setPage("validation");
   });
   for (const input of dom.ocrModeInputs) {
     input.addEventListener("change", (event) => {
@@ -171,6 +189,21 @@ export function bindActions({
       closeReviewCompleteModal();
     }
   });
+  dom.preparedDeleteConfirmButton?.addEventListener("click", () => {
+    runAction(() => confirmPreparedDelete(), "Hapus foto persiapan");
+  });
+  dom.preparedDeleteCancelButton?.addEventListener("click", closePreparedDeleteModal);
+  dom.preparedDeleteModal?.addEventListener("click", (event) => {
+    if (event.target === dom.preparedDeleteModal) {
+      closePreparedDeleteModal();
+    }
+  });
+  dom.preparedPreviewModalCloseButton?.addEventListener("click", closePreparedLargePreview);
+  dom.preparedPreviewModal?.addEventListener("click", (event) => {
+    if (event.target === dom.preparedPreviewModal) {
+      closePreparedLargePreview();
+    }
+  });
   dom.entryBackReviewButton?.addEventListener("click", () => {
     setPage("validation");
   });
@@ -208,6 +241,14 @@ export function bindActions({
       closeReviewCompleteModal();
       return;
     }
+    if (event.key === "Escape" && !dom.preparedDeleteModal?.classList.contains("is-hidden")) {
+      closePreparedDeleteModal();
+      return;
+    }
+    if (event.key === "Escape" && !dom.preparedPreviewModal?.classList.contains("is-hidden")) {
+      closePreparedLargePreview();
+      return;
+    }
     if (event.key === "Escape" && !dom.passportCropModal?.classList.contains("is-hidden")) {
       closePassportCropModal();
     }
@@ -231,8 +272,27 @@ export function bindActions({
   dom.preparedRotateRightButton?.addEventListener("click", () => {
     runAction(() => rotatePreparedPassport(1), "Putar foto");
   });
+  dom.preparedFlipHorizontalButton?.addEventListener("click", () => {
+    runAction(() => flipPreparedPassport("horizontal"), "Flip foto");
+  });
+  dom.preparedFlipVerticalButton?.addEventListener("click", () => {
+    runAction(() => flipPreparedPassport("vertical"), "Flip foto");
+  });
+  dom.preparedZoomOutButton?.addEventListener("click", () => {
+    changePreparedPreviewZoom(-0.1);
+  });
+  dom.preparedZoomInButton?.addEventListener("click", () => {
+    changePreparedPreviewZoom(0.1);
+  });
+  dom.preparedZoomResetButton?.addEventListener("click", resetPreparedPreviewZoom);
+  dom.preparedPreviewLargeButton?.addEventListener("click", () => {
+    runAction(() => openPreparedLargePreview(), "Preview besar foto");
+  });
   dom.preparedCropButton?.addEventListener("click", () => {
     runAction(() => openPreparedCropModal(), "Crop foto sebelum scan");
+  });
+  dom.preparedDeleteButton?.addEventListener("click", () => {
+    openPreparedDeleteModal();
   });
 
   dom.recentBatchesList.addEventListener("click", (event) => {

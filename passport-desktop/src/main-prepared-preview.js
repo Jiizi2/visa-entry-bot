@@ -2,6 +2,9 @@ import { basenameFromPath, escapeHtml } from "./main-utils.js";
 
 const PREPARED_IMAGE_OUTPUT_TYPE = "image/jpeg";
 const PREPARED_IMAGE_OUTPUT_QUALITY = 0.92;
+const PREPARED_PREVIEW_ZOOM_MIN = 0.5;
+const PREPARED_PREVIEW_ZOOM_MAX = 2.5;
+const PREPARED_PREVIEW_ZOOM_DEFAULT = 1;
 
 export function preparedItemsForState(state) {
   const items = state.preparedSession?.items;
@@ -18,12 +21,14 @@ export function createPreparedPreviewController({
   requestFrame,
   loadPreparedImageData,
   savePreparedPassportImage,
+  removePreparedPassportImage = null,
   openPreparedCropModal,
   renderAll,
   imageFactory = () => new Image(),
   documentRef = globalThis.document,
 }) {
   let activeImageRequestId = 0;
+  let deleteCandidateId = "";
 
   function activePreparedItem() {
     const items = preparedItemsForState(state);
@@ -53,6 +58,7 @@ export function createPreparedPreviewController({
     renderSummary(items);
     renderList(items);
     renderActivePreview();
+    renderZoomControls();
     updateControls();
     requestFrame(() => {
       void ensureThumbnailImages(items);
@@ -134,6 +140,7 @@ export function createPreparedPreviewController({
 
     if (!item) {
       dom.preparedPreviewImage.removeAttribute("src");
+      dom.preparedPreviewImage.style.transform = "";
       dom.preparedPreviewImage.classList.add("is-hidden");
       dom.preparedPreviewEmpty.classList.remove("is-hidden");
       dom.preparedPreviewEmpty.textContent = "Belum ada foto dipilih.";
@@ -179,6 +186,8 @@ export function createPreparedPreviewController({
     dom.preparedPreviewImage.classList.remove("is-hidden");
     dom.preparedPreviewImage.src = result.dataUrl;
     dom.preparedPreviewImage.alt = item.fileName ? `Preview ${item.fileName}` : "Preview passport";
+    dom.preparedPreviewImage.style.transform = `scale(${clampPreparedPreviewZoom(state.preparedPreviewZoom)})`;
+    dom.preparedPreviewImage.style.transformOrigin = "center center";
   }
 
   async function loadPreparedImage(item) {
@@ -242,6 +251,159 @@ export function createPreparedPreviewController({
     renderAll();
   }
 
+  async function flipActivePreparedItem(axis = "horizontal") {
+    const item = activePreparedItem();
+    if (!item || state.isPreparingImages || state.isScanning) {
+      return;
+    }
+
+    const normalizedAxis = axis === "vertical" ? "vertical" : "horizontal";
+    const loaded = await loadPreparedImage(item);
+    if (!loaded?.dataUrl) {
+      return;
+    }
+
+    state.statusHeadline = "Menyimpan flip foto";
+    state.statusDetail = item.fileName || "Foto passport";
+    renderAll();
+
+    const dataUrl = await renderFlippedDataUrl(loaded.dataUrl, normalizedAxis);
+    const session = await savePreparedPassportImage({
+      preparedManifestPath: String(state.preparedSession?.preparedManifestPath || ""),
+      itemId: String(item.id || ""),
+      sourceImagePath: effectivePreparedImagePath(item),
+      dataUrl,
+      crop: {
+        operation: normalizedAxis === "vertical" ? "flip-vertical" : "flip-horizontal",
+        sourceImagePath: effectivePreparedImagePath(item),
+      },
+      rotationDegrees: Number(item.rotationDegrees || 0),
+    });
+    applyPreparedSession(session, String(item.id || ""));
+    state.statusHeadline = "Flip foto tersimpan";
+    state.statusDetail = "Foto hasil flip akan dipakai saat scan OCR.";
+    renderAll();
+  }
+
+  function changeZoom(delta) {
+    state.preparedPreviewZoom = clampPreparedPreviewZoom(Number(state.preparedPreviewZoom || PREPARED_PREVIEW_ZOOM_DEFAULT) + Number(delta || 0));
+    renderZoomControls();
+    if (dom.preparedPreviewImage) {
+      dom.preparedPreviewImage.style.transform = `scale(${state.preparedPreviewZoom})`;
+    }
+  }
+
+  function resetZoom() {
+    state.preparedPreviewZoom = PREPARED_PREVIEW_ZOOM_DEFAULT;
+    renderZoomControls();
+    if (dom.preparedPreviewImage) {
+      dom.preparedPreviewImage.style.transform = `scale(${state.preparedPreviewZoom})`;
+    }
+  }
+
+  function renderZoomControls() {
+    const zoom = clampPreparedPreviewZoom(state.preparedPreviewZoom);
+    state.preparedPreviewZoom = zoom;
+    if (dom.preparedZoomLabel) {
+      dom.preparedZoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+    }
+    if (dom.preparedZoomOutButton) {
+      dom.preparedZoomOutButton.disabled = !activePreparedItem() || zoom <= PREPARED_PREVIEW_ZOOM_MIN || state.isPreparingImages || state.isScanning;
+      dom.preparedZoomOutButton.setAttribute("aria-disabled", dom.preparedZoomOutButton.disabled ? "true" : "false");
+    }
+    if (dom.preparedZoomInButton) {
+      dom.preparedZoomInButton.disabled = !activePreparedItem() || zoom >= PREPARED_PREVIEW_ZOOM_MAX || state.isPreparingImages || state.isScanning;
+      dom.preparedZoomInButton.setAttribute("aria-disabled", dom.preparedZoomInButton.disabled ? "true" : "false");
+    }
+    if (dom.preparedZoomResetButton) {
+      dom.preparedZoomResetButton.disabled = !activePreparedItem() || zoom === PREPARED_PREVIEW_ZOOM_DEFAULT || state.isPreparingImages || state.isScanning;
+      dom.preparedZoomResetButton.setAttribute("aria-disabled", dom.preparedZoomResetButton.disabled ? "true" : "false");
+    }
+  }
+
+  async function openLargePreview() {
+    const item = activePreparedItem();
+    if (!item || !dom.preparedPreviewModal) {
+      return;
+    }
+    dom.preparedPreviewModal.classList.remove("is-hidden");
+    dom.preparedPreviewModal.setAttribute("aria-hidden", "false");
+    if (dom.preparedPreviewModalTitle) {
+      dom.preparedPreviewModalTitle.textContent = item.fileName || "Preview Besar";
+    }
+    if (dom.preparedPreviewModalImage) {
+      dom.preparedPreviewModalImage.classList.add("is-hidden");
+      dom.preparedPreviewModalImage.removeAttribute("src");
+    }
+    if (dom.preparedPreviewModalEmpty) {
+      dom.preparedPreviewModalEmpty.classList.remove("is-hidden");
+      dom.preparedPreviewModalEmpty.textContent = "Memuat foto...";
+    }
+    const result = await loadPreparedImage(item);
+    if (!result?.dataUrl || String(activePreparedItem()?.id || "") !== String(item.id || "")) {
+      if (dom.preparedPreviewModalEmpty) {
+        dom.preparedPreviewModalEmpty.textContent = "Foto tidak bisa dimuat.";
+      }
+      return;
+    }
+    if (dom.preparedPreviewModalEmpty) {
+      dom.preparedPreviewModalEmpty.classList.add("is-hidden");
+    }
+    if (dom.preparedPreviewModalImage) {
+      dom.preparedPreviewModalImage.src = result.dataUrl;
+      dom.preparedPreviewModalImage.alt = item.fileName ? `Preview besar ${item.fileName}` : "Preview besar passport";
+      dom.preparedPreviewModalImage.classList.remove("is-hidden");
+    }
+  }
+
+  function closeLargePreview() {
+    dom.preparedPreviewModal?.classList.add("is-hidden");
+    dom.preparedPreviewModal?.setAttribute("aria-hidden", "true");
+  }
+
+  function openDeleteActive() {
+    const item = activePreparedItem();
+    if (!item || !dom.preparedDeleteModal) {
+      return;
+    }
+    deleteCandidateId = String(item.id || "");
+    if (dom.preparedDeleteModalDesc) {
+      const fileName = item.fileName || basenameFromPath(effectivePreparedImagePath(item)) || "foto ini";
+      dom.preparedDeleteModalDesc.textContent = `${fileName} akan dikeluarkan dari antrean OCR dan dipindahkan dari folder kerja.`;
+    }
+    dom.preparedDeleteModal.classList.remove("is-hidden");
+    dom.preparedDeleteModal.setAttribute("aria-hidden", "false");
+    requestFrame(() => dom.preparedDeleteCancelButton?.focus?.());
+  }
+
+  function closeDeleteModal() {
+    deleteCandidateId = "";
+    dom.preparedDeleteModal?.classList.add("is-hidden");
+    dom.preparedDeleteModal?.setAttribute("aria-hidden", "true");
+  }
+
+  async function confirmDeleteActive() {
+    if (!removePreparedPassportImage || !deleteCandidateId) {
+      closeDeleteModal();
+      return;
+    }
+    const itemId = deleteCandidateId;
+    closeDeleteModal();
+    state.statusHeadline = "Menghapus foto";
+    state.statusDetail = "Foto dikeluarkan dari antrean OCR.";
+    renderAll();
+    const session = await removePreparedPassportImage({
+      preparedManifestPath: String(state.preparedSession?.preparedManifestPath || ""),
+      itemId,
+    });
+    const nextItems = Array.isArray(session?.items) ? session.items : [];
+    const nextActive = nextItems.find((item) => String(item.id || "") !== itemId)?.id || nextItems[0]?.id || "";
+    applyPreparedSession(session, String(nextActive || ""));
+    state.statusHeadline = "Foto dihapus dari persiapan";
+    state.statusDetail = `${nextItems.length} foto tersisa untuk OCR.`;
+    renderAll();
+  }
+
   function openCropActive() {
     const item = activePreparedItem();
     if (!item) {
@@ -260,6 +422,10 @@ export function createPreparedPreviewController({
     const hasItem = Boolean(activePreparedItem());
     for (const button of [
       dom.preparedCropButton,
+      dom.preparedDeleteButton,
+      dom.preparedFlipHorizontalButton,
+      dom.preparedFlipVerticalButton,
+      dom.preparedPreviewLargeButton,
       dom.preparedRotateLeftButton,
       dom.preparedRotateRightButton,
     ]) {
@@ -296,11 +462,48 @@ export function createPreparedPreviewController({
     });
   }
 
+  function renderFlippedDataUrl(dataUrl, axis) {
+    return new Promise((resolve, reject) => {
+      const image = imageFactory();
+      image.onload = () => {
+        const canvas = documentRef.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) {
+          reject(new Error("Canvas flip tidak tersedia."));
+          return;
+        }
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        if (axis === "vertical") {
+          context.translate(0, canvas.height);
+          context.scale(1, -1);
+        } else {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
+        context.drawImage(image, 0, 0);
+        resolve(canvas.toDataURL(PREPARED_IMAGE_OUTPUT_TYPE, PREPARED_IMAGE_OUTPUT_QUALITY));
+      };
+      image.onerror = () => reject(new Error("Foto tidak bisa diflip."));
+      image.src = dataUrl;
+    });
+  }
+
   return {
     activePreparedItem,
     applyPreparedSession,
+    changeZoom,
+    closeDeleteModal,
+    closeLargePreview,
+    confirmDeleteActive,
+    flipActivePreparedItem,
+    openDeleteActive,
     openCropActive,
+    openLargePreview,
     render,
+    resetZoom,
     rotateActivePreparedItem,
     selectPreparedItem,
   };
@@ -319,6 +522,12 @@ function preparedItemSourceLabel(item) {
 function normalizeRotation(value) {
   const normalized = Number.isFinite(value) ? value : 0;
   return ((normalized % 360) + 360) % 360;
+}
+
+function clampPreparedPreviewZoom(value) {
+  const numeric = Number(value);
+  const safeValue = Number.isFinite(numeric) ? numeric : PREPARED_PREVIEW_ZOOM_DEFAULT;
+  return Math.round(Math.min(PREPARED_PREVIEW_ZOOM_MAX, Math.max(PREPARED_PREVIEW_ZOOM_MIN, safeValue)) * 100) / 100;
 }
 
 function cssEscape(value) {

@@ -11,7 +11,7 @@ public class Win32Enum {
 }
 public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 "@
-$p = Start-Process -FilePath 'C:\visa-entry-bot\passport-desktop\src-tauri\target\release\passport-desktop.exe' -PassThru
+$p = Start-Process -FilePath 'C:\visa-entry-bot\passport-desktop\src-tauri\target\release\entrymate-by-ghaniya.exe' -PassThru
 Start-Sleep -Seconds 5
 $p.Refresh(); $main=$p.MainWindowHandle; Write-Output "main=$main"
 $cb = [Win32Enum+EnumWindowsProc]{ param($hwnd,$lparam)

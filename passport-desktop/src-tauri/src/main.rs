@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    passport_desktop_lib::run()
+    entrymate_by_ghaniya_lib::run()
 }

@@ -78,17 +78,29 @@ test("topbar status and descriptor reflect app state", () => {
     compact: true,
     hidden: false,
   });
+  assert.deepEqual(topbarDescriptor({ currentPage: "prepare", preparedSession: { items: [{ id: "a" }] }, statusHeadline: "" }), {
+    eyebrow: "",
+    title: "Review & Persiapan Foto",
+    statusLabel: "Preview Siap",
+    statusTone: "ready",
+    compact: true,
+    hidden: false,
+  });
 });
 
 test("renderNavigation updates step states and subtitles", () => {
   const importButton = createNavButton("import");
+  const prepareButton = createNavButton("prepare");
+  const scanButton = createNavButton("scan");
   const validationButton = createNavButton("validation");
   const entryButton = createNavButton("entry");
   const firstConnector = { classList: createClassList() };
   const secondConnector = { classList: createClassList() };
+  const thirdConnector = { classList: createClassList() };
+  const fourthConnector = { classList: createClassList() };
   const dom = {
-    navButtons: [importButton, validationButton, entryButton],
-    navConnectors: [firstConnector, secondConnector],
+    navButtons: [importButton, prepareButton, scanButton, validationButton, entryButton],
+    navConnectors: [firstConnector, secondConnector, thirdConnector, fourthConnector],
   };
 
   renderNavigation({
@@ -101,14 +113,18 @@ test("renderNavigation updates step states and subtitles", () => {
   assert.equal(importButton.classList.contains("is-complete"), true);
   assert.equal(importButton.badge.textContent, "OK");
   assert.equal(importButton.subtitle.textContent, "Selesai");
+  assert.equal(prepareButton.classList.contains("is-complete"), true);
+  assert.equal(scanButton.classList.contains("is-complete"), true);
   assert.equal(validationButton.classList.contains("is-active"), true);
   assert.equal(validationButton.attrs["aria-current"], "page");
-  assert.equal(validationButton.badge.textContent, "2");
+  assert.equal(validationButton.badge.textContent, "4");
   assert.equal(validationButton.subtitle.textContent, "Sisa review: 2 data");
   assert.equal(entryButton.classList.contains("is-upcoming"), true);
   assert.equal(entryButton.subtitle.textContent, "Selesaikan review dulu");
   assert.equal(firstConnector.classList.contains("is-complete"), true);
-  assert.equal(secondConnector.classList.contains("is-complete"), false);
+  assert.equal(secondConnector.classList.contains("is-complete"), true);
+  assert.equal(thirdConnector.classList.contains("is-complete"), true);
+  assert.equal(fourthConnector.classList.contains("is-complete"), false);
 });
 
 test("createMainRenderer coalesces scheduled render work", () => {
