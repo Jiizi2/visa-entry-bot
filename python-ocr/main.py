@@ -1300,8 +1300,23 @@ def join_notes(*values: str) -> str:
     return "; ".join(notes)
 
 
+MANIFEST_IMAGE_PATH_FIELDS = (
+    "passportImagePath",
+    "originalPassportImagePath",
+    "croppedPassportImagePath",
+    "nusukUploadImagePath",
+)
+MANIFEST_PREP_METADATA_PATH_FIELDS = (
+    "sourcePath",
+    "originalScanPath",
+    "scanPath",
+    "editedPath",
+)
+
+
 def write_manifest(group_id: str, group_dir: str, members: list[dict[str, object]]) -> None:
     output_dir = group_dir
+    _normalize_member_image_paths_for_manifest(members, output_dir)
 
     manifest = {
         "schemaVersion": "passport-manifest-v1",
@@ -1312,6 +1327,62 @@ def write_manifest(group_id: str, group_dir: str, members: list[dict[str, object
     manifest_path = os.path.join(output_dir, "manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as file_handle:
         json.dump(manifest, file_handle, indent=2, ensure_ascii=False)
+
+
+def _normalize_member_image_paths_for_manifest(members: list[dict[str, object]], manifest_dir: str) -> None:
+    for member in members:
+        if not isinstance(member, dict):
+            continue
+        for field_name in MANIFEST_IMAGE_PATH_FIELDS:
+            if field_name in member:
+                member[field_name] = _manifest_relative_output_path(str(member.get(field_name) or ""), manifest_dir)
+
+        prep_metadata = member.get("imagePrepMetadata")
+        if isinstance(prep_metadata, dict):
+            for field_name in MANIFEST_PREP_METADATA_PATH_FIELDS:
+                if field_name in prep_metadata:
+                    prep_metadata[field_name] = _manifest_relative_output_path(
+                        str(prep_metadata.get(field_name) or ""),
+                        manifest_dir,
+                    )
+
+
+def _manifest_relative_output_path(path: str, manifest_dir: str) -> str:
+    text = str(path or "").strip()
+    if not text:
+        return ""
+
+    resolved = _resolve_output_path_reference(text, manifest_dir)
+    try:
+        return os.path.relpath(resolved, manifest_dir).replace(os.sep, "/")
+    except ValueError:
+        return _normalize_filesystem_path(resolved).replace(os.sep, "/")
+
+
+def _resolve_output_path_reference(path: str, manifest_dir: str) -> str:
+    normalized_path = _normalize_filesystem_path(path)
+    if os.path.isabs(normalized_path):
+        return os.path.abspath(normalized_path)
+
+    search_roots = [
+        manifest_dir,
+        ROOT_DIR,
+        os.getcwd(),
+    ]
+    for root in search_roots:
+        candidate = os.path.abspath(os.path.join(root, normalized_path))
+        if os.path.exists(candidate):
+            return candidate
+    return os.path.abspath(os.path.join(manifest_dir, normalized_path))
+
+
+def _normalize_filesystem_path(path: str) -> str:
+    text = str(path or "").strip()
+    if text.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + text[8:]
+    if text.startswith("\\\\?\\"):
+        return text[4:]
+    return text
 
 
 def print_summary(members: list[dict[str, object]]) -> None:

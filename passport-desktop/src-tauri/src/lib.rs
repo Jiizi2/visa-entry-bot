@@ -285,6 +285,51 @@ fn renderer_heartbeat(state: State<'_, RendererHealth>) -> Result<(), String> {
     Ok(())
 }
 
+fn main_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
+    app.get_webview_window("main")
+        .ok_or_else(|| "Jendela utama tidak ditemukan.".to_string())
+}
+
+#[tauri::command]
+fn window_minimize(app: AppHandle) -> Result<(), String> {
+    main_window(&app)?
+        .minimize()
+        .map_err(|err| format!("Gagal minimize jendela: {err}"))
+}
+
+#[tauri::command]
+fn window_start_dragging(app: AppHandle) -> Result<(), String> {
+    main_window(&app)?
+        .start_dragging()
+        .map_err(|err| format!("Gagal drag jendela: {err}"))
+}
+
+#[tauri::command]
+fn window_toggle_maximize(app: AppHandle) -> Result<bool, String> {
+    let window = main_window(&app)?;
+    let is_maximized = window
+        .is_maximized()
+        .map_err(|err| format!("Gagal membaca status jendela: {err}"))?;
+    if is_maximized {
+        window
+            .unmaximize()
+            .map_err(|err| format!("Gagal restore jendela: {err}"))?;
+        Ok(false)
+    } else {
+        window
+            .maximize()
+            .map_err(|err| format!("Gagal maximize jendela: {err}"))?;
+        Ok(true)
+    }
+}
+
+#[tauri::command]
+fn window_close(app: AppHandle) -> Result<(), String> {
+    main_window(&app)?
+        .close()
+        .map_err(|err| format!("Gagal menutup jendela: {err}"))
+}
+
 fn emit_scan_error(app: &AppHandle, code: &str, message: String, stage: &str, fatal: bool) {
     let _ = app.emit(
         "scan-event",
@@ -1055,9 +1100,10 @@ fn passport_image_candidates(
     let file_name = file_name.trim();
 
     let mut push_candidate = |path: PathBuf| {
-        let key = path.to_string_lossy().to_ascii_lowercase();
+        let candidate = fs::canonicalize(&path).unwrap_or(path);
+        let key = candidate.to_string_lossy().to_ascii_lowercase();
         if seen.insert(key) {
-            candidates.push(path);
+            candidates.push(candidate);
         }
     };
 
@@ -1069,6 +1115,12 @@ fn passport_image_candidates(
             for ancestor in manifest.parent().map(ancestor_chain).unwrap_or_default() {
                 push_candidate(ancestor.join(image));
             }
+            if let Ok(worker_paths) = locate_worker_paths() {
+                push_candidate(worker_paths.repo_root.join(image));
+            }
+            if let Ok(current_dir) = std::env::current_dir() {
+                push_candidate(current_dir.join(image));
+            }
         }
     }
 
@@ -1076,6 +1128,13 @@ fn passport_image_candidates(
         if let Some(parent) = manifest.parent() {
             push_candidate(parent.join("passports").join(file_name));
             push_candidate(parent.join("passport").join(file_name));
+            push_candidate(parent.join(".passport-assistant-pdf-images").join(file_name));
+            push_candidate(
+                parent
+                    .join(".passport-assistant-prepared")
+                    .join("edited-images")
+                    .join(file_name),
+            );
             push_candidate(parent.join(file_name));
         }
     }
@@ -1646,6 +1705,29 @@ mod tests {
     }
 
     #[test]
+    fn passport_image_candidates_include_generated_image_dirs() {
+        let parent = std::env::temp_dir().join("entrymate-candidate-test");
+        let manifest = parent.join("manifest.json");
+        let candidates = passport_image_candidates(
+            &manifest.to_string_lossy(),
+            "",
+            "passport-page.jpg",
+        );
+
+        assert!(candidates.contains(
+            &parent
+                .join(".passport-assistant-pdf-images")
+                .join("passport-page.jpg")
+        ));
+        assert!(candidates.contains(
+            &parent
+                .join(".passport-assistant-prepared")
+                .join("edited-images")
+                .join("passport-page.jpg")
+        ));
+    }
+
+    #[test]
     fn batch_filter_requires_valid_status_even_when_selected() {
         let selected_ids = HashSet::from(["ready".to_string(), "error".to_string()]);
         let mut ready_member = Map::new();
@@ -1756,6 +1838,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             renderer_heartbeat,
+            window_minimize,
+            window_start_dragging,
+            window_toggle_maximize,
+            window_close,
             prepare_passport_images,
             start_scan,
             stop_scan,

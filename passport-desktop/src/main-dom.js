@@ -1,4 +1,8 @@
 export function bindDom(dom, root = document) {
+  dom.windowTitlebar = root.querySelector("#window-titlebar");
+  dom.windowMinimizeButton = root.querySelector("#window-minimize-button");
+  dom.windowMaximizeButton = root.querySelector("#window-maximize-button");
+  dom.windowCloseButton = root.querySelector("#window-close-button");
   dom.navButtons = [...root.querySelectorAll("button[data-page]")];
   dom.navConnectors = [...root.querySelectorAll("[data-step-connector]")];
   dom.pageImport = root.querySelector("#page-import");

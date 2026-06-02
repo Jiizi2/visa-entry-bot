@@ -53,6 +53,9 @@ import {
   createViewController,
 } from "./main-view-controller.js";
 import {
+  bindWindowControls,
+} from "./main-window-controls.js";
+import {
   createRecentBatchActions,
 } from "./main-recent-actions.js";
 import {
@@ -545,6 +548,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     state.recentBatches = loadRecentBatches();
     state.ocrMode = loadOcrMode();
     bindDom(dom);
+    bindWindowControls({ dom, appWindow: window, documentRef: document });
     passportPreviewActions?.initializePassportPreviewController();
     bindActions();
     renderAll();
