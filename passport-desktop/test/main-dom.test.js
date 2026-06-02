@@ -29,6 +29,8 @@ test("bindDom maps app selectors onto the shared dom object", () => {
   const dom = {};
 
   assert.equal(bindDom(dom, root), dom);
+  assert.equal(dom.windowTitlebar.selector, "#window-titlebar");
+  assert.equal(dom.windowCloseButton.selector, "#window-close-button");
   assert.equal(dom.pageImport.selector, "#page-import");
   assert.equal(dom.folderPath.selector, "#folder-path");
   assert.equal(dom.prepareEntryButton.selector, "#prepare-entry-button");

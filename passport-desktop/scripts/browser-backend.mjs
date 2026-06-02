@@ -599,6 +599,8 @@ function passportImageCandidates(manifestPath, imagePath, fileName) {
       for (const ancestor of ancestorChain(dirname(manifest))) {
         push(join(ancestor, image));
       }
+      push(join(repoRoot, image));
+      push(join(process.cwd(), image));
     }
   }
 
@@ -606,6 +608,8 @@ function passportImageCandidates(manifestPath, imagePath, fileName) {
     const parent = dirname(manifest);
     push(join(parent, "passports", file));
     push(join(parent, "passport", file));
+    push(join(parent, ".passport-assistant-pdf-images", file));
+    push(join(parent, ".passport-assistant-prepared", "edited-images", file));
     push(join(parent, file));
   }
 

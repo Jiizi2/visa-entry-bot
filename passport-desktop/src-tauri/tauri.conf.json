@@ -19,6 +19,7 @@
         "minWidth": 1120,
         "minHeight": 760,
         "backgroundColor": "#f9f9fd",
+        "decorations": false,
         "backgroundThrottling": "disabled"
       }
     ],

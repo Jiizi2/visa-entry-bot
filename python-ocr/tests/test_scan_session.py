@@ -257,7 +257,8 @@ class ScanSessionTests(unittest.TestCase):
                 result = scan_selected_directory(str(group_dir), prepared_inputs=prepared)
 
             process_passport.assert_called_once_with(str(image_path), step_callback=ANY)
-            self.assertEqual(result.members[0]["passportImagePath"].endswith("group-extended/passports/good.jpg"), True)
+            self.assertEqual(result.members[0]["passportImagePath"], "passports/good.jpg")
+            self.assertEqual(result.members[0]["imagePrepMetadata"]["scanPath"], "passports/good.jpg")
             self.assertNotIn("\\\\?\\", str(result.members[0]["imagePrepMetadata"]))
 
 
