@@ -156,6 +156,32 @@ test("panel and popup load shared manifest validator", () => {
   assert.match(popupHtml, /content\/manifest-validator\.js[\s\S]*popup\.js/);
 });
 
+test("panel and popup guard storage access for embedded contexts", () => {
+  const panelJs = fs.readFileSync(path.join(ROOT, "panel.js"), "utf8");
+  const popupJs = fs.readFileSync(path.join(ROOT, "popup.js"), "utf8");
+
+  assert.doesNotMatch(panelJs, /chrome\.storage\.local/);
+  assert.doesNotMatch(popupJs, /chrome\.storage\.local/);
+  assert.match(panelJs, /function getStorageLocal\(\)/);
+  assert.match(popupJs, /function getStorageLocal\(\)/);
+});
+
+test("upload manager notifies file inputs without inline page scripts", () => {
+  const uploadManagerJs = fs.readFileSync(path.join(ROOT, "content", "upload-manager.js"), "utf8");
+
+  assert.doesNotMatch(uploadManagerJs, /document\.createElement\(["']script["']\)/);
+  assert.doesNotMatch(uploadManagerJs, /script\.textContent/);
+  assert.match(uploadManagerJs, /dispatchFileInputEvents\(input\)/);
+});
+
+test("panel shell queues messages until the extension iframe is ready", () => {
+  const panelShellJs = fs.readFileSync(path.join(ROOT, "content", "panel-shell.js"), "utf8");
+
+  assert.match(panelShellJs, /pendingPanelMessages/);
+  assert.match(panelShellJs, /function postToPanel[\s\S]*!isReady\(\)[\s\S]*enqueuePanelMessage/);
+  assert.match(panelShellJs, /function setReady[\s\S]*flushPendingPanelMessages/);
+});
+
 test("upload path resolution prefers manifest-root relative paths before local repo fallback", () => {
   const root = loadBrowserScripts([
     "content/constants.js",

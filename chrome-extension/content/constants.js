@@ -51,6 +51,11 @@
     UPLOAD_MIN_TARGET_BYTES: 0,
     UPLOAD_MAX_BYTES: 1024 * 1024,
     PASSPORT_UPLOAD_SELECTOR: [
+      ".passport-upload-section input[type='file']",
+      ".passport-upload-section .upload-container input[type='file']",
+      ".passport-upload-section button:has-text('Choose File')",
+      ".upload-container input[type='file']",
+      ".upload-container button:has-text('Choose File')",
       ".container__notes__upload__button input[type='file']",
       ".upload-button input[type='file']",
       "div[class*='upload' i] input[type='file']",

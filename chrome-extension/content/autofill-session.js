@@ -49,20 +49,19 @@
         postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Pilih data jamaah sebelum menjalankan autofill." });
         return;
       }
-      if (!getUploadState().uploadFileCount) {
+      const membersToRun = getMembersToRun();
+      if (!membersToRun.length) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada data jamaah untuk diproses." });
+        return;
+      }
+      if (!hasPassportDebuggerPathSource(state.manifest, membersToRun)) {
         postToPanel("NUSUK_PANEL_STATUS", {
           tone: "error",
-          message: "Pilih folder/file passport sebelum mulai.",
+          message: "JSON belum punya path lokal untuk upload debugger. Buat/export JSON dari PC ini, atau jangan pindahkan folder hasil scan sebelum entry.",
         });
         return;
       }
       if (!validateManifestReadyForEntry(state.manifest)) {
-        return;
-      }
-
-      const membersToRun = getMembersToRun();
-      if (!membersToRun.length) {
-        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada data jamaah untuk diproses." });
         return;
       }
       const startMemberIndex = getSelectedMemberIndex();
@@ -205,6 +204,21 @@
 
     function countRunPayloadMembers(payload) {
       return Array.isArray(payload?.members) ? payload.members.length : 0;
+    }
+
+    function hasPassportDebuggerPathSource(manifest, members) {
+      const manifestPath = String(manifest?.manifestPath || "").trim();
+      return Array.isArray(members)
+        && members.length > 0
+        && members.every((member) => {
+          const passportPath = String(member?.passportImagePath || "").trim();
+          return Boolean(passportPath && (manifestPath || isAbsoluteWindowsPath(passportPath)));
+        });
+    }
+
+    function isAbsoluteWindowsPath(value) {
+      const text = String(value || "").trim();
+      return /^[a-zA-Z]:[\\/]/.test(text) || text.startsWith("\\\\");
     }
 
     async function pauseAutofillFromPanel() {

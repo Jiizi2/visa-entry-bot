@@ -81,6 +81,7 @@ dom.jsonInput.addEventListener("change", async (event) => {
     await persistState();
     renderManifestSection();
     renderPreview();
+    renderPassportFilesSummary();
     updateRunControls();
     postToParent("NUSUK_PANEL_UPLOAD_MANIFEST", {
       manifest,
@@ -97,6 +98,7 @@ dom.memberSelect.addEventListener("change", async (event) => {
   state.selectedMemberId = String(event.target.value || "");
   await persistState();
   renderPreview();
+  renderPassportFilesSummary();
   updateRunControls();
   postToParent("NUSUK_PANEL_SELECT_MEMBER", { memberId: state.selectedMemberId });
 });
@@ -125,8 +127,8 @@ dom.startBtn.addEventListener("click", () => {
     setStatus("Pilih data jamaah sebelum menjalankan autofill.", "error");
     return;
   }
-  if (!state.uploadFileCount && !isResume) {
-    setStatus("Pilih folder/file passport sebelum mulai.", "error");
+  if (!hasPassportDebuggerPathSource() && !isResume) {
+    setStatus("JSON belum punya path lokal untuk upload debugger. Buat/export JSON dari PC ini, atau jangan pindahkan folder hasil scan sebelum entry.", "error");
     return;
   }
   postToParent("NUSUK_PANEL_START_AUTOFILL");
@@ -189,7 +191,7 @@ init().catch((error) => {
 });
 
 async function init() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const stored = await readStoredState();
   const saved = stored?.[STORAGE_KEY];
   if (saved?.manifest && Array.isArray(saved.manifest.members)) {
     state.manifest = saved.manifest;
@@ -362,7 +364,12 @@ function renderPassportFilesSummary() {
     return;
   }
   if (!state.uploadFileCount) {
-    dom.passportFilesSummary.textContent = "Belum ada file passport dipilih.";
+    if (hasPassportDebuggerPathSource()) {
+      dom.passportFilesSummary.textContent = "Mode path JSON aktif. Passport akan dipilih lewat Chrome debugger dari lokasi hasil export di PC ini.";
+      dom.passportFilesSummary.className = "file-summary ready";
+      return;
+    }
+    dom.passportFilesSummary.textContent = "Belum ada file passport dipilih. Untuk mode debugger, gunakan JSON yang dibuat di PC ini.";
     dom.passportFilesSummary.className = "file-summary";
     return;
   }
@@ -423,14 +430,14 @@ function clearPreviewBlocks() {
 
 function updateRunControls() {
   const hasMember = Boolean(getSelectedMember());
-  const hasUploadFiles = Number(state.uploadFileCount || 0) > 0;
+  const hasPassportSource = hasPassportDebuggerPathSource();
   const stateName = normalizeExecutionState(state.executionState);
   const canResume = stateName === "paused" && state.resumeAvailable;
   dom.statePill.textContent = EXECUTION_LABELS[stateName] || EXECUTION_LABELS.idle;
   dom.statePill.className = `state-pill ${stateName}`;
 
   dom.startBtn.textContent = stateName === "paused" ? "Lanjutkan" : "Mulai";
-  dom.startBtn.disabled = stateName === "running" || (!canResume && (!hasMember || !hasUploadFiles));
+  dom.startBtn.disabled = stateName === "running" || (!canResume && (!hasMember || !hasPassportSource));
   dom.pauseBtn.disabled = stateName !== "running";
   dom.resetBtn.disabled = stateName === "idle" && state.progress.current === 0 && state.logs.length === 0;
   dom.minimizeBtn.disabled = state.collapsed;
@@ -495,10 +502,37 @@ function validateManifestReadyForRun() {
   }
 }
 
+function hasPassportDebuggerPathSource() {
+  if (!state.manifest || !Array.isArray(state.manifest.members)) {
+    return false;
+  }
+  const manifestPath = String(state.manifest.manifestPath || "").trim();
+  const membersToRun = getMembersToRunFromSelection();
+  return membersToRun.length > 0
+    && membersToRun.every((member) => {
+      const passportPath = String(member?.passportImagePath || "").trim();
+      return Boolean(passportPath && (manifestPath || isAbsoluteWindowsPath(passportPath)));
+    });
+}
+
+function isAbsoluteWindowsPath(value) {
+  const text = String(value || "").trim();
+  return /^[a-zA-Z]:[\\/]/.test(text) || text.startsWith("\\\\");
+}
+
+function getMembersToRunFromSelection() {
+  const members = getMembers();
+  if (!members.length) {
+    return [];
+  }
+  const selectedIndex = Math.max(0, members.findIndex((member) => String(member.id || "") === String(state.selectedMemberId || "")));
+  return members.slice(selectedIndex);
+}
+
 async function persistState() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const stored = await readStoredState();
   const previous = stored?.[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object" ? stored[STORAGE_KEY] : {};
-  await chrome.storage.local.set({
+  await writeStoredState({
     [STORAGE_KEY]: {
       ...previous,
       manifest: state.manifest,
@@ -508,6 +542,26 @@ async function persistState() {
       executionState: state.executionState,
     },
   });
+}
+
+async function readStoredState() {
+  const storage = getStorageLocal();
+  if (!storage?.get) {
+    return {};
+  }
+  return storage.get(STORAGE_KEY);
+}
+
+async function writeStoredState(payload) {
+  const storage = getStorageLocal();
+  if (!storage?.set) {
+    return;
+  }
+  await storage.set(payload);
+}
+
+function getStorageLocal() {
+  return globalThis.chrome?.storage?.local || null;
 }
 
 function postToParent(type, payload = {}) {

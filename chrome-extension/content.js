@@ -362,7 +362,7 @@
   }
 
   async function hydrateState() {
-    const stored = await chrome.storage.local.get(STORAGE_KEY);
+    const stored = await readStoredState();
     const saved = stored?.[STORAGE_KEY];
     if (!saved || typeof saved !== "object") {
       return;
@@ -385,6 +385,18 @@
       state.closed = false;
       state.collapsed = false;
     }
+  }
+
+  async function readStoredState() {
+    const storage = getStorageLocal();
+    if (!storage?.get) {
+      return {};
+    }
+    return storage.get(STORAGE_KEY);
+  }
+
+  function getStorageLocal() {
+    return globalThis.chrome?.storage?.local || null;
   }
 
   function resumeRunningAutofillAfterReload() {

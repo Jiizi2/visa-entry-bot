@@ -65,7 +65,11 @@
     }
 
     async function persistState() {
-      await chrome.storage.local.set({
+      const storage = getStorageLocal();
+      if (!storage?.set) {
+        return;
+      }
+      await storage.set({
         [STORAGE_KEY]: {
           manifest: state.manifest,
           selectedMemberId: state.selectedMemberId,
@@ -82,6 +86,10 @@
           currentRunPayload: state.currentRunPayload,
         },
       });
+    }
+
+    function getStorageLocal() {
+      return globalThis.chrome?.storage?.local || null;
     }
 
     return {

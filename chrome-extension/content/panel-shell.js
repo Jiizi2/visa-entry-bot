@@ -31,6 +31,8 @@
     let isResizingPanel = false;
     let resizeRafId = 0;
     let pendingPanelWidth = PANEL_WIDTH_DEFAULT;
+    const pendingPanelMessages = [];
+    const pendingPanelMessageLimit = 80;
 
     function injectPanelShell() {
       panelHost = document.getElementById(PANEL_HOST_ID);
@@ -232,7 +234,11 @@
     }
 
     function setReady(nextReady) {
+      const wasReady = panelReady;
       panelReady = Boolean(nextReady);
+      if (!wasReady && panelReady) {
+        flushPendingPanelMessages();
+      }
     }
 
     function isReady() {
@@ -240,6 +246,34 @@
     }
 
     function postToPanel(type, payload) {
+      if (!panelFrame?.contentWindow) {
+        return;
+      }
+      if (!isReady()) {
+        enqueuePanelMessage(type, payload);
+        return;
+      }
+      deliverPanelMessage(type, payload);
+    }
+
+    function enqueuePanelMessage(type, payload) {
+      pendingPanelMessages.push({ type, payload });
+      while (pendingPanelMessages.length > pendingPanelMessageLimit) {
+        pendingPanelMessages.shift();
+      }
+    }
+
+    function flushPendingPanelMessages() {
+      if (!isReady()) {
+        return;
+      }
+      const messages = pendingPanelMessages.splice(0, pendingPanelMessages.length);
+      for (const message of messages) {
+        deliverPanelMessage(message.type, message.payload);
+      }
+    }
+
+    function deliverPanelMessage(type, payload) {
       if (!panelFrame?.contentWindow) {
         return;
       }
