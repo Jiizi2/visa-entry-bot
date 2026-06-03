@@ -45,9 +45,9 @@ function completeProfile(overrides = {}) {
   };
 }
 
-test("missingRequiredReviewFields ignores optional empty father and grandfather fields", () => {
+test("missingRequiredReviewFields ignores optional empty review fields", () => {
   assert.deepEqual(missingRequiredReviewFields({
-    resolvedProfile: completeProfile(),
+    resolvedProfile: completeProfile({ countryOfIssued: "" }),
   }), []);
 });
 
@@ -62,22 +62,28 @@ test("reviewCompletionValidation points at the first missing required field", ()
   assert.match(validation.message, /data wajib/);
 });
 
-test("missingRequiredReviewFields allows intentional empty review flags", () => {
-  assert.deepEqual(missingRequiredReviewFields({
+test("missingRequiredReviewFields does not allow intentional empty flags for required fields", () => {
+  const missing = missingRequiredReviewFields({
     resolvedProfile: completeProfile({ passportNumber: "" }),
     reviewFlags: {
       resolvedProfile: {
         passportNumber: ["INTENTIONAL_EMPTY"],
       },
     },
-  }), []);
+  });
+
+  assert.equal(missing[0].key, "passportNumber");
 });
 
-test("requiredFieldBlockingIssueForBatch skips error records", () => {
-  assert.equal(requiredFieldBlockingIssueForBatch([
+test("requiredFieldBlockingIssueForBatch blocks error records with missing required fields", () => {
+  const issue = requiredFieldBlockingIssueForBatch([
     { id: "error", reviewStatus: "ERROR", resolvedProfile: {} },
     { id: "valid", reviewStatus: "VALID", resolvedProfile: completeProfile() },
-  ]).ok, true);
+  ]);
+
+  assert.equal(issue.ok, false);
+  assert.equal(issue.memberId, "error");
+  assert.equal(issue.fieldKey, "firstName");
 });
 
 test("companionBlockingIssue requires adult companion for children", () => {

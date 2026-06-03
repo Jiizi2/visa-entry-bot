@@ -42,6 +42,7 @@ test("workspace status helpers map member review state", () => {
   assert.equal(workspaceStatusLabel({ status: "ERROR" }), "Perlu perhatian");
   assert.equal(workspaceStatusTone({ status: "ERROR" }), "error");
   assert.equal(workspaceStatusLabel({ status: "VALID", confidence: 0.5 }), "Perlu dicek");
+  assert.equal(workspaceStatusLabel({ status: "VALID", confidence: 0.95 }), "Reviewed");
   assert.equal(workspaceStatusTone({ status: "VALID", confidence: 0.95 }), "valid");
   assert.equal(activeCategoryPairForState({ activeFieldCategory: "missing" }).id, "identity");
 });
@@ -75,6 +76,8 @@ test("renderFieldReviewRows renders editable fields and clamps name length", () 
 
   assert.match(html, /data-field-key="firstName"/);
   assert.match(html, /value="ABCDEFGHIJKLMNO"/);
+  assert.match(html, /field-requirement-badge required">Wajib/);
+  assert.match(html, /field-requirement-badge optional">Optional/);
   assert.match(html, /is-blocked/);
   assert.match(html, /Sumber scan/);
   assert.equal(member.resolvedProfile.firstName, "ABCDEFGHIJKLMNO");

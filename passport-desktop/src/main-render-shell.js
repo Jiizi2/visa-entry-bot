@@ -185,11 +185,16 @@ export function topbarDescriptor(state) {
   }
 
   if (state.currentPage === "entry") {
+    const entryStatus = state.exportedBatchPath
+      ? { label: "JSON dibuat", tone: "ready" }
+      : state.manifestPath
+        ? { label: "Review selesai", tone: "ready" }
+        : status;
     return {
       eyebrow: "",
-      title: "Preview & Export JSON",
-      statusLabel: status.label,
-      statusTone: status.tone,
+      title: "Export JSON",
+      statusLabel: entryStatus.label,
+      statusTone: entryStatus.tone,
       compact: true,
       hidden: false,
     };

@@ -142,6 +142,20 @@ test("review actions block moving forward until current member is confirmed", ()
   assert.match(calls.showReviewBlockingMessage[0].message, /Tandai passport/);
 });
 
+test("review actions block moving forward from invalid error records", () => {
+  const { actions, calls, members, state } = createFixture({
+    reviewCompletionValidation: () => ({ ok: false, message: "Field wajib belum lengkap." }),
+  });
+  members[0].status = "ERROR";
+  members[0].reviewStatus = "ERROR";
+
+  actions.moveActiveMember(1);
+
+  assert.equal(state.activeMemberId, "m1");
+  assert.equal(calls.showReviewBlockingMessage.length, 1);
+  assert.match(calls.showReviewBlockingMessage[0].message, /Field wajib/);
+});
+
 test("review actions reset active member from original manifest", () => {
   const { actions, calls, members, state } = createFixture();
   members[0].resolvedProfile.firstName = "Changed";

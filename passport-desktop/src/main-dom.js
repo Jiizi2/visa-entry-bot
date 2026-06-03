@@ -65,6 +65,7 @@ export function bindDom(dom, root = document) {
   dom.entryExportResult = root.querySelector("#entry-export-result");
   dom.entryBackReviewButton = root.querySelector("#entry-back-review-button");
   dom.prepareEntryButton = root.querySelector("#prepare-entry-button");
+  dom.openJsonLocationButton = root.querySelector("#open-json-location-button");
   dom.entryLogBox = root.querySelector("#entry-log-box");
   dom.entryLogCounter = root.querySelector("#entry-log-counter");
   dom.entryLogClearButton = root.querySelector("#entry-log-clear-button");

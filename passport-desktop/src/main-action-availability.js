@@ -1,5 +1,3 @@
-import { memberReviewStatus } from "./main-entry.js";
-
 export function createActionAvailabilityController({
   dom,
   state,
@@ -108,9 +106,6 @@ export function createActionAvailabilityController({
 
   function canAdvanceToNextPassport(navigation = activeNavigationState()) {
     const member = activeMember();
-    if (navigation.canMoveNext && memberReviewStatus(member) === "ERROR") {
-      return true;
-    }
     return Boolean(
       navigation.canMoveNext
       && member

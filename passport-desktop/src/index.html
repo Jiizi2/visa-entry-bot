@@ -90,15 +90,6 @@
           </nav>
         </div>
 
-        <div class="top-nav-right">
-          <label class="top-nav-search">
-            <span class="top-nav-search-icon" aria-hidden="true"></span>
-            <input type="text" placeholder="Cari..." aria-label="Cari" />
-          </label>
-          <button class="top-nav-icon" type="button" aria-label="Notifikasi"></button>
-          <button class="top-nav-icon" type="button" aria-label="Pengaturan"></button>
-          <div class="top-nav-avatar" aria-hidden="true">EM</div>
-        </div>
       </aside>
 
       <main class="app-main">
@@ -437,8 +428,8 @@
             <article class="entry-panel review-export-page-panel">
               <div class="entry-panel-head">
                 <div>
-                  <p class="eyebrow">Tahap 3</p>
-                  <h3>Preview &amp; Export JSON</h3>
+                  <p class="eyebrow">Tahap 5</p>
+                  <h3>Batch Nusuk</h3>
                 </div>
                 <span id="entry-status-pill" class="status-pill neutral">Menunggu proses</span>
               </div>
@@ -452,6 +443,7 @@
                 <div class="entry-action-grid">
                   <button id="entry-back-review-button" class="secondary-button" type="button">Kembali Review</button>
                   <button id="prepare-entry-button" class="primary-action" type="button">Export to JSON</button>
+                  <button id="open-json-location-button" class="secondary-button" type="button" disabled>Buka Folder JSON</button>
                 </div>
               </div>
 
@@ -459,10 +451,10 @@
                 <table class="review-export-table">
                   <thead>
                     <tr>
-                      <th>Passport</th>
-                      <th>Nama</th>
-                      <th>Status</th>
-                      <th>JSON</th>
+                      <th>Jamaah</th>
+                      <th>Data Utama</th>
+                      <th>Review</th>
+                      <th>Output</th>
                     </tr>
                   </thead>
                   <tbody id="entry-export-preview-body">
@@ -626,10 +618,10 @@
           <table class="review-export-table">
             <thead>
               <tr>
-                <th>Passport</th>
-                <th>Nama</th>
-                <th>Status</th>
-                <th>JSON</th>
+                <th>Jamaah</th>
+                <th>Data Utama</th>
+                <th>Review</th>
+                <th>Output</th>
               </tr>
             </thead>
             <tbody id="review-export-preview-body">

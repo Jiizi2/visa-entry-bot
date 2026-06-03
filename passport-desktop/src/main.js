@@ -470,6 +470,7 @@ const {
   appendEntryLog,
   canExportReviewedJson,
   exportPreviewState,
+  handleOpenJsonLocation,
   handlePrepareEntry,
   renderEntryLogs,
 } = createEntryFlow({
@@ -491,6 +492,10 @@ const {
       selectedIds,
       manifestData,
     });
+  },
+  openJsonLocation: async (path) => {
+    const { invoke } = tauriBindings();
+    return invoke("open_path_location", { path });
   },
 });
 viewController = createViewController({
@@ -603,6 +608,7 @@ function bindActions() {
     closePassportDeleteModal,
     closeReviewCompleteModal,
     handlePrepareEntry,
+    handleOpenJsonLocation,
     handleExportPreviewMemberClick,
     renderEntryLogs,
     openRecentBatch,

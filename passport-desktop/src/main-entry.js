@@ -79,7 +79,7 @@ export function entryStatusLabel({ isEntryRunning, isScanning, manifestPath, sel
     return "Menunggu proses";
   }
   if (selectedIdsSize > 0) {
-    return "Siap digunakan";
+    return "Review selesai";
   }
   return "Perlu dipilih";
 }

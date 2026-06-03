@@ -885,7 +885,7 @@
         "input[formcontrolname='profession']",
         "input[name='profession']",
         "input[placeholder='Profession']",
-      ], pickFirstNonEmpty(rs?.profession, "BUSINESS"));
+      ], pickFirstNonEmpty(rs?.profession, "OTHER"));
 
       setFirstVisibleInputIfEmpty([
         "input[formcontrolname='birthCityName']",
@@ -898,7 +898,7 @@
         "input[name='email']",
         "input[placeholder='Email']",
         "input[type='email'][placeholder='Email']",
-      ], pickFirstNonEmpty(rs?.email, "example@gmail.com"));
+      ], pickFirstNonEmpty(rs?.email, "huseinghanim@gmail.com"));
     }
 
     function setFirstVisibleInputIfEmpty(selectors, value) {

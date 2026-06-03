@@ -45,6 +45,7 @@ function createFlowFixture(overrides = {}) {
   const calls = {
     createNusukBatch: [],
     flushManifestSave: 0,
+    openJsonLocation: [],
     renderAll: 0,
     renderReviewExportModal: 0,
     showBatchReviewBlockingMessage: [],
@@ -75,6 +76,9 @@ function createFlowFixture(overrides = {}) {
     createNusukBatch: async (payload) => {
       calls.createNusukBatch.push(payload);
       return "C:/batch/nusuk.json";
+    },
+    openJsonLocation: async (path) => {
+      calls.openJsonLocation.push(path);
     },
     now: () => new Date("2026-05-29T00:00:00.000Z"),
   });
@@ -119,7 +123,7 @@ test("entry flow exports reviewed JSON", async () => {
   assert.deepEqual(calls.createNusukBatch[0].selectedIds, ["member-1"]);
   assert.equal(calls.createNusukBatch[0].manifestData.members[0].id, "member-1");
   assert.equal(state.exportedBatchPath, "C:/batch/nusuk.json");
-  assert.equal(state.statusHeadline, "JSON siap diupload");
+  assert.equal(state.statusHeadline, "JSON dibuat");
   assert.equal(state.isEntryRunning, false);
   assert.match(state.entryLogs.join("\n"), /JSON untuk extension dibuat/);
 });
@@ -132,4 +136,15 @@ test("entry flow exposes preview and export readiness helpers", () => {
   assert.equal(flow.exportPreviewState().canExport, true);
   assert.equal(truncateForLog("a b\nc", 20), "a b c");
   assert.equal(truncateForLog("abcdef", 5), "ab...");
+});
+
+test("entry flow opens exported JSON location", async () => {
+  const { calls, flow, state } = createFlowFixture({
+    state: { exportedBatchPath: "C:/batch/nusuk-entry-batch.json" },
+  });
+
+  await flow.handleOpenJsonLocation();
+
+  assert.deepEqual(calls.openJsonLocation, ["C:/batch/nusuk-entry-batch.json"]);
+  assert.equal(state.statusHeadline, "Folder JSON dibuka");
 });

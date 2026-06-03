@@ -1,19 +1,15 @@
-import { FIELD_CATEGORY_DEFS, FIELD_CATEGORY_PAIRS, REVIEW_FIELDS } from "./main-fields.js";
-import { memberReviewStatus } from "./main-entry.js";
+import {
+  FIELD_CATEGORY_DEFS,
+  FIELD_CATEGORY_PAIRS,
+  REVIEW_FIELDS,
+  isReviewFieldRequired,
+} from "./main-fields.js";
 import {
   childInfoForMember,
   ensureResolvedProfile,
-  fieldFlagsForMember,
   memberDisplayName,
   rawValueFrom,
 } from "./main-members.js";
-
-const OPTIONAL_EMPTY_REVIEW_FIELDS = new Set([
-  "fatherName",
-  "grandfatherName",
-  "arabic.fatherName",
-  "arabic.grandfatherName",
-]);
 
 export function reviewCompletionValidation(member, members = []) {
   if (!member) {
@@ -43,10 +39,6 @@ export function reviewCompletionValidation(member, members = []) {
 
 export function requiredFieldBlockingIssueForBatch(members = []) {
   for (const member of members) {
-    if (memberReviewStatus(member) === "ERROR") {
-      continue;
-    }
-
     const missingFields = missingRequiredReviewFields(member);
     if (!missingFields.length) {
       continue;
@@ -91,6 +83,7 @@ export function companionBlockingIssue(member, members = []) {
 export function missingRequiredReviewFields(member) {
   const resolved = ensureResolvedProfile(member);
   return REVIEW_FIELDS
+    .filter(([key]) => isReviewFieldRequired(key))
     .filter(([key]) => !rawValueFrom(resolved, key))
     .filter(([key]) => !isReviewFieldAllowedEmpty(member, key))
     .map(([key, label]) => ({
@@ -100,11 +93,8 @@ export function missingRequiredReviewFields(member) {
     }));
 }
 
-export function isReviewFieldAllowedEmpty(member, key) {
-  if (OPTIONAL_EMPTY_REVIEW_FIELDS.has(key)) {
-    return true;
-  }
-  return fieldFlagsForMember(member, key).includes("INTENTIONAL_EMPTY");
+export function isReviewFieldAllowedEmpty(_member, key) {
+  return !isReviewFieldRequired(key);
 }
 
 export function fieldCategoryPairIdForKey(key) {

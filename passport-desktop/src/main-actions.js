@@ -36,6 +36,7 @@ export function bindActions({
   closePassportDeleteModal,
   closeReviewCompleteModal,
   handlePrepareEntry,
+  handleOpenJsonLocation = () => {},
   handleExportPreviewMemberClick,
   renderEntryLogs,
   openRecentBatch,
@@ -209,6 +210,9 @@ export function bindActions({
   });
   dom.prepareEntryButton?.addEventListener("click", () => {
     runAction(() => handlePrepareEntry(), "Export JSON");
+  });
+  dom.openJsonLocationButton?.addEventListener("click", () => {
+    runAction(() => handleOpenJsonLocation(), "Buka folder JSON");
   });
   dom.reviewExportPreviewBody?.addEventListener("click", handleExportPreviewMemberClick);
   dom.entryExportPreviewBody?.addEventListener("click", handleExportPreviewMemberClick);

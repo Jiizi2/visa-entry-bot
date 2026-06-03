@@ -147,14 +147,14 @@ test("action availability disables controls while scanning", () => {
   assert.equal(dom.workspaceNextButtons[0].disabled, true);
 });
 
-test("action availability allows moving past error records", () => {
+test("action availability blocks invalid error records", () => {
   const { controller } = createFixture({
     isMemberReviewConfirmed: () => false,
     member: createMember("ERROR"),
     reviewCompletionValidation: () => ({ ok: false }),
   });
 
-  assert.equal(controller.canAdvanceToNextPassport({ canMoveNext: true }), true);
+  assert.equal(controller.canAdvanceToNextPassport({ canMoveNext: true }), false);
 });
 
 test("action availability requires confirmation and valid review before advancing", () => {

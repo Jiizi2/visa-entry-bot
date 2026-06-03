@@ -4,7 +4,6 @@ import {
   normalizeInputValueForField,
   transliteratedArabicValueForField,
 } from "./main-fields.js";
-import { memberReviewStatus } from "./main-entry.js";
 import { humanizeFieldPath } from "./main-review-helpers.js";
 import {
   cloneJson,
@@ -224,7 +223,7 @@ export function createReviewActions({
     const review = reviewCompletionState();
     const isAllReviewDone = review.total > 0 && review.remaining === 0;
     state.statusDetail = isAllReviewDone
-      ? `${review.reviewed}/${review.total} passport sudah direview. Preview export JSON siap dibuka.`
+      ? `${review.reviewed}/${review.total} passport sudah direview. Lanjut ke Export JSON.`
       : canMoveNext
         ? `${memberDisplayName(member)} ditandai siap dan berpindah ke data berikutnya.`
         : `${memberDisplayName(member)} ditandai siap. Tidak ada passport berikutnya di antrean ini.`;
@@ -272,7 +271,7 @@ export function createReviewActions({
 
     if (step > 0) {
       const member = activeMember();
-      if (member && memberReviewStatus(member) !== "ERROR") {
+      if (member) {
         const validation = reviewCompletionValidation(member);
         if (!validation.ok) {
           showReviewBlockingMessage(validation);
