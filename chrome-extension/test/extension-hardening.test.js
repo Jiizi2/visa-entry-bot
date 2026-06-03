@@ -11,6 +11,7 @@ function readJson(relativePath) {
 }
 
 function loadBrowserScripts(relativePaths, extra = {}) {
+  const HTMLElementClass = extra.HTMLElement || class TestHTMLElement {};
   const chrome = extra.chrome || {
     runtime: {
       getURL: () => "chrome-extension://test/",
@@ -39,6 +40,7 @@ function loadBrowserScripts(relativePaths, extra = {}) {
     RegExp,
     Set,
     Map,
+    HTMLElement: HTMLElementClass,
   });
 
   for (const relativePath of relativePaths) {
@@ -46,6 +48,27 @@ function loadBrowserScripts(relativePaths, extra = {}) {
     vm.runInContext(source, context, { filename: relativePath });
   }
   return context.window.NusukAutofill;
+}
+
+class TestElement {
+  constructor(textContent = "", options = {}) {
+    this.textContent = textContent;
+    this.className = options.className || "";
+    this.attributes = options.attributes || {};
+    this.children = options.children || [];
+  }
+
+  querySelectorAll() {
+    return this.children;
+  }
+
+  querySelector() {
+    return null;
+  }
+
+  getAttribute(name) {
+    return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+  }
 }
 
 function validMember(overrides = {}) {
@@ -242,4 +265,37 @@ test("upload file store resolves selected files by basename and rejects duplicat
     await duplicateStore.resolveSelectedUploadFile("passport.jpg", { member: { fileName: "passport.jpg" } }),
     null,
   );
+});
+
+test("passport type dropdown treats MRZ P as Normal passport", () => {
+  const root = loadBrowserScripts([
+    "content/value-utils.js",
+    "content/dropdown-options.js",
+  ], {
+    HTMLElement: TestElement,
+    window: {
+      NusukAutofill: {
+        domUtils: {
+          queryAll: () => [],
+          isVisible: () => true,
+          isEnabled: () => true,
+        },
+      },
+    },
+  });
+  const panel = new TestElement("", {
+    children: [
+      new TestElement("Private Passport"),
+      new TestElement("Normal"),
+    ],
+  });
+
+  const option = root.dropdownOptions.findPrimeNgDropdownOption("P", "passport_type", panel);
+
+  assert.equal(option?.textContent, "Normal");
+  assert.equal(
+    root.dropdownOptions.findPrimeNgDropdownOption("P", "passport_type", new TestElement("", { children: [new TestElement("Private Passport")] })),
+    null,
+  );
+  assert.equal(root.dropdownOptions.isDropdownValueSelected(new TestElement("Normal"), "P", "passport_type"), true);
 });

@@ -1,4 +1,5 @@
 import { isMemberReadyForEntry } from "./main-entry.js";
+import { applyEntryDefaultsToManifest } from "./main-entry-defaults.js";
 import { cloneJson } from "./main-utils.js";
 import {
   buildCompanionSnapshot,
@@ -83,9 +84,10 @@ export function validateCompanionsForExport(manifest, selectedIds = new Set()) {
   };
 }
 
-export function buildManifestForEntryExport(manifest, selectedIds = new Set()) {
+export function buildManifestForEntryExport(manifest, selectedIds = new Set(), entryDefaults = {}) {
   const nextSelectedIds = effectiveSelectedIdsForExport(manifest, selectedIds);
   const source = cloneJson(manifest);
+  applyEntryDefaultsToManifest(source, entryDefaults);
   const members = Array.isArray(source?.members) ? source.members : [];
   const enrichedMembers = members.map((member) => enrichMemberForEntry(member, members));
   enrichedMembers.sort((left, right) => {

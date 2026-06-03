@@ -21,7 +21,7 @@
       if (aliases.includes(label) || aliases.includes(value)) {
         return option;
       }
-      if (!partial && aliases.some((candidate) => label.includes(candidate) || candidate.includes(label))) {
+      if (!partial && (hasPartialAliasMatch(label, aliases) || hasPartialAliasMatch(value, aliases))) {
         partial = option;
       }
     }
@@ -129,7 +129,7 @@
       if (aliases.includes(label)) {
         return item;
       }
-      if (!partial && aliases.some((candidate) => label.includes(candidate) || candidate.includes(label))) {
+      if (!partial && hasPartialAliasMatch(label, aliases)) {
         partial = item;
       }
     }
@@ -147,18 +147,34 @@
       trigger.querySelector(".p-select-label")?.textContent || "",
       trigger.textContent || "",
     ].join(" "));
-    return aliases.some((candidate) => label.includes(candidate));
+    return aliases.includes(label) || hasPartialAliasMatch(label, aliases);
   }
 
   function buildOptionAliases(normalizedValue, optionKind) {
     const aliases = new Set([normalizedValue]);
-    const compact = normalizedValue.replace(/\s+/g, "");
+    const compact = normalizedValue.replace(/[^a-z0-9]+/g, "");
 
     if (optionKind === "passport_type") {
+      const normalPassportAliases = [
+        "normal",
+        "normal passport",
+        "ordinary",
+        "ordinary passport",
+        "regular",
+        "regular passport",
+      ];
       const map = {
-        normal: ["normal"],
-        diplomatic: ["diplomatic"],
-        other: ["other"],
+        normal: normalPassportAliases,
+        normalpassport: normalPassportAliases,
+        p: normalPassportAliases,
+        passport: normalPassportAliases,
+        ordinary: normalPassportAliases,
+        ordinarypassport: normalPassportAliases,
+        regular: normalPassportAliases,
+        regularpassport: normalPassportAliases,
+        diplomatic: ["diplomatic", "diplomatic passport"],
+        diplomaticpassport: ["diplomatic", "diplomatic passport"],
+        other: ["other", "others"],
         traveldocuments: ["travel documents", "travel document", "traveldocuments"],
         unpassport: ["un passport", "unpassport"],
         privatepassport: ["private passport", "privatepassport"],
@@ -203,7 +219,8 @@
       if (
         expectedAliases.includes(label)
         || expectedAliases.includes(value)
-        || expectedAliases.some((candidate) => label.includes(candidate) || value.includes(candidate))
+        || hasPartialAliasMatch(label, expectedAliases)
+        || hasPartialAliasMatch(value, expectedAliases)
       ) {
         select.value = option.value;
         select.dispatchEvent(new Event("input", { bubbles: true }));
@@ -212,6 +229,16 @@
       }
     }
     return false;
+  }
+
+  function hasPartialAliasMatch(text, aliases) {
+    const normalizedText = normalizeOption(text);
+    if (normalizedText.length < 3) {
+      return false;
+    }
+    return aliases
+      .filter((candidate) => candidate.length >= 3)
+      .some((candidate) => normalizedText.includes(candidate) || candidate.includes(normalizedText));
   }
 
   root.dropdownOptions = Object.freeze({

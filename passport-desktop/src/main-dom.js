@@ -20,6 +20,9 @@ export function bindDom(dom, root = document) {
   dom.folderPath = root.querySelector("#folder-path");
   dom.chooseFolderButton = root.querySelector("#choose-folder-button");
   dom.ocrModeInputs = [...root.querySelectorAll("input[name='ocr-mode']")];
+  dom.entryDefaultInputs = [...root.querySelectorAll("[data-entry-default-key]")];
+  dom.applyEntryDefaultsButton = root.querySelector("#apply-entry-defaults-button");
+  dom.entryDefaultsStatus = root.querySelector("#entry-defaults-status");
   dom.scanButton = root.querySelector("#scan-button");
   dom.stopScanButton = root.querySelector("#stop-scan-button");
   dom.importNextButton = root.querySelector("#import-next-button");

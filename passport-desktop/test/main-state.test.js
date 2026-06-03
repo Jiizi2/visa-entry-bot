@@ -12,6 +12,7 @@ test("createInitialState returns default app state", () => {
 
   assert.equal(state.currentPage, "import");
   assert.equal(state.ocrMode, "speed");
+  assert.equal(state.entryDefaults.profession, "");
   assert.equal(state.passportListPageSize, 8);
   assert.equal(state.passportPreviewZoom, 1);
   assert.equal(state.passportCropZoom, 1);
@@ -20,6 +21,7 @@ test("createInitialState returns default app state", () => {
   assert.ok(state.reviewedMemberIds instanceof Set);
   assert.ok(state.passportImageCache instanceof Map);
   assert.equal(MANIFEST_SAVE_DELAY_MS, 350);
+  assert.equal(STORAGE_KEYS.entryDefaults, "entrymate-entry-defaults-v1");
   assert.equal(STORAGE_KEYS.recentBatches, "passport-assistant-recent-batches-v1");
 });
 

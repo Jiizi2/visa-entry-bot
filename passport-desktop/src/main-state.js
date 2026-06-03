@@ -1,7 +1,9 @@
 import { DEFAULT_OCR_MODE } from "./main-ocr.js";
 import { PASSPORT_PREVIEW_ZOOM_DEFAULT } from "./main-passport-preview.js";
+import { createEntryDefaults } from "./main-entry-defaults.js";
 
 export const STORAGE_KEYS = {
+  entryDefaults: "entrymate-entry-defaults-v1",
   recentBatches: "passport-assistant-recent-batches-v1",
 };
 
@@ -13,6 +15,7 @@ export function createInitialState() {
     validationFilter: "all",
     selectedDir: "",
     ocrMode: DEFAULT_OCR_MODE,
+    entryDefaults: createEntryDefaults(),
     recentBatches: [],
     manifest: null,
     originalManifest: null,

@@ -35,6 +35,8 @@ function fakeDom() {
     folderDropzone: fakeNode(),
     scanButton: fakeNode(),
     ocrModeInputs: [fakeNode()],
+    entryDefaultInputs: [fakeNode({ entryDefaultKey: "profession" })],
+    applyEntryDefaultsButton: fakeNode(),
     stopScanButton: fakeNode(),
     importNextButton: fakeNode(),
     rescanConfirmButton: fakeNode(),
@@ -110,6 +112,8 @@ function bindWithDefaults(overrides = {}) {
     chooseFolder: noop("chooseFolder"),
     handleScanButtonClick: noop("handleScanButtonClick"),
     handleOcrModeChange: noop("handleOcrModeChange"),
+    handleEntryDefaultChange: noop("handleEntryDefaultChange"),
+    handleApplyEntryDefaults: noop("handleApplyEntryDefaults"),
     openStopScanModal: noop("openStopScanModal"),
     resolveRescanConfirmation: noop("resolveRescanConfirmation"),
     confirmStopScan: noop("confirmStopScan"),
@@ -175,5 +179,20 @@ test("bindActions wraps scan actions with runAction labels", () => {
     ["handleScanButtonClick"],
     ["runAction", "Pilih folder"],
     ["chooseFolder"],
+  ]);
+});
+
+test("bindActions wires entry default setting changes and apply action", () => {
+  const { dom, calls } = bindWithDefaults();
+
+  dom.entryDefaultInputs[0].value = "INDONESIA";
+  dom.entryDefaultInputs[0].dispatch("change");
+  dom.applyEntryDefaultsButton.dispatch("click");
+
+  assert.equal(calls[0][0], "handleEntryDefaultChange");
+  assert.equal(calls[0][1].target, dom.entryDefaultInputs[0]);
+  assert.deepEqual(calls.slice(1, 3), [
+    ["runAction", "Terapkan default entry"],
+    ["handleApplyEntryDefaults"],
   ]);
 });

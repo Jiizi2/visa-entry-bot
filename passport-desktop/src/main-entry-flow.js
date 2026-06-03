@@ -81,7 +81,9 @@ export function createEntryFlow({
       return;
     }
 
-    const requiredFieldsIssue = requiredFieldBlockingIssueForBatch();
+    const exportManifest = buildManifestForEntryExport();
+    const exportMembers = Array.isArray(exportManifest?.members) ? exportManifest.members : [];
+    const requiredFieldsIssue = requiredFieldBlockingIssueForBatch(exportMembers);
     if (!requiredFieldsIssue.ok) {
       state.exportError = requiredFieldsIssue.message;
       appendEntryLog(`Gagal export: ${requiredFieldsIssue.message}`, "warn");
@@ -120,7 +122,6 @@ export function createEntryFlow({
       appendEntryLog("Membuat batch data Nusuk untuk extension...");
       renderAll();
       await flushManifestSave();
-      const exportManifest = buildManifestForEntryExport();
       const selectedIds = Array.from(state.selectedIds);
       const batchPath = await createNusukBatch({
         manifestPath: state.manifestPath,
@@ -178,7 +179,7 @@ export function createEntryFlow({
   }
 
   function buildManifestForEntryExport() {
-    const result = buildEntryExportManifest(state.manifest, state.selectedIds);
+    const result = buildEntryExportManifest(state.manifest, state.selectedIds, state.entryDefaults);
     state.selectedIds = result.selectedIds;
     return result.manifest;
   }

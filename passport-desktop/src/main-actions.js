@@ -13,6 +13,8 @@ export function bindActions({
   handleScanButtonClick,
   handleStartScanButtonClick = handleScanButtonClick,
   handleOcrModeChange,
+  handleEntryDefaultChange = () => {},
+  handleApplyEntryDefaults = () => {},
   selectPreparedPassport = () => {},
   rotatePreparedPassport = () => {},
   flipPreparedPassport = () => {},
@@ -127,6 +129,14 @@ export function bindActions({
       runAction(() => handleOcrModeChange(event), "Ganti mode OCR");
     });
   }
+  for (const input of dom.entryDefaultInputs || []) {
+    input.addEventListener("change", (event) => {
+      handleEntryDefaultChange(event);
+    });
+  }
+  dom.applyEntryDefaultsButton?.addEventListener("click", () => {
+    runAction(() => handleApplyEntryDefaults(), "Terapkan default entry");
+  });
   dom.stopScanButton?.addEventListener("click", openStopScanModal);
   dom.importNextButton?.addEventListener("click", () => {
     setPage("validation");

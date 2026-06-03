@@ -107,3 +107,30 @@ test("buildManifestForEntryExport uses cropped passport image path for Nusuk upl
   assert.equal(result.manifest.members[0].passportImagePath, "data/output/nusuk-crops/adult-crop.jpg");
   assert.equal(manifest.members[0].passportImagePath, "data/passports/adult.jpg");
 });
+
+test("buildManifestForEntryExport applies entry defaults to empty resolved fields only", () => {
+  const manifest = {
+    members: [{
+      id: "adult",
+      status: "VALID",
+      reviewStatus: "VALID",
+      reviewConfirmed: true,
+      resolvedProfile: {
+        firstName: "Adult",
+        profession: "TEACHER",
+        email: "",
+      },
+    }],
+  };
+
+  const result = buildManifestForEntryExport(manifest, new Set(["adult"]), {
+    profession: "OTHER",
+    passportType: "NORMAL",
+    email: "group@example.com",
+  });
+
+  assert.equal(result.manifest.members[0].resolvedProfile.profession, "TEACHER");
+  assert.equal(result.manifest.members[0].resolvedProfile.passportType, "NORMAL");
+  assert.equal(result.manifest.members[0].resolvedProfile.email, "group@example.com");
+  assert.equal(manifest.members[0].resolvedProfile.email, "");
+});

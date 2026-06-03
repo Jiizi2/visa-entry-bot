@@ -58,7 +58,7 @@
           continue;
         }
 
-        const option = findPrimeNgDropdownOption(optionText, optionKind, panel);
+        const option = await waitForPrimeNgDropdownOption(optionText, optionKind, panel, 2500, runId);
         if (!option) {
           lastError = new Error(`Dropdown option not found: ${optionText}`);
           await closeOpenDropdownPanels(runId);
@@ -113,7 +113,7 @@
           continue;
         }
 
-        const option = findLabeledDropdownOption(rootNode, optionText, optionKind, panel);
+        const option = await waitForLabeledDropdownOption(rootNode, optionText, optionKind, panel, 2500, runId);
         if (!option) {
           lastError = new Error(`Dropdown option not found: ${optionText}`);
           if (attempt === attempts) {
@@ -257,6 +257,32 @@
       return collectVisibleDropdownPanels().find((panel) => !previousPanels.includes(panel)) || fallback || null;
     }
 
+    async function waitForPrimeNgDropdownOption(optionText, optionKind, panel, timeoutMs, runId = state.runToken) {
+      const deadline = Date.now() + Math.max(500, Number(timeoutMs || 0));
+      while (Date.now() < deadline) {
+        await checkpoint(runId);
+        const option = findPrimeNgDropdownOption(optionText, optionKind, panel);
+        if (option) {
+          return option;
+        }
+        await sleep(120, runId);
+      }
+      return findPrimeNgDropdownOption(optionText, optionKind, panel);
+    }
+
+    async function waitForLabeledDropdownOption(rootNode, optionText, optionKind, panel, timeoutMs, runId = state.runToken) {
+      const deadline = Date.now() + Math.max(500, Number(timeoutMs || 0));
+      while (Date.now() < deadline) {
+        await checkpoint(runId);
+        const option = findLabeledDropdownOption(rootNode, optionText, optionKind, panel);
+        if (option) {
+          return option;
+        }
+        await sleep(120, runId);
+      }
+      return findLabeledDropdownOption(rootNode, optionText, optionKind, panel);
+    }
+
     function collectVisibleDropdownPanels() {
       return queryAll(dropdownPanelSelector()).filter((panel) => panel instanceof HTMLElement && isVisible(panel));
     }
@@ -371,7 +397,7 @@
       }
       option.scrollIntoView({ block: "center", inline: "nearest" });
       option.focus?.();
-      for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+      for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
         option.dispatchEvent(new MouseEvent(type, {
           bubbles: true,
           cancelable: true,
@@ -379,7 +405,16 @@
           view: window,
         }));
       }
-      option.click();
+      try {
+        option.click();
+      } catch {
+        option.dispatchEvent(new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          view: window,
+        }));
+      }
     }
 
     async function waitForDropdownSelection(trigger, optionText, optionKind, timeoutMs, runId = state.runToken) {

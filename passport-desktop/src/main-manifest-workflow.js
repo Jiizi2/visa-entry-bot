@@ -16,6 +16,7 @@ export function createManifestWorkflow({
   recalculateMetrics,
   ensureVisibleActiveMember,
   renderAll,
+  applyEntryDefaultsToManifest = () => ({ appliedCount: 0 }),
   loadManifestCommand,
   hasAnyScanResult,
   hasScanResultForSelectedDir,
@@ -27,6 +28,7 @@ export function createManifestWorkflow({
 
     const manifest = await loadManifestCommand(state.manifestPath);
     syncManifestChildMetadata(manifest);
+    applyEntryDefaultsToManifest(manifest);
     state.manifest = manifest;
     state.originalManifest = cloneJson(manifest);
     state.activeMemberId = firstMemberId(manifest);
@@ -56,8 +58,8 @@ export function createManifestWorkflow({
     return reviewCompletionValidationForMember(member, manifestMembers());
   }
 
-  function requiredFieldBlockingIssueForBatch() {
-    return requiredFieldBlockingIssueForMembers(manifestMembers());
+  function requiredFieldBlockingIssueForBatch(members = manifestMembers()) {
+    return requiredFieldBlockingIssueForMembers(members);
   }
 
   function hasFolderSelectionConflict() {

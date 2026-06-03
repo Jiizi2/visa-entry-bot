@@ -33,6 +33,7 @@ test("bindDom maps app selectors onto the shared dom object", () => {
   assert.equal(dom.windowCloseButton.selector, "#window-close-button");
   assert.equal(dom.pageImport.selector, "#page-import");
   assert.equal(dom.folderPath.selector, "#folder-path");
+  assert.equal(dom.applyEntryDefaultsButton.selector, "#apply-entry-defaults-button");
   assert.equal(dom.prepareEntryButton.selector, "#prepare-entry-button");
   assert.equal(dom.passportPreviewImage.selector, "#passport-preview-image");
   assert.equal(dom.passportCropButton.selector, "#passport-crop-button");

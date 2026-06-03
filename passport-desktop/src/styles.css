@@ -929,6 +929,65 @@ input:focus {
   opacity: 0.52;
 }
 
+.entry-defaults-card {
+  gap: 14px;
+}
+
+.entry-defaults-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.entry-default-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.entry-default-field span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.entry-default-field input,
+.entry-default-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.entry-default-field input:focus,
+.entry-default-field select:focus {
+  border-color: rgba(0, 93, 181, 0.45);
+  box-shadow: 0 0 0 3px rgba(0, 93, 181, 0.12);
+  outline: none;
+}
+
+.entry-defaults-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.entry-defaults-status {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+}
+
 .side-card,
 .progress-panel,
 .log-card,

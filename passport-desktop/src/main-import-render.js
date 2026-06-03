@@ -1,5 +1,10 @@
 import { basenameFromPath, escapeHtml, formatRecentStamp } from "./main-utils.js";
 import { normalizeOcrMode } from "./main-ocr.js";
+import {
+  ENTRY_DEFAULT_FIELD_DEFS,
+  entryDefaultsActiveCount,
+  normalizeEntryDefaults,
+} from "./main-entry-defaults.js";
 
 export function renderImportPageView({
   dom,
@@ -9,6 +14,7 @@ export function renderImportPageView({
 }) {
   dom.folderPath.value = state.selectedDir;
   renderOcrModeSelectorView({ dom, state });
+  renderEntryDefaultsView({ dom, state });
   const hasAnyResult = hasAnyScanResult();
   const hasResultForSelected = hasScanResultForSelectedDir();
   const hasPreparedForSelected = hasPreparedSessionForSelectedDir(state);
@@ -63,6 +69,45 @@ export function renderImportPageView({
   renderMiniStatus(dom.systemRuntimeStatus, { label: "Tersedia", tone: "ready" });
   renderLastScanSummary({ dom, state, hasAnyResult });
   renderRecentBatchesView({ dom, state });
+}
+
+export function renderEntryDefaultsView({ dom, state }) {
+  const defaults = normalizeEntryDefaults(state.entryDefaults);
+  for (const input of dom.entryDefaultInputs || []) {
+    const key = String(input.dataset?.entryDefaultKey || "").trim();
+    if (!key) {
+      continue;
+    }
+    syncEntryDefaultOptions(input, key);
+    input.value = defaults[key] ?? "";
+  }
+
+  if (dom.applyEntryDefaultsButton) {
+    dom.applyEntryDefaultsButton.disabled = false;
+    dom.applyEntryDefaultsButton.setAttribute("aria-disabled", "false");
+  }
+
+  if (dom.entryDefaultsStatus) {
+    const activeCount = entryDefaultsActiveCount(defaults);
+    dom.entryDefaultsStatus.textContent = activeCount > 0 ? `${activeCount} default aktif` : "Belum ada default aktif";
+  }
+}
+
+function syncEntryDefaultOptions(input, key) {
+  if (String(input.tagName || "").toUpperCase() !== "SELECT") {
+    return;
+  }
+  const field = ENTRY_DEFAULT_FIELD_DEFS.find((item) => item.key === key);
+  if (!Array.isArray(field?.options) || !field.options.length) {
+    return;
+  }
+  const existingOptions = Array.from(input.options || []).map((option) => String(option.value || ""));
+  if (field.options.every((option) => existingOptions.includes(option))) {
+    return;
+  }
+  input.innerHTML = field.options
+    .map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`)
+    .join("");
 }
 
 export function renderOcrModeSelectorView({ dom, state }) {

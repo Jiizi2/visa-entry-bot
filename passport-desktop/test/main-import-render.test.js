@@ -5,6 +5,7 @@ import {
   importPhaseDescriptors,
   importFooterMessage,
   ocrStatusDescriptor,
+  renderEntryDefaultsView,
   renderMiniStatus,
   renderRecentActionIcon,
   renderRecentBatchesView,
@@ -82,6 +83,33 @@ test("renderMiniStatus updates node label and tone", () => {
   renderMiniStatus(node, { label: "Siap", tone: "ready" });
   assert.equal(node.textContent, "Siap");
   assert.equal(node.className, "mini-status ready");
+});
+
+test("renderEntryDefaultsView keeps apply button clickable before manifest exists", () => {
+  const applyButton = {
+    disabled: true,
+    attrs: {},
+    setAttribute(name, value) {
+      this.attrs[name] = String(value);
+    },
+  };
+  const status = {};
+
+  renderEntryDefaultsView({
+    dom: {
+      applyEntryDefaultsButton: applyButton,
+      entryDefaultInputs: [],
+      entryDefaultsStatus: status,
+    },
+    state: {
+      entryDefaults: { profession: "OTHER" },
+      manifest: null,
+    },
+  });
+
+  assert.equal(applyButton.disabled, false);
+  assert.equal(applyButton.attrs["aria-disabled"], "false");
+  assert.equal(status.textContent, "1 default aktif");
 });
 
 test("renderRecentBatchesView renders empty and populated states", () => {

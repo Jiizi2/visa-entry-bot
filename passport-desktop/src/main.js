@@ -14,6 +14,12 @@ import {
   createEntryFlow,
 } from "./main-entry-flow.js";
 import {
+  applyEntryDefaultsToManifest,
+  loadEntryDefaults,
+  saveEntryDefaults,
+  updateEntryDefaultValue,
+} from "./main-entry-defaults.js";
+import {
   createPageFlow,
 } from "./main-page-flow.js";
 import {
@@ -30,6 +36,7 @@ import {
 } from "./main-actions.js";
 import {
   createInitialState,
+  STORAGE_KEYS,
 } from "./main-state.js";
 import {
   createImportWorkflow,
@@ -262,6 +269,7 @@ manifestWorkflow = createManifestWorkflow({
   recalculateMetrics,
   ensureVisibleActiveMember,
   renderAll,
+  applyEntryDefaultsToManifest: (manifest) => applyEntryDefaultsToManifest(manifest, state.entryDefaults),
   hasAnyScanResult,
   hasScanResultForSelectedDir,
   loadManifestCommand: async (manifestPath) => {
@@ -282,7 +290,7 @@ pageFlow = createPageFlow({
   state,
   manifestMembers,
   reviewCompletionState,
-  requiredFieldBlockingIssueForBatch: () => manifestWorkflow?.requiredFieldBlockingIssueForBatch(),
+  requiredFieldBlockingIssueForBatch: (...args) => manifestWorkflow?.requiredFieldBlockingIssueForBatch(...args),
   showBatchReviewBlockingMessage,
   hasFolderSelectionConflict: () => Boolean(manifestWorkflow?.hasFolderSelectionConflict()),
   renderAll,
@@ -478,7 +486,7 @@ const {
   state,
   manifestMembers,
   reviewCompletionState,
-  requiredFieldBlockingIssueForBatch: () => manifestWorkflow?.requiredFieldBlockingIssueForBatch(),
+  requiredFieldBlockingIssueForBatch: (...args) => manifestWorkflow?.requiredFieldBlockingIssueForBatch(...args),
   showBatchReviewBlockingMessage,
   syncPassportPageWithActiveMember,
   isEntryAccessible,
@@ -552,6 +560,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   try {
     state.recentBatches = loadRecentBatches();
     state.ocrMode = loadOcrMode();
+    state.entryDefaults = loadEntryDefaults(STORAGE_KEYS.entryDefaults);
     bindDom(dom);
     bindWindowControls({ dom, appWindow: window, documentRef: document });
     passportPreviewActions?.initializePassportPreviewController();
@@ -585,6 +594,8 @@ function bindActions() {
     handleScanButtonClick,
     handleStartScanButtonClick,
     handleOcrModeChange: (event) => importViewController?.handleOcrModeChange(event),
+    handleEntryDefaultChange,
+    handleApplyEntryDefaults,
     selectPreparedPassport: (itemId) => preparedPreviewController?.selectPreparedItem(itemId),
     rotatePreparedPassport: (direction) => preparedPreviewController?.rotateActivePreparedItem(direction),
     flipPreparedPassport: (axis) => preparedPreviewController?.flipActivePreparedItem(axis),
@@ -641,6 +652,45 @@ function bindActions() {
     handlePassportCropZoomInput: (event) => passportCropActions?.handleZoomInput(event),
     handlePassportCropResize: () => passportCropActions?.handleResize(),
   });
+}
+
+function handleEntryDefaultChange(event) {
+  const target = event?.target;
+  const key = String(target?.dataset?.entryDefaultKey || "").trim();
+  if (!key) {
+    return;
+  }
+  state.entryDefaults = updateEntryDefaultValue(state.entryDefaults, key, target.value);
+  saveEntryDefaults(state.entryDefaults, STORAGE_KEYS.entryDefaults);
+  state.statusHeadline = "Default entry tersimpan";
+  state.statusDetail = "Nilai default siap dipakai untuk field kosong.";
+  renderAll();
+}
+
+function handleApplyEntryDefaults() {
+  if (!state.manifest || !Array.isArray(state.manifest.members)) {
+    state.statusHeadline = "Default entry tersimpan";
+    state.statusDetail = "Belum ada hasil scan aktif. Default akan otomatis dipakai untuk field kosong saat manifest dimuat.";
+    appendEntryLog("Default entry tersimpan dan akan dipakai saat hasil scan dimuat.", "info");
+    renderAll();
+    return;
+  }
+
+  const result = applyEntryDefaultsToManifest(state.manifest, state.entryDefaults);
+  if (result.appliedCount > 0) {
+    state.exportedBatchPath = "";
+    state.exportError = "";
+    state.statusHeadline = "Default diterapkan";
+    state.statusDetail = `${result.appliedCount} field kosong di ${result.touchedMemberCount} data diisi dari default.`;
+    appendEntryLog(`${result.appliedCount} field kosong diisi dari default entry.`, "success");
+    syncManifestChildMetadata(state.manifest);
+    scheduleManifestSave(0);
+  } else {
+    state.statusHeadline = "Tidak ada field kosong";
+    state.statusDetail = "Semua field target sudah terisi atau default belum diisi.";
+    appendEntryLog("Tidak ada field kosong yang perlu diisi default.", "info");
+  }
+  renderAll();
 }
 
 async function setupEventBridge() {
