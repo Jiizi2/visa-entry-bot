@@ -3,9 +3,11 @@ chrome.action.onClicked.addListener((tab) => {
     return;
   }
 
-  chrome.tabs.sendMessage(tab.id, { type: "NUSUK_OPEN_PANEL" }, () => {
-    void chrome.runtime.lastError;
-  });
+  openPanelInTab(tab)
+    .catch((error) => {
+      console.error("EntryMate panel open failed:", error);
+      showTemporaryBadge(tab.id, "!", "#b91c1c");
+    });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -41,6 +43,90 @@ function handleDebuggerSetFile(message, sender, sendResponse) {
     .catch((error) => {
       sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
     });
+}
+
+async function openPanelInTab(tab) {
+  const tabId = tab.id;
+  if (!tabId) {
+    return;
+  }
+  if (!isSupportedNusukUrl(tab.url)) {
+    throw new Error("Buka halaman Nusuk dulu sebelum membuka panel EntryMate.");
+  }
+
+  try {
+    await sendOpenPanelMessage(tabId);
+    return;
+  } catch (error) {
+    await ensureContentScripts(tabId);
+    await sendOpenPanelMessageWithRetry(tabId);
+  }
+}
+
+function isSupportedNusukUrl(url) {
+  return /^https:\/\/([^/]+\.)?nusuk\.sa\//i.test(String(url || ""));
+}
+
+function sendOpenPanelMessage(tabId) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, { type: "NUSUK_OPEN_PANEL" }, (response) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      if (!response?.ok) {
+        reject(new Error(response?.error || "Panel EntryMate tidak merespons."));
+        return;
+      }
+      resolve(response);
+    });
+  });
+}
+
+async function sendOpenPanelMessageWithRetry(tabId) {
+  const deadline = Date.now() + 2500;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    try {
+      return await sendOpenPanelMessage(tabId);
+    } catch (error) {
+      lastError = error;
+      await sleep(120);
+    }
+  }
+  throw lastError || new Error("Panel EntryMate belum siap.");
+}
+
+async function ensureContentScripts(tabId) {
+  const manifest = chrome.runtime.getManifest();
+  const scripts = manifest.content_scripts?.[0]?.js || [];
+  if (!scripts.length) {
+    throw new Error("Daftar content script extension kosong.");
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: scripts,
+  });
+}
+
+function showTemporaryBadge(tabId, text, color) {
+  chrome.action.setBadgeBackgroundColor({ tabId, color }, () => {
+    void chrome.runtime.lastError;
+  });
+  chrome.action.setBadgeText({ tabId, text }, () => {
+    void chrome.runtime.lastError;
+  });
+  setTimeout(() => {
+    chrome.action.setBadgeText({ tabId, text: "" }, () => {
+      void chrome.runtime.lastError;
+    });
+  }, 2200);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function handleCaptureFailureScreenshot(sender, sendResponse) {

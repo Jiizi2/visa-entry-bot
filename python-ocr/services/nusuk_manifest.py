@@ -13,7 +13,7 @@ from services.transliterator import transliterate_name
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EMAIL_TEMPLATE = "huseinghanim@gmail.com"
-MOBILE_TEMPLATE = "+6287852720092"
+MOBILE_TEMPLATE = "+6282137434147"
 DEFAULT_PROFESSION = "OTHER"
 DEFAULT_MARITAL_STATUS = "OTHER"
 DEFAULT_PASSPORT_TYPE = "NORMAL"

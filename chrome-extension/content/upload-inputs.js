@@ -35,10 +35,14 @@
         }
         return input || direct;
       } catch (error) {
+        const fallback = chooseBestFileInput(uploadKind, null);
+        if (fallback) {
+          return fallback;
+        }
         if (!step?.optional_selector) {
           throw error;
         }
-        return chooseBestFileInput(uploadKind, null);
+        return null;
       }
     }
 
@@ -47,7 +51,11 @@
         return node;
       }
       const nested = node?.querySelector?.("input[type='file']");
-      return nested instanceof HTMLInputElement ? nested : null;
+      if (nested instanceof HTMLInputElement) {
+        return nested;
+      }
+      const nearby = findNearbyFileInput(node);
+      return nearby instanceof HTMLInputElement ? nearby : null;
     }
 
     function chooseBestFileInput(uploadKind, preferredInput) {
@@ -76,6 +84,31 @@
         return preferredInput;
       }
       return inputs[0];
+    }
+
+    function findNearbyFileInput(node) {
+      if (!(node instanceof Element)) {
+        return null;
+      }
+      for (const sibling of [node.nextElementSibling, node.previousElementSibling]) {
+        if (sibling instanceof HTMLInputElement && sibling.type === "file") {
+          return sibling;
+        }
+      }
+      const scope = node.closest([
+        ".passport-upload-section",
+        ".upload-container",
+        ".attachment",
+        ".form-group",
+        ".field",
+        ".upload-box",
+        ".upload-button",
+        ".upload",
+        ".container__notes__upload__button",
+        "div",
+      ].join(", "));
+      const scopedInput = scope?.querySelector?.("input[type='file']");
+      return scopedInput instanceof HTMLInputElement ? scopedInput : null;
     }
 
     function isForbiddenVaccinationFileInput(input) {
@@ -113,7 +146,8 @@
         : "";
       const ancestorLabels = collectAncestorLabelTexts(input).join(" ");
       const scopeText = String(scope?.textContent || "");
-      return normalizeOption(`${attrs} ${scopeAttrs} ${labelText} ${ancestorLabels} ${scopeText}`);
+      const ancestorText = collectAncestorContextText(input).join(" ");
+      return normalizeOption(`${attrs} ${scopeAttrs} ${labelText} ${ancestorLabels} ${scopeText} ${ancestorText}`);
     }
 
     function collectAncestorLabelTexts(node) {
@@ -131,6 +165,23 @@
         current = current.parentElement;
       }
       return labels;
+    }
+
+    function collectAncestorContextText(node) {
+      const contexts = [];
+      let current = node instanceof Element ? node.parentElement : null;
+      for (let depth = 0; current && depth < 5; depth += 1) {
+        const attrs = current instanceof HTMLElement
+          ? ["class", "id", "aria-label"].map((name) => current.getAttribute(name) || "").join(" ")
+          : "";
+        const text = String(current.textContent || "").trim();
+        const compact = `${attrs} ${text}`.replace(/\s+/g, " ").trim();
+        if (compact) {
+          contexts.push(compact.slice(0, 1200));
+        }
+        current = current.parentElement;
+      }
+      return contexts;
     }
 
     function inputAcceptsPassportImage(input) {

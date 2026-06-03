@@ -93,7 +93,7 @@ init().catch((error) => {
 });
 
 async function init() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const stored = await readStoredState();
   const saved = stored?.[STORAGE_KEY];
   if (saved?.manifest && Array.isArray(saved.manifest.members)) {
     state.manifest = saved.manifest;
@@ -193,15 +193,35 @@ function validateCurrentManifestForRun() {
 }
 
 async function persistState() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const stored = await readStoredState();
   const previous = stored?.[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object" ? stored[STORAGE_KEY] : {};
-  await chrome.storage.local.set({
+  await writeStoredState({
     [STORAGE_KEY]: {
       ...previous,
       manifest: state.manifest,
       selectedMemberId: state.selectedMemberId,
     },
   });
+}
+
+async function readStoredState() {
+  const storage = getStorageLocal();
+  if (!storage?.get) {
+    return {};
+  }
+  return storage.get(STORAGE_KEY);
+}
+
+async function writeStoredState(payload) {
+  const storage = getStorageLocal();
+  if (!storage?.set) {
+    return;
+  }
+  await storage.set(payload);
+}
+
+function getStorageLocal() {
+  return globalThis.chrome?.storage?.local || null;
 }
 
 function setStatus(message, isError = false) {

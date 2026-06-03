@@ -37,14 +37,93 @@
       const resolvedFilePath = upload.resolveUploadFilePath(rawValue, context);
       const uploadFile = await upload.resolveSelectedUploadFile(rawValue, context);
       if (!uploadFile) {
+        if (isPassportUploadStep(step)) {
+          const fileDescriptor = createFileDescriptorFromPath(rawValue, resolvedFilePath);
+          appendLog("warning", "File passport tidak ada di cache pilihan panel; memakai path JSON lewat Chrome debugger.");
+          await handlePassportDebuggerUpload({
+            step,
+            input,
+            file: fileDescriptor,
+            resolvedFilePath,
+            selector,
+            appendLog,
+            finishStep,
+            upload,
+            sleep,
+            runId,
+          });
+          return;
+        }
+        if (isVaccinationUploadStep(step) && String(resolvedFilePath || "").trim()) {
+          const fileDescriptor = createFileDescriptorFromPath(rawValue, resolvedFilePath);
+          appendLog("warning", "File vaksin tidak ada di cache pilihan panel; memakai file passport dari path JSON lewat Chrome debugger.");
+          const debuggerUploaded = await tryOptionalDebuggerUpload({
+            step,
+            input,
+            file: fileDescriptor,
+            resolvedFilePath,
+            selector,
+            appendLog,
+            finishStep,
+            upload,
+            sleep,
+            runId,
+          });
+          if (debuggerUploaded) {
+            return;
+          }
+          appendLog("warning", "Upload vaksin opsional dilewati setelah debugger tidak berhasil.");
+          finishStep(step, selector);
+          return;
+        }
+        if (step?.optional_selector) {
+          appendLog("warning", `${uploadKindLabel(step)} opsional tidak punya file dari cache/path JSON, dilewati.`);
+          finishStep(step, selector);
+          return;
+        }
         const message = upload.buildUploadFailureMessage(rawValue, resolvedFilePath, "File upload tidak tersedia di memori/cache extension.");
         appendLog("error", message);
         throw new Error(message);
       }
       if (upload.isFileInputAlreadyUsing(input, uploadFile)) {
-        appendLog("success", `File upload sudah sesuai: ${uploadFile.name}`);
-        finishStep(step, selector);
+        if (!isPassportUploadStep(step) || isPassportUploadAcceptedOnPage(uploadFile)) {
+          appendLog("success", `File upload sudah sesuai: ${uploadFile.name}`);
+          finishStep(step, selector);
+          return;
+        }
+        appendLog("warning", "Input passport sudah berisi file, tetapi halaman belum memprosesnya. Memilih ulang lewat Chrome debugger.");
+      }
+      if (isPassportUploadStep(step)) {
+        await handlePassportDebuggerUpload({
+          step,
+          input,
+          file: uploadFile,
+          resolvedFilePath,
+          selector,
+          appendLog,
+          finishStep,
+          upload,
+          sleep,
+          runId,
+        });
         return;
+      }
+      if (isVaccinationUploadStep(step) && String(resolvedFilePath || "").trim()) {
+        const debuggerUploaded = await tryOptionalDebuggerUpload({
+          step,
+          input,
+          file: uploadFile,
+          resolvedFilePath,
+          selector,
+          appendLog,
+          finishStep,
+          upload,
+          sleep,
+          runId,
+        });
+        if (debuggerUploaded) {
+          return;
+        }
       }
       appendLog("info", `Menyiapkan file upload ${uploadFile.name} (${upload.formatBytesAsKb(uploadFile.size)})`);
       const uploadFileForWebsite = await upload.prepareFileForWebsiteUpload(uploadFile, runId);
@@ -107,9 +186,152 @@
     };
   }
 
+  function createFileDescriptorFromPath(rawValue, resolvedFilePath) {
+    return {
+      name: basenameFromPath(resolvedFilePath || rawValue) || "passport",
+      size: 0,
+    };
+  }
+
+  async function handlePassportDebuggerUpload({
+    step,
+    input,
+    file,
+    resolvedFilePath,
+    selector,
+    appendLog,
+    finishStep,
+    upload,
+    sleep,
+    runId,
+  }) {
+    if (!String(resolvedFilePath || "").trim()) {
+      throw new Error("Upload passport harus lewat Chrome debugger, tetapi path file kosong.");
+    }
+    appendLog("info", buildPassportDebuggerUploadLog(file, upload));
+    const debuggerResult = await upload.trySetFileInputWithDebugger(input, resolvedFilePath, runId);
+    if (!debuggerResult?.ok) {
+      throw new Error(`Upload passport harus lewat Chrome debugger, tetapi gagal: ${debuggerResult?.error || "unknown error"}`);
+    }
+    upload.notifyUploadWidget(input);
+    await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
+
+    const accepted = await waitForPassportUploadAccepted({
+      input,
+      file,
+      sleep,
+      runId,
+    });
+    if (accepted) {
+      appendLog("success", `${uploadKindLabel(step)} diproses oleh halaman: ${file.name}`);
+      finishStep(step, selector);
+      return;
+    }
+
+    const uploadError = findVisibleUploadError(input);
+    if (uploadError) {
+      throw new Error(`Upload ditolak halaman: ${uploadError}`);
+    }
+    const selectedFileName = input?.files?.[0]?.name || "";
+    const selectedDetail = selectedFileName
+      ? `File sudah terpasang di input (${selectedFileName})`
+      : "File passport belum terlihat terpasang di input";
+    throw new Error(`${selectedDetail}, tetapi Nusuk belum memunculkan Proceed/Passport Details setelah upload debugger.`);
+  }
+
+  async function waitForPassportUploadAccepted({ input, file, sleep, runId }) {
+    const deadline = Date.now() + 6000;
+    while (Date.now() < deadline) {
+      const uploadError = findVisibleUploadError(input);
+      if (uploadError) {
+        throw new Error(`Upload ditolak halaman: ${uploadError}`);
+      }
+      if (isPassportUploadAcceptedOnPage(file)) {
+        return true;
+      }
+      await sleep(Math.max(250, Math.floor(UPLOAD_SETTLE_DELAY_MS / 2)), runId);
+    }
+    return false;
+  }
+
+  function buildPassportDebuggerUploadLog(file, upload) {
+    const name = String(file?.name || "passport");
+    const size = Number(file?.size || 0);
+    if (size > 0) {
+      return `Memilih file passport lewat Chrome debugger: ${name} (${upload.formatBytesAsKb(size)})`;
+    }
+    return `Memilih file passport lewat Chrome debugger: ${name}`;
+  }
+
+  async function tryOptionalDebuggerUpload(options) {
+    try {
+      await handleOptionalDebuggerUpload(options);
+      return true;
+    } catch (error) {
+      options.appendLog("warning", `Upload ${uploadKindLabel(options.step).toLowerCase()} lewat debugger tidak berhasil: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  }
+
+  async function handleOptionalDebuggerUpload({
+    step,
+    input,
+    file,
+    resolvedFilePath,
+    selector,
+    appendLog,
+    finishStep,
+    upload,
+    sleep,
+    runId,
+  }) {
+    if (!String(resolvedFilePath || "").trim()) {
+      throw new Error("path file kosong");
+    }
+    appendLog("info", buildDebuggerUploadLog(step, file, upload));
+    const debuggerResult = await upload.trySetFileInputWithDebugger(input, resolvedFilePath, runId);
+    if (!debuggerResult?.ok) {
+      throw new Error(debuggerResult?.error || "unknown error");
+    }
+    upload.notifyUploadWidget(input);
+    await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
+    const selectedFileName = await verifyUploadSelection({
+      step,
+      input,
+      file,
+      selector,
+      appendLog,
+      finishStep,
+    });
+    if (selectedFileName === true) {
+      return;
+    }
+    if (selectedFileName) {
+      appendLog("success", `File terpasang di input ${uploadKindLabel(step).toLowerCase()}: ${selectedFileName}`);
+      finishStep(step, selector);
+      return;
+    }
+    const uploadError = findVisibleUploadError(input);
+    if (uploadError) {
+      throw new Error(`Upload ditolak halaman: ${uploadError}`);
+    }
+    appendLog("success", `${uploadKindLabel(step)} diproses oleh halaman: ${file.name}`);
+    finishStep(step, selector);
+  }
+
+  function buildDebuggerUploadLog(step, file, upload) {
+    const label = uploadKindLabel(step).toLowerCase();
+    const name = String(file?.name || "passport");
+    const size = Number(file?.size || 0);
+    if (size > 0) {
+      return `Memilih file ${label} lewat Chrome debugger: ${name} (${upload.formatBytesAsKb(size)})`;
+    }
+    return `Memilih file ${label} lewat Chrome debugger: ${name}`;
+  }
+
   async function verifyUploadSelection({ step, input, file, selector, appendLog, finishStep }) {
     const selectedFileName = input?.files?.[0]?.name || "";
-    if (selectedFileName) {
+    if (selectedFileName && !isPassportUploadStep(step)) {
       return selectedFileName;
     }
     const uploadError = findVisibleUploadError(input);
@@ -125,11 +347,10 @@
   }
 
   function isKnownUploadProcessedByPage(step, file) {
-    const uploadKind = String(step?.upload_kind || "").trim().toLowerCase();
-    if (uploadKind === "vaccination") {
+    if (isVaccinationUploadStep(step)) {
       return true;
     }
-    if (uploadKind !== "passport") {
+    if (!isPassportUploadStep(step)) {
       return false;
     }
     if (isPassportUploadAcceptedOnPage(file)) {
@@ -154,6 +375,8 @@
     }
     return queryAll([
       ".container__notes__upload__button",
+      ".passport-upload-section",
+      ".upload-container",
       ".upload-button",
       ".upload",
       ".upload-box",
@@ -175,7 +398,7 @@
     if (!(input instanceof HTMLElement)) {
       return document.body;
     }
-    return input.closest(".attachment, .form-group, .field, .upload-box, .upload-button, .upload, .container__notes__upload__button, form, .card")
+    return input.closest(".passport-upload-section, .upload-container, .attachment, .form-group, .field, .upload-box, .upload-button, .upload, .container__notes__upload__button, form, .card")
       || document.body;
   }
 
@@ -301,8 +524,20 @@
     return "Upload";
   }
 
+  function isPassportUploadStep(step) {
+    return String(step?.upload_kind || "").trim().toLowerCase() === "passport";
+  }
+
+  function isVaccinationUploadStep(step) {
+    return String(step?.upload_kind || "").trim().toLowerCase() === "vaccination";
+  }
+
   function compactText(text) {
     return String(text || "").replace(/\s+/g, " ").trim();
+  }
+
+  function basenameFromPath(value) {
+    return String(value || "").replace(/\\/g, "/").split("/").filter(Boolean).pop() || "";
   }
 
   root.stepUploadActions = Object.freeze({

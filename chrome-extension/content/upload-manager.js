@@ -281,25 +281,6 @@
         return;
       }
       dispatchFileInputEvents(input);
-      dispatchPageWorldFileEvents(input);
-    }
-
-    function dispatchPageWorldFileEvents(input) {
-      const token = `nusuk-upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      input.setAttribute("data-nusuk-upload-token", token);
-      const script = document.createElement("script");
-      script.textContent = `
-        (() => {
-          const input = document.querySelector('input[type="file"][data-nusuk-upload-token="${token}"]');
-          if (!input) return;
-          for (const type of ["input", "change", "blur"]) {
-            input.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
-          }
-        })();
-      `;
-      (document.documentElement || document.head || document.body).appendChild(script);
-      script.remove();
-      input.removeAttribute("data-nusuk-upload-token");
     }
 
     return {
