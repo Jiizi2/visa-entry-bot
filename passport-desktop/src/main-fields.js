@@ -1,30 +1,34 @@
 import { normalizeDateToNusuk } from "./main-utils.js";
 import { transliterateName } from "./main-transliterator.js";
 
+function reviewField(key, label, options = {}) {
+  return [key, label, Object.freeze({ required: options.required !== false })];
+}
+
 export const REVIEW_FIELDS = [
-  ["firstName", "Nama Depan (English)"],
-  ["fatherName", "Nama Ayah (English)"],
-  ["grandfatherName", "Nama Kakek (English)"],
-  ["familyName", "Nama Keluarga (English)"],
-  ["dob", "Tanggal Lahir"],
-  ["nationality", "Kewarganegaraan"],
-  ["passportNumber", "Nomor Passport"],
-  ["countryOfIssued", "Negara Penerbit"],
-  ["expiryDate", "Tanggal Berakhir"],
-  ["gender", "Jenis Kelamin"],
-  ["passportType", "Tipe Passport"],
-  ["releaseDate", "Tanggal Rilis (Issued Date Passport)"],
-  ["cityOfIssued", "Kota Penerbit"],
-  ["arabic.firstName", "Nama Arab Depan"],
-  ["arabic.fatherName", "Nama Arab Ayah"],
-  ["arabic.grandfatherName", "Nama Arab Kakek"],
-  ["arabic.familyName", "Nama Arab Keluarga"],
-  ["birthCountry", "Negara Lahir"],
-  ["birthCity", "Kota Lahir"],
-  ["profession", "Profesi"],
-  ["maritalStatus", "Status Pernikahan"],
-  ["email", "Email"],
-  ["mobileNumber", "Nomor Telepon"],
+  reviewField("firstName", "Nama Depan (English)"),
+  reviewField("fatherName", "Nama Ayah (English)", { required: false }),
+  reviewField("grandfatherName", "Nama Kakek (English)", { required: false }),
+  reviewField("familyName", "Nama Keluarga (English)"),
+  reviewField("dob", "Tanggal Lahir"),
+  reviewField("nationality", "Kewarganegaraan"),
+  reviewField("passportNumber", "Nomor Passport"),
+  reviewField("countryOfIssued", "Negara Penerbit", { required: false }),
+  reviewField("expiryDate", "Tanggal Berakhir"),
+  reviewField("gender", "Jenis Kelamin"),
+  reviewField("passportType", "Tipe Passport"),
+  reviewField("releaseDate", "Tanggal Rilis (Issued Date Passport)"),
+  reviewField("cityOfIssued", "Kota Penerbit"),
+  reviewField("arabic.firstName", "Nama Arab Depan"),
+  reviewField("arabic.fatherName", "Nama Arab Ayah", { required: false }),
+  reviewField("arabic.grandfatherName", "Nama Arab Kakek", { required: false }),
+  reviewField("arabic.familyName", "Nama Arab Keluarga"),
+  reviewField("birthCountry", "Negara Lahir"),
+  reviewField("birthCity", "Kota Lahir"),
+  reviewField("profession", "Profesi"),
+  reviewField("maritalStatus", "Status Pernikahan"),
+  reviewField("email", "Email"),
+  reviewField("mobileNumber", "Nomor Telepon"),
 ];
 
 export const FIELD_CATEGORY_DEFS = [
@@ -119,6 +123,12 @@ const LATIN_NAME_TO_ARABIC_FIELD = Object.freeze({
 
 export function maxLengthForField(fieldKey) {
   return NUSUK_NAME_FIELDS.has(String(fieldKey ?? "")) ? NUSUK_NAME_FIELD_MAX_LENGTH : null;
+}
+
+export function isReviewFieldRequired(fieldKey) {
+  const normalizedKey = String(fieldKey ?? "").trim();
+  const field = REVIEW_FIELDS.find(([key]) => key === normalizedKey);
+  return Boolean(field && field[2]?.required !== false);
 }
 
 export function clampFieldValue(fieldKey, value) {

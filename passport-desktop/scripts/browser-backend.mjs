@@ -91,6 +91,8 @@ async function handleInvoke(command, args) {
       return startScan(args);
     case "stop_scan":
       return stopScan();
+    case "open_path_location":
+      return openPathLocation(args.path);
     case "load_manifest":
       return loadManifest(args.manifestPath);
     case "save_manifest":
@@ -223,6 +225,40 @@ function stopScan() {
     message: "Permintaan stop scan dikirim. Worker OCR sedang dihentikan.",
   });
   terminateChildTree(scanState.child.pid);
+  return null;
+}
+
+async function openPathLocation(rawPath) {
+  const target = String(rawPath || "").trim();
+  if (!target) {
+    throw new Error("Lokasi file belum tersedia.");
+  }
+
+  const resolvedTarget = resolve(target);
+  const targetInfo = await stat(resolvedTarget).catch(() => null);
+  const folder = targetInfo?.isDirectory() ? resolvedTarget : dirname(resolvedTarget);
+  const folderInfo = await stat(folder).catch(() => null);
+  if (!folderInfo?.isDirectory()) {
+    throw new Error(`Folder lokasi file tidak ditemukan: ${folder}`);
+  }
+
+  if (process.platform === "win32") {
+    const args = targetInfo?.isFile()
+      ? [`/select,${resolvedTarget}`]
+      : [folder];
+    execFile("explorer.exe", args, { windowsHide: false }, () => {});
+    return null;
+  }
+
+  if (process.platform === "darwin") {
+    const args = targetInfo?.isFile()
+      ? ["-R", resolvedTarget]
+      : [folder];
+    spawn("open", args, { detached: true, stdio: "ignore" }).unref();
+    return null;
+  }
+
+  spawn("xdg-open", [folder], { detached: true, stdio: "ignore" }).unref();
   return null;
 }
 

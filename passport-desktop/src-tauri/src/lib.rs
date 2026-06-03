@@ -722,6 +722,79 @@ fn stop_scan(app: AppHandle, state: State<'_, ScanState>) -> Result<(), String> 
 }
 
 #[tauri::command]
+fn open_path_location(path: String) -> Result<(), String> {
+    let raw_path = path.trim();
+    if raw_path.is_empty() {
+        return Err("Lokasi file belum tersedia.".to_string());
+    }
+
+    let candidate = PathBuf::from(raw_path);
+    let metadata = fs::metadata(&candidate).ok();
+    let folder = if metadata
+        .as_ref()
+        .map(|metadata| metadata.is_dir())
+        .unwrap_or(false)
+    {
+        candidate.clone()
+    } else {
+        candidate
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| "Folder lokasi file tidak ditemukan.".to_string())?
+    };
+
+    if !folder.is_dir() {
+        return Err(format!("Folder lokasi file tidak ditemukan: {}", folder.display()));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = Command::new("explorer.exe");
+        if metadata
+            .as_ref()
+            .map(|metadata| metadata.is_file())
+            .unwrap_or(false)
+        {
+            command.arg(format!("/select,{}", candidate.to_string_lossy()));
+        } else {
+            command.arg(&folder);
+        }
+        command.creation_flags(0x08000000);
+        command
+            .spawn()
+            .map_err(|err| format!("Gagal membuka Explorer: {err}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let mut command = Command::new("open");
+        if metadata
+            .as_ref()
+            .map(|metadata| metadata.is_file())
+            .unwrap_or(false)
+        {
+            command.arg("-R").arg(&candidate);
+        } else {
+            command.arg(&folder);
+        }
+        command
+            .spawn()
+            .map_err(|err| format!("Gagal membuka Finder: {err}"))?;
+        return Ok(());
+    }
+
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(&folder)
+            .spawn()
+            .map_err(|err| format!("Gagal membuka file manager: {err}"))?;
+        Ok(())
+    }
+}
+
+#[tauri::command]
 fn load_manifest(manifest_path: String) -> Result<Value, String> {
     let path = PathBuf::from(manifest_path);
     let content = fs::read_to_string(&path)
@@ -1845,6 +1918,7 @@ pub fn run() {
             prepare_passport_images,
             start_scan,
             stop_scan,
+            open_path_location,
             load_manifest,
             save_manifest,
             find_manifest_path,

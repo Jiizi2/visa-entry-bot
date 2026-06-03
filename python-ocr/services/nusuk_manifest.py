@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import date
 
 from services.confidence_levels import build_confidence_levels, empty_confidence_levels
 from services.field_confidence import build_field_confidence, empty_field_confidence
@@ -13,9 +12,10 @@ from services.review_flags import build_review_flags, empty_review_flags
 from services.transliterator import transliterate_name
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-EMAIL_TEMPLATE = "example@gmail.com"
-MOBILE_TEMPLATE = "+6289421314123"
-DEFAULT_PROFESSION = "BUSINESS"
+EMAIL_TEMPLATE = "huseinghanim@gmail.com"
+MOBILE_TEMPLATE = "+6287852720092"
+DEFAULT_PROFESSION = "OTHER"
+DEFAULT_MARITAL_STATUS = "OTHER"
 DEFAULT_PASSPORT_TYPE = "NORMAL"
 
 
@@ -178,7 +178,7 @@ def _build_resolved_profile(passport_extracted: dict[str, str]) -> dict[str, obj
         "birthCountry": nationality or country_of_issued,
         "birthCity": passport_extracted.get("birthCity", ""),
         "profession": DEFAULT_PROFESSION,
-        "maritalStatus": _marital_status(passport_extracted.get("dob", "")),
+        "maritalStatus": DEFAULT_MARITAL_STATUS,
         "iqamaNumber": "",
         "iqamaExpiryDate": "",
         "vaccinationCertificate": "",
@@ -218,7 +218,7 @@ def _build_source_by_field(
         "birthCountry": _birth_country_source(resolved_profile),
         "birthCity": _passport_source(passport_extracted, "birthCity"),
         "profession": f"default:{DEFAULT_PROFESSION}",
-        "maritalStatus": _derived_source(resolved_profile, "maritalStatus", "resolvedProfile.dob"),
+        "maritalStatus": f"default:{DEFAULT_MARITAL_STATUS}",
         "iqamaNumber": "intentional_empty",
         "iqamaExpiryDate": "intentional_empty",
         "vaccinationCertificate": "intentional_empty",
@@ -268,7 +268,7 @@ def _empty_resolved_profile() -> dict[str, object]:
         "birthCountry": "",
         "birthCity": "",
         "profession": DEFAULT_PROFESSION,
-        "maritalStatus": "",
+        "maritalStatus": DEFAULT_MARITAL_STATUS,
         "iqamaNumber": "",
         "iqamaExpiryDate": "",
         "vaccinationCertificate": "",
@@ -299,7 +299,7 @@ def _empty_source_by_field() -> dict[str, str]:
         "birthCountry": "intentional_empty",
         "birthCity": "intentional_empty",
         "profession": f"default:{DEFAULT_PROFESSION}",
-        "maritalStatus": "intentional_empty",
+        "maritalStatus": f"default:{DEFAULT_MARITAL_STATUS}",
         "iqamaNumber": "intentional_empty",
         "iqamaExpiryDate": "intentional_empty",
         "vaccinationCertificate": "intentional_empty",
@@ -383,25 +383,6 @@ def _country_of_issued(nationality: str, extraction: dict[str, object]) -> str:
     if nationality == "INDONESIA" and country != "INDONESIA":
         return nationality
     return country or nationality
-
-
-def _marital_status(dob: str) -> str:
-    birth_date = _parse_date(dob)
-    if birth_date is None:
-        return ""
-    return "SINGLE" if _age(birth_date) < 18 else "MARRIED"
-
-
-def _parse_date(value: str) -> date | None:
-    try:
-        return date.fromisoformat(value) if value else None
-    except ValueError:
-        return None
-
-
-def _age(birth_date: date) -> int:
-    today = date.today()
-    return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
 
 def _relative_path(path: str) -> str:

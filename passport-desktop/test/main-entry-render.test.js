@@ -41,7 +41,7 @@ test("buildExportPreviewState marks export ready only when allowed and not runni
   });
 
   assert.equal(preview.canExport, true);
-  assert.match(preview.description, /1 passport valid/);
+  assert.match(preview.description, /1 jamaah akan masuk batch/);
 });
 
 test("renderExportSummaryCards and rows render preview data", () => {
@@ -59,8 +59,9 @@ test("renderExportSummaryCards and rows render preview data", () => {
     isEntryRunning: false,
   });
 
-  assert.match(renderExportSummaryCards(preview), /Siap JSON/);
-  assert.match(renderExportPreviewRows(preview), /Masuk JSON/);
+  assert.match(renderExportSummaryCards(preview), /Masuk Batch/);
+  assert.match(renderExportPreviewRows(preview), /Dipakai extension/);
+  assert.match(renderExportPreviewRows(preview), /Reviewed/);
   assert.match(renderExportPreviewRows(preview), /Ali/);
 });
 
@@ -70,11 +71,11 @@ test("reviewExportStatusDescriptor maps export state to label and tone", () => {
     tone: "warn",
   });
   assert.deepEqual(reviewExportStatusDescriptor({ exportedBatchPath: "batch.json" }, { canExport: false }), {
-    label: "JSON siap",
+    label: "JSON dibuat",
     tone: "valid",
   });
   assert.deepEqual(reviewExportStatusDescriptor({}, { canExport: true }), {
-    label: "Siap export",
+    label: "Review selesai",
     tone: "ready",
   });
 });

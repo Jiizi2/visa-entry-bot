@@ -55,7 +55,7 @@ test("view controller renders entry page and delegates entry logs", () => {
 
   controller.renderEntryPage();
 
-  assert.equal(dom.entryStatusPill.textContent, "Siap digunakan");
+  assert.equal(dom.entryStatusPill.textContent, "Review selesai");
   assert.equal(renderEntryLogsCount, 1);
 });
 

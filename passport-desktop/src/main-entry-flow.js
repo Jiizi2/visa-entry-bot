@@ -21,6 +21,7 @@ export function createEntryFlow({
   renderReviewExportModal,
   flushManifestSave,
   createNusukBatch,
+  openJsonLocation = async () => {},
   now = () => new Date(),
 }) {
   function appendEntryLog(message, level = "info") {
@@ -128,9 +129,9 @@ export function createEntryFlow({
       });
       state.exportedBatchPath = batchPath;
       appendEntryLog(`JSON untuk extension dibuat: ${batchPath}`, "success");
-      appendEntryLog("Buka extension EntryMate By Ghaniya, upload JSON ini, lalu pilih folder output batch atau file dari folder nusuk-crops bila ada hasil crop.");
-      state.statusHeadline = "JSON siap diupload";
-      state.statusDetail = `File dibuat di ${batchPath}. Upload JSON ini ke extension, lalu pilih folder output batch agar file crop Nusuk ikut tersedia.`;
+      appendEntryLog("Klik Buka Folder JSON untuk langsung melihat file, lalu upload nusuk-entry-batch.json di extension.");
+      state.statusHeadline = "JSON dibuat";
+      state.statusDetail = `File dibuat di ${batchPath}. Upload file nusuk-entry-batch.json ini ke extension.`;
       renderAll();
     } catch (error) {
       const rawError = String(error ?? "");
@@ -141,6 +142,33 @@ export function createEntryFlow({
       appendEntryLog(`Detail teknis: ${truncateForLog(rawError, 700)}`, "error");
     } finally {
       state.isEntryRunning = false;
+      renderAll();
+    }
+  }
+
+  async function handleOpenJsonLocation() {
+    if (!state.exportedBatchPath) {
+      state.statusHeadline = "JSON belum dibuat";
+      state.statusDetail = "Klik Export to JSON dulu sebelum membuka folder hasil.";
+      appendEntryLog("Folder JSON belum bisa dibuka karena file export belum dibuat.", "warn");
+      renderAll();
+      return;
+    }
+
+    try {
+      state.statusHeadline = "Membuka folder JSON";
+      state.statusDetail = `Membuka lokasi ${state.exportedBatchPath}.`;
+      renderAll();
+      await openJsonLocation(state.exportedBatchPath);
+      state.statusHeadline = "Folder JSON dibuka";
+      state.statusDetail = "Pilih nusuk-entry-batch.json saat upload di extension.";
+      appendEntryLog(`Folder JSON dibuka: ${state.exportedBatchPath}`, "success");
+    } catch (error) {
+      const message = String(error ?? "Gagal membuka folder JSON.");
+      state.statusHeadline = "Gagal membuka folder";
+      state.statusDetail = message;
+      appendEntryLog(`Gagal membuka folder JSON: ${truncateForLog(message, 700)}`, "error");
+    } finally {
       renderAll();
     }
   }
@@ -188,6 +216,7 @@ export function createEntryFlow({
     canExportReviewedJson,
     effectiveSelectedIdsForExport,
     exportPreviewState,
+    handleOpenJsonLocation,
     handlePrepareEntry,
     isMemberReadyForJson,
     renderEntryLogs,

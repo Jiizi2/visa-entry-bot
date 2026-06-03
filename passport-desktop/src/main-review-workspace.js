@@ -9,6 +9,7 @@ import {
   FIELD_CATEGORY_PAIRS,
   REVIEW_FIELDS,
   clampFieldValue,
+  isReviewFieldRequired,
   isDateFieldKey,
   maxLengthForField,
 } from "./main-fields.js";
@@ -139,7 +140,10 @@ export function renderFieldReviewRows({ state, member, members }) {
     const confidenceValue = confidenceValueForMember(member, key);
     const confidencePercent = Math.round(Math.max(0, Math.min(Number(confidenceValue ?? 0), 1)) * 100);
     const charCount = String(finalValue).length;
-    const descriptor = fieldStateDescriptor(ocrValue, finalValue, flags, level, confidenceValue);
+    const required = isReviewFieldRequired(key);
+    const requirementLabel = required ? "Wajib" : "Optional";
+    const requirementTone = required ? "required" : "optional";
+    const descriptor = fieldStateDescriptor(ocrValue, finalValue, flags, level, confidenceValue, { required });
     const normalizedOcr = normalizeText(ocrValue);
     const normalizedFinal = normalizeText(finalValue);
     const hasScanSource = Boolean(normalizedOcr);
@@ -155,7 +159,10 @@ export function renderFieldReviewRows({ state, member, members }) {
 
     return `
       <div class="field-pair-cell${descriptor.rowAlert ? " is-alert" : ""}${blocked ? " is-blocked" : ""}">
-        <div class="field-pair-label">${escapeHtml(label)}</div>
+        <div class="field-pair-label">
+          <span>${escapeHtml(label)}</span>
+          <span class="field-requirement-badge ${requirementTone}">${escapeHtml(requirementLabel)}</span>
+        </div>
         <div class="field-final-cell is-editable${descriptor.rowAlert ? " is-alert" : ""}${blocked ? " is-blocked" : ""}">
           <div class="field-final-stack">
             <input
@@ -166,6 +173,8 @@ export function renderFieldReviewRows({ state, member, members }) {
               ${fieldMaxLength ? `maxlength="${fieldMaxLength}"` : ""}
               placeholder="${escapeHtml(dateField ? "YYYY/MM/DD" : label)}"
               aria-label="${escapeHtml(`Ubah ${label}`)}"
+              aria-required="${required ? "true" : "false"}"
+              ${required ? "required" : ""}
               ${dateField ? 'autocomplete="off" spellcheck="false" inputmode="none"' : ""}
             />
             <div class="field-source-line" title="${escapeHtml(`Sumber scan: ${sourceText}`)}">
@@ -235,7 +244,7 @@ export function renderCompanionReviewPanel({ state, member, members }) {
         <div class="companion-review-copy">
           <span class="companion-pill">Anak - ${escapeHtml(ageLabel)}</span>
           <strong>Companion wajib</strong>
-          <small>${selectedCompanion ? "Siap export" : "Pilih jamaah dewasa"}</small>
+          <small>${selectedCompanion ? "Companion terisi" : "Pilih jamaah dewasa"}</small>
         </div>
         <label class="companion-select-wrap">
           <span>Companion</span>
@@ -260,9 +269,8 @@ export function renderFieldCategoryTabs({ dom, state, member }) {
   }
 
   const resolved = ensureResolvedProfile(member);
-  const extracted = passportExtractedOf(member);
-  const availableKeys = new Set(REVIEW_FIELDS
-    .filter(([key]) => rawValueFrom(resolved, key) || rawValueFrom(extracted, key))
+  const filledFinalKeys = new Set(REVIEW_FIELDS
+    .filter(([key]) => rawValueFrom(resolved, key))
     .map(([key]) => key));
 
   if (!FIELD_CATEGORY_PAIRS.some((item) => item.id === state.activeFieldCategory)) {
@@ -274,13 +282,14 @@ export function renderFieldCategoryTabs({ dom, state, member }) {
       .map((categoryId) => FIELD_CATEGORY_DEFS.find((item) => item.id === categoryId))
       .filter(Boolean);
     const keys = categories.flatMap((category) => category.keys);
-    const total = keys.length;
-    const filled = keys.filter((key) => availableKeys.has(key)).length;
+    const requiredKeys = keys.filter((key) => isReviewFieldRequired(key));
+    const total = requiredKeys.length;
+    const filled = requiredKeys.filter((key) => filledFinalKeys.has(key)).length;
     const active = pair.id === state.activeFieldCategory ? " is-active" : "";
     return `
       <button class="field-category-tab${active}" type="button" data-field-category="${escapeHtml(pair.id)}">
         <span>${escapeHtml(pair.label)}</span>
-        <small>${filled}/${total}</small>
+        <small>${filled}/${total} wajib</small>
       </button>
     `;
   }).join("");
@@ -297,7 +306,7 @@ export function workspaceStatusLabel(member) {
   if (Number(member.confidence ?? 0) < 0.85) {
     return "Perlu dicek";
   }
-  return "Siap digunakan";
+  return "Reviewed";
 }
 
 export function workspaceStatusTone(member) {

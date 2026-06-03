@@ -10,15 +10,19 @@ import {
   isAutoFilledFlag,
 } from "./main-review-helpers.js";
 
-export function fieldStateDescriptor(ocrValue, finalValue, flags, level, confidenceValue) {
+export function fieldStateDescriptor(ocrValue, finalValue, flags, level, confidenceValue, options = {}) {
   const normalizedOcr = normalizeText(ocrValue);
   const normalizedFinal = normalizeText(finalValue);
   const missingFinal = !normalizedFinal;
+  const required = options.required !== false;
   const actionable = hasActionableFlag(flags);
   const hasLowConfidence = flags.includes("LOW_CONFIDENCE") || level === "LOW";
   const derivedOnly = flags.length > 0 && flags.every((flag) => isAutoFilledFlag(flag) || flag === "INTENTIONAL_EMPTY");
   const different = normalizedOcr && normalizedFinal && normalizedOcr !== normalizedFinal;
 
+  if (!required && missingFinal) {
+    return { tone: "ok", symbol: "v", label: "Optional", tooltip: "Field optional boleh kosong.", rowAlert: false };
+  }
   if (missingFinal && normalizedOcr) {
     return { tone: "error", symbol: "x", label: "Error", tooltip: "Bagian ini masih perlu diisi.", rowAlert: true };
   }

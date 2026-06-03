@@ -1,7 +1,7 @@
 import { entryStatusLabel, entryStatusTone, memberReviewStatus } from "./main-entry.js";
 import { isMemberReadyForJson } from "./main-export.js";
 import { escapeHtml } from "./main-utils.js";
-import { memberDisplayName, memberPassport } from "./main-members.js";
+import { memberDisplayName, memberPassport, resolvedProfileOf } from "./main-members.js";
 import {
   passportCropApplied,
 } from "./main-passport-image.js";
@@ -23,7 +23,7 @@ export function buildExportPreviewState({
   const canExport = canExportReviewedJson && !isEntryRunning;
   const description = review.remaining > 0
     ? `${review.reviewed}/${review.total} passport sudah ditandai dicek. Selesaikan review sebelum export JSON.`
-    : `${readyMembers.length} passport valid siap diexport. Data gagal atau skipped tetap tampil di preview dan tidak masuk JSON.`;
+    : `${readyMembers.length} jamaah akan masuk batch extension. Data error, belum reviewed, atau tidak dipilih tetap tampil sebagai pembanding.`;
 
   return {
     members: review.remaining > 0 ? reviewedMembers : members,
@@ -84,7 +84,7 @@ export function renderEntryPageView({ dom, state, preview }) {
     manifestPath: state.manifestPath,
     selectedIdsSize: preview.selectedIds.size,
   };
-  dom.entryStatusPill.textContent = state.exportedBatchPath ? "JSON siap" : entryStatusLabel(statusInput);
+  dom.entryStatusPill.textContent = state.exportedBatchPath ? "JSON dibuat" : entryStatusLabel(statusInput);
   dom.entryStatusPill.className = `status-pill ${state.exportedBatchPath ? "valid" : entryStatusTone(statusInput)}`;
 
   if (dom.entryExportDescription) {
@@ -104,6 +104,10 @@ export function renderEntryPageView({ dom, state, preview }) {
     dom.prepareEntryButton.textContent = state.isEntryRunning ? "Membuat JSON..." : "Export to JSON";
     dom.prepareEntryButton.setAttribute("aria-disabled", dom.prepareEntryButton.disabled ? "true" : "false");
   }
+  if (dom.openJsonLocationButton) {
+    dom.openJsonLocationButton.disabled = !state.exportedBatchPath || state.isEntryRunning;
+    dom.openJsonLocationButton.setAttribute("aria-disabled", dom.openJsonLocationButton.disabled ? "true" : "false");
+  }
 }
 
 export function reviewExportStatusDescriptor(state, preview) {
@@ -111,10 +115,10 @@ export function reviewExportStatusDescriptor(state, preview) {
     return { label: "Export berjalan", tone: "warn" };
   }
   if (state.exportedBatchPath) {
-    return { label: "JSON siap", tone: "valid" };
+    return { label: "JSON dibuat", tone: "valid" };
   }
   if (preview.canExport) {
-    return { label: "Siap export", tone: "ready" };
+    return { label: "Review selesai", tone: "ready" };
   }
   return { label: "Belum siap", tone: "neutral" };
 }
@@ -122,9 +126,9 @@ export function reviewExportStatusDescriptor(state, preview) {
 export function renderExportSummaryCards(preview) {
   return [
     ["Total", preview.members.length],
-    ["Sudah Review", preview.reviewedMembers.length],
-    ["Siap JSON", preview.readyMembers.length],
-    ["Gagal/Skip", preview.failedMembers.length + preview.skippedMembers.length],
+    ["Reviewed", preview.reviewedMembers.length],
+    ["Masuk Batch", preview.readyMembers.length],
+    ["Dilewati", preview.failedMembers.length + preview.skippedMembers.length],
   ].map(([label, value]) => `
     <article class="review-export-summary-card">
       <span>${escapeHtml(label)}</span>
@@ -140,26 +144,38 @@ export function renderExportPreviewRows(preview) {
 }
 
 export function renderReviewExportPreviewRow(member, selectedIds, reviewedMemberIds = new Set()) {
-  const status = memberReviewStatus(member) || "-";
+  const profile = resolvedProfileOf(member);
   const ready = selectedIds.has(String(member.id || "")) && isMemberReadyForJson(member, reviewedMemberIds);
   const passport = memberPassport(member) || "-";
   const name = memberDisplayName(member);
   const fileName = member.fileName || "-";
   const fileLabel = passportCropApplied(member) ? `${fileName} | Crop Nusuk` : fileName;
-  const exportLabel = ready ? "Masuk JSON" : "Tidak diexport";
+  const review = reviewDescriptor(member, reviewedMemberIds);
+  const output = outputDescriptor(member, ready, selectedIds, reviewedMemberIds);
+  const issueDate = profile.releaseDate || profile.issueDate || "";
   return `
     <tr>
-      <td>
-        <strong>${escapeHtml(passport)}</strong>
-        <small>${escapeHtml(fileLabel)}</small>
-      </td>
-      <td>
+      <td class="review-export-main-cell">
         <button class="review-export-member-link" type="button" data-review-member-id="${escapeHtml(member.id ?? "")}">
           ${escapeHtml(name)}
         </button>
+        <strong>${escapeHtml(passport)}</strong>
+        <small>${escapeHtml(fileLabel)}</small>
       </td>
-      <td><span class="review-export-row-status ${escapeHtml(status.toLowerCase())}">${escapeHtml(status)}</span></td>
-      <td>${escapeHtml(exportLabel)}</td>
+      <td class="review-export-data-cell">
+        <span>${escapeHtml(compactMeta("DOB", profile.dob))}</span>
+        <span>${escapeHtml(compactMeta("Nat", profile.nationality))}</span>
+        <span>${escapeHtml(compactMeta("Gender", profile.gender))}</span>
+        <small>${escapeHtml(compactMeta("Issue", issueDate))} | ${escapeHtml(compactMeta("Exp", profile.expiryDate))}</small>
+      </td>
+      <td>
+        <span class="review-export-row-status ${escapeHtml(review.tone)}">${escapeHtml(review.label)}</span>
+        <small>${escapeHtml(review.detail)}</small>
+      </td>
+      <td>
+        <span class="review-export-row-status ${escapeHtml(output.tone)}">${escapeHtml(output.label)}</span>
+        <small>${escapeHtml(output.detail)}</small>
+      </td>
     </tr>
   `;
 }
@@ -170,5 +186,44 @@ export function renderExportResultNode(node, state) {
     ? state.exportError
     : state.exportedBatchPath
       ? `JSON dibuat: ${state.exportedBatchPath}`
-      : "Export akan membuat file nusuk-entry-batch.json dari data valid yang sudah direview.";
+      : "Export akan membuat nusuk-entry-batch.json dari data yang sudah reviewed.";
+}
+
+function compactMeta(label, value) {
+  const text = String(value ?? "").trim();
+  return `${label}: ${text || "-"}`;
+}
+
+function reviewDescriptor(member, reviewedMemberIds = new Set()) {
+  const status = memberReviewStatus(member);
+  const reviewed = Boolean(member?.reviewConfirmed === true || reviewedMemberIds.has(member?.id));
+  if (status === "ERROR") {
+    return { label: "Error", tone: "error", detail: "Tidak masuk batch" };
+  }
+  if (reviewed) {
+    return { label: "Reviewed", tone: "reviewed", detail: "Sudah dicek di desktop" };
+  }
+  if (status === "NEEDS_REVIEW") {
+    return { label: "Perlu review", tone: "needs_review", detail: "Lengkapi data dulu" };
+  }
+  return { label: "Belum reviewed", tone: "pending", detail: "Tandai dicek dulu" };
+}
+
+function outputDescriptor(member, ready, selectedIds, reviewedMemberIds = new Set()) {
+  if (ready) {
+    return { label: "Dipakai extension", tone: "exported", detail: "Autofill dan upload passport" };
+  }
+  const id = String(member?.id || "");
+  const status = memberReviewStatus(member);
+  if (status === "ERROR") {
+    return { label: "Dilewati", tone: "error", detail: "Data OCR error" };
+  }
+  if (selectedIds.size && !selectedIds.has(id)) {
+    return { label: "Tidak dipilih", tone: "pending", detail: "Bukan target batch" };
+  }
+  const reviewed = Boolean(member?.reviewConfirmed === true || reviewedMemberIds.has(member?.id));
+  if (!reviewed) {
+    return { label: "Dilewati", tone: "pending", detail: "Belum reviewed" };
+  }
+  return { label: "Dilewati", tone: "pending", detail: "Data belum lengkap" };
 }

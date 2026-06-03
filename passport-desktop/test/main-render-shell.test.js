@@ -72,8 +72,8 @@ test("topbar status and descriptor reflect app state", () => {
   });
   assert.deepEqual(topbarDescriptor({ currentPage: "entry", manifestPath: "manifest.json" }), {
     eyebrow: "",
-    title: "Preview & Export JSON",
-    statusLabel: "Siap",
+    title: "Export JSON",
+    statusLabel: "Review selesai",
     statusTone: "ready",
     compact: true,
     hidden: false,
