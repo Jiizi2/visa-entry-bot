@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createImportViewController } from "../src/main-import-view.js";
+import { createImportViewController } from "../src/features/import/view.js";
 
 class FakeInput {
   constructor(value, checked = false) {

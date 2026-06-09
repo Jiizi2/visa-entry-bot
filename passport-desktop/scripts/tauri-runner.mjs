@@ -7,6 +7,19 @@ import { execFile } from "node:child_process";
 
 const execFileAsync = promisify(execFile);
 
+function normalizeEnvPath(env) {
+  let pathValue = "";
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === "path") {
+      if (env[key]) {
+        pathValue = env[key];
+      }
+      delete env[key];
+    }
+  }
+  env.PATH = pathValue;
+}
+
 const cargoBinCandidates = [
   process.env.CARGO_HOME ? join(process.env.CARGO_HOME, "bin") : null,
   process.env.USERPROFILE ? join(process.env.USERPROFILE, ".cargo", "bin") : null,
@@ -19,6 +32,8 @@ const discoveredCargoBin = cargoBinCandidates.find((candidate) =>
 );
 
 const environment = { ...process.env };
+normalizeEnvPath(environment);
+
 if (discoveredCargoBin) {
   const existingPath = environment.PATH || "";
   const pathParts = existingPath.split(delimiter).filter(Boolean);
@@ -193,6 +208,7 @@ async function loadVsDevEnvironment({ baseEnv, vsDevCmd, windowsCmd }) {
     mergedEnvironment[key] = value;
   }
 
+  normalizeEnvPath(mergedEnvironment);
   return mergedEnvironment;
 }
 
@@ -258,22 +274,23 @@ function mergePathList(preferredEntries, existingValue) {
 }
 
 async function startFrontendDevServer({ env }) {
-  const serverScript = join(process.cwd(), "scripts", "dev-frontend-server.mjs");
-  const child = spawn(process.execPath, [serverScript], {
+  const viteBin = join(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "vite.cmd" : "vite");
+  const child = spawn(viteBin, ["--config", "vite.config.ts"], {
     stdio: ["ignore", "pipe", "inherit"],
     env,
-    shell: false,
+    shell: true,
+    cwd: process.cwd(),
   });
 
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error("Frontend dev server tidak merespons."));
-    }, 10000);
+      reject(new Error("Vite dev server tidak merespons."));
+    }, 15000);
 
     child.stdout.on("data", (chunk) => {
       const text = String(chunk || "");
       process.stdout.write(text);
-      if (text.includes("frontend-dev-server listening")) {
+      if (text.includes("Local:") || text.includes("localhost") || text.includes("127.0.0.1")) {
         clearTimeout(timeout);
         resolve();
       }
@@ -286,9 +303,10 @@ async function startFrontendDevServer({ env }) {
 
     child.on("exit", (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Frontend dev server berhenti lebih awal dengan kode ${code ?? "null"}.`));
+      reject(new Error(`Vite dev server berhenti lebih awal dengan kode ${code ?? "null"}.`));
     });
   });
 
   return child;
 }
+

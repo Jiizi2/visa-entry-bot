@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPassportPreviewActions } from "../src/main-passport-preview-actions.js";
+import { createPassportPreviewActions } from "../src/features/passport/preview-actions.js";
 
 test("passport preview actions initialize and proxy controller calls", () => {
   const calls = [];

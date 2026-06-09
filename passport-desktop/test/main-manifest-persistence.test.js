@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createManifestPersistence } from "../src/main-manifest-persistence.js";
+import { createManifestPersistence } from "../src/shared/manifest-persistence.js";
 
 function createTimerWindow() {
   const timers = [];

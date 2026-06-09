@@ -10,7 +10,7 @@ import {
   memberPassport,
   normalizeCompanionRelation,
   syncMemberChildMetadata,
-} from "../src/main-members.js";
+} from "../src/shared/members.js";
 
 test("memberDisplayName prefers resolved profile names", () => {
   assert.equal(

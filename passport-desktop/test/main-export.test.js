@@ -8,7 +8,7 @@ import {
   effectiveSelectedIdsForExport,
   isMemberReadyForJson,
   validateCompanionsForExport,
-} from "../src/main-export.js";
+} from "../src/shared/export.js";
 
 test("defaultSelectedIds returns entry-ready member ids", () => {
   assert.deepEqual(defaultSelectedIds({

@@ -6,7 +6,7 @@ import {
   countMembersByStatus,
   isMemberReadyForEntry,
   memberReviewStatus,
-} from "../src/main-entry.js";
+} from "../src/features/entry/entry.js";
 
 test("memberReviewStatus prefers reviewStatus and falls back to status", () => {
   assert.equal(memberReviewStatus({ reviewStatus: "NEEDS_REVIEW", status: "VALID" }), "NEEDS_REVIEW");

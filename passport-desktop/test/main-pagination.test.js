@@ -6,7 +6,7 @@ import {
   paginationState,
   passportListSummaryText,
   reviewPaginationSummaryText,
-} from "../src/main-pagination.js";
+} from "../src/shared/pagination.js";
 
 test("paginationState clamps current page and computes item range", () => {
   assert.deepEqual(paginationState(18, { currentPage: 3, pageSize: 8 }), {

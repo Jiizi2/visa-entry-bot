@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRememberedRecentBatches } from "../src/main-recent-batches.js";
+import { buildRememberedRecentBatches } from "../src/features/recent/batches.js";
 
 test("buildRememberedRecentBatches preserves edited labels for existing paths", () => {
   const entries = [{

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createReviewFlow } from "../src/main-review-flow.js";
+import { createReviewFlow } from "../src/features/review/flow.js";
 
 function createFocusableNode(dataset = {}) {
   return {

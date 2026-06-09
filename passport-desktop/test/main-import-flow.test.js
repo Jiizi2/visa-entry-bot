@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   createImportWorkflow,
   normalizePathForCompare,
-} from "../src/main-import-flow.js";
+} from "../src/features/import/flow.js";
 
 function createClassList() {
   const classes = new Set(["is-hidden"]);

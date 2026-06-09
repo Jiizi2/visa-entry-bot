@@ -7,7 +7,7 @@ import {
   renderProgressPanelView,
   renderScanLogsView,
   scanConsoleStatusDescriptor,
-} from "../src/main-scan-render.js";
+} from "../src/features/scan/render.js";
 
 function node() {
   return {

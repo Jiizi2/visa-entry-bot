@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createManifestWorkflow } from "../src/main-manifest-workflow.js";
+import { createManifestWorkflow } from "../src/shared/manifest-workflow.js";
 
 function createFixture(overrides = {}) {
   const members = overrides.members ?? [

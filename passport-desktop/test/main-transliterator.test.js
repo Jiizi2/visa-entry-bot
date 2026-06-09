@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { transliterateName } from "../src/main-transliterator.js";
+import { transliterateName } from "../src/shared/transliterator.js";
 
 test("transliterateName uses common and batch overrides", () => {
   assert.equal(transliterateName("MUHAMMAD"), "\u0645\u062d\u0645\u062f");

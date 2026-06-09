@@ -7,7 +7,7 @@ import {
   scanTimingSummary,
   scanTimingSummaryFromPerformance,
   scanTimingSummaryFromValues,
-} from "../src/main-metrics.js";
+} from "../src/shared/metrics.js";
 
 test("memberScanTotalMs normalizes processing duration", () => {
   assert.equal(memberScanTotalMs({ processingMetrics: { totalMs: 1200.6 } }), 1201);

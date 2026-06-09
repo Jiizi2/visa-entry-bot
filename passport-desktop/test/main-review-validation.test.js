@@ -7,7 +7,7 @@ import {
   missingRequiredReviewFields,
   requiredFieldBlockingIssueForBatch,
   reviewCompletionValidation,
-} from "../src/main-review-validation.js";
+} from "../src/features/review/validation.js";
 
 function yearsAgoDate(yearsAgo) {
   const now = new Date();

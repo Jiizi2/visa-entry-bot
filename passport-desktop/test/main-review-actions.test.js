@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FIELD_CATEGORY_PAIRS } from "../src/main-fields.js";
-import { createReviewActions } from "../src/main-review-actions.js";
+import { FIELD_CATEGORY_PAIRS } from "../src/shared/fields.js";
+import { createReviewActions } from "../src/features/review/actions.js";
 
 function createMember(id, firstName = "Adult") {
   return {

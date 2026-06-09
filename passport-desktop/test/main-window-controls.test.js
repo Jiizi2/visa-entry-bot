@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   bindWindowControls,
   updateMaximizeButton,
-} from "../src/main-window-controls.js";
+} from "../src/core/window-controls.js";
 
 function fakeButton() {
   const listeners = new Map();

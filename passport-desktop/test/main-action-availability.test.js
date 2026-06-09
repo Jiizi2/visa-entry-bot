@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createActionAvailabilityController } from "../src/main-action-availability.js";
+import { createActionAvailabilityController } from "../src/core/action-availability.js";
 
 function createClassList() {
   const classes = new Set();

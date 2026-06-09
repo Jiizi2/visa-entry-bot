@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bindActions } from "../src/main-actions.js";
+import { bindActions } from "../src/core/actions.js";
 
 function fakeNode(dataset = {}) {
   const listeners = new Map();

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createSessionDataController } from "../src/main-session-data.js";
+import { createSessionDataController } from "../src/shared/session-data.js";
 
 function withLocalStorage(callback) {
   const previousStorage = globalThis.localStorage;

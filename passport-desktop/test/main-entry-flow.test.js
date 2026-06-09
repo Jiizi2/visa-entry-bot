@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   createEntryFlow,
   truncateForLog,
-} from "../src/main-entry-flow.js";
+} from "../src/features/entry/flow.js";
 
 function createAdultMember(id = "member-1") {
   return {

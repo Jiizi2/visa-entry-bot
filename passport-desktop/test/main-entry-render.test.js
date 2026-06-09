@@ -6,7 +6,7 @@ import {
   renderExportPreviewRows,
   renderExportSummaryCards,
   reviewExportStatusDescriptor,
-} from "../src/main-entry-render.js";
+} from "../src/features/entry/render.js";
 
 test("buildExportPreviewState limits visible members while review remains incomplete", () => {
   const members = [

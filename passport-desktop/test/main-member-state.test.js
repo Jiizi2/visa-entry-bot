@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createMemberStateController } from "../src/main-member-state.js";
+import { createMemberStateController } from "../src/shared/member-state.js";
 
 function createMember(id, status, reviewConfirmed = false) {
   return {

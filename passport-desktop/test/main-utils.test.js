@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatDurationMs } from "../src/main-utils.js";
+import { formatDurationMs } from "../src/shared/utils.js";
 
 test("formatDurationMs renders scan timing labels", () => {
   assert.equal(formatDurationMs(0), "-");

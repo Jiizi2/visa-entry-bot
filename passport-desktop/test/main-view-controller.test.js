@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createViewController } from "../src/main-view-controller.js";
+import { createViewController } from "../src/core/view-controller.js";
 
 function node() {
   return {

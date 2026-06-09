@@ -7,7 +7,7 @@ import {
   normalizeCropRect,
   passportCropModeDescriptor,
   updateCropRectForInteraction,
-} from "../src/main-passport-crop.js";
+} from "../src/features/passport/crop.js";
 
 test("clampPassportCropZoom keeps crop zoom within supported bounds", () => {
   assert.equal(clampPassportCropZoom(0.2), 0.75);

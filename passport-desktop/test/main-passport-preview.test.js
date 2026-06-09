@@ -5,7 +5,7 @@ import {
   PASSPORT_PREVIEW_ZOOM_DEFAULT,
   clampPassportPreviewZoom,
   createPassportPreviewController,
-} from "../src/main-passport-preview.js";
+} from "../src/features/passport/preview.js";
 
 function fakeElement() {
   const classes = new Set();

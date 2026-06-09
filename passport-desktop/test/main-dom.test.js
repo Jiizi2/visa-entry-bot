@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bindDom } from "../src/main-dom.js";
+import { bindDom } from "../src/core/dom.js";
 
 function fakeRoot() {
   const singleNodes = new Map();

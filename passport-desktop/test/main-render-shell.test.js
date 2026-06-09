@@ -6,7 +6,7 @@ import {
   currentTopbarStatus,
   renderNavigation,
   topbarDescriptor,
-} from "../src/main-render-shell.js";
+} from "../src/core/render-shell.js";
 
 function createClassList() {
   const classes = new Set();

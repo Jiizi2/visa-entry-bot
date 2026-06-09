@@ -8,7 +8,7 @@ import {
   renderWorkspaceView,
   workspaceStatusLabel,
   workspaceStatusTone,
-} from "../src/main-review-workspace.js";
+} from "../src/features/review/workspace.js";
 
 function createClassList() {
   const classes = new Set();

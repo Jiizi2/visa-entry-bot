@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPageFlow } from "../src/main-page-flow.js";
+import { createPageFlow } from "../src/core/page-flow.js";
 
 function createClassList() {
   const classes = new Set();

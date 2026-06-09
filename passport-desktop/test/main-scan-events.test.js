@@ -5,7 +5,7 @@ import {
   formatStageLog,
   handleScanEventPayload,
   setupScanEventBridge,
-} from "../src/main-scan-events.js";
+} from "../src/features/scan/events.js";
 
 function baseState() {
   return {

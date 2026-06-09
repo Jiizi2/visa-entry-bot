@@ -6,7 +6,7 @@ import {
   loadOcrMode,
   normalizeOcrMode,
   ocrModeLabel,
-} from "../src/main-ocr.js";
+} from "../src/shared/ocr.js";
 
 test("normalizeOcrMode accepts known modes and falls back to default", () => {
   assert.equal(normalizeOcrMode("BALANCED"), "balanced");

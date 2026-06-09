@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPassportDeleteActions } from "../src/main-passport-delete-actions.js";
+import { createPassportDeleteActions } from "../src/features/passport/delete-actions.js";
 
 function createClassList() {
   const classes = new Set(["is-hidden"]);

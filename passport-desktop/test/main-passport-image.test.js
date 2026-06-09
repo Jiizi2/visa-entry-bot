@@ -7,7 +7,7 @@ import {
   passportCropSourceImageCandidates,
   passportUploadImagePathForMember,
   preservePassportCropFields,
-} from "../src/main-passport-image.js";
+} from "../src/features/passport/image.js";
 
 test("passport image helpers prefer cropped upload path and keep original source", () => {
   const member = {

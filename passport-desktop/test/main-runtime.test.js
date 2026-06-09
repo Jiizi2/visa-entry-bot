@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRuntimeController } from "../src/main-runtime.js";
+import { createRuntimeController } from "../src/core/runtime.js";
 
 function createFixture(overrides = {}) {
   const state = {

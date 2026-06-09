@@ -5,7 +5,8 @@
   "identifier": "com.ghaniya.entrymate",
   "build": {
     "devUrl": "http://127.0.0.1:1430",
-    "frontendDist": "../src"
+    "frontendDist": "../dist",
+    "beforeBuildCommand": "npm run build:frontend"
   },
   "app": {
     "withGlobalTauri": true,

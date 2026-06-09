@@ -5,7 +5,7 @@ import {
   errorMessage,
   startRendererHeartbeat,
   tauriBindings,
-} from "../src/main-system.js";
+} from "../src/core/system.js";
 
 test("errorMessage normalizes thrown values", () => {
   assert.equal(errorMessage(new Error("boom")), "boom");

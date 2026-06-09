@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createWorkspaceDatePickerController } from "../src/main-date-pickers.js";
+import { createWorkspaceDatePickerController } from "../src/shared/date-pickers.js";
 
 class FakeEvent {
   constructor(type, options = {}) {

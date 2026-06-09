@@ -5,7 +5,7 @@ import {
   arabicFieldForLatinName,
   isReviewFieldRequired,
   transliteratedArabicValueForField,
-} from "../src/main-fields.js";
+} from "../src/shared/fields.js";
 
 test("latin name fields map to matching arabic fields", () => {
   assert.equal(arabicFieldForLatinName("firstName"), "arabic.firstName");

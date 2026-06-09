@@ -6,7 +6,7 @@ import {
   passportListPaginationState,
   renderPassportListItem,
   renderPassportListView,
-} from "../src/main-passport-list-render.js";
+} from "../src/features/passport/list-render.js";
 
 function createClassList() {
   const classes = new Set();

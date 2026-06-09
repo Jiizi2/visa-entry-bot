@@ -5,7 +5,7 @@ import {
   createInitialState,
   MANIFEST_SAVE_DELAY_MS,
   STORAGE_KEYS,
-} from "../src/main-state.js";
+} from "../src/core/state.js";
 
 test("createInitialState returns default app state", () => {
   const state = createInitialState();

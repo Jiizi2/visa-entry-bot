@@ -8,7 +8,7 @@ import {
   renderMiniStatus,
   renderRecentActionIcon,
   renderRecentBatchesView,
-} from "../src/main-import-render.js";
+} from "../src/features/import/render.js";
 
 test("importFooterMessage describes selected-folder conflicts and completed scans", () => {
   assert.equal(importFooterMessage({

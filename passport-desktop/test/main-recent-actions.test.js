@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRecentBatchActions } from "../src/main-recent-actions.js";
+import { createRecentBatchActions } from "../src/features/recent/actions.js";
 
 function createModal() {
   const classes = new Set(["is-hidden"]);
