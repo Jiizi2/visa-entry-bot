@@ -13,6 +13,36 @@ export function renderImportPageView({
   const hasResultForSelected = hasScanResultForSelectedDir();
   const hasPreparedForSelected = hasPreparedSessionForSelectedDir(state);
 
+  // Render default entry input values
+  if (dom.defaultProfession) dom.defaultProfession.value = state.defaultProfession || "";
+  if (dom.defaultMaritalStatus) dom.defaultMaritalStatus.value = state.defaultMaritalStatus || "";
+  if (dom.defaultPassportType) dom.defaultPassportType.value = state.defaultPassportType || "";
+  if (dom.defaultEmail) dom.defaultEmail.value = state.defaultEmail || "";
+  if (dom.defaultMobileNumber) dom.defaultMobileNumber.value = state.defaultMobileNumber || "";
+
+  // Render active defaults count badge
+  let activeCount = 0;
+  if (state.defaultProfession) activeCount++;
+  if (state.defaultMaritalStatus) activeCount++;
+  if (state.defaultPassportType) activeCount++;
+  if (state.defaultEmail) activeCount++;
+  if (state.defaultMobileNumber) activeCount++;
+  if (dom.activeDefaultsBadge) {
+    dom.activeDefaultsBadge.textContent = `${activeCount} default aktif`;
+  }
+
+  // Update disabled states for defaults form
+  const defaultsBusy = Boolean(state.isScanning || state.isPreparingImages);
+  if (dom.defaultProfession) dom.defaultProfession.disabled = defaultsBusy;
+  if (dom.defaultMaritalStatus) dom.defaultMaritalStatus.disabled = defaultsBusy;
+  if (dom.defaultPassportType) dom.defaultPassportType.disabled = defaultsBusy;
+  if (dom.defaultEmail) dom.defaultEmail.disabled = defaultsBusy;
+  if (dom.defaultMobileNumber) dom.defaultMobileNumber.disabled = defaultsBusy;
+  if (dom.applyDefaultButton) {
+    const hasMembers = Boolean(state.manifest?.members?.length);
+    dom.applyDefaultButton.disabled = defaultsBusy || !hasMembers;
+  }
+
   if (state.selectedDir) {
     dom.selectedFolderName.textContent = basenameFromPath(state.selectedDir);
     dom.selectedFolderCaption.textContent = state.selectedDir;
@@ -68,8 +98,13 @@ export function renderImportPageView({
 export function renderOcrModeSelectorView({ dom, state }) {
   for (const input of dom.ocrModeInputs || []) {
     const mode = normalizeOcrMode(input.value);
-    input.checked = mode === normalizeOcrMode(state.ocrMode);
+    const checked = mode === normalizeOcrMode(state.ocrMode);
+    input.checked = checked;
     input.disabled = Boolean(state.isScanning || state.isPreparingImages);
+    const parentLabel = typeof input.closest === "function" ? input.closest(".ocr-radio-card") : null;
+    if (parentLabel) {
+      parentLabel.classList.toggle("is-active", checked);
+    }
   }
 }
 

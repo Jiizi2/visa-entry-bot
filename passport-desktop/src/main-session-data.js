@@ -55,6 +55,39 @@ export function createSessionDataController({
     state.ocrMode = normalizeOcrMode(value);
   }
 
+  function loadDefaultEntries() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.defaults);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && typeof parsed === "object") {
+          state.defaultProfession = parsed.profession || state.defaultProfession;
+          state.defaultMaritalStatus = parsed.maritalStatus || state.defaultMaritalStatus;
+          state.defaultPassportType = parsed.passportType || state.defaultPassportType;
+          state.defaultEmail = parsed.email || state.defaultEmail;
+          state.defaultMobileNumber = parsed.mobileNumber || state.defaultMobileNumber;
+        }
+      }
+    } catch (e) {
+      console.error("Gagal memuat default entries dari localStorage:", e);
+    }
+  }
+
+  function saveDefaultEntries() {
+    try {
+      const data = {
+        profession: state.defaultProfession,
+        maritalStatus: state.defaultMaritalStatus,
+        passportType: state.defaultPassportType,
+        email: state.defaultEmail,
+        mobileNumber: state.defaultMobileNumber,
+      };
+      localStorage.setItem(STORAGE_KEYS.defaults, JSON.stringify(data));
+    } catch (e) {
+      console.error("Gagal menyimpan default entries ke localStorage:", e);
+    }
+  }
+
   return {
     appendScanLog,
     loadRecentBatches,
@@ -63,5 +96,7 @@ export function createSessionDataController({
     rememberRecentBatch,
     saveRecentBatches,
     updateOcrMode,
+    loadDefaultEntries,
+    saveDefaultEntries,
   };
 }

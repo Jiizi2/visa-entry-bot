@@ -132,6 +132,11 @@ export function renderPageVisibility({ dom, state, documentRef = globalThis.docu
   dom.pageScan?.classList.toggle("is-hidden", state.currentPage !== "scan");
   dom.pageValidation?.classList.toggle("is-hidden", state.currentPage !== "validation");
   dom.pageEntry?.classList.toggle("is-hidden", state.currentPage !== "entry");
+
+  if (documentRef.body) {
+    documentRef.body.classList.toggle("page-import", state.currentPage === "import");
+  }
+
   const topbarNode = documentRef?.querySelector?.(".topbar");
   if (topbarNode) {
     topbarNode.style.display = "flex";
@@ -148,6 +153,12 @@ export function renderTopbar({ dom, state, documentRef = globalThis.document }) 
   dom.topbarStatus.className = `status-chip ${topbar.statusTone}`;
   topbarNode?.classList.toggle("is-compact", Boolean(topbar.compact));
   topbarNode?.classList.toggle("is-hidden", Boolean(topbar.hidden));
+
+  const importStatusNode = documentRef?.querySelector?.("#topbar-status-import");
+  if (importStatusNode) {
+    importStatusNode.textContent = topbar.statusLabel;
+    importStatusNode.className = `status-chip ${topbar.statusTone}`;
+  }
 }
 
 export function topbarDescriptor(state) {

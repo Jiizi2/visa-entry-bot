@@ -1,11 +1,842 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EntryMate By Ghaniya</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <style>
-      html, body { margin: 0; min-height: 100%; background: #f9f9fd; color: #191c1e; }
+      :root {
+        --em-primary: #004ac6;
+        --em-primary-tint: #0053db;
+        --em-primary-fixed-dim: rgba(180, 197, 255, 0.2);
+        --em-primary-fixed: #dbe1ff;
+        --em-background: #f7f9fb;
+        --em-surface-lowest: #ffffff;
+        --em-surface-low: #f2f4f6;
+        --em-surface-container: #eceef0;
+        --em-surface-high: #e6e8ea;
+        --em-surface-highest: #e0e3e5;
+        --em-on-surface: #191c1e;
+        --em-on-surface-variant: #434655;
+        --em-outline-variant: rgba(195, 198, 215, 0.4);
+        --em-error: #ba1a1a;
+        --em-error-container: #ffdad6;
+        --em-tertiary: #005a82;
+        --em-tertiary-container: #0074a6;
+      }
+      
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--em-background);
+        color: var(--em-on-surface);
+        font-family: 'Inter', sans-serif;
+      }
+
+      /* Stepper Titlebar Layout */
+      .window-titlebar {
+        font-family: 'Inter', sans-serif;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .titlebar-stepper-layout {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding-right: 120px;
+      }
+      body.page-import .titlebar-standard-layout { display: none !important; }
+      body.page-import .titlebar-stepper-layout { display: flex !important; }
+      body:not(.page-import) .titlebar-standard-layout { display: flex !important; }
+      body:not(.page-import) .titlebar-stepper-layout { display: none !important; }
+      body.page-import .topbar { display: none !important; }
+      body.page-import .sidebar { display: none !important; }
+
+      /* Brand Styling in Stepper */
+      .brand-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand-logo-em {
+        background: linear-gradient(135deg, var(--em-primary), var(--em-primary-tint));
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      }
+      .brand-title-text {
+        font-family: 'Hanken Grotesk', sans-serif;
+        font-size: 18px;
+        color: var(--em-on-surface);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .by-badge {
+        font-family: 'Inter', sans-serif;
+        font-weight: 400;
+        font-size: 11px;
+        color: var(--em-on-surface-variant);
+        background-color: var(--em-surface-low);
+        padding: 2px 8px;
+        border-radius: 9999px;
+      }
+
+      /* Stepper Container */
+      .stepper-container {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+      }
+      .nav-step-btn {
+        background: none;
+        border: none;
+        padding: 4px 0;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+      .step-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        background-color: var(--em-surface-high);
+        color: var(--em-on-surface-variant);
+        transition: all 0.2s ease;
+      }
+      .step-label {
+        display: flex;
+        flex-col: column;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .step-title {
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--em-on-surface-variant);
+        opacity: 0.6;
+        transition: all 0.2s ease;
+      }
+      .step-desc {
+        font-size: 11px;
+        color: var(--em-on-surface-variant);
+        opacity: 0.5;
+        transition: all 0.2s ease;
+      }
+
+      /* Stepper active state */
+      .nav-step-btn.is-active .step-circle {
+        background: linear-gradient(135deg, var(--em-primary), var(--em-primary-tint));
+        color: white;
+        box-shadow: 0 4px 10px rgba(0, 74, 198, 0.2);
+      }
+      .nav-step-btn.is-active .step-title {
+        color: var(--em-primary);
+        font-weight: 700;
+        opacity: 1;
+        border-bottom: 2px solid var(--em-primary);
+        padding-bottom: 2px;
+      }
+      .nav-step-btn.is-active .step-desc {
+        color: var(--em-primary);
+        opacity: 0.8;
+      }
+
+      /* Stepper complete state */
+      .nav-step-btn.is-complete .step-circle {
+        background-color: #10b981;
+        color: white;
+      }
+      .nav-step-btn.is-complete .step-title {
+        color: var(--em-on-surface);
+        font-weight: 600;
+        opacity: 0.85;
+      }
+
+      /* Page Import (Redesigned Page 1) Layout */
+      #page-import.page-section {
+        background: var(--em-background);
+        position: relative;
+        padding: 24px;
+        max-width: 1440px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      #page-import * {
+        box-sizing: border-box;
+      }
+
+      /* Background overlays */
+      .import-bg-overlay-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(to right, #f2f4f6 1px, transparent 1px), linear-gradient(to bottom, #f2f4f6 1px, transparent 1px);
+        background-size: 40px 40px;
+        opacity: 0.5;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .import-bg-blob-1 {
+        position: absolute;
+        top: -10%;
+        left: -5%;
+        width: 40%;
+        height: 40%;
+        background-color: rgba(180, 197, 255, 0.2);
+        border-radius: 50%;
+        filter: blur(100px);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .import-bg-blob-2 {
+        position: absolute;
+        bottom: -10%;
+        right: -5%;
+        width: 40%;
+        height: 40%;
+        background-color: rgba(137, 206, 255, 0.2);
+        border-radius: 50%;
+        filter: blur(100px);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Layout grid split */
+      .import-main-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 24px;
+        align-items: stretch;
+        position: relative;
+        z-index: 10;
+        margin-top: 16px;
+      }
+      @media (max-width: 1024px) {
+        .import-main-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Scoped Card Styles */
+      .import-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        border: 1px solid var(--em-outline-variant);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+        padding: 24px;
+        transition: box-shadow 0.3s ease;
+      }
+      .import-card:hover {
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+      }
+
+      /* Top Folder Card */
+      .folder-select-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 10;
+      }
+      @media (max-width: 768px) {
+        .folder-select-card {
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+      .folder-info-group {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .folder-icon-stage {
+        width: 56px;
+        height: 56px;
+        background: linear-gradient(135deg, var(--em-primary-fixed), var(--em-primary-fixed-dim));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 2px 4px rgba(255,255,255,0.4);
+      }
+      .folder-icon-stage span {
+        color: var(--em-primary);
+        font-size: 28px;
+        transition: transform 0.3s ease;
+      }
+      .folder-select-card:hover .folder-icon-stage span {
+        transform: scale(1.1);
+      }
+      .folder-texts h2 {
+        font-family: 'Hanken Grotesk', sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--em-on-surface);
+      }
+      .folder-texts p {
+        font-size: 14px;
+        margin: 0;
+        color: var(--em-on-surface-variant);
+      }
+
+      .folder-controls-group {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-grow: 1;
+        justify-content: flex-end;
+      }
+      @media (max-width: 768px) {
+        .folder-controls-group {
+          width: 100%;
+        }
+      }
+      .folder-input-wrapper {
+        position: relative;
+        width: 320px;
+      }
+      @media (max-width: 768px) {
+        .folder-input-wrapper {
+          width: 100%;
+          flex-grow: 1;
+        }
+      }
+      .folder-input-wrapper span {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(115, 118, 134, 0.5);
+        font-size: 20px;
+      }
+      .folder-input-wrapper input {
+        width: 100%;
+        background-color: var(--em-surface-low);
+        border: 1px solid var(--em-outline-variant);
+        border-radius: 12px;
+        padding: 11px 16px 11px 44px;
+        font-size: 14px;
+        outline: none;
+        color: var(--em-on-surface);
+        transition: all 0.2s ease;
+      }
+      .folder-input-wrapper input:focus {
+        border-color: var(--em-primary);
+        box-shadow: 0 0 0 3px rgba(0, 74, 198, 0.15);
+      }
+      .choose-folder-btn {
+        background: linear-gradient(135deg, var(--em-primary), var(--em-primary-tint));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 28px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 74, 198, 0.1);
+      }
+      .choose-folder-btn:hover {
+        box-shadow: 0 6px 15px rgba(0, 74, 198, 0.25);
+        transform: translateY(-1px);
+      }
+
+      /* OCR Mode Card styles */
+      .ocr-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .ocr-header h4 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--em-primary);
+        letter-spacing: 0.1em;
+      }
+      .ocr-header h3 {
+        font-family: 'Hanken Grotesk', sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 4px 0 0 0;
+        color: var(--em-on-surface);
+      }
+      .ocr-config-btn {
+        background-color: var(--em-surface-container);
+        color: var(--em-on-surface);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+      }
+      .ocr-config-btn:hover {
+        background-color: var(--em-surface-highest);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      }
+      
+      .ocr-mode-selector-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 640px) {
+        .ocr-mode-selector-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Scoped Radio Card */
+      .ocr-radio-card {
+        border: 1px solid var(--em-outline-variant);
+        background-color: var(--em-surface-lowest);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+      .ocr-radio-card:hover {
+        background-color: var(--em-surface-low);
+        border-color: var(--em-outline-variant);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      }
+      .ocr-radio-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .ocr-card-icon {
+        width: 40px;
+        height: 40px;
+        background-color: var(--em-surface-low);
+        border: 1px solid var(--em-outline-variant);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--em-tertiary);
+        transition: all 0.2s ease;
+      }
+      .ocr-card-icon span {
+        font-size: 24px;
+      }
+      .ocr-card-texts strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: var(--em-on-surface);
+      }
+      .ocr-card-texts span {
+        font-size: 12px;
+        color: var(--em-on-surface-variant);
+      }
+
+      /* Active OCR state */
+      .ocr-radio-card.is-active {
+        border-width: 2px;
+        border-color: var(--em-primary);
+        background-color: rgba(219, 225, 255, 0.15);
+        box-shadow: 0 2px 8px rgba(0, 74, 198, 0.05);
+      }
+      .ocr-radio-card.is-active .ocr-card-icon {
+        background-color: white;
+        border-color: rgba(0, 74, 198, 0.15);
+      }
+      .ocr-radio-card.is-active .ocr-card-texts span {
+        color: var(--em-primary);
+        font-weight: 600;
+        background-color: rgba(255, 255, 255, 0.5);
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .bolt-icon {
+        background: linear-gradient(br, #fb923c, #ef4444);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      /* Default Entry (Nilai Rombongan) Card */
+      .default-entry-card {
+        margin-top: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+      .card-gradient-overlay {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 120px;
+        height: 120px;
+        background-color: rgba(0, 74, 198, 0.03);
+        border-bottom-left-radius: 100%;
+        pointer-events: none;
+      }
+      .default-entry-card .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--em-on-surface-variant);
+        letter-spacing: 0.1em;
+      }
+      .default-entry-card h3 {
+        font-family: 'Hanken Grotesk', sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 4px 0 24px 0;
+        color: var(--em-on-surface);
+      }
+      .info-icon-span {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        color: rgba(0, 74, 198, 0.6);
+        font-size: 20px;
+        cursor: help;
+        display: inline-block;
+        vertical-align: middle;
+      }
+      .inputs-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      @media (max-width: 640px) {
+        .inputs-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .group-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .group-field.full-width {
+        grid-column: span 2;
+        margin-bottom: 32px;
+      }
+      @media (max-width: 640px) {
+        .group-field.full-width {
+          grid-column: span 1;
+        }
+      }
+      .group-field label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--em-on-surface-variant);
+        letter-spacing: 0.05em;
+      }
+      .input-wrapper {
+        position: relative;
+        width: 100%;
+      }
+      .input-wrapper .input-icon {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--em-on-surface-variant);
+        font-size: 20px;
+        transition: color 0.2s ease;
+      }
+      .input-wrapper .input-icon.primary-color {
+        color: var(--em-primary);
+      }
+      .input-wrapper .input-icon.pink-color {
+        color: #ec4899;
+      }
+      .input-wrapper input {
+        width: 100%;
+        background-color: var(--em-surface-lowest);
+        border: 1px solid var(--em-outline-variant);
+        border-radius: 12px;
+        padding: 11px 16px 11px 44px;
+        font-size: 14px;
+        outline: none;
+        color: var(--em-on-surface);
+        transition: all 0.2s ease;
+      }
+      .input-wrapper input:focus {
+        border-color: var(--em-primary);
+        box-shadow: 0 0 0 3px rgba(0, 74, 198, 0.15);
+      }
+      .input-wrapper:focus-within .input-icon {
+        color: var(--em-primary);
+      }
+      
+      .apply-default-btn {
+        background-color: var(--em-surface-lowest);
+        color: var(--em-on-surface);
+        border: 1px solid var(--em-outline-variant);
+        border-radius: 12px;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+      }
+      .apply-default-btn:hover {
+        background-color: var(--em-surface-low);
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      }
+      .apply-default-btn .btn-icon {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        font-size: 18px;
+      }
+      
+      .active-badge-wrapper {
+        background-color: var(--em-surface-low);
+        padding: 6px 12px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #10b981;
+      }
+      .active-badge-wrapper span {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--em-on-surface-variant);
+      }
+
+      /* Right Column: Riwayat Pilihan */
+      .history-card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+      }
+      .history-card .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--em-on-surface-variant);
+        letter-spacing: 0.1em;
+      }
+      .history-card h3 {
+        font-family: 'Hanken Grotesk', sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 4px 0 20px 0;
+        color: var(--em-on-surface);
+      }
+      .recent-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow-y: auto;
+        flex-grow: 1;
+        max-height: 500px;
+        padding-right: 8px;
+      }
+      .recent-item {
+        background-color: var(--em-surface-lowest);
+        border: 1px solid var(--em-outline-variant);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .recent-item:hover {
+        background-color: var(--em-surface-low);
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+      }
+      .recent-item-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .recent-item-icon-box {
+        width: 44px;
+        height: 44px;
+        background-color: rgba(0, 74, 198, 0.08);
+        color: var(--em-primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s ease;
+      }
+      .recent-item:hover .recent-item-icon-box {
+        background-color: rgba(0, 74, 198, 0.12);
+      }
+      .recent-item-icon-box span {
+        font-size: 22px;
+      }
+      .recent-item:nth-child(even) .recent-item-icon-box {
+        background-color: var(--em-surface-high);
+        color: var(--em-secondary);
+      }
+      .recent-item:nth-child(even):hover .recent-item-icon-box {
+        background-color: var(--em-surface-highest);
+      }
+      .recent-item-info strong {
+        font-size: 14px;
+        color: var(--em-on-surface);
+        transition: color 0.2s ease;
+        display: block;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .recent-item:hover .recent-item-info strong {
+        color: var(--em-primary);
+      }
+      .recent-item-time {
+        font-size: 11px;
+        color: var(--em-on-surface-variant);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 2px;
+      }
+      .recent-item-time span {
+        font-size: 14px;
+      }
+      .recent-item-badge {
+        font-size: 12px;
+        font-weight: 500;
+        background-color: var(--em-surface-container);
+        color: var(--em-on-surface-variant);
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+
+      /* Custom scrollbar for history list */
+      .recent-list::-webkit-scrollbar {
+        width: 6px;
+      }
+      .recent-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .recent-list::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 20px;
+      }
+
+      /* Bottom Action Bar */
+      .import-action-bar-new {
+        width: 100%;
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 16px 24px 24px 24px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 16px;
+        position: sticky;
+        bottom: 0;
+        background: linear-gradient(to top, var(--em-background) 80%, transparent);
+        z-index: 40;
+      }
+      .import-action-bar-new button {
+        padding: 14px 32px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+      .import-action-bar-new button span {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        font-size: 20px;
+      }
+      .import-action-bar-new button#scan-button.primary-action {
+        background: linear-gradient(135deg, var(--em-primary), var(--em-primary-tint));
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 74, 198, 0.2);
+      }
+      .import-action-bar-new button#scan-button.primary-action:hover {
+        box-shadow: 0 6px 18px rgba(0, 74, 198, 0.35);
+        transform: translateY(-1px);
+      }
+      .import-action-bar-new button#scan-button.secondary-button {
+        background: linear-gradient(135deg, var(--em-tertiary), var(--em-tertiary-container));
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 90, 130, 0.2);
+      }
+      .import-action-bar-new button#scan-button.secondary-button:hover {
+        box-shadow: 0 6px 18px rgba(0, 90, 130, 0.35);
+        transform: translateY(-1px);
+      }
+      .import-action-bar-new button#scan-button[disabled] {
+        background: var(--em-surface-container);
+        color: var(--em-on-surface-variant);
+        opacity: 0.8;
+        cursor: not-allowed;
+        box-shadow: none;
+        border: 1px solid var(--em-outline-variant);
+        transform: none !important;
+      }
+      .import-action-bar-new button#import-next-button {
+        background-color: var(--em-surface-lowest);
+        color: var(--em-on-surface);
+        border: 1px solid var(--em-outline-variant);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      }
+      .import-action-bar-new button#import-next-button:hover {
+        background-color: var(--em-surface-low);
+        border-color: #cbd5e1;
+      }
+      .import-action-bar-new button#import-next-button[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
     </style>
     <link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="/styles.css" />
@@ -17,15 +848,75 @@
 
   <body>
     <header id="window-titlebar" class="window-titlebar">
-      <div class="window-titlebar-brand">
-        <div class="window-titlebar-copy">
-          <strong>EntryMate</strong>
-          <span>By Ghaniya</span>
+      <!-- Standard Layout (Shown on Pages 2-5) -->
+      <div class="titlebar-standard-layout flex items-center justify-between w-full">
+        <div class="window-titlebar-brand">
+          <div class="window-titlebar-copy">
+            <strong>EntryMate</strong>
+            <span>By Ghaniya</span>
+          </div>
+        </div>
+        <div class="window-titlebar-meta">
+          <span class="window-titlebar-pill">Desktop</span>
         </div>
       </div>
-      <div class="window-titlebar-meta">
-        <span class="window-titlebar-pill">Desktop</span>
+
+      <!-- Stepper Layout (Shown on Page 1) -->
+      <div class="titlebar-stepper-layout flex items-center justify-between w-full">
+        <!-- Brand -->
+        <div class="flex items-center gap-3 brand-group">
+          <div class="brand-logo-em">EM</div>
+          <div class="brand-title-text font-bold">
+            EntryMate 
+            <span class="by-badge">By Ghaniya</span>
+          </div>
+        </div>
+        
+        <!-- Navigation Links (Stepper) -->
+        <div class="flex items-center gap-8 stepper-container">
+          <button class="nav-step-btn" data-page="import" type="button">
+            <span class="step-circle" data-step-badge>1</span>
+            <span class="step-label">
+              <span class="step-title">Folder</span>
+              <span class="step-desc" data-step-subtitle>Pilih folder kerja</span>
+            </span>
+          </button>
+          
+          <button class="nav-step-btn" data-page="prepare" type="button">
+            <span class="step-circle" data-step-badge>2</span>
+            <span class="step-label">
+              <span class="step-title">Prepare</span>
+              <span class="step-desc" data-step-subtitle>Rapikan foto</span>
+            </span>
+          </button>
+          
+          <button class="nav-step-btn" data-page="scan" type="button">
+            <span class="step-circle" data-step-badge>3</span>
+            <span class="step-label">
+              <span class="step-title">Scan</span>
+              <span class="step-desc" data-step-subtitle>Menunggu scan</span>
+            </span>
+          </button>
+          
+          <button class="nav-step-btn" data-page="validation" type="button">
+            <span class="step-circle" data-step-badge>4</span>
+            <span class="step-label">
+              <span class="step-title">Review</span>
+              <span class="step-desc" data-step-subtitle>Semua data dicek</span>
+            </span>
+          </button>
+          
+          <button class="nav-step-btn" data-page="entry" type="button">
+            <span class="step-circle" data-step-badge>5</span>
+            <span class="step-label">
+              <span class="step-title">Export</span>
+              <span class="step-desc" data-step-subtitle>Selesaikan review</span>
+            </span>
+          </button>
+        </div>
       </div>
+
+      <!-- Window Controls (Shared) -->
       <div class="window-controls" aria-label="Kontrol jendela">
         <button id="window-minimize-button" class="window-control-button minimize" type="button" aria-label="Minimize" title="Minimize">
           <span aria-hidden="true"></span>
@@ -106,96 +997,198 @@
         <div class="mobile-nav" aria-label="Navigasi ringkas"></div>
 
         <section id="page-import" class="page-section">
-          <div class="import-layout">
-            <article
-              id="folder-dropzone"
-              class="dropzone-card"
-              tabindex="0"
-              role="button"
-              aria-describedby="dropzone-description selected-folder-caption"
-            >
-              <div class="dropzone-mark" aria-hidden="true">
-                <span class="dropzone-folder-icon"></span>
-              </div>
-              <h4>Folder Passport</h4>
-              <p id="dropzone-description" class="dropzone-copy">
-                Klik area ini atau gunakan browse untuk memilih folder berisi foto passport atau PDF yang ingin diproses.
-              </p>
+          <!-- Background elements -->
+          <div class="import-bg-overlay-pattern"></div>
+          <div class="import-bg-blob-1"></div>
+          <div class="import-bg-blob-2"></div>
 
-              <div class="selected-folder">
-                <strong id="selected-folder-name">Belum ada folder dipilih</strong>
-                <span id="selected-folder-caption">Pilih folder berisi JPG, PNG, atau PDF passport untuk mulai memproses data.</span>
-              </div>
+          <!-- Page 1 Header -->
+          <div class="flex justify-between items-center mb-stack-md" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h1 class="font-headline-xl text-on-surface tracking-tight" style="font-family: 'Hanken Grotesk', sans-serif; font-size: 36px; font-weight: 700; margin: 0; color: var(--em-on-surface);">Pilih Folder</h1>
+            <span id="topbar-status-import" class="status-chip neutral">
+              Menunggu
+            </span>
+          </div>
 
-              <div class="dropzone-actions">
-                <button id="choose-folder-button" class="primary-action" type="button">Pilih Folder</button>
-              </div>
-
-              <label class="field-label" for="folder-path">Lokasi Folder</label>
-              <input id="folder-path" type="text" placeholder="Pilih folder berisi JPG, PNG, atau PDF passport..." />
-            </article>
-
-            <div class="import-side">
-              <article class="side-card ocr-mode-card" aria-label="Pilihan mode OCR">
-                <div class="card-head compact">
-                  <div>
-                    <p class="eyebrow">Mode OCR</p>
-                    <h4>Pilih Model</h4>
+          <!-- Main Grid -->
+          <div class="import-main-grid">
+            <!-- Left Column -->
+            <div class="flex flex-col gap-6" style="display: flex; flex-direction: column; gap: 24px;">
+              
+              <!-- Pilih Folder Dropzone -->
+              <article id="folder-dropzone" class="import-card folder-select-card" tabindex="0" role="button" aria-describedby="dropzone-description selected-folder-caption">
+                <div class="folder-info-group">
+                  <div class="folder-icon-stage" aria-hidden="true">
+                    <span class="material-symbols-outlined">folder_open</span>
+                  </div>
+                  <div class="folder-texts">
+                    <h2>Folder Passport</h2>
+                    <p id="dropzone-description">Pilih folder berisi foto atau PDF passport untuk diproses.</p>
                   </div>
                 </div>
-                <fieldset id="ocr-mode-selector" class="ocr-mode-selector">
+                
+                <div class="folder-controls-group">
+                  <div class="folder-input-wrapper">
+                    <span class="material-symbols-outlined">search</span>
+                    <label for="folder-path" class="sr-only">Lokasi Folder</label>
+                    <input id="folder-path" type="text" placeholder="Belum ada folder terpilih..." readonly="" />
+                  </div>
+                  <button id="choose-folder-button" class="choose-folder-btn" type="button">Pilih Folder</button>
+                </div>
+
+                <!-- Hidden elements for bindings, matching the original elements -->
+                <strong id="selected-folder-name" class="is-hidden">Belum ada folder dipilih</strong>
+                <span id="selected-folder-caption" class="is-hidden">Pilih folder berisi JPG, PNG, atau PDF passport untuk mulai memproses data.</span>
+              </article>
+
+              <!-- Mode Pemrosesan OCR -->
+              <article class="import-card" aria-label="Pilihan mode OCR">
+                <div class="ocr-header">
+                  <div>
+                    <h4>LANGKAH 2</h4>
+                    <h3>Mode Pemrosesan OCR</h3>
+                  </div>
+                  <button class="ocr-config-btn" type="button">
+                    <span class="material-symbols-outlined">settings</span>
+                    KONFIGURASI
+                  </button>
+                </div>
+                
+                <fieldset id="ocr-mode-selector" class="ocr-mode-selector-grid" style="border: none; margin: 0; padding: 0;">
                   <legend class="sr-only">Mode OCR</legend>
-                  <label class="ocr-mode-option">
-                    <input type="radio" name="ocr-mode" value="speed" />
-                    <span><strong>Speed</strong><small>10-15s</small></span>
+                  
+                  <!-- Speed Mode -->
+                  <label class="ocr-radio-card is-active">
+                    <input type="radio" name="ocr-mode" value="speed" checked />
+                    <div class="ocr-card-icon">
+                      <span class="material-symbols-outlined bolt-icon">bolt</span>
+                    </div>
+                    <div class="ocr-card-texts">
+                      <strong>Speed Mode</strong>
+                      <span>10-15S / FILE</span>
+                    </div>
                   </label>
-                  <label class="ocr-mode-option">
+
+                  <!-- Balanced Mode -->
+                  <label class="ocr-radio-card">
                     <input type="radio" name="ocr-mode" value="balanced" />
-                    <span><strong>Balanced</strong><small>20-30s</small></span>
+                    <div class="ocr-card-icon">
+                      <span class="material-symbols-outlined">balance</span>
+                    </div>
+                    <div class="ocr-card-texts">
+                      <strong>Balanced Mode</strong>
+                      <span>20-30S / FILE</span>
+                    </div>
                   </label>
-                  <label class="ocr-mode-option">
+
+                  <!-- Heavy Mode -->
+                  <label class="ocr-radio-card">
                     <input type="radio" name="ocr-mode" value="heavy" />
-                    <span><strong>Heavy</strong><small>60s+</small></span>
+                    <div class="ocr-card-icon">
+                      <span class="material-symbols-outlined">psychology</span>
+                    </div>
+                    <div class="ocr-card-texts">
+                      <strong>Heavy Mode</strong>
+                      <span>60S+ / FILE</span>
+                    </div>
                   </label>
                 </fieldset>
               </article>
 
-              <article class="side-card recent-card">
-                <div class="card-head compact">
-                  <div>
-                    <p class="eyebrow">Folder Terakhir</p>
-                    <h4>Riwayat Pilihan</h4>
+              <!-- Default Entry (Nilai Rombongan) -->
+              <article class="import-card default-entry-card">
+                <div class="card-gradient-overlay"></div>
+                <span class="eyebrow uppercase font-bold tracking-wider">Default Entry</span>
+                <h3 class="flex items-center gap-2">
+                  Nilai Rombongan
+                  <span class="info-icon-span" title="Nilai default ini akan diterapkan ke semua passport dalam rombongan ini">info</span>
+                </h3>
+                
+                <div class="inputs-grid">
+                  <div class="group-field">
+                    <label for="default-profession">PROFESI</label>
+                    <div class="input-wrapper">
+                      <span class="input-icon">work</span>
+                      <input id="default-profession" type="text" value="OTHER"/>
+                    </div>
+                  </div>
+                  
+                  <div class="group-field">
+                    <label for="default-marital-status">STATUS NIKAH</label>
+                    <div class="input-wrapper">
+                      <span class="input-icon">blinds</span>
+                      <input id="default-marital-status" type="text" value="OTHER"/>
+                    </div>
                   </div>
                 </div>
+                
+                <div class="inputs-grid">
+                  <div class="group-field">
+                    <label for="default-passport-type">TIPE PASSPORT</label>
+                    <div class="input-wrapper">
+                      <span class="input-icon primary-color">menu_book</span>
+                      <input id="default-passport-type" type="text" value="NORMAL"/>
+                    </div>
+                  </div>
+                  
+                  <div class="group-field">
+                    <label for="default-email">EMAIL</label>
+                    <div class="input-wrapper">
+                      <span class="input-icon">mail</span>
+                      <input id="default-email" type="text" value="huseinghanim@gmail.com"/>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="group-field full-width">
+                  <label for="default-mobile-number">NOMOR TELEPON</label>
+                  <div class="input-wrapper">
+                    <span class="input-icon pink-color">call</span>
+                    <input id="default-mobile-number" type="text" value="6282137434147"/>
+                  </div>
+                </div>
+                
+                <div class="default-entry-footer flex justify-between items-center pt-4 border-t" style="border-top: 1px solid var(--em-outline-variant);">
+                  <button id="apply-default-button" type="button" class="apply-default-btn flex items-center gap-2">
+                    <span class="btn-icon">done_all</span>
+                    Terapkan Default
+                  </button>
+                  <div class="active-badge-wrapper flex items-center gap-2">
+                    <div class="badge-dot"></div>
+                    <span id="active-defaults-badge">4 default aktif</span>
+                  </div>
+                </div>
+              </article>
+            </div>
 
+            <!-- Right Column: Riwayat Pilihan -->
+            <div class="flex flex-col h-full" style="display: flex; flex-direction: column; height: 100%;">
+              <article class="import-card history-card">
+                <div class="card-gradient-overlay" style="background-color: rgba(80, 95, 118, 0.03);"></div>
+                <span class="eyebrow uppercase font-bold tracking-wider">Folder Terakhir</span>
+                <h3>Riwayat Pilihan</h3>
+                
                 <div id="recent-batches-list" class="recent-list">
-                  <div class="friendly-empty">Belum ada folder yang pernah dipakai.</div>
+                  <div class="friendly-empty">Belum ada folder yang pernah dipilih.</div>
                 </div>
-              </article>
-
-              <article class="side-card last-scan-card">
-                <div class="card-head compact">
-                  <div>
-                    <p class="eyebrow">Hasil Terakhir</p>
-                    <h4 id="last-scan-title">Belum ada hasil scan</h4>
-                  </div>
-                  <span id="last-scan-status" class="status-chip neutral">Menunggu</span>
-                </div>
-                <p id="last-scan-detail" class="last-scan-detail">
-                  Setelah scan selesai, ringkasan hasil terakhir akan tampil di sini.
-                </p>
-                <button id="last-scan-open-button" class="secondary-button compact" type="button" disabled>Buka Hasil Scan</button>
               </article>
             </div>
           </div>
 
-          <div class="import-action-bar">
-            <p id="import-footer-text"></p>
-            <div class="import-action-buttons">
-              <button id="scan-button" class="primary-action" type="button">Siapkan Foto</button>
-              <button id="import-next-button" class="secondary-button is-hidden" type="button">Lanjut Review</button>
-            </div>
+          <!-- Bottom Action Bar -->
+          <div class="import-action-bar-new">
+            <button id="import-next-button" class="is-hidden" type="button">
+              <span>arrow_forward</span>
+              Lanjut Review
+            </button>
+            <button id="scan-button" class="primary-action" type="button">
+              <span class="material-symbols-outlined">block</span>
+              Pilih Folder Dulu
+            </button>
           </div>
+
+          <!-- Legacy footer text hidden but present for bindings -->
+          <p id="import-footer-text" class="is-hidden"></p>
         </section>
 
         <section id="page-prepare" class="page-section is-hidden">

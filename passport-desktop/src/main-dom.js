@@ -19,6 +19,13 @@ export function bindDom(dom, root = document) {
   dom.importFooterText = root.querySelector("#import-footer-text");
   dom.folderPath = root.querySelector("#folder-path");
   dom.chooseFolderButton = root.querySelector("#choose-folder-button");
+  dom.defaultProfession = root.querySelector("#default-profession");
+  dom.defaultMaritalStatus = root.querySelector("#default-marital-status");
+  dom.defaultPassportType = root.querySelector("#default-passport-type");
+  dom.defaultEmail = root.querySelector("#default-email");
+  dom.defaultMobileNumber = root.querySelector("#default-mobile-number");
+  dom.applyDefaultButton = root.querySelector("#apply-default-button");
+  dom.activeDefaultsBadge = root.querySelector("#active-defaults-badge");
   dom.ocrModeInputs = [...root.querySelectorAll("input[name='ocr-mode']")];
   dom.scanButton = root.querySelector("#scan-button");
   dom.stopScanButton = root.querySelector("#stop-scan-button");

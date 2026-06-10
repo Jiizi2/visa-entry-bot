@@ -13,6 +13,8 @@ export function bindActions({
   handleScanButtonClick,
   handleStartScanButtonClick = handleScanButtonClick,
   handleOcrModeChange,
+  saveDefaultEntries = () => {},
+  applyDefaultEntries = () => {},
   selectPreparedPassport = () => {},
   rotatePreparedPassport = () => {},
   flipPreparedPassport = () => {},
@@ -127,6 +129,33 @@ export function bindActions({
       runAction(() => handleOcrModeChange(event), "Ganti mode OCR");
     });
   }
+
+  dom.defaultProfession?.addEventListener("change", (event) => {
+    state.defaultProfession = event.target.value;
+    saveDefaultEntries();
+    renderAll();
+  });
+  dom.defaultMaritalStatus?.addEventListener("change", (event) => {
+    state.defaultMaritalStatus = event.target.value;
+    saveDefaultEntries();
+    renderAll();
+  });
+  dom.defaultPassportType?.addEventListener("change", (event) => {
+    state.defaultPassportType = event.target.value;
+    saveDefaultEntries();
+    renderAll();
+  });
+  dom.defaultEmail?.addEventListener("input", (event) => {
+    state.defaultEmail = event.target.value;
+    saveDefaultEntries();
+  });
+  dom.defaultMobileNumber?.addEventListener("input", (event) => {
+    state.defaultMobileNumber = event.target.value;
+    saveDefaultEntries();
+  });
+  dom.applyDefaultButton?.addEventListener("click", () => {
+    runAction(() => applyDefaultEntries(), "Terapkan Default Rombongan");
+  });
   dom.stopScanButton?.addEventListener("click", openStopScanModal);
   dom.importNextButton?.addEventListener("click", () => {
     setPage("validation");

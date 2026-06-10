@@ -2,6 +2,10 @@ import {
   basenameFromPath,
 } from "./main-utils.js";
 import {
+  ensureResolvedProfile,
+  syncMemberChildMetadata,
+} from "./main-members.js";
+import {
   createReviewActions,
 } from "./main-review-actions.js";
 import {
@@ -140,6 +144,8 @@ const {
   rememberRecentBatch,
   saveRecentBatches,
   updateOcrMode,
+  loadDefaultEntries,
+  saveDefaultEntries,
 } = createSessionDataController({
   state,
   manifestMembers,
@@ -552,6 +558,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   try {
     state.recentBatches = loadRecentBatches();
     state.ocrMode = loadOcrMode();
+    loadDefaultEntries();
     bindDom(dom);
     bindWindowControls({ dom, appWindow: window, documentRef: document });
     passportPreviewActions?.initializePassportPreviewController();
@@ -585,6 +592,33 @@ function bindActions() {
     handleScanButtonClick,
     handleStartScanButtonClick,
     handleOcrModeChange: (event) => importViewController?.handleOcrModeChange(event),
+    saveDefaultEntries,
+    applyDefaultEntries: () => {
+      const members = manifestMembers();
+      if (!members.length) {
+        state.statusHeadline = "Terapkan Default Gagal";
+        state.statusDetail = "Tidak ada passport di antrean/review saat ini.";
+        renderAll();
+        return;
+      }
+      let count = 0;
+      for (const member of members) {
+        const resolved = ensureResolvedProfile(member);
+        resolved.profession = state.defaultProfession;
+        resolved.maritalStatus = state.defaultMaritalStatus;
+        resolved.passportType = state.defaultPassportType;
+        resolved.email = state.defaultEmail;
+        resolved.mobileNumber = state.defaultMobileNumber;
+
+        syncMemberChildMetadata(member);
+        clearMemberReviewConfirmation(member);
+        count++;
+      }
+      state.statusHeadline = "Default Rombongan Diterapkan";
+      state.statusDetail = `Berhasil menerapkan nilai default ke ${count} passport di antrean.`;
+      scheduleManifestSave(0);
+      renderAll();
+    },
     selectPreparedPassport: (itemId) => preparedPreviewController?.selectPreparedItem(itemId),
     rotatePreparedPassport: (direction) => preparedPreviewController?.rotateActivePreparedItem(direction),
     flipPreparedPassport: (axis) => preparedPreviewController?.flipActivePreparedItem(axis),

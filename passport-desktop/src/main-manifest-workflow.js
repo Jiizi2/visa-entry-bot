@@ -20,12 +20,40 @@ export function createManifestWorkflow({
   hasAnyScanResult,
   hasScanResultForSelectedDir,
 }) {
+  function applyDefaultsToNewManifest(manifest) {
+    if (!manifest || !Array.isArray(manifest.members)) {
+      return;
+    }
+    for (const member of manifest.members) {
+      if (!member.resolvedProfile || typeof member.resolvedProfile !== "object") {
+        member.resolvedProfile = {};
+      }
+      const rp = member.resolvedProfile;
+      if (!rp.profession || rp.profession === "OTHER") {
+        rp.profession = state.defaultProfession;
+      }
+      if (!rp.maritalStatus || rp.maritalStatus === "OTHER") {
+        rp.maritalStatus = state.defaultMaritalStatus;
+      }
+      if (!rp.passportType || rp.passportType === "NORMAL") {
+        rp.passportType = state.defaultPassportType;
+      }
+      if (!rp.email || rp.email === "huseinghanim@gmail.com") {
+        rp.email = state.defaultEmail;
+      }
+      if (!rp.mobileNumber || rp.mobileNumber === "+6282137434147" || rp.mobileNumber === "6282137434147") {
+        rp.mobileNumber = state.defaultMobileNumber;
+      }
+    }
+  }
+
   async function loadManifest() {
     if (!state.manifestPath) {
       return;
     }
 
     const manifest = await loadManifestCommand(state.manifestPath);
+    applyDefaultsToNewManifest(manifest);
     syncManifestChildMetadata(manifest);
     state.manifest = manifest;
     state.originalManifest = cloneJson(manifest);

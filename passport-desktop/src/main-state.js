@@ -3,6 +3,7 @@ import { PASSPORT_PREVIEW_ZOOM_DEFAULT } from "./main-passport-preview.js";
 
 export const STORAGE_KEYS = {
   recentBatches: "passport-assistant-recent-batches-v1",
+  defaults: "passport-assistant-defaults-v1",
 };
 
 export const MANIFEST_SAVE_DELAY_MS = 350;
@@ -14,6 +15,11 @@ export function createInitialState() {
     selectedDir: "",
     ocrMode: DEFAULT_OCR_MODE,
     recentBatches: [],
+    defaultProfession: "OTHER",
+    defaultMaritalStatus: "OTHER",
+    defaultPassportType: "NORMAL",
+    defaultEmail: "huseinghanim@gmail.com",
+    defaultMobileNumber: "6282137434147",
     manifest: null,
     originalManifest: null,
     manifestPath: "",
