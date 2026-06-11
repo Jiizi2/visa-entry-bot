@@ -45,6 +45,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './passport-desktop/src-tauri -> target'
+          shared-key: 'rust-v2'
 
       - name: install frontend dependencies
         working-directory: ./passport-desktop
