@@ -77,13 +77,13 @@ if (needsWindowsToolchain && vsDevCmd && !windowsCmd) {
   process.exit(1);
 }
 
-const shouldLoadVsDevEnvironment = needsWindowsToolchain && Boolean(vsDevCmd);
+const shouldLoadVsDevEnvironment = needsWindowsToolchain && !linkOnPath && Boolean(vsDevCmd);
 
 try {
   const finalEnvironment = shouldLoadVsDevEnvironment
     ? await loadVsDevEnvironment({ baseEnv: environment, vsDevCmd, windowsCmd })
     : environment;
-  if (process.platform === "win32") {
+  if (process.platform === "win32" && !linkOnPath) {
     ensureWindowsLibraryEnvironment(finalEnvironment);
   }
 
