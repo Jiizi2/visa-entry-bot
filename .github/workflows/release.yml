@@ -66,7 +66,7 @@ jobs:
           Write-Host "Lib path:    $libPath"
           Write-Host "msvcrt.lib:  $(Test-Path "$libPath\msvcrt.lib")"
 
-          echo "RUSTFLAGS=-Lnative=$libPath" >> $env:GITHUB_ENV
+          echo "CARGO_ENCODED_RUSTFLAGS=-Lnative=$libPath" >> $env:GITHUB_ENV
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
