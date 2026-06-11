@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import logoUrl from '../assets/brand/entrymate-icon.png';
+import UpdateDialog from './UpdateDialog';
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
 
@@ -10,6 +11,7 @@ interface SidebarProps {
 
 export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
 
   const steps = [
     { id: 'import', label: 'Folder', subtitle: 'Pilih folder kerja', icon: 'folder' },
@@ -73,6 +75,19 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
         })}
       </nav>
 
+      {/* Cek Update Button */}
+      <div className={`mt-auto mb-4 ${isMinimized ? 'px-0 flex justify-center' : 'px-6'}`}>
+        <button
+          onClick={() => setIsUpdateDialogOpen(true)}
+          className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl transition-colors font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 hover:text-slate-800 cursor-pointer ${isMinimized ? 'w-12 h-12 rounded-full px-0' : 'px-4'}`}
+          title="Cek Update Aplikasi"
+        >
+          <span className="material-symbols-outlined text-[20px]">system_update</span>
+          {!isMinimized && <span>Cek Update</span>}
+        </button>
+      </div>
+
+      <UpdateDialog isOpen={isUpdateDialogOpen} onClose={() => setIsUpdateDialogOpen(false)} />
     </aside>
   );
 }

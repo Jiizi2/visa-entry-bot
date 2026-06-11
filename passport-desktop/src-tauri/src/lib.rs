@@ -744,7 +744,10 @@ fn open_path_location(path: String) -> Result<(), String> {
     };
 
     if !folder.is_dir() {
-        return Err(format!("Folder lokasi file tidak ditemukan: {}", folder.display()));
+        return Err(format!(
+            "Folder lokasi file tidak ditemukan: {}",
+            folder.display()
+        ));
     }
 
     #[cfg(target_os = "windows")]
@@ -1201,7 +1204,11 @@ fn passport_image_candidates(
         if let Some(parent) = manifest.parent() {
             push_candidate(parent.join("passports").join(file_name));
             push_candidate(parent.join("passport").join(file_name));
-            push_candidate(parent.join(".passport-assistant-pdf-images").join(file_name));
+            push_candidate(
+                parent
+                    .join(".passport-assistant-pdf-images")
+                    .join(file_name),
+            );
             push_candidate(
                 parent
                     .join(".passport-assistant-prepared")
@@ -1781,11 +1788,8 @@ mod tests {
     fn passport_image_candidates_include_generated_image_dirs() {
         let parent = std::env::temp_dir().join("entrymate-candidate-test");
         let manifest = parent.join("manifest.json");
-        let candidates = passport_image_candidates(
-            &manifest.to_string_lossy(),
-            "",
-            "passport-page.jpg",
-        );
+        let candidates =
+            passport_image_candidates(&manifest.to_string_lossy(), "", "passport-page.jpg");
 
         assert!(candidates.contains(
             &parent
@@ -1879,6 +1883,8 @@ pub fn run() {
     let renderer_health_for_window_events = renderer_health.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(ScanState::default())
         .manage(renderer_health)
         .setup(move |app| {
