@@ -36,6 +36,10 @@ jobs:
         with:
           node-version: 22
 
+      - name: setup MSVC
+        if: matrix.platform == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
