@@ -36,38 +36,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: setup MSVC
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Fix MSVC library paths for Rust
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # On GitHub runners, both Enterprise and BuildTools editions of VS are
-          # installed. Rust's internal find-msvc-tools crate discovers BuildTools
-          # via COM and uses its (incomplete) lib path, while ilammy/msvc-dev-cmd
-          # puts Enterprise's link.exe on PATH. This mismatch causes LNK1104.
-          #
-          # Fix: add Enterprise's lib path via RUSTFLAGS so the linker can find
-          # msvcrt.lib regardless of which LIBPATH find-msvc-tools injects.
-
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $installPath = & $vswhere -latest -products Microsoft.VisualStudio.Product.Enterprise -property installationPath
-          if (-not $installPath) {
-            $installPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          }
-
-          $vcVer = (Get-Content "$installPath\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
-          $libPath = "$installPath\VC\Tools\MSVC\$vcVer\lib\x64"
-
-          Write-Host "VS path:     $installPath"
-          Write-Host "MSVC ver:    $vcVer"
-          Write-Host "Lib path:    $libPath"
-          Write-Host "msvcrt.lib:  $(Test-Path "$libPath\msvcrt.lib")"
-
-          echo "CARGO_ENCODED_RUSTFLAGS=-Lnative=$libPath" >> $env:GITHUB_ENV
-
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
