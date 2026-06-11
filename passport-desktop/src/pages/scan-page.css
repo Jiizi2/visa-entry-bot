@@ -1,0 +1,425 @@
+:root {
+  --sp-primary: #004ac6;
+  --sp-primary-light: rgba(0, 74, 198, 0.05);
+  --sp-primary-hover: #003ea8;
+  --sp-surface: #ffffff;
+  --sp-surface-dim: #f7f9fb;
+  --sp-surface-container: #eceef0;
+  --sp-surface-container-highest: #e0e3e5;
+  --sp-outline: #737686;
+  --sp-outline-variant: #c3c6d7;
+  --sp-on-surface: #191c1e;
+  --sp-on-surface-variant: #434655;
+  --sp-error: #ba1a1a;
+  --sp-error-container: rgba(255, 218, 214, 0.4);
+  --sp-error-border: rgba(186, 26, 26, 0.3);
+  --sp-border-radius: 0.75rem;
+  --sp-border-radius-sm: 0.5rem;
+}
+
+#page-scan {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px 32px 24px 32px;
+  background-color: var(--sp-surface-dim);
+  font-family: 'Inter', sans-serif;
+  overflow-y: auto;
+}
+
+/* Header Modern */
+.scan-header-modern {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 auto 24px auto;
+  width: 100%;
+  max-width: 1024px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  border: 1px solid rgba(195, 198, 215, 0.4);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+  padding: 20px 24px;
+}
+
+.scan-header-title-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scan-header-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #004ac6, #3b82f6);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 74, 198, 0.2);
+}
+
+.scan-header-icon .material-symbols-outlined {
+  font-size: 24px;
+}
+
+.step-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #004ac6;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.scan-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--sp-on-surface);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.scan-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scan-badge {
+  padding: 4px 12px;
+  background-color: var(--sp-surface-container);
+  color: var(--sp-on-surface-variant);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(195, 198, 215, 0.3);
+}
+
+/* Main Canvas */
+.scan-content-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+}
+
+/* Primary Status Card */
+.scan-status-card {
+  background-color: var(--sp-surface);
+  border-radius: var(--sp-border-radius);
+  border: 1px solid rgba(195, 198, 215, 0.4);
+  padding: 24px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-card-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to bottom, var(--sp-primary-light), transparent);
+  pointer-events: none;
+}
+
+.scan-card-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  gap: 32px;
+  width: 100%;
+}
+
+.scan-card-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.scan-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.scan-info-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.scan-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sp-outline);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.scan-filename {
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--sp-on-surface);
+}
+
+.scan-info-stats {
+  text-align: right;
+}
+
+.scan-percent {
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--sp-primary);
+}
+
+.scan-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sp-outline);
+  margin-left: 8px;
+}
+
+/* Progress Bar */
+.scan-progress-bar-wrap {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  background-color: var(--sp-surface-container-highest);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.scan-progress-bar-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  background-color: var(--sp-primary);
+  border-radius: 9999px;
+  transition: width 0.5s;
+}
+
+.scan-progress-pulse {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+  animation: pulse-slide 2s infinite linear;
+}
+
+@keyframes pulse-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Time Grid */
+.scan-time-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.scan-time-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.scan-time-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sp-outline);
+  text-transform: uppercase;
+}
+
+.scan-time-val {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sp-on-surface);
+  margin-top: 4px;
+}
+
+/* Engine Status */
+.scan-engine-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.scan-ping-dot {
+  position: relative;
+  display: flex;
+  width: 8px;
+  height: 8px;
+}
+
+.ping-anim {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: var(--sp-primary);
+  opacity: 0.75;
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.ping-core {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--sp-primary);
+}
+
+@keyframes ping {
+  75%, 100% { transform: scale(2.5); opacity: 0; }
+}
+
+.scan-engine-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sp-primary);
+  opacity: 0.8;
+}
+
+/* Footer / Action Area */
+.scan-footer-area {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scan-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.scan-stat-box {
+  background-color: var(--sp-surface);
+  border-radius: var(--sp-border-radius-sm);
+  border: 1px solid rgba(195, 198, 215, 0.3);
+  padding: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scan-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sp-outline);
+  text-transform: uppercase;
+}
+
+.scan-stat-val {
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sp-on-surface);
+}
+
+.scan-stat-val.text-primary { color: var(--sp-primary); }
+.scan-stat-val.text-error { color: var(--sp-error); }
+
+/* Logs Panel */
+.scan-logs-panel {
+  background-color: var(--sp-surface);
+  border-radius: var(--sp-border-radius-sm);
+  border: 1px solid rgba(195, 198, 215, 0.3);
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.scan-logs-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid rgba(195, 198, 215, 0.3);
+}
+
+.scan-logs-header .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--sp-outline);
+}
+
+.scan-logs-header span:last-child {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sp-on-surface);
+}
+
+.scan-logs-body {
+  background-color: var(--sp-surface-dim);
+  padding: 16px;
+  height: 128px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--sp-on-surface-variant);
+  line-height: 1.6;
+}
+
+.scan-logs-body div {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Action Bar */
+.scan-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--sp-surface);
+  border-radius: var(--sp-border-radius-sm);
+  border: 1px solid rgba(195, 198, 215, 0.3);
+  padding: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.scan-action-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scan-action-status span:last-child {
+  font-size: 16px;
+  color: var(--sp-on-surface-variant);
+}
+
+.scan-btn-stop {
+  padding: 8px 24px;
+  border-radius: var(--sp-border-radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sp-error);
+  background-color: var(--sp-error-container);
+  border: 1px solid var(--sp-error-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.scan-btn-stop:hover {
+  background-color: rgba(255, 218, 214, 0.8);
+}
+
+.scan-btn-stop .material-symbols-outlined {
+  font-size: 18px;
+}
