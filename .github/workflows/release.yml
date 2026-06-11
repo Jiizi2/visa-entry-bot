@@ -45,6 +45,10 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - name: Fix GitHub Actions MSVC Bug
+        if: matrix.platform == 'windows-2022'
+        run: Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" -ErrorAction SilentlyContinue
+
       - name: install frontend dependencies
         working-directory: ./passport-desktop
         run: npm install
