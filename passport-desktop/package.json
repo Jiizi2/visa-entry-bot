@@ -1,13 +1,13 @@
 {
     "name": "entrymate-desktop",
     "private": true,
-    "version": "1.0.9",
+    "version": "1.0.10",
     "type": "module",
     "scripts": {
-        "dev": "node scripts/tauri-runner.mjs dev",
+        "dev": "tauri dev",
         "browser": "node scripts/browser-backend.mjs",
-        "build": "node scripts/tauri-runner.mjs build",
-        "tauri": "node scripts/tauri-runner.mjs",
+        "build": "tauri build",
+        "tauri": "tauri",
         "test": "node --test",
         "dev:frontend": "vite --config vite.config.ts"
     },
