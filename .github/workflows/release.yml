@@ -18,7 +18,7 @@ jobs:
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
-          - platform: 'windows-2019'
+          - platform: 'windows-2022'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -36,16 +36,14 @@ jobs:
         with:
           node-version: 22
 
+      - name: setup MSVC
+        if: matrix.platform == 'windows-2022'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './passport-desktop/src-tauri -> target'
-          shared-key: 'rust-v3'
 
       - name: install frontend dependencies
         working-directory: ./passport-desktop
