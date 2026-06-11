@@ -1,0 +1,65 @@
+.status-chip,
+.mini-status,
+.status-pill,
+.flag-chip,
+.mini-pill,
+.level-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 0;
+}
+
+.status-chip.neutral,
+.mini-status.idle,
+.status-pill.neutral,
+.mini-pill.muted,
+.flag-chip.muted {
+  color: var(--muted);
+  background: rgba(98, 104, 117, 0.08);
+  border-color: rgba(98, 104, 117, 0.12);
+}
+
+.status-chip.ready,
+.mini-status.ready,
+.status-pill.valid,
+.mini-pill.good,
+.flag-chip.good,
+.level-pill.high {
+  color: var(--success);
+  background: rgba(15, 118, 110, 0.12);
+}
+
+.status-chip.info,
+.mini-status.info,
+.mini-pill.info,
+.flag-chip.info,
+.level-pill.medium {
+  color: var(--primary);
+  background: rgba(0, 93, 181, 0.1);
+}
+
+.status-chip.warn,
+.mini-status.warn,
+.status-pill.warn,
+.mini-pill.warn,
+.flag-chip.warn,
+.level-pill.low {
+  color: var(--warning);
+  background: rgba(180, 83, 9, 0.12);
+}
+
+.status-chip.danger,
+.mini-status.danger,
+.status-pill.error,
+.mini-pill.danger,
+.flag-chip.danger,
+.level-pill.none {
+  color: var(--danger);
+  background: rgba(186, 26, 26, 0.12);
+}

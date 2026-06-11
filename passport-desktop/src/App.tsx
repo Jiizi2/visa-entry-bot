@@ -1,19 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useStore } from './store';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
+import PageTransition from './components/PageTransition';
 import ImportPage from './pages/ImportPage';
-import PreparePage from './pages/PreparePage';
-import ScanPage from './pages/ScanPage';
-import ReviewPage from './pages/ReviewPage';
-import EntryPage from './pages/EntryPage';
-import { useAppContext } from './AppContext';
+
+const PreparePage = lazy(() => import('./pages/PreparePage'));
+const ScanPage = lazy(() => import('./pages/ScanPage'));
+const ReviewPage = lazy(() => import('./pages/ReviewPage'));
+const EntryPage = lazy(() => import('./pages/EntryPage'));
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
 
 export default function App() {
-  const { state, updateState } = useAppContext();
-  const currentPage = state.currentPage;
+  const currentPage = useStore((state) => state.currentPage);
+  const updateState = useStore((state) => state.updateState);
 
   useEffect(() => {
     try {
@@ -54,16 +56,19 @@ export default function App() {
   return (
     <>
       <TitleBar />
-      <div className="app-shell" style={{ display: 'flex', height: 'calc(100vh - var(--window-titlebar-height))', overflow: 'hidden' }}>
+      <div className="flex overflow-hidden" style={{ height: 'calc(100vh - var(--window-titlebar-height))' }}>
         <Sidebar currentPage={currentPage} onChangePage={(p: Page) => updateState({ currentPage: p })} />
-        <main className="app-main" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <div className="mobile-nav" aria-label="Navigasi ringkas"></div>
+        <main className="flex flex-col flex-1 overflow-y-auto min-w-0 items-stretch">
           
-          {currentPage === 'import' && <ImportPage />}
-          {currentPage === 'prepare' && <PreparePage />}
-          {currentPage === 'scan' && <ScanPage />}
-          {currentPage === 'validation' && <ReviewPage />}
-          {currentPage === 'entry' && <EntryPage />}
+          <Suspense fallback={<div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', fontFamily: '"Hanken Grotesk", sans-serif', color: '#434655' }}>Memuat halaman...</div>}>
+            <PageTransition pageKey={currentPage}>
+              {currentPage === 'import' && <ImportPage key="import" />}
+              {currentPage === 'prepare' && <PreparePage key="prepare" />}
+              {currentPage === 'scan' && <ScanPage key="scan" />}
+              {currentPage === 'validation' && <ReviewPage key="validation" />}
+              {currentPage === 'entry' && <EntryPage key="entry" />}
+            </PageTransition>
+          </Suspense>
         </main>
       </div>
     </>

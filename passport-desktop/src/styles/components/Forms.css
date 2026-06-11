@@ -1,0 +1,118 @@
+.field-label {
+  align-self: flex-start;
+  margin-bottom: 8px;
+}
+
+input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  color: var(--ink);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+input:hover {
+  background: var(--surface-strong);
+}
+
+input:focus {
+  outline: none;
+  border-color: rgba(0, 93, 181, 0.38);
+  background: var(--surface-card);
+  box-shadow: var(--focus-ring);
+}
+
+.primary-action,
+.secondary-button,
+.ghost-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.primary-action {
+  color: #ffffff;
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+  box-shadow: 0 8px 18px rgba(0, 93, 181, 0.12);
+}
+
+.secondary-button,
+.ghost-button {
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+
+.secondary-button.compact {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+
+.field-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 24px 12px;
+}
+
+.field-category-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(126, 144, 170, 0.2);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.field-category-tab small {
+  color: inherit;
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.field-category-tab:hover {
+  background: #f3f7ff;
+  color: var(--primary);
+}
+
+.field-category-tab.is-active {
+  background: #eaf2ff;
+  color: var(--primary);
+  border-color: rgba(29, 94, 198, 0.35);
+}
+
+.ghost-button {
+  background: transparent;
+}
+
+.primary-action:hover:not(:disabled),
+.secondary-button:hover:not(:disabled),
+.ghost-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.secondary-button:hover:not(:disabled),
+.ghost-button:hover:not(:disabled) {
+  background: var(--surface-muted);
+}
+
+.primary-action:disabled,
+.secondary-button:disabled,
+.ghost-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}

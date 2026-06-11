@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useAppContext } from '../AppContext';
+import { useStore } from '../store';
 import {
   buildExportPreviewState,
   effectiveSelectedIdsForExport,
   validateCompanionsForExport,
   buildManifestForEntryExport,
-  isMemberReadyForJson,
-  passportCropApplied,
 } from '../utils/export';
-import { memberDisplayName, memberPassport, memberReviewStatus, resolvedProfileOf } from '../utils/members';
-import './entry-page.css';
+import { memberReviewStatus } from '../utils/members';
+import EntrySummaryCards from './entry/EntrySummaryCards';
+import EntryTable from './entry/EntryTable';
 
 export default function EntryPage() {
-  const { state, updateState } = useAppContext();
+  const state = useStore();
+  const updateState = useStore(s => s.updateState);
   const [exportPreview, setExportPreview] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
@@ -87,7 +87,6 @@ export default function EntryPage() {
     appendLog("Membuat batch data Nusuk untuk extension...");
 
     try {
-      // Ensure the manifest has reviewConfirmed correctly set before saving
       const manifestToSave = JSON.parse(JSON.stringify(state.manifest));
       if (Array.isArray(manifestToSave.members)) {
         manifestToSave.members.forEach((m: any) => {
@@ -141,111 +140,49 @@ export default function EntryPage() {
   if (!exportPreview) return null;
 
   return (
-    <section className="entry-page-modern">
-
-
-      <div className="entry-main-content">
-        <header className="entry-header-modern">
-          <div className="entry-header-title-area">
-            <div className="entry-header-icon">
-              <span className="material-symbols-outlined">upload_file</span>
+    <section className="flex flex-col h-screen bg-slate-50 font-['Inter',sans-serif] text-slate-900">
+      <div className="p-8 flex-1 overflow-y-auto">
+        <header className="flex justify-between items-center mb-6 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-5 px-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-700 to-blue-500 rounded-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,74,198,0.2)]">
+              <span className="material-symbols-outlined text-[24px]">upload_file</span>
             </div>
             <div>
-              <span className="step-eyebrow">LANGKAH 5: BATCH NUSUK</span>
-              <h1 className="entry-title">Batch Export</h1>
-              <p className="entry-subtitle">Review final counts before generating JSON payload.</p>
+              <span className="block text-[11px] font-bold text-blue-700 tracking-[0.1em] mb-1 uppercase">LANGKAH 5: BATCH NUSUK</span>
+              <h1 className="font-['Inter',sans-serif] text-[24px] font-bold text-slate-900 m-0 tracking-[-0.01em]">Batch Export</h1>
+              <p className="m-0 mt-1 text-slate-500 text-[14px]">Review final counts before generating JSON payload.</p>
             </div>
           </div>
-          <div className="entry-header-buttons">
-            <button className="btn-outline" onClick={() => updateState({ currentPage: 'validation' })}>
+          <div className="flex gap-4">
+            <button className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-5 py-2.5 rounded-lg text-[14px] font-semibold cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-400" onClick={() => updateState({ currentPage: 'validation' })}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
               Back to Review
             </button>
-            <button className="btn-primary" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
+            <button className="flex items-center gap-2 bg-blue-700 border-none text-white px-6 py-2.5 rounded-lg text-[14px] font-semibold cursor-pointer transition-all shadow-sm hover:bg-blue-800 hover:-translate-y-[1px] hover:shadow-md disabled:bg-blue-300 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               {state.isEntryRunning ? 'Membuat JSON...' : 'Export to JSON'}
             </button>
           </div>
         </header>
 
-        <div className="entry-summary-cards">
-          <div className="summary-card">
-            <span className="summary-title">TOTAL DOCUMENTS</span>
-            <span className="summary-value">{exportPreview.members.length}</span>
-          </div>
-          <div className="summary-card">
-            <span className="summary-title">REVIEWED</span>
-            <span className="summary-value">{exportPreview.reviewedMembers.length}</span>
-          </div>
-          <div className="summary-card">
-            <span className="summary-title">IN BATCH</span>
-            <span className="summary-value">{exportPreview.readyMembers.length}</span>
-          </div>
-          <div className="summary-card">
-            <span className="summary-title">SKIPPED</span>
-            <span className="summary-value">{exportPreview.failedMembers.length + exportPreview.skippedMembers.length}</span>
-          </div>
-        </div>
+        <EntrySummaryCards exportPreview={exportPreview} />
 
-        <div className="entry-table-container">
-          <table className="entry-table">
-            <thead>
-              <tr>
-                <th>APPLICANT DETAILS</th>
-                <th>EXTRACTED METADATA</th>
-                <th>STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exportPreview.members.length === 0 ? (
-                <tr><td colSpan={3} className="empty-state">Belum ada data untuk dipreview.</td></tr>
-              ) : (
-                exportPreview.members.map((member: any) => {
-                  const profile = resolvedProfileOf(member);
-                  const isReviewed = member.reviewConfirmed || state.reviewedMemberIds.has(member.id);
-                  const status = memberReviewStatus(member);
+        <EntryTable 
+          exportPreview={exportPreview} 
+          reviewedMemberIds={state.reviewedMemberIds} 
+        />
 
-                  return (
-                    <tr key={member.id}>
-                      <td>
-                        <div className="applicant-name">{memberDisplayName(member)}</div>
-                        <div className="applicant-passport">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                          {memberPassport(member) || '-'}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="metadata-grid">
-                          <span className="meta-label">DOB</span><span className="meta-val">{profile.dob || '-'}</span>
-                          <span className="meta-label">Nat</span><span className="meta-val">{profile.nationality || '-'}</span>
-                          <span className="meta-label">Gender</span><span className="meta-val">{profile.gender || '-'}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className={`status-pill ${isReviewed ? 'reviewed' : status === 'ERROR' ? 'error' : 'pending'}`}>
-                          {isReviewed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                          {isReviewed ? 'Reviewed' : status === 'ERROR' ? 'Error' : 'Pending'}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="entry-footer-info">
+        <div className="flex items-center gap-2.5 text-slate-500 text-[13px] mb-6">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
           Only reviewed documents will be included in the final JSON payload. Skipped or errored items remain unexported.
         </div>
 
         {(state.exportError || state.exportedBatchPath) && (
-          <div className={`export-result-banner ${state.exportError ? 'error' : 'success'}`}>
+          <div className={`p-4 rounded-lg text-[14px] font-medium mb-6 sticky bottom-6 z-[100] shadow-[0_4px_12px_rgba(0,0,0,0.1)] ${state.exportError ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-green-100 text-green-800 border border-green-300'}`}>
             {state.exportError || (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>JSON dibuat: {state.exportedBatchPath}</span>
-                <button className="btn-outline" onClick={handleOpenJsonLocation} style={{ backgroundColor: 'white', padding: '6px 12px', fontSize: '12px' }}>
+                <button className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-[12px] font-semibold cursor-pointer transition-all hover:bg-slate-50" onClick={handleOpenJsonLocation}>
                   Buka Folder JSON
                 </button>
               </div>
@@ -259,7 +196,7 @@ export default function EntryPage() {
           position: 'fixed',
           bottom: '24px',
           right: '24px',
-          backgroundColor: toast.type === 'error' ? '#ef4444' : '#10b981',
+          backgroundColor: toast?.type === 'error' ? '#ef4444' : '#10b981',
           color: 'white',
           padding: '12px 24px',
           borderRadius: '8px',
@@ -270,10 +207,10 @@ export default function EntryPage() {
           zIndex: 1000,
           animation: 'slideUp 0.3s ease-out'
         }}>
-          <span className="material-symbols-outlined">
-            {toast.type === 'error' ? 'error' : 'check_circle'}
+          <span className="material-symbols-outlined text-[24px]">
+            {toast?.type === 'error' ? 'error' : 'check_circle'}
           </span>
-          <span style={{ fontWeight: 500 }}>{toast.message}</span>
+          <span style={{ fontWeight: 500 }}>{toast?.message}</span>
         </div>
       )}
     </section>

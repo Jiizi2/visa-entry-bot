@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useAppContext } from '../AppContext';
+import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import './scan-page.css';
 
 const formatTime = (totalSeconds: number) => {
   if (totalSeconds === undefined || totalSeconds === null || isNaN(totalSeconds) || totalSeconds < 0) return '--:--';
@@ -17,7 +16,8 @@ const formatTime = (totalSeconds: number) => {
 };
 
 export default function ScanPage() {
-  const { state, updateState } = useAppContext();
+  const state = useStore();
+  const updateState = useStore(s => s.updateState);
   const [logs, setLogs] = useState<string[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
@@ -144,63 +144,63 @@ export default function ScanPage() {
   }
 
   return (
-    <section id="page-scan">
-      <header className="scan-header-modern">
-        <div className="scan-header-title-area">
-          <div className="scan-header-icon">
-            <span className="material-symbols-outlined">document_scanner</span>
+    <section id="page-scan" className="flex flex-col h-full p-4 pb-6 px-8 bg-slate-50 font-['Inter',sans-serif] overflow-y-auto">
+      <header className="flex justify-between items-center mx-auto mb-6 w-full max-w-[1024px] box-border bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] py-5 px-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-700 to-blue-500 rounded-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,74,198,0.2)]">
+            <span className="material-symbols-outlined text-[24px]">document_scanner</span>
           </div>
           <div>
-            <span className="step-eyebrow">LANGKAH 3: RINGKASAN PROSES</span>
-            <h1 className="scan-title">{state.progressStageLabel || 'Memulai Data OCR'}</h1>
+            <span className="block text-[11px] font-bold text-blue-700 tracking-[0.1em] mb-1 uppercase">LANGKAH 3: RINGKASAN PROSES</span>
+            <h1 className="font-['Inter',sans-serif] text-[24px] font-bold text-slate-900 m-0 tracking-[-0.01em]">{state.progressStageLabel || 'Memulai Data OCR'}</h1>
           </div>
         </div>
-        <div className="scan-window-controls">
-          <span className="scan-badge">Desktop</span>
+        <div className="flex items-center gap-4">
+          <span className="px-3 py-1 bg-slate-200/50 text-slate-700 rounded text-[12px] font-semibold border border-slate-300/30">Desktop</span>
         </div>
       </header>
 
-      <div className="scan-content-canvas">
+      <div className="flex-1 flex flex-col gap-6 w-full max-w-[1024px] mx-auto">
         {/* Primary Status Card */}
-        <div className="scan-status-card">
-          <div className="scan-card-bg"></div>
-          <div className="scan-card-content">
-            <div className="scan-card-left">
-              <div className="scan-info-row">
-                <div className="scan-info-text">
-                  <span className="scan-eyebrow">Processing Passports</span>
-                  <span className="scan-filename">{state.progressFileName || 'Menunggu file...'}</span>
+        <div className="bg-white rounded-xl border border-slate-300/40 p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-700/5 to-transparent pointer-events-none"></div>
+          <div className="relative z-10 flex gap-8 w-full">
+            <div className="flex-1 flex flex-col gap-6">
+              <div className="flex justify-between items-end">
+                <div className="flex flex-col">
+                  <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-[0.05em] mb-1">Processing Passports</span>
+                  <span className="font-['Inter',sans-serif] text-[20px] font-semibold text-slate-900">{state.progressFileName || 'Menunggu file...'}</span>
                 </div>
-                <div className="scan-info-stats">
-                  <span className="scan-percent">{progressPercent}%</span>
-                  <span className="scan-count">{state.progressCurrent || 0}/{state.progressTotal || 0} files</span>
-                </div>
-              </div>
-
-              <div className="scan-progress-bar-wrap">
-                <div className="scan-progress-bar-fill" style={{ width: `${Math.min(100, progressPercent)}%` }}>
-                  {state.isScanning && <div className="scan-progress-pulse"></div>}
+                <div className="text-right">
+                  <span className="font-['Inter',sans-serif] text-[20px] font-semibold text-blue-700">{progressPercent}%</span>
+                  <span className="text-[12px] font-medium text-slate-500 ml-2">{state.progressCurrent || 0}/{state.progressTotal || 0} files</span>
                 </div>
               </div>
 
-              <div className="scan-time-grid">
-                <div className="scan-time-col">
-                  <span className="scan-time-label">Time Elapsed</span>
-                  <span className="scan-time-val">{state.isScanning || elapsedSeconds > 0 ? formatTime(elapsedSeconds) : '--:--'}</span>
-                </div>
-                <div className="scan-time-col">
-                  <span className="scan-time-label">Est. Remaining</span>
-                  <span className="scan-time-val">{estRemainingText}</span>
+              <div className="relative w-full h-3 bg-slate-200/80 rounded-full overflow-hidden">
+                <div className="absolute top-0 left-0 h-full bg-blue-700 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, progressPercent)}%` }}>
+                  {state.isScanning && <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.4),transparent)] animate-[pulse-slide_2s_infinite_linear]"></div>}
                 </div>
               </div>
 
-              <div className="scan-engine-status">
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Time Elapsed</span>
+                  <span className="text-[14px] font-medium text-slate-900 mt-1">{state.isScanning || elapsedSeconds > 0 ? formatTime(elapsedSeconds) : '--:--'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Est. Remaining</span>
+                  <span className="text-[14px] font-medium text-slate-900 mt-1">{estRemainingText}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mt-1">
                 {state.isScanning ? (
-                  <span className="scan-ping-dot"><span className="ping-anim"></span><span className="ping-core"></span></span>
+                  <span className="relative flex w-2 h-2"><span className="absolute w-full h-full rounded-full bg-blue-700 opacity-75 animate-ping"></span><span className="relative w-2 h-2 rounded-full bg-blue-700"></span></span>
                 ) : (
-                  <span className="material-symbols-outlined" style={{ color: 'green', fontSize: '14px', marginRight: '8px' }}>check_circle</span>
+                  <span className="material-symbols-outlined" style={{ color: 'green', fontSize: '20px', marginRight: '8px' }}>check_circle</span>
                 )}
-                <span className="scan-engine-text">
+                <span className="text-[12px] font-medium text-blue-700/80">
                   {state.isScanning ? `OCR Engine Active (${state.ocrMode} Mode)` : 'OCR Engine Stopped'}
                 </span>
               </div>
@@ -209,40 +209,40 @@ export default function ScanPage() {
         </div>
 
         {/* Footer / Action Area */}
-        <div className="scan-footer-area">
-          <div className="scan-stats-grid">
-            <div className="scan-stat-box">
-              <span className="scan-stat-label">Total Files</span>
-              <span className="scan-stat-val">{state.totalFiles || 0}</span>
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-3 gap-4 mb-2">
+            <div className="bg-white rounded-lg border border-slate-300/30 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Total Files</span>
+              <span className="font-['Inter',sans-serif] text-[20px] font-bold text-slate-900">{state.totalFiles || 0}</span>
             </div>
-            <div className="scan-stat-box">
-              <span className="scan-stat-label">Completed</span>
-              <span className="scan-stat-val text-primary">{state.validCount || 0}</span>
+            <div className="bg-white rounded-lg border border-slate-300/30 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Completed</span>
+              <span className="font-['Inter',sans-serif] text-[20px] font-bold text-blue-700">{state.validCount || 0}</span>
             </div>
-            <div className="scan-stat-box">
-              <span className="scan-stat-label">Errors Found</span>
-              <span className="scan-stat-val text-error">{state.errorCount || 0}</span>
+            <div className="bg-white rounded-lg border border-slate-300/30 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Errors Found</span>
+              <span className="font-['Inter',sans-serif] text-[20px] font-bold text-red-700">{state.errorCount || 0}</span>
             </div>
           </div>
 
-          <div className="scan-logs-panel">
-            <div className="scan-logs-header">
-              <span className="material-symbols-outlined">terminal</span>
-              <span>System Logs</span>
+          <div className="bg-white rounded-lg border border-slate-300/30 shadow-[0_4px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+            <div className="flex items-center gap-2 p-4 border-b border-slate-300/30">
+              <span className="material-symbols-outlined text-[20px] text-slate-500">terminal</span>
+              <span className="text-[14px] font-semibold text-slate-900">System Logs</span>
             </div>
-            <div className="scan-logs-body">
+            <div className="bg-slate-50 p-4 h-32 overflow-y-auto font-mono text-[12px] text-slate-700 leading-relaxed whitespace-pre-wrap break-words">
               {logs.length === 0 ? <div>Menunggu log...</div> : [...logs].reverse().map((l, i) => <div key={i}>{l}</div>)}
             </div>
           </div>
 
-          <div className="scan-action-bar">
-            <div className="scan-action-status">
-              {state.isScanning && <span className="scan-ping-dot"><span className="ping-anim"></span><span className="ping-core"></span></span>}
+          <div className="flex justify-between items-center bg-white rounded-lg border border-slate-300/30 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
+            <div className="flex items-center gap-3 text-[16px] text-slate-700">
+              {state.isScanning && <span className="relative flex w-2 h-2"><span className="absolute w-full h-full rounded-full bg-blue-700 opacity-75 animate-ping"></span><span className="relative w-2 h-2 rounded-full bg-blue-700"></span></span>}
               <span>{isFinished ? 'Scan telah selesai.' : state.isScanning ? 'OCR is running continuously.' : 'Scan dihentikan.'}</span>
             </div>
             {state.isScanning && (
-              <button className="scan-btn-stop" type="button" onClick={handleStopScan}>
-                <span className="material-symbols-outlined">stop_circle</span>
+              <button className="px-6 py-2 rounded-lg text-[14px] font-semibold text-red-700 bg-red-600/10 border border-red-600/30 flex items-center gap-2 cursor-pointer transition-colors duration-200 hover:bg-red-600/20" type="button" onClick={handleStopScan}>
+                <span className="material-symbols-outlined text-[20px]">stop_circle</span>
                 Stop Scan
               </button>
             )}

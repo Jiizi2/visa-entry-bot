@@ -264,23 +264,23 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
   };
 
   return (
-    <div className="crop-modal">
-      <div className="crop-modal-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#090f19', borderRadius: '12px', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#111827', borderBottom: '1px solid #1f2937' }}>
-          <h3 style={{ margin: 0, color: 'white' }}>Crop Foto Passport</h3>
-          <div>
-            <input type="range" min="0.75" max="2" step="0.05" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} style={{ marginRight: '16px' }} />
-            <button onClick={handleSave} className="primary-action">Simpan Crop</button>
-            <button onClick={onCancel} className="secondary-button" style={{ marginLeft: '8px' }}>Batal</button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8">
+      <div className="flex flex-col w-full h-full max-w-6xl max-h-[90vh] bg-[#090f19] rounded-2xl shadow-2xl overflow-hidden border border-slate-700/50">
+        <div className="flex justify-between items-center p-4 bg-[#111827] border-b border-slate-800 shrink-0">
+          <h3 className="m-0 text-white font-semibold">Crop Foto Passport</h3>
+          <div className="flex items-center gap-4">
+            <input type="range" min="0.75" max="2" step="0.05" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} className="w-32 cursor-pointer accent-blue-500" />
+            <button onClick={handleSave} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Simpan Crop</button>
+            <button onClick={onCancel} className="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg transition-colors">Batal</button>
           </div>
         </div>
-        <div ref={containerRef} style={{ flex: 1, minHeight: '400px', cursor: 'crosshair', position: 'relative' }}>
+        <div ref={containerRef} className="flex-1 w-full min-h-[400px] relative cursor-crosshair">
           <canvas
             ref={canvasRef}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            style={{ width: '100%', height: '100%', display: 'block' }}
+            className="w-full h-full block"
           />
         </div>
       </div>

@@ -79,7 +79,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
 
   const daysGrid = [];
   for (let i = 0; i < firstDayOfMonth; i++) {
-    daysGrid.push(<div key={`empty-${i}`} className="date-picker-empty"></div>);
+    daysGrid.push(<div key={`empty-${i}`} className="h-8"></div>);
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const isSelected = value && !isNaN(parsedDate.getTime()) && 
@@ -91,7 +91,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
       <button 
         key={d} 
         onClick={(e) => { e.preventDefault(); handleDayClick(d); }}
-        className={`date-picker-day ${isSelected ? 'selected' : ''}`}
+        className={`flex items-center justify-center h-8 border-none rounded-md text-[13px] cursor-pointer transition-colors ${isSelected ? 'bg-[#004ac6] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
       >
         {d}
       </button>
@@ -101,7 +101,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
   const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
   return (
-    <div className="date-picker-container" ref={containerRef}>
+    <div className="relative w-full" ref={containerRef}>
       <input 
         type="text"
         className={className}
@@ -111,57 +111,56 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
         placeholder={placeholder}
       />
       <span 
-        className="material-symbols-outlined date-picker-icon"
+        className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#004ac6] text-[20px] cursor-pointer pointer-events-auto"
         onClick={() => setIsOpen(!isOpen)}
       >
         calendar_month
       </span>
 
       {isOpen && (
-        <div className="date-picker-popup">
-          <div className="date-picker-header">
-            <button onClick={(e) => { e.preventDefault(); prevNav(); }} className="date-picker-nav-btn">
-              <span className="material-symbols-outlined" style={{fontSize:'16px'}}>chevron_left</span>
+        <div className="absolute top-[calc(100%+4px)] left-0 z-50 w-[280px] bg-white border border-slate-300 rounded-lg shadow-lg p-4 font-sans">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={(e) => { e.preventDefault(); prevNav(); }} className="flex items-center justify-center w-7 h-7 bg-transparent border border-slate-200 rounded-md cursor-pointer text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900">
+              <span className="material-symbols-outlined" style={{fontSize:'20px'}}>chevron_left</span>
             </button>
             
             {viewMode === 'days' ? (
               <span 
-                className="date-picker-month-year" 
+                className="font-semibold text-sm text-slate-900 flex items-center gap-1 transition-colors hover:text-[#004ac6] cursor-pointer" 
                 onClick={() => { 
                   setViewMode('years'); 
                   setYearPageStart(currentYear - (currentYear % 12)); 
                 }}
-                style={{cursor: 'pointer'}}
                 title="Pilih Tahun"
               >
                 {monthNames[currentMonthIdx]} {currentYear}
               </span>
             ) : (
-              <span className="date-picker-month-year">
+              <span className="font-semibold text-sm text-slate-900 flex items-center gap-1">
                 {yearPageStart} - {yearPageStart + 11}
               </span>
             )}
 
-            <button onClick={(e) => { e.preventDefault(); nextNav(); }} className="date-picker-nav-btn">
-              <span className="material-symbols-outlined" style={{fontSize:'16px'}}>chevron_right</span>
+            <button onClick={(e) => { e.preventDefault(); nextNav(); }} className="flex items-center justify-center w-7 h-7 bg-transparent border border-slate-200 rounded-md cursor-pointer text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900">
+              <span className="material-symbols-outlined" style={{fontSize:'20px'}}>chevron_right</span>
             </button>
           </div>
           
           {viewMode === 'days' ? (
             <>
-              <div className="date-picker-weekdays">
+              <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-semibold text-slate-500">
                 <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
               </div>
-              <div className="date-picker-grid">
+              <div className="grid grid-cols-7 gap-1">
                 {daysGrid}
               </div>
             </>
           ) : (
-            <div className="date-picker-years-grid">
+            <div className="grid grid-cols-3 gap-2 pt-2">
               {Array.from({length: 12}, (_, i) => yearPageStart + i).map(y => (
                 <button 
                   key={y}
-                  className={`date-picker-year-btn ${y === currentYear ? 'selected' : ''}`}
+                  className={`h-10 border-none rounded-md text-sm cursor-pointer transition-colors ${y === currentYear ? 'bg-[#004ac6] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
                   onClick={(e) => {
                     e.preventDefault();
                     setCurrentViewDate(new Date(y, currentMonthIdx, 1));

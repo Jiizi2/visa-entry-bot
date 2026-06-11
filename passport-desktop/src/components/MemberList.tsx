@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppContext } from '../AppContext';
+import { useStore } from '../store';
 import {
   memberDisplayName,
   memberPassport,
@@ -8,7 +8,8 @@ import {
 } from '../utils/members';
 
 export default function MemberList() {
-  const { state, updateState } = useAppContext();
+  const state = useStore();
+  const updateState = useStore(s => s.updateState);
   const members = state.manifest?.members || [];
 
   const handleFilter = (filter: string) => {
@@ -83,7 +84,7 @@ export default function MemberList() {
                   </div>
                 </div>
                 {reviewed && (
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>check_circle</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#22c55e' }}>check_circle</span>
                 )}
               </div>
             );

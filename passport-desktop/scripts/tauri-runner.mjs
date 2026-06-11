@@ -274,6 +274,31 @@ function mergePathList(preferredEntries, existingValue) {
 }
 
 async function startFrontendDevServer({ env }) {
+  try {
+    const { exec } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execAsync = promisify(exec);
+
+    if (process.platform === "win32") {
+      const { stdout } = await execAsync(`netstat -ano | findstr :1420`);
+      const lines = stdout.trim().split("\n");
+      for (const line of lines) {
+        if (line.includes("LISTENING")) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && pid !== "0") {
+            await execAsync(`taskkill /PID ${pid} /F`);
+          }
+        }
+      }
+    } else {
+      await execAsync(`lsof -t -i:1420 | xargs -r kill -9`);
+    }
+    console.log("Port 1420 telah dibersihkan tanpa package eksternal.");
+  } catch (error) {
+    // Abaikan jika port tidak sedang digunakan atau gagal
+  }
+
   const viteBin = join(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "vite.cmd" : "vite");
   const child = spawn(viteBin, ["--config", "vite.config.ts"], {
     stdio: ["ignore", "pipe", "inherit"],

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppContext } from '../AppContext';
+import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
 import CropTool, { CropRect } from '../components/CropTool';
-import './prepare-page.css';
+import { getEffectiveImagePath } from '../utils/paths';
 
 export default function PreparePage() {
-  const { state, updateState } = useAppContext();
+  const state = useStore();
+  const updateState = useStore(s => s.updateState);
   const [error, setError] = useState('');
   const [activeItem, setActiveItem] = useState<any>(null);
   const [activeImageData, setActiveImageData] = useState<{dataUrl?: string, path?: string}>({});
@@ -62,7 +63,7 @@ export default function PreparePage() {
       if (!thumbCache[item.id]) {
         invoke('load_passport_image_data', {
           manifestPath: '',
-          imagePath: effectiveImagePath(item),
+          imagePath: getEffectiveImagePath(item),
           fileName: item.fileName || '',
         }).then((res: any) => {
           if (res?.dataUrl) {
@@ -72,8 +73,6 @@ export default function PreparePage() {
       }
     });
   }, [items]);
-
-  const effectiveImagePath = (item: any) => String(item?.editedPath || item?.scanPath || '').trim();
 
   const prepareImages = async () => {
     updateState({ isPreparingImages: true, statusHeadline: 'Menyiapkan foto' });
@@ -90,7 +89,7 @@ export default function PreparePage() {
     try {
       const res: any = await invoke('load_passport_image_data', {
         manifestPath: '',
-        imagePath: effectiveImagePath(item),
+        imagePath: getEffectiveImagePath(item),
         fileName: item.fileName || '',
       });
       setActiveImageData(res || {});
@@ -151,9 +150,9 @@ export default function PreparePage() {
       const session = await invoke('save_prepared_passport_image', {
         preparedManifestPath: state.preparedSession?.preparedManifestPath || '',
         itemId: String(activeItem.id),
-        sourceImagePath: effectiveImagePath(activeItem),
+        sourceImagePath: getEffectiveImagePath(activeItem),
         dataUrl: newUrl,
-        crop: { operation: 'rotate', rotationDeltaDegrees: delta, rotationDegrees: nextRotation, sourceImagePath: effectiveImagePath(activeItem) },
+        crop: { operation: 'rotate', rotationDeltaDegrees: delta, rotationDegrees: nextRotation, sourceImagePath: getEffectiveImagePath(activeItem) },
         rotationDegrees: nextRotation,
       });
       updateState({ preparedSession: session, statusHeadline: 'Rotasi tersimpan' });
@@ -185,9 +184,9 @@ export default function PreparePage() {
       const session = await invoke('save_prepared_passport_image', {
         preparedManifestPath: state.preparedSession?.preparedManifestPath || '',
         itemId: String(activeItem.id),
-        sourceImagePath: effectiveImagePath(activeItem),
+        sourceImagePath: getEffectiveImagePath(activeItem),
         dataUrl,
-        crop: { rect, operation: 'crop', sourceImagePath: effectiveImagePath(activeItem) },
+        crop: { rect, operation: 'crop', sourceImagePath: getEffectiveImagePath(activeItem) },
         rotationDegrees: Number(activeItem.rotationDegrees || 0),
       });
       updateState({ preparedSession: session, statusHeadline: 'Crop tersimpan' });
@@ -198,19 +197,19 @@ export default function PreparePage() {
   };
 
   return (
-    <section id="page-prepare" className="page-section" style={{ height: '100%', padding: '16px 24px 24px 24px', display: 'flex', flexDirection: 'column' }}>
-      <div className="prepare-page-container">
+    <section id="page-prepare" className="flex flex-col h-full p-4 pb-6 px-6">
+      <div className="flex w-full max-w-[1440px] mx-auto gap-6 h-full overflow-hidden p-0">
         
         {/* Left Panel: Photo List */}
-        <aside className="prepare-aside">
-          <div className="prepare-aside-header">
-            <span className="material-symbols-outlined text-on-surface-variant">photo_library</span>
+        <aside className="shrink-0 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-300/40 flex flex-col overflow-hidden h-full w-[96px]">
+          <div className="p-4 border-b border-slate-300/40 bg-slate-50/50 flex justify-center">
+            <span className="material-symbols-outlined text-[24px] text-slate-600">photo_library</span>
           </div>
           
-          <div className="prepare-aside-list">
+          <div className="grow overflow-y-auto p-3 flex flex-col gap-4 bg-slate-50/50 items-center">
             {state.isPreparingImages && (
               <div style={{ textAlign: 'center', color: '#9ca3af' }}>
-                <div className="prepare-spinner"></div>
+                <div className="w-6 h-6 border-[3px] border-slate-200 border-t-blue-700 rounded-full animate-spin mx-auto mb-2.5"></div>
               </div>
             )}
             {!state.isPreparingImages && currentItems.map((item: any, idx: number) => {
@@ -219,13 +218,13 @@ export default function PreparePage() {
               return (
                 <button
                   key={item.id}
-                  className={`prepare-aside-item ${isActive ? "is-active" : ""}`}
+                  className={`relative cursor-pointer bg-transparent border-none p-0 outline-none group ${isActive ? "before:absolute before:-left-3 before:top-0 before:bottom-0 before:w-1 before:bg-blue-700 before:rounded-r-full" : ""}`}
                   type="button"
                   onClick={() => updateState({ activePreparedItemId: String(item.id) })}
                   title={item.fileName || `passport-${globalIdx + 1}`}
                 >
                   <img 
-                    className="prepare-aside-thumb" 
+                    className={`w-16 h-20 object-cover rounded-lg transition-all duration-200 ${isActive ? 'border-2 border-blue-700 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)]' : 'border border-slate-300/50 group-hover:border-blue-700'}`} 
                     src={thumbCache[item.id] || ''} 
                     alt={item.fileName || `Passport ${globalIdx + 1}`} 
                   />
@@ -235,60 +234,60 @@ export default function PreparePage() {
           </div>
 
           {!state.isPreparingImages && totalPages > 1 && (
-            <div className="prepare-aside-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', borderTop: '1px solid rgba(195, 198, 215, 0.4)' }}>
+            <div className="flex justify-between items-center p-3 border-t border-slate-300/40">
               <button 
                 onClick={() => setListPage(p => Math.max(0, p - 1))}
                 disabled={listPage === 0}
-                style={{ background: 'none', border: 'none', cursor: listPage === 0 ? 'default' : 'pointer', opacity: listPage === 0 ? 0.3 : 1, padding: '4px', display: 'flex', alignItems: 'center', color: '#004ac6' }}
+                className={`flex items-center justify-center p-1 bg-transparent border-none text-blue-700 ${listPage === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded'}`}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
+                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
               </button>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#434655', whiteSpace: 'nowrap' }}>
+              <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
                 {listPage + 1} / {totalPages}
               </span>
               <button 
                 onClick={() => setListPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={listPage === totalPages - 1}
-                style={{ background: 'none', border: 'none', cursor: listPage === totalPages - 1 ? 'default' : 'pointer', opacity: listPage === totalPages - 1 ? 0.3 : 1, padding: '4px', display: 'flex', alignItems: 'center', color: '#004ac6' }}
+                className={`flex items-center justify-center p-1 bg-transparent border-none text-blue-700 ${listPage === totalPages - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded'}`}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
+                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
               </button>
             </div>
           )}
         </aside>
 
         {/* Right Panel: Main Preview & Actions */}
-        <section className="prepare-main">
+        <section className="grow flex flex-col gap-6 h-full overflow-hidden w-full min-h-0">
           
           {/* Image Canvas */}
-          <div className="prepare-image-canvas">
+          <div className="grow bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-300/40 relative overflow-hidden flex flex-col min-h-0">
             
             {/* Preview Area */}
-            <div className="prepare-preview-area">
-              <div className="checkerboard-bg"></div>
+            <div className="grow bg-slate-200/40 relative flex items-center justify-center overflow-hidden rounded-t-2xl p-6 min-h-0">
+              <div className="absolute inset-0 z-0 opacity-[0.07] pointer-events-none bg-[linear-gradient(45deg,#94a3b8_25%,transparent_25%),linear-gradient(-45deg,#94a3b8_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#94a3b8_75%),linear-gradient(-45deg,transparent_75%,#94a3b8_75%)] bg-[size:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px]"></div>
               
               {state.isPreparingImages && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
-                  <div className="prepare-spinner prepare-spinner-lg"></div>
-                  <h3 style={{ marginTop: '20px', color: '#191c1e' }}>Menyiapkan Foto...</h3>
-                  <p style={{ color: '#434655', marginTop: '8px' }}>Mohon tunggu, sedang membaca dan memproses dokumen dari folder.</p>
+                <div className="flex flex-col items-center z-10">
+                  <div className="w-12 h-12 border-4 mx-auto mb-2.5 border-slate-200 border-t-blue-700 rounded-full animate-spin"></div>
+                  <h3 className="mt-5 text-slate-900 font-semibold text-lg">Menyiapkan Foto...</h3>
+                  <p className="text-slate-700 mt-2">Mohon tunggu, sedang membaca dan memproses dokumen dari folder.</p>
                 </div>
               )}
               
               {!state.isPreparingImages && !activeImageData.dataUrl && activeItem && (
-                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10, color: '#434655' }}>
-                   <div className="prepare-spinner" style={{ marginBottom: '10px' }}></div>
+                 <div className="flex flex-col items-center z-10 text-slate-700">
+                   <div className="w-6 h-6 border-[3px] border-slate-200 border-t-blue-700 rounded-full animate-spin mx-auto mb-2.5"></div>
                    Memuat pratinjau gambar...
                  </div>
               )}
               
               {!state.isPreparingImages && !activeItem && (
-                <div style={{ zIndex: 10, color: '#434655' }}>Belum ada foto dipilih.</div>
+                <div className="z-10 text-slate-700">Belum ada foto dipilih.</div>
               )}
               
               {!state.isPreparingImages && activeImageData.dataUrl && (
                 <img 
-                  className="prepare-preview-img" 
+                  className="max-w-full max-h-full object-contain relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] rounded-lg transition-transform duration-300 hover:scale-[1.02]" 
                   src={activeImageData.dataUrl} 
                   alt="Large passport preview" 
                 />
@@ -297,21 +296,21 @@ export default function PreparePage() {
             
             {/* Image Action Bar */}
             {!state.isPreparingImages && activeItem && (
-              <div className="prepare-glass-panel">
-                <button className="prepare-action-btn" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>crop</span>
+              <div className="bg-white/70 backdrop-blur-md border-b border-slate-300/30 absolute top-0 left-0 right-0 rounded-t-2xl p-4 flex justify-center gap-4 z-20">
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
+                  <span className="material-symbols-outlined text-[20px]">crop</span>
                   Crop Foto
                 </button>
-                <button className="prepare-action-btn" onClick={() => handleRotate(-90)} disabled={!activeImageData.dataUrl}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rotate_left</span>
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleRotate(-90)} disabled={!activeImageData.dataUrl}>
+                  <span className="material-symbols-outlined text-[20px]">rotate_left</span>
                   Rotasi Kiri
                 </button>
-                <button className="prepare-action-btn" onClick={() => handleRotate(90)} disabled={!activeImageData.dataUrl}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rotate_right</span>
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleRotate(90)} disabled={!activeImageData.dataUrl}>
+                  <span className="material-symbols-outlined text-[20px]">rotate_right</span>
                   Rotasi Kanan
                 </button>
-                <button className="prepare-action-btn danger" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                <button className="flex items-center gap-2 bg-red-600/5 border border-red-600/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-red-700 cursor-pointer transition-all duration-200 hover:bg-red-700 hover:border-red-700 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-4" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
+                  <span className="material-symbols-outlined text-[20px]">delete</span>
                   Hapus Foto
                 </button>
                 
@@ -321,14 +320,14 @@ export default function PreparePage() {
                   const hasNext = currentIndex >= 0 && currentIndex < items.length - 1;
                   return (
                     <button 
-                      className="prepare-action-btn primary-like" 
+                      className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-2" 
                       disabled={!hasNext}
                       onClick={() => {
                         if (hasNext) updateState({ activePreparedItemId: String(items[currentIndex + 1].id) });
                       }}
                     >
                       Berikutnya
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>navigate_next</span>
+                      <span className="material-symbols-outlined text-[20px]">navigate_next</span>
                     </button>
                   );
                 })()}
@@ -337,19 +336,19 @@ export default function PreparePage() {
           </div>
 
           {/* Footer Actions */}
-          <div className="prepare-footer">
-            <p className="prepare-footer-text">
-              <span className="material-symbols-outlined">info</span>
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-300/40 px-6 py-3 flex justify-between items-center shrink-0">
+            <p className="font-medium text-[14px] text-slate-700 flex items-center gap-3 m-0">
+              <span className="material-symbols-outlined text-blue-700/60 text-[20px]">info</span>
               Pastikan semua foto sudah terbaca jelas sebelum OCR dimulai.
             </p>
-            {error && <div style={{ color: 'red', fontWeight: 'bold', margin: '0 0 10px 0', fontSize: '14px', padding: '10px', background: 'rgba(186, 26, 26, 0.1)', borderRadius: '6px', border: '1px solid rgba(186, 26, 26, 0.3)' }}>{error}</div>}
-            <div className="prepare-footer-actions">
-              <button className="prepare-btn-secondary" type="button" onClick={() => updateState({ currentPage: 'import' })}>
+            {error && <div className="text-red-600 font-bold m-0 mb-2.5 text-sm p-2.5 bg-red-600/10 rounded-md border border-red-600/30">{error}</div>}
+            <div className="flex gap-4">
+              <button className="border border-slate-300/50 rounded-xl font-semibold text-[14px] text-slate-700 bg-white px-4 py-2 shadow-sm cursor-pointer transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" type="button" onClick={() => updateState({ currentPage: 'import' })}>
                 Kembali Folder
               </button>
-              <button className="prepare-btn-primary" type="button" onClick={handleStartScan} disabled={state.isScanning || state.isPreparingImages}>
+              <button className="bg-blue-700 text-white rounded-xl font-bold text-[14px] px-5 py-2 flex items-center gap-2 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] cursor-pointer transition-all duration-200 border-none hover:shadow-[0_10px_15px_-3px_rgba(0,74,198,0.3),0_4px_6px_-2px_rgba(0,74,198,0.05)] hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" type="button" onClick={handleStartScan} disabled={state.isScanning || state.isPreparingImages}>
                 Start Scan
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
+                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
               </button>
             </div>
           </div>
@@ -371,7 +370,7 @@ export default function PreparePage() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#1a1c1e', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="material-symbols-outlined" style={{ color: '#ba1a1a' }}>warning</span>
+              <span className="material-symbols-outlined" style={{ color: '#ba1a1a', fontSize: '24px' }}>warning</span>
               Konfirmasi Hapus
             </h3>
             <p style={{ margin: '0 0 24px 0', color: '#43474e', fontSize: '15px', lineHeight: '1.5' }}>

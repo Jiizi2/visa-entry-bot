@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { create } from 'zustand';
 
 export type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
 
@@ -61,9 +61,13 @@ export interface AppState {
   isStoppingScan: boolean;
   isStartingScan: boolean;
   isChoosingFolder: boolean;
+  
+  // Actions
+  updateState: (updates: Partial<AppState>) => void;
+  initializeStore: () => void;
 }
 
-const initialState: AppState = {
+const initialState: Omit<AppState, 'updateState' | 'initializeStore'> = {
   currentPage: 'import',
   validationFilter: 'all',
   selectedDir: '',
@@ -122,57 +126,30 @@ const initialState: AppState = {
   isChoosingFolder: false,
 };
 
-interface AppContextType {
-  state: AppState;
-  setState: React.Dispatch<React.SetStateAction<AppState>>;
-  updateState: (updates: Partial<AppState>) => void;
-}
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(initialState);
-
-  React.useEffect(() => {
+export const useStore = create<AppState>((set) => ({
+  ...initialState,
+  
+  updateState: (updates: Partial<AppState>) => set((state) => {
+    // Handle localStorage persistency for specific fields
+    if (updates.recentBatches !== undefined) {
+      try { localStorage.setItem('recentBatches', JSON.stringify(updates.recentBatches)); } catch(e){}
+    }
+    if (updates.defaultEntry !== undefined) {
+      try { localStorage.setItem('defaultEntry', JSON.stringify(updates.defaultEntry)); } catch(e){}
+    }
+    return updates as AppState;
+  }),
+  
+  initializeStore: () => {
     try {
       const savedRecent = localStorage.getItem('recentBatches');
-      if (savedRecent) {
-        setState(prev => ({ ...prev, recentBatches: JSON.parse(savedRecent) }));
-      }
       const savedDefaultEntry = localStorage.getItem('defaultEntry');
-      if (savedDefaultEntry) {
-        setState(prev => ({ ...prev, defaultEntry: JSON.parse(savedDefaultEntry) }));
-      }
+      set((state) => ({
+        recentBatches: savedRecent ? JSON.parse(savedRecent) : state.recentBatches,
+        defaultEntry: savedDefaultEntry ? JSON.parse(savedDefaultEntry) : state.defaultEntry
+      }));
     } catch (e) {
-      console.warn('Gagal meload state dari localStorage', e);
+      console.warn('Failed to load state from localStorage', e);
     }
-  }, []);
-
-  const updateState = (updates: Partial<AppState>) => {
-    setState((prev) => {
-      const next = { ...prev, ...updates };
-      // Simpan ke localStorage jika field tertentu berubah
-      if (updates.recentBatches) {
-        localStorage.setItem('recentBatches', JSON.stringify(next.recentBatches));
-      }
-      if (updates.defaultEntry) {
-        localStorage.setItem('defaultEntry', JSON.stringify(next.defaultEntry));
-      }
-      return next;
-    });
-  };
-
-  return (
-    <AppContext.Provider value={{ state, setState, updateState }}>
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-export function useAppContext() {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useAppContext must be used within an AppProvider');
   }
-  return context;
-}
+}));

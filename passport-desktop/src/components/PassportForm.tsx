@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppContext } from '../AppContext';
+import { useStore } from '../store';
 import {
   FIELD_CATEGORY_PAIRS,
   FIELD_CATEGORY_DEFS,
@@ -26,7 +26,8 @@ import {
 } from '../utils/members';
 
 export default function PassportForm() {
-  const { state, updateState } = useAppContext();
+  const state = useStore();
+  const updateState = useStore(s => s.updateState);
   const members = state.manifest?.members || [];
   const activeMember = members.find((m: any) => m.id === state.activeMemberId);
 

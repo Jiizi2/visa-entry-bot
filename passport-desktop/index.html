@@ -5,14 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EntryMate By Ghaniya</title>
     
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
-    
-    <!-- Material Symbols -->
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    
     <style>
       html, body { margin: 0; min-height: 100%; background: #f9f9fd; color: #191c1e; }
       
@@ -38,7 +30,13 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="display:flex; height:100vh; width:100vw; background-color:#f9f9fd; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
+        <div style="width: 40px; height: 40px; border: 4px solid #dbe1ff; border-top-color: #004ac6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        <div style="font-family:'Hanken Grotesk', sans-serif; font-size:16px; color:#434655; font-weight:600;">Memuat Aplikasi...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

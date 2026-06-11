@@ -1,164 +1,28 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import CustomDatePicker from '../components/CustomDatePicker';
-import { useAppContext } from '../AppContext';
+import React from 'react';
+import { useStore } from '../store';
 import { 
   memberDisplayName, 
   resolvedProfileOf, 
-  passportExtractedOf,
-  rawValueFrom,
-  confidenceLevelForMember,
-  COMPANION_RELATION_OPTIONS,
-  childInfoForMember
+  passportExtractedOf
 } from '../utils/members';
 import {
-  FIELD_CATEGORY_DEFS,
-  REVIEW_FIELDS,
-  isReviewFieldRequired,
-  maxLengthForField,
-  isDateFieldKey,
   normalizeInputValueForField,
   arabicFieldForLatinName,
   transliteratedArabicValueForField,
+  REVIEW_FIELDS
 } from '../utils/fields';
-import './review-page.css';
-
-function DynamicFormField({ keyName, label, activeMember, resolved, extracted, onChange }: any) {
-  const ocrValue = rawValueFrom(extracted, keyName);
-  const finalValue = rawValueFrom(resolved, keyName);
-  const isDate = isDateFieldKey(keyName);
-  const required = isReviewFieldRequired(keyName);
-  const maxLen = maxLengthForField(keyName);
-  
-  const confLevel = confidenceLevelForMember(activeMember, keyName);
-  let dotTone = 'neutral';
-  if (confLevel === 'HIGH') dotTone = 'valid';
-  else if (confLevel === 'MEDIUM') dotTone = 'warn';
-  else if (confLevel === 'LOW') dotTone = 'error';
-
-  const hasScan = Boolean(ocrValue);
-  const changed = hasScan && ocrValue !== finalValue;
-  
-  let isAlert = false;
-  if (required && !finalValue) isAlert = true;
-  if (hasScan && confLevel === 'LOW') isAlert = true;
-  
-  const warningText = changed ? `Scan Asli: "${ocrValue}"` : null;
-
-  return (
-    <div className={`review-field-group`}>
-      <div className="review-field-header">
-        <label className="review-field-label">
-          <div className={`review-dropdown-dot ${dotTone}`} title={`Confidence: ${confLevel}`}></div>
-          {label}
-        </label>
-        {required && <span className="review-field-req">Wajib</span>}
-      </div>
-      {isDate ? (
-        <CustomDatePicker 
-          className={`review-field-input ${isAlert ? 'is-warn' : ''} is-code`}
-          value={(finalValue || '').replace(/\//g, '-')}
-          onChange={(val) => onChange(keyName, val)}
-          placeholder="YYYY-MM-DD"
-        />
-      ) : (
-        <input 
-          className={`review-field-input ${isAlert ? 'is-warn' : ''}`}
-          type="text" 
-          value={finalValue || ''}
-          maxLength={maxLen || undefined}
-          onChange={(e) => onChange(keyName, e.target.value)}
-          placeholder={label}
-        />
-      )}
-      {warningText && (
-        <p className="review-field-hint">
-          {warningText}
-        </p>
-      )}
-    </div>
-  );
-}
+import ReviewImageViewer from './review/ReviewImageViewer';
+import ReviewDropdown from './review/ReviewDropdown';
+import ReviewDynamicForm from './review/ReviewDynamicForm';
 
 export default function ReviewPage() {
-  const { state, updateState } = useAppContext();
-  const [activeImageData, setActiveImageData] = useState<{dataUrl?: string}>({});
-  const [zoom, setZoom] = useState(1);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const imgContainerRef = useRef<HTMLDivElement>(null);
-
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 });
+  const state = useStore();
+  const updateState = useStore(s => s.updateState);
   
   const members = state.manifest?.members || [];
   const activeMember = members.find((m: any) => m.id === state.activeMemberId) || members[0];
   const activeIndex = members.findIndex((m: any) => m.id === activeMember?.id);
   
-  useEffect(() => {
-    if (activeMember) {
-      const loadImg = async () => {
-        try {
-          const res: any = await invoke('load_passport_image_data', {
-            manifestPath: state.manifestPath || '',
-            imagePath: activeMember.editedPath || activeMember.scanPath || activeMember.passportExtracted?.sourceImagePath || '',
-            fileName: activeMember.fileName || '',
-          });
-          setActiveImageData(res || {});
-          setZoom(1); // Reset zoom on new image
-        } catch (e) {
-          console.error(e);
-          setActiveImageData({});
-        }
-      };
-      loadImg();
-    } else {
-      setActiveImageData({});
-    }
-  }, [activeMember, state.manifestPath]);
-
-  // Handle Ctrl+Scroll to zoom
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        setZoom(z => {
-          const delta = e.deltaY > 0 ? -0.1 : 0.1;
-          return Math.min(Math.max(0.5, z + delta), 5);
-        });
-      }
-    };
-    const el = imgContainerRef.current;
-    if (el) {
-      el.addEventListener('wheel', handleWheel, { passive: false });
-      return () => el.removeEventListener('wheel', handleWheel);
-    }
-  }, []);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (imgContainerRef.current) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
-      setScrollStart({ 
-        x: imgContainerRef.current.scrollLeft, 
-        y: imgContainerRef.current.scrollTop 
-      });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && imgContainerRef.current) {
-      const dx = e.clientX - dragStart.x;
-      const dy = e.clientY - dragStart.y;
-      imgContainerRef.current.scrollLeft = scrollStart.x - dx;
-      imgContainerRef.current.scrollTop = scrollStart.y - dy;
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   const handleNext = () => {
     let nextManifest = state.manifest;
     let nextSet = state.reviewedMemberIds;
@@ -192,7 +56,6 @@ export default function ReviewPage() {
 
   const handleMemberSelect = (id: string) => {
     updateState({ activeMemberId: id });
-    setDropdownOpen(false);
   };
 
   const handleFieldChange = (key: string, value: string) => {
@@ -239,28 +102,33 @@ export default function ReviewPage() {
   const resolved = resolvedProfileOf(activeMember);
   const extracted = passportExtractedOf(activeMember);
   const remaining = members.length - (activeIndex >= 0 ? activeIndex + 1 : 0);
-  const { isChild } = childInfoForMember(activeMember);
 
   const allRequiredKeys = REVIEW_FIELDS.filter(f => f[2]?.required !== false).map(f => f[0]);
-  const filledKeysCount = allRequiredKeys.filter(k => rawValueFrom(resolved, k)).length;
-  const progressText = `${filledKeysCount}/${allRequiredKeys.length} Wajib`;
+  const filledKeysCount = allRequiredKeys.filter(k => resolved && resolved[k.split('.')[0]] && resolved[k.split('.')[0]][k.split('.')[1] || ''] || resolved && resolved[k] ? true : false).length; 
+  // We use rawValueFrom logic conceptually or just do a simpler check. Let's fix filledKeysCount calculation
+  const getRaw = (r: any, k: string) => {
+    const p = k.split('.');
+    return p.length === 2 ? r?.[p[0]]?.[p[1]] : r?.[k];
+  };
+  const filledCount = allRequiredKeys.filter(k => getRaw(resolved, k)).length;
+  const progressText = `${filledCount}/${allRequiredKeys.length} Wajib`;
 
   return (
-    <div className="review-page-modern">
+    <div className="flex-1 h-full flex flex-col overflow-hidden bg-slate-50 w-full text-slate-900 font-['Inter',sans-serif] text-[16px] leading-[24px]">
       {/* Top Workspace Header */}
-      <div style={{ padding: '16px 16px 0 16px', flexShrink: 0, zIndex: 20 }}>
-        <header className="scan-header-modern" style={{ margin: 0, maxWidth: 'none', padding: '16px 24px' }}>
-          <div className="scan-header-title-area">
-            <div className="scan-header-icon" style={{ background: 'linear-gradient(135deg, #004ac6, #3b82f6)', boxShadow: '0 4px 12px rgba(0, 74, 198, 0.2)' }}>
-              <span className="material-symbols-outlined">fact_check</span>
+      <div className="px-4 pt-4 shrink-0 z-20">
+        <header className="flex justify-between items-center bg-white border-b border-slate-300 shadow-sm py-4 px-6 rounded-2xl relative z-20">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white bg-gradient-to-br from-blue-700 to-blue-500 shadow-[0_4px_12px_rgba(0,74,198,0.2)]">
+              <span className="material-symbols-outlined text-[24px]">fact_check</span>
             </div>
             <div>
-              <span className="step-eyebrow">LANGKAH 4: VALIDASI DATA</span>
-              <h1 className="scan-title">Data Review</h1>
+              <span className="block text-[11px] font-bold text-blue-700 tracking-[0.1em] mb-1 uppercase">LANGKAH 4: VALIDASI DATA</span>
+              <h1 className="font-['Inter',sans-serif] text-[20px] font-semibold text-slate-900 m-0 leading-7">Data Review</h1>
             </div>
           </div>
-          <div className="scan-window-controls">
-            <span className="scan-badge" style={{ background: '#e6e8ea', color: '#505f76', border: '1px solid rgba(195, 198, 215, 0.5)' }}>
+          <div className="flex items-center gap-4">
+            <span className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-200 text-slate-600 border border-slate-300/50">
               {remaining} Documents Remaining
             </span>
           </div>
@@ -268,243 +136,71 @@ export default function ReviewPage() {
       </div>
 
       {/* Main Workspace: Two Columns (Form Dominant) */}
-      <section className="review-workspace-modern">
+      <section className="flex-1 flex overflow-hidden p-4 gap-4">
         
         {/* Left Column: Dropdown and Image */}
-        <div className="review-col-left">
+        <div className="flex flex-col min-w-0 flex-[2]">
           
-          {/* Dropdown */}
-          <div className="review-dropdown-container">
-            <button 
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="review-dropdown-btn"
-            >
-              <div className="review-dropdown-dot warn"></div>
-              <div className="review-dropdown-text">
-                <span className="review-dropdown-name">
-                  {memberDisplayName(activeMember)}
-                </span>
-                <span className="review-dropdown-meta">
-                  {resolved?.passportNumber || '-'}
-                </span>
-              </div>
-              <span className="material-symbols-outlined review-dropdown-icon">expand_more</span>
-            </button>
-            
-            {dropdownOpen && (
-              <div className="review-dropdown-menu">
-                {members.map((m: any) => (
-                  <button 
-                    key={m.id}
-                    onClick={() => handleMemberSelect(m.id)}
-                    className={`review-dropdown-item ${activeMember.id === m.id ? 'is-active' : ''}`}
-                  >
-                    <div className="review-dropdown-dot neutral"></div>
-                    <div className="review-dropdown-text">
-                      <span className="review-dropdown-name">
-                        {memberDisplayName(m)}
-                      </span>
-                      <span className="review-dropdown-meta">
-                        {m.resolvedProfile?.passportNumber || '-'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ReviewDropdown 
+            members={members}
+            activeMember={activeMember}
+            resolved={resolved}
+            onMemberSelect={handleMemberSelect}
+          />
 
-          {/* Image Viewer */}
-          <div className="review-image-viewer">
-            <div className="review-image-bg"></div>
-            <div className="review-image-card">
-              <div className="review-image-header">
-                <h3 className="review-image-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>description</span> Source Document
-                </h3>
-                <span className="review-image-badge">Passport Preview</span>
-                <div className="review-zoom-controls" title="Gunakan Ctrl + Scroll untuk Zoom">
-                  <button className="review-zoom-btn" title="Zoom Out" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>remove</span>
-                  </button>
-                  <div className="review-zoom-level">
-                    {Math.round(zoom * 100)}%
-                  </div>
-                  <button className="review-zoom-btn" title="Zoom In" onClick={() => setZoom(z => Math.min(5, z + 0.25))}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-                  </button>
-                </div>
-              </div>
-              <div 
-                className="review-image-canvas"
-                ref={imgContainerRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                style={{ 
-                  cursor: isDragging ? 'grabbing' : 'grab',
-                  display: 'block',
-                  position: 'relative'
-                }}
-              >
-                <div style={{
-                  width: `${zoom * 100}%`,
-                  minWidth: '100%',
-                  minHeight: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: isDragging ? 'none' : 'width 0.2s ease-out'
-                }}>
-                  {activeImageData.dataUrl ? (
-                     <img 
-                       alt="Scanned passport document view" 
-                       src={activeImageData.dataUrl}
-                       draggable={false}
-                       style={{ 
-                         width: '100%', 
-                         height: 'auto', 
-                         maxHeight: zoom <= 1 ? '75vh' : 'none',
-                         objectFit: 'contain',
-                         mixBlendMode: 'multiply',
-                         pointerEvents: 'none'
-                       }} 
-                     />
-                  ) : (
-                     <div style={{ padding: '40px', color: '#737686', fontSize: '14px' }}>Tidak ada gambar</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <ReviewImageViewer 
+            activeMember={activeMember}
+            manifestPath={state.manifestPath}
+          />
+
         </div>
 
         {/* Right Column: Streamlined Data Form */}
-        <div className="review-col-right">
+        <div className="flex flex-col flex-[3] min-w-0 bg-white rounded-xl border border-slate-300/40 shadow-sm p-4 relative z-10 h-full">
           
           {/* Form Header */}
-          <div className="review-form-header">
-            <div className="review-form-title">
-              <h2>{memberDisplayName(activeMember)}</h2>
+          <div className="pb-4 border-b border-slate-300/50 shrink-0">
+            <div className="flex items-start justify-between mb-2">
+              <h2 className="font-['Inter',sans-serif] text-[24px] font-semibold text-slate-900 m-0 pr-4 leading-8">{memberDisplayName(activeMember)}</h2>
             </div>
-            <div className="review-form-badges">
-              <span className="review-status-badge warn">
-                <div className="review-dropdown-dot warn"></div> Needs Review
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                <div className="w-2 h-2 rounded-full shrink-0 bg-amber-400"></div> Needs Review
               </span>
-              <span className="review-passport-badge">
+              <span className="font-mono text-[14px] text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
                 {resolved?.passportNumber || '-'}
               </span>
             </div>
           </div>
 
-          {/* Form Content */}
-          <div className="review-form-content">
-            
-            {FIELD_CATEGORY_DEFS.map((category) => {
-              const visibleFields = REVIEW_FIELDS.filter(([key]) => category.keys.includes(key));
-              if (!visibleFields.length) return null;
-              
-              let icon = 'description';
-              if (category.id === 'identity') icon = 'person';
-              if (category.id === 'passport') icon = 'public';
-              if (category.id === 'arabic') icon = 'translate';
-              if (category.id === 'contact') icon = 'contact_mail';
-
-              return (
-                <div key={category.id} style={{ marginBottom: '24px' }}>
-                  <h3 className="review-section-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{icon}</span> {category.label}
-                  </h3>
-                  <div className="review-field-grid">
-                    {visibleFields.map(([key, label]) => (
-                      <DynamicFormField 
-                        key={key}
-                        keyName={key}
-                        label={label}
-                        activeMember={activeMember}
-                        resolved={resolved}
-                        extracted={extracted}
-                        onChange={handleFieldChange}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Bagian Companion / Pendamping */}
-            {isChild && (
-              <div style={{ marginBottom: '24px' }}>
-                <h3 className="review-section-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>group</span> Pendamping (Companion)
-                </h3>
-                <div className="review-field-grid">
-                  <div className="review-field-group">
-                    <div className="review-field-header">
-                      <label className="review-field-label">
-                        <div className="review-dropdown-dot neutral"></div>
-                        Anggota Pendamping
-                      </label>
-                    </div>
-                    <select 
-                      className="review-field-input"
-                      value={resolved?.companionId || ''}
-                      onChange={(e) => handleFieldChange('companionId', e.target.value)}
-                    >
-                      <option value="">Tidak ada / Mandiri</option>
-                      {members
-                        .filter((m: any) => m.id !== activeMember.id)
-                        .map((m: any) => (
-                        <option key={m.id} value={m.id}>{memberDisplayName(m)}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="review-field-group">
-                    <div className="review-field-header">
-                      <label className="review-field-label">
-                        <div className="review-dropdown-dot neutral"></div>
-                        Hubungan
-                      </label>
-                    </div>
-                    <select 
-                      className="review-field-input"
-                      value={resolved?.companionRelation || ''}
-                      onChange={(e) => handleFieldChange('companionRelation', e.target.value)}
-                      disabled={!resolved?.companionId}
-                    >
-                      <option value="">Pilih Hubungan</option>
-                      {COMPANION_RELATION_OPTIONS.map((opt: string) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-          </div>
+          <ReviewDynamicForm 
+            activeMember={activeMember}
+            members={members}
+            resolved={resolved}
+            extracted={extracted}
+            onChange={handleFieldChange}
+          />
 
           {/* Footer / Action Area */}
-          <div className="review-form-footer">
-            <div className="review-progress-row">
-              <span className="review-progress-text">Progress Pengisian:</span>
-              <span className="review-progress-warn" style={{ color: filledKeysCount === allRequiredKeys.length ? '#15803d' : '#d97706' }}>
+          <div className="border-t border-slate-300/50 bg-white/80 backdrop-blur-sm shrink-0 pt-4 mt-4">
+            <div className="flex items-center justify-between mb-4 text-[14px]">
+              <span className="text-slate-600">Progress Pengisian:</span>
+              <span className="font-medium text-[12px]" style={{ color: filledCount === allRequiredKeys.length ? '#15803d' : '#d97706' }}>
                 {progressText}
               </span>
             </div>
-            <div className="review-action-row">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button 
-                className="review-btn-primary"
+                className="px-4 py-2 bg-blue-700 text-white rounded-lg text-[14px] font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-sm hover:bg-blue-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleNext}
+                disabled={filledCount < allRequiredKeys.length}
               >
                 {activeIndex === members.length - 1 ? 'Approve & Finish Review' : 'Approve & Next Document'}
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
                   {activeIndex === members.length - 1 ? 'done_all' : 'arrow_forward'}
                 </span>
               </button>
-              <button className="review-btn-secondary">
+              <button className="px-4 py-2 bg-transparent text-slate-600 rounded-lg text-[14px] font-semibold border border-slate-300 cursor-pointer transition-all hover:bg-slate-200 hover:text-slate-900">
                 Flag as Error
               </button>
             </div>

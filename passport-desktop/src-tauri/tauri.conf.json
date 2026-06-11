@@ -18,8 +18,9 @@
                                     "center":  true,
                                     "minWidth":  1120,
                                     "minHeight":  760,
-                                    "backgroundColor":  "#f9f9fd",
+                                    "backgroundColor":  [0, 0, 0, 0],
                                     "decorations":  false,
+                                    "transparent": true,
                                     "backgroundThrottling":  "disabled"
                                 }
                             ],
