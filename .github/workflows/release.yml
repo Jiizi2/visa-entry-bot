@@ -36,9 +36,29 @@ jobs:
         with:
           node-version: 22
 
-      - name: setup MSVC
-        if: matrix.platform == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure MSVC for Rust
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -products Microsoft.VisualStudio.Product.Enterprise -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installPath) {
+            $installPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          }
+          Write-Host "VS installation: $installPath"
+
+          $vcVersion = (Get-Content "$installPath\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
+          $vcToolsPath = "$installPath\VC\Tools\MSVC\$vcVersion"
+          Write-Host "MSVC tools: $vcToolsPath"
+
+          $sdkBase = "${env:ProgramFiles(x86)}\Windows Kits\10"
+          $sdkVer = (Get-ChildItem "$sdkBase\Lib" -Directory | Where-Object { $_.Name -match '^\d+\.\d+' } | Sort-Object Name -Descending | Select-Object -First 1).Name
+          Write-Host "SDK version: $sdkVer"
+
+          echo "VCINSTALLDIR=$installPath\VC\" >> $env:GITHUB_ENV
+          echo "VCToolsInstallDir=$vcToolsPath\" >> $env:GITHUB_ENV
+          echo "VCToolsVersion=$vcVersion" >> $env:GITHUB_ENV
+          echo "LIB=$vcToolsPath\lib\x64;$sdkBase\Lib\$sdkVer\ucrt\x64;$sdkBase\Lib\$sdkVer\um\x64" >> $env:GITHUB_ENV
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
