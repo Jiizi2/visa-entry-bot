@@ -18,7 +18,7 @@ jobs:
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
-          - platform: 'windows-latest'
+          - platform: 'windows-2019'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -35,10 +35,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: setup MSVC
-        if: matrix.platform == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@v1
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
