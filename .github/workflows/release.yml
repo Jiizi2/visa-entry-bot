@@ -59,6 +59,8 @@ jobs:
           echo "VCToolsInstallDir=$vcToolsPath\" >> $env:GITHUB_ENV
           echo "VCToolsVersion=$vcVersion" >> $env:GITHUB_ENV
           echo "LIB=$vcToolsPath\lib\x64;$sdkBase\Lib\$sdkVer\ucrt\x64;$sdkBase\Lib\$sdkVer\um\x64" >> $env:GITHUB_ENV
+          echo "INCLUDE=$vcToolsPath\include;$sdkBase\Include\$sdkVer\ucrt;$sdkBase\Include\$sdkVer\um;$sdkBase\Include\$sdkVer\shared" >> $env:GITHUB_ENV
+          echo "$vcToolsPath\bin\HostX64\x64" >> $env:GITHUB_PATH
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
