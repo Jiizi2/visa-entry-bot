@@ -18,7 +18,7 @@ jobs:
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
-          - platform: 'windows-latest'
+          - platform: 'windows-2022'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -36,31 +36,37 @@ jobs:
         with:
           node-version: 22
 
-      - name: Configure MSVC for Rust
+      - name: setup MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Fix MSVC library paths for Rust
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # On GitHub runners, both Enterprise and BuildTools editions of VS are
+          # installed. Rust's internal find-msvc-tools crate discovers BuildTools
+          # via COM and uses its (incomplete) lib path, while ilammy/msvc-dev-cmd
+          # puts Enterprise's link.exe on PATH. This mismatch causes LNK1104.
+          #
+          # Fix: add Enterprise's lib path via RUSTFLAGS so the linker can find
+          # msvcrt.lib regardless of which LIBPATH find-msvc-tools injects.
+
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $installPath = & $vswhere -latest -products Microsoft.VisualStudio.Product.Enterprise -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $installPath = & $vswhere -latest -products Microsoft.VisualStudio.Product.Enterprise -property installationPath
           if (-not $installPath) {
             $installPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           }
-          Write-Host "VS installation: $installPath"
 
-          $vcVersion = (Get-Content "$installPath\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
-          $vcToolsPath = "$installPath\VC\Tools\MSVC\$vcVersion"
-          Write-Host "MSVC tools: $vcToolsPath"
+          $vcVer = (Get-Content "$installPath\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
+          $libPath = "$installPath\VC\Tools\MSVC\$vcVer\lib\x64"
 
-          $sdkBase = "${env:ProgramFiles(x86)}\Windows Kits\10"
-          $sdkVer = (Get-ChildItem "$sdkBase\Lib" -Directory | Where-Object { $_.Name -match '^\d+\.\d+' } | Sort-Object Name -Descending | Select-Object -First 1).Name
-          Write-Host "SDK version: $sdkVer"
+          Write-Host "VS path:     $installPath"
+          Write-Host "MSVC ver:    $vcVer"
+          Write-Host "Lib path:    $libPath"
+          Write-Host "msvcrt.lib:  $(Test-Path "$libPath\msvcrt.lib")"
 
-          echo "VCINSTALLDIR=$installPath\VC\" >> $env:GITHUB_ENV
-          echo "VCToolsInstallDir=$vcToolsPath\" >> $env:GITHUB_ENV
-          echo "VCToolsVersion=$vcVersion" >> $env:GITHUB_ENV
-          echo "LIB=$vcToolsPath\lib\x64;$sdkBase\Lib\$sdkVer\ucrt\x64;$sdkBase\Lib\$sdkVer\um\x64" >> $env:GITHUB_ENV
-          echo "INCLUDE=$vcToolsPath\include;$sdkBase\Include\$sdkVer\ucrt;$sdkBase\Include\$sdkVer\um;$sdkBase\Include\$sdkVer\shared" >> $env:GITHUB_ENV
-          echo "$vcToolsPath\bin\HostX64\x64" >> $env:GITHUB_PATH
+          echo "RUSTFLAGS=-Lnative=$libPath" >> $env:GITHUB_ENV
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
@@ -75,9 +81,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }} # Optional, tidak perlu jika tanpa password
         with:
-          tagName: ${{ github.ref_name }} # the action automatically replaces \`v\` with nothing, or you can use \`app-v__VERSION__\`
+          tagName: ${{ github.ref_name }}
           releaseName: 'EntryMate v__VERSION__'
           releaseBody: 'Lihat perubahan terbaru pada rilis ini.'
           releaseDraft: true
