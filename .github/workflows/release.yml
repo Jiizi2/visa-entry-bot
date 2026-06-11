@@ -141,7 +141,7 @@ jobs:
           if-no-files-found: warn
 
   publish-release:
-    needs: build-tauri
+    needs: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
