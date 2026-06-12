@@ -36,6 +36,24 @@ jobs:
         with:
           node-version: 22
 
+      - name: Fix Windows MSVC and Git Linker paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Git\\usr\\bin' }) -join ';'
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+          
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -products Microsoft.VisualStudio.Product.Enterprise -property installationPath
+          if (-not $installPath) {
+            $installPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          }
+          if ($installPath) {
+            $vcVer = (Get-Content "$installPath\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
+            $libPath = "$installPath\VC\Tools\MSVC\$vcVer\lib\x64"
+            echo "CARGO_ENCODED_RUSTFLAGS=-Lnative=$libPath" >> $env:GITHUB_ENV
+          }
+
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
