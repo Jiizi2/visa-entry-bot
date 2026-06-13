@@ -9,7 +9,8 @@
         "build": "tauri build",
         "tauri": "tauri",
         "test": "node --test",
-        "dev:frontend": "vite --config vite.config.ts"
+        "dev:frontend": "vite --config vite.config.ts",
+        "build:frontend": "vite build"
     },
     "devDependencies": {
         "@fullhuman/postcss-purgecss": "^8.0.0",

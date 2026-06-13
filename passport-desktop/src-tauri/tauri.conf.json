@@ -4,8 +4,10 @@
     "version":  "1.0.18",
     "identifier":  "com.ghaniya.entrymate",
     "build":  {
+                  "beforeDevCommand": "npm run dev:frontend",
+                  "beforeBuildCommand": "npm run build:frontend",
                   "devUrl":  "http://127.0.0.1:1420",
-                  "frontendDist":  "../src"
+                  "frontendDist":  "../dist"
               },
     "app":  {
                 "withGlobalTauri":  true,

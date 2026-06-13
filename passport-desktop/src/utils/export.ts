@@ -35,7 +35,7 @@ export function effectiveSelectedIdsForExport(manifest: any, selectedIds = new S
 
   for (const member of members) {
     if (!base.has(String(member.id || ""))) continue;
-    const companionId = String(member.companionMemberId || "").trim();
+    const companionId = String(member.resolvedProfile?.companionId || member.companionMemberId || "").trim();
     if (companionId) {
       base.add(companionId);
     }
@@ -50,7 +50,7 @@ export function validateCompanionsForExport(manifest: any, selectedIds = new Set
     .filter((m: any) => selectedIdsForExport.has(String(m.id || "")))
     .filter((m: any) => childInfoForMember(m).isChild)
     .filter((m: any) => {
-      const companionId = String(m.companionMemberId || "").trim();
+      const companionId = String(m.resolvedProfile?.companionId || m.companionMemberId || "").trim();
       const companion = members.find((c: any) => String(c.id || "") === companionId);
       return !companion || childInfoForMember(companion).isChild;
     });
@@ -82,7 +82,7 @@ export function buildManifestForEntryExport(manifest: any, selectedIds = new Set
   
   source.members = enrichedMembers;
   for (const m of enrichedMembers) {
-    const companionId = String(m.companionMemberId || "").trim();
+    const companionId = String(m.resolvedProfile?.companionId || m.companionMemberId || "").trim();
     if (companionId) nextSelectedIds.add(companionId);
   }
   
@@ -107,11 +107,11 @@ export function enrichMemberForEntry(member: any, allMembers: any[]) {
   nextMember.isChild = info.isChild;
   nextMember.ageAtReview = Number.isFinite(info.age) ? info.age : null;
   
-  const companionId = String(nextMember.companionMemberId || "").trim();
+  const companionId = String(nextMember.resolvedProfile?.companionId || nextMember.companionMemberId || "").trim();
   if (info.isChild && companionId) {
     const companion = allMembers.find(c => String(c.id || "") === companionId);
     if (companion) {
-      const relation = nextMember.companionRelation || "Mother";
+      const relation = nextMember.resolvedProfile?.companionRelation || nextMember.companionRelation || "Mother";
       nextMember.companionRelation = relation;
       nextMember.companion = {
         id: String(companion.id || ""),

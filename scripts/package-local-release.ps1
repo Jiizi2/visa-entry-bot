@@ -235,13 +235,16 @@ Push-Location $RepoRoot
 try {
   Stage-DesktopInstallerResources
 
+  $BundleDir = Join-Path $DesktopDir "src-tauri\target\release\bundle"
+  if (Test-Path (Join-Path $BundleDir "nsis")) {
+    Remove-Item -Path (Join-Path $BundleDir "nsis\*.exe") -Force -ErrorAction SilentlyContinue
+  }
+
   Write-Host "Building one-file desktop installer..."
   npm --prefix passport-desktop run tauri -- build --bundles nsis --config $TauriReleaseConfigPath --ci
   if ($LASTEXITCODE -ne 0) {
     throw "Gagal build desktop installer."
   }
-
-  $BundleDir = Join-Path $DesktopDir "src-tauri\target\release\bundle"
   $Installer = Get-ChildItem -Path (Join-Path $BundleDir "nsis\*.exe") -File -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1

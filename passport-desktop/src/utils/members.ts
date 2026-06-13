@@ -1,3 +1,5 @@
+import { normalizeDateToNusuk } from "./helpers";
+
 export const CHILD_AGE_LIMIT = 18;
 export const COMPANION_RELATION_OPTIONS = [
   "Other", "Father", "Son", "Brother", "Grandfather", "Grandson", "Maternal Uncle", "Niece (Brother side)",
@@ -90,11 +92,21 @@ export function childInfoForMember(member: any) {
 
 export function ageFromDateValue(value: any, now = new Date()) {
   if (!value) return null;
-  const parts = value.split("/");
+  const normalizedValue = normalizeDateToNusuk(value) || value;
+  const parts = normalizedValue.split(/[-/]/);
   if (parts.length !== 3) return null;
-  const year = Number(parts[0]);
-  const month = Number(parts[1]);
-  const day = Number(parts[2]);
+  // Nusuk normalized date is YYYY/MM/DD
+  // So parts[0] is year, parts[1] is month, parts[2] is day
+  let year = Number(parts[0]);
+  let month = Number(parts[1]);
+  let day = Number(parts[2]);
+  
+  // Just in case it wasn't normalized properly and is DD/MM/YYYY
+  if (year < 100 && parts[2].length === 4) {
+    year = Number(parts[2]);
+    day = Number(parts[0]);
+  }
+  
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
     return null;
   }

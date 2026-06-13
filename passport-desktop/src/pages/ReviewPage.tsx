@@ -3,7 +3,9 @@ import { useStore } from '../store';
 import { 
   memberDisplayName, 
   resolvedProfileOf, 
-  passportExtractedOf
+  passportExtractedOf,
+  rawValueFrom,
+  childInfoForMember
 } from '../utils/members';
 import {
   normalizeInputValueForField,
@@ -103,14 +105,10 @@ export default function ReviewPage() {
   const extracted = passportExtractedOf(activeMember);
   const remaining = members.length - (activeIndex >= 0 ? activeIndex + 1 : 0);
 
-  const allRequiredKeys = REVIEW_FIELDS.filter(f => f[2]?.required !== false).map(f => f[0]);
-  const filledKeysCount = allRequiredKeys.filter(k => resolved && resolved[k.split('.')[0]] && resolved[k.split('.')[0]][k.split('.')[1] || ''] || resolved && resolved[k] ? true : false).length; 
-  // We use rawValueFrom logic conceptually or just do a simpler check. Let's fix filledKeysCount calculation
-  const getRaw = (r: any, k: string) => {
-    const p = k.split('.');
-    return p.length === 2 ? r?.[p[0]]?.[p[1]] : r?.[k];
-  };
-  const filledCount = allRequiredKeys.filter(k => getRaw(resolved, k)).length;
+  const { isChild } = childInfoForMember(activeMember);
+  const baseRequiredKeys = REVIEW_FIELDS.filter(f => f[2]?.required !== false).map(f => f[0]);
+  const allRequiredKeys = isChild ? [...baseRequiredKeys, 'companionId', 'companionRelation'] : baseRequiredKeys;
+  const filledCount = allRequiredKeys.filter(k => rawValueFrom(resolved, k)).length;
   const progressText = `${filledCount}/${allRequiredKeys.length} Wajib`;
 
   return (

@@ -31,31 +31,41 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
   const hasScan = Boolean(ocrValue);
   const changed = hasScan && ocrValue !== finalValue;
   
-  let isAlert = false;
-  if (required && !finalValue) isAlert = true;
-  if (hasScan && confLevel === 'LOW') isAlert = true;
+  const isMissing = required && !finalValue;
+  const isLowConf = hasScan && confLevel === 'LOW';
+  
+  let alertClass = '';
+  if (isMissing) {
+    alertClass = 'bg-red-50 border-red-500 text-red-900 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]';
+  } else if (isLowConf) {
+    alertClass = 'bg-amber-50 border-amber-400 shadow-[0_0_0_2px_rgba(251,191,36,0.2)]';
+  }
   
   const warningText = changed ? `Scan Asli: "${ocrValue}"` : null;
 
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between mb-1.5">
-        <label className="text-[12px] font-medium text-slate-900 flex items-center gap-2">
+        <label className={`text-[12px] font-medium flex items-center gap-2 ${isMissing ? 'text-red-600' : 'text-slate-900'}`}>
           <div className={`w-2 h-2 rounded-full shrink-0 ${dotTone === 'valid' ? 'bg-green-500' : dotTone === 'warn' ? 'bg-amber-400' : dotTone === 'error' ? 'bg-red-500' : 'bg-slate-500'}`} title={`Confidence: ${confLevel}`}></div>
           {label}
         </label>
-        {required && <span className="text-[10px] uppercase font-bold tracking-wider text-blue-700 bg-blue-600/10 px-1.5 py-0.5 rounded">Wajib</span>}
+        {required && (
+          <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${isMissing ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
+            Wajib
+          </span>
+        )}
       </div>
       {isDate ? (
           <CustomDatePicker 
-            className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] ${isAlert ? 'bg-white border-amber-300 shadow-[0_0_0_2px_rgba(251,191,36,0.2)]' : ''}`}
+            className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] ${alertClass}`}
             value={(finalValue || '').replace(/\//g, '-')}
             onChange={(val) => onChange(keyName, val)}
             placeholder="YYYY-MM-DD"
           />
         ) : (
           <input 
-            className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] ${isAlert ? 'bg-white border-amber-300 shadow-[0_0_0_2px_rgba(251,191,36,0.2)]' : ''}`}
+            className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] ${alertClass}`}
             type="text" 
             value={finalValue || ''}
             maxLength={maxLen || undefined}
@@ -63,7 +73,12 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
             placeholder={label}
           />
         )}
-      {warningText && (
+      {isMissing && (
+        <p className="text-[11px] text-red-600 mt-1.5 ml-1 font-semibold flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px]">error</span> Field ini wajib diisi
+        </p>
+      )}
+      {warningText && !isMissing && (
         <p className="text-[11px] text-slate-600 mt-1 ml-4">
           {warningText}
         </p>
@@ -126,13 +141,16 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <div className="flex flex-col">
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[12px] font-medium text-slate-900 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full shrink-0 bg-slate-500"></div>
+                <label className={`text-[12px] font-medium flex items-center gap-2 ${!resolved?.companionId ? 'text-red-600' : 'text-slate-900'}`}>
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${!resolved?.companionId ? 'bg-red-500' : 'bg-slate-500'}`}></div>
                   Anggota Pendamping
                 </label>
+                <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${!resolved?.companionId ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
+                  Wajib
+                </span>
               </div>
               <select 
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\'http://www.w3.org/2000/svg\'_fill=\'none\'_viewBox=\'0_0_20_20\'%3e%3cpath_stroke=\'%236b7280\'_stroke-linecap=\'round\'_stroke-linejoin=\'round\'_stroke-width=\'1.5\'_d=\'M6_8l4_4_4-4\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10"
+                className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionId ? 'bg-red-50 border-red-500 text-red-900 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : ''}`}
                 value={resolved?.companionId || ''}
                 onChange={(e) => onChange('companionId', e.target.value)}
               >
@@ -143,17 +161,25 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
                   <option key={m.id} value={m.id}>{memberDisplayName(m)}</option>
                 ))}
               </select>
+              {!resolved?.companionId && (
+                <p className="text-[11px] text-red-600 mt-1.5 ml-1 font-semibold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">error</span> Field ini wajib diisi
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col">
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[12px] font-medium text-slate-900 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full shrink-0 bg-slate-500"></div>
+                <label className={`text-[12px] font-medium flex items-center gap-2 ${!resolved?.companionRelation ? 'text-red-600' : 'text-slate-900'}`}>
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${!resolved?.companionRelation ? 'bg-red-500' : 'bg-slate-500'}`}></div>
                   Hubungan
                 </label>
+                <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${!resolved?.companionRelation ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
+                  Wajib
+                </span>
               </div>
               <select 
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\'http://www.w3.org/2000/svg\'_fill=\'none\'_viewBox=\'0_0_20_20\'%3e%3cpath_stroke=\'%236b7280\'_stroke-linecap=\'round\'_stroke-linejoin=\'round\'_stroke-width=\'1.5\'_d=\'M6_8l4_4_4-4\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10"
+                className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionRelation ? 'bg-red-50 border-red-500 text-red-900 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : ''}`}
                 value={resolved?.companionRelation || ''}
                 onChange={(e) => onChange('companionRelation', e.target.value)}
                 disabled={!resolved?.companionId}
@@ -163,6 +189,11 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
+              {!resolved?.companionRelation && (
+                <p className="text-[11px] text-red-600 mt-1.5 ml-1 font-semibold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">error</span> Field ini wajib diisi
+                </p>
+              )}
             </div>
           </div>
         </div>
