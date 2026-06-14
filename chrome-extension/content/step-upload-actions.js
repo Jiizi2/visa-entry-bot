@@ -492,7 +492,6 @@
   function isUploadRequirementHint(normalized) {
     if (
       normalized.includes("allowed file size")
-      && normalized.includes("{{min size}}")
       && normalized.includes("1024 kb")
     ) {
       return true;
