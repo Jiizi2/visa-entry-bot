@@ -97,6 +97,43 @@ export default function ReviewPage() {
     }
   };
 
+  const handleDelete = () => {
+    if (!activeMember) return;
+    
+    // Check if this member is acting as a companion to someone else
+    const dependentChildren = members.filter((m: any) => 
+      String(m.resolvedProfile?.companionId || m.companionMemberId || "").trim() === String(activeMember.id)
+    );
+
+    if (dependentChildren.length > 0) {
+      const names = dependentChildren.map((m: any) => memberDisplayName(m)).join(', ');
+      alert(`Passport ini tidak bisa dihapus karena masih terhubung sebagai companion (pendamping) untuk jamaah anak-anak:\n\n${names}\n\nSilakan hapus atau ubah companion pada jamaah anak tersebut terlebih dahulu.`);
+      return;
+    }
+
+    if (window.confirm(`Yakin ingin menghapus data passport ${memberDisplayName(activeMember)}?\nData yang dihapus tidak akan di-export ke JSON.`)) {
+      const newMembers = members.filter((m: any) => m.id !== activeMember.id);
+      
+      let nextActiveId = '';
+      if (newMembers.length > 0) {
+        if (activeIndex < newMembers.length) {
+           nextActiveId = newMembers[activeIndex].id;
+        } else {
+           nextActiveId = newMembers[newMembers.length - 1].id;
+        }
+      }
+
+      updateState({ 
+        manifest: { ...state.manifest, members: newMembers },
+        activeMemberId: nextActiveId
+      });
+      
+      if (newMembers.length === 0) {
+        updateState({ currentPage: 'entry' });
+      }
+    }
+  };
+
   if (!activeMember) {
     return <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Belum ada data.</div>;
   }
@@ -200,6 +237,14 @@ export default function ReviewPage() {
               </button>
               <button className="px-4 py-2 bg-transparent text-slate-600 rounded-lg text-[14px] font-semibold border border-slate-300 cursor-pointer transition-all hover:bg-slate-200 hover:text-slate-900">
                 Flag as Error
+              </button>
+              <button 
+                className="px-4 py-2 bg-transparent text-red-600 rounded-lg text-[14px] font-semibold border border-red-300 cursor-pointer transition-all hover:bg-red-50 hover:text-red-700 flex items-center justify-center gap-2 ml-auto"
+                onClick={handleDelete}
+                title="Hapus passport dari manifest"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                Hapus Passport
               </button>
             </div>
           </div>
