@@ -57,6 +57,7 @@
       ".upload-container input[type='file']",
       ".upload-container button:has-text('Choose File')",
       ".container__notes__upload__button input[type='file']",
+      ".container__notes__upload input[type='file']",
       ".upload-button input[type='file']",
       "div[class*='upload' i] input[type='file']",
       "input[type='file'][formcontrolname*='passport' i]",

@@ -116,6 +116,8 @@
     function findPassportUploadReadySignal() {
       return findAttachedPassportInput(PASSPORT_UPLOAD_SELECTOR)
         || findFirstVisible([
+          ".upload",
+          ".container__notes__upload",
           ".container__notes__upload__button",
           ".upload-button",
           ".upload-box",

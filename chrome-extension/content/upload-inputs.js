@@ -104,6 +104,7 @@
         ".upload-box",
         ".upload-button",
         ".upload",
+        ".container__notes__upload",
         ".container__notes__upload__button",
         "div",
       ].join(", "));
@@ -137,7 +138,7 @@
       const attrs = ["formcontrolname", "name", "id", "accept", "aria-label", "placeholder", "class"]
         .map((name) => input.getAttribute(name) || "")
         .join(" ");
-      const scope = input.closest(".attachment, label, .form-group, .field, .upload-box, .upload-button, .upload, .container__notes__upload__button, div");
+      const scope = input.closest(".attachment, label, .form-group, .field, .upload-box, .upload-button, .upload, .container__notes__upload, .container__notes__upload__button, div");
       const scopeAttrs = scope instanceof HTMLElement
         ? ["class", "id", "aria-label"].map((name) => scope.getAttribute(name) || "").join(" ")
         : "";

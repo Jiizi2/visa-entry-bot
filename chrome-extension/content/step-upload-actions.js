@@ -374,6 +374,7 @@
       return false;
     }
     return queryAll([
+      ".container__notes__upload",
       ".container__notes__upload__button",
       ".passport-upload-section",
       ".upload-container",
@@ -398,7 +399,7 @@
     if (!(input instanceof HTMLElement)) {
       return document.body;
     }
-    return input.closest(".passport-upload-section, .upload-container, .attachment, .form-group, .field, .upload-box, .upload-button, .upload, .container__notes__upload__button, form, .card")
+    return input.closest(".passport-upload-section, .upload-container, .attachment, .form-group, .field, .upload-box, .upload-button, .upload, .container__notes__upload, .container__notes__upload__button, form, .card")
       || document.body;
   }
 
