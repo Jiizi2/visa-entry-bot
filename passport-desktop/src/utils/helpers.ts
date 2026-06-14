@@ -193,7 +193,7 @@ export function toNusukDate(yearValue: string | number, monthValue: string | num
   const yyyy = String(year).padStart(4, "0");
   const mm = String(month).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
-  return `${yyyy}/${mm}/${dd}`;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function monthNameToNumber(value?: string | null): number {

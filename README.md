@@ -1,6 +1,6 @@
 # EntryMate By Ghaniya
 
-> Versi: **1.0.18** | Windows · macOS · Linux
+> Versi: **1.0.19** | Windows · macOS · Linux
 
 Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari tiga komponen yang beroperasi secara mandiri dan berkomunikasi lewat file JSON.
 

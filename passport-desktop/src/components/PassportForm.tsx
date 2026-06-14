@@ -169,7 +169,7 @@ export default function PassportForm() {
               value={finalValue || ''}
               onChange={(e) => handleFieldChange(key, e.target.value)}
               maxLength={maxLen || undefined}
-              placeholder={isDate ? "YYYY/MM/DD" : label}
+              placeholder={isDate ? "YYYY-MM-DD" : label}
               style={isAlert ? { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' } : {}}
             />
           </div>
