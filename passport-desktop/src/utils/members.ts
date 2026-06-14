@@ -134,7 +134,7 @@ export function valueByPath(obj: any, pathStr: string) {
 
 export function rawValueFrom(section: any, key: string) {
   if (!section || typeof section !== "object") return "";
-  return String(valueByPath(section, key) ?? "").trim();
+  return String(valueByPath(section, key) ?? "");
 }
 
 export function valueFrom(section: any, key: string) {
