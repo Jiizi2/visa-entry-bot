@@ -357,8 +357,9 @@
         target.scrollIntoView({ block: "center", inline: "nearest" });
         target.focus?.();
         target.click();
-        await sleep(180, runId);
-        if (isLabeledDropdownPanelOpen()) {
+        
+        const opened = await waitForLabeledDropdownPanelOpen(500, runId);
+        if (opened) {
           return;
         }
       }
@@ -366,10 +367,12 @@
 
     async function clickDropdownOption(option) {
       if (!(option instanceof HTMLElement)) {
-        await clickElement(option);
+        option?.click?.();
         return;
       }
-      option.scrollIntoView({ block: "center", inline: "nearest" });
+      
+      // Jangan gunakan scrollIntoView di sini karena akan men-trigger event scroll 
+      // yang menyebabkan PrimeNG menyembunyikan panel dropdown (hideOnScroll: true).
       option.focus?.();
       for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
         option.dispatchEvent(new MouseEvent(type, {

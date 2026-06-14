@@ -229,7 +229,7 @@ function Copy-OptionalPortableDesktop {
     -Destination (Join-Path $DesktopPortableDir "tesseract")
 }
 
-New-Item -ItemType Directory -Force -Path $ReleaseDir, $ExtensionReleaseDir | Out-Null
+New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 
 Push-Location $RepoRoot
 try {
@@ -260,26 +260,6 @@ try {
     Copy-OptionalPortableDesktop
   }
 
-  $ExtensionVersion = if ($ExtensionManifest.version) { [string]$ExtensionManifest.version } else { $Version }
-  $ExtensionZip = Join-Path $ExtensionReleaseDir "entrymate-by-ghaniya-extension-$ExtensionVersion.zip"
-  $ExtensionStage = Join-Path $ExtensionReleaseDir "entrymate-by-ghaniya-extension"
-  if (Test-Path $ExtensionStage) {
-    Assert-ChildPath -Parent $ReleaseDir -Child $ExtensionStage
-    Remove-Item -LiteralPath $ExtensionStage -Recurse -Force
-  }
-  New-Item -ItemType Directory -Force -Path $ExtensionStage | Out-Null
-
-  foreach ($Item in @("manifest.json", "background.js", "content.js", "panel.html", "panel.css", "panel.js", "popup.html", "popup.js")) {
-    Copy-Item -LiteralPath (Join-Path $ExtensionDir $Item) -Destination $ExtensionStage
-  }
-  Copy-Item -LiteralPath (Join-Path $ExtensionDir "content") -Destination $ExtensionStage -Recurse
-  Copy-Item -LiteralPath (Join-Path $ExtensionDir "icons") -Destination $ExtensionStage -Recurse
-
-  if (Test-Path $ExtensionZip) {
-    Remove-Item -LiteralPath $ExtensionZip -Force
-  }
-  Compress-Archive -Path (Join-Path $ExtensionStage "*") -DestinationPath $ExtensionZip -Force
-
   $NotesPath = Join-Path $ReleaseDir "README_LOCAL_RELEASE.md"
   @"
 # EntryMate By Ghaniya Local Release
@@ -294,20 +274,6 @@ Install file ini:
 - $DesktopInstallerName
 
 Installer desktop sudah membawa OCR worker executable dan Tesseract, jadi device target tidak perlu install Python atau Tesseract manual.
-
-## Chrome Extension
-
-File extension ada di extension/entrymate-by-ghaniya-extension-$ExtensionVersion.zip.
-
-Untuk install internal:
-
-1. Extract ZIP ke folder lokal per device.
-2. Buka Chrome/Edge `Extensions`.
-3. Aktifkan Developer mode.
-4. Pilih Load unpacked.
-5. Arahkan ke folder hasil extract.
-
-Permission chrome.debugger sengaja tetap aktif karena upload passport di halaman Nusuk membutuhkan fallback DOM.setFileInputFiles.
 
 ## Data Lokal
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "EntryMate By Ghaniya",
-  "version": "1.0.0",
+  "version": "1.0.18",
   "description": "Upload EntryMate JSON and autofill the selected member on the Nusuk website.",
   "icons": {
     "16": "icons/16x16.png",
