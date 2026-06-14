@@ -144,20 +144,21 @@ export function isReviewFieldRequired(fieldKey?: string | null): boolean {
 }
 
 export function clampFieldValue(fieldKey: string, value: string): string {
-  const normalized = String(value ?? "").trim();
+  const strVal = String(value ?? "").replace(/^\s+/, ""); // only trim leading
   const maxLength = maxLengthForField(fieldKey);
   if (!maxLength) {
-    return normalized;
+    return strVal;
   }
-  return normalized.slice(0, maxLength);
+  return strVal.slice(0, maxLength);
 }
 
 export function normalizeInputValueForField(fieldKey: string, value: string): string {
-  const normalized = String(value ?? "").trim();
+  const strVal = String(value ?? "");
   if (isDateFieldKey(fieldKey)) {
-    return normalizeDateToNusuk(normalized) || normalized;
+    const trimmed = strVal.trim();
+    return normalizeDateToNusuk(trimmed) || trimmed;
   }
-  return clampFieldValue(fieldKey, normalized);
+  return clampFieldValue(fieldKey, strVal);
 }
 
 export function isDateFieldKey(fieldKey?: string | null): boolean {
