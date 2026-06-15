@@ -97,7 +97,9 @@ export default function ReviewPage() {
     }
   };
 
-  const handleDelete = () => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+
+  const handleDeleteClick = () => {
     if (!activeMember) return;
     
     // Check if this member is acting as a companion to someone else
@@ -111,27 +113,30 @@ export default function ReviewPage() {
       return;
     }
 
-    if (window.confirm(`Yakin ingin menghapus data passport ${memberDisplayName(activeMember)}?\nData yang dihapus tidak akan di-export ke JSON.`)) {
-      const newMembers = members.filter((m: any) => m.id !== activeMember.id);
-      
-      let nextActiveId = '';
-      if (newMembers.length > 0) {
-        if (activeIndex < newMembers.length) {
-           nextActiveId = newMembers[activeIndex].id;
-        } else {
-           nextActiveId = newMembers[newMembers.length - 1].id;
-        }
-      }
+    setShowDeleteConfirm(true);
+  };
 
-      updateState({ 
-        manifest: { ...state.manifest, members: newMembers },
-        activeMemberId: nextActiveId
-      });
-      
-      if (newMembers.length === 0) {
-        updateState({ currentPage: 'entry' });
+  const executeDelete = () => {
+    const newMembers = members.filter((m: any) => m.id !== activeMember.id);
+    
+    let nextActiveId = '';
+    if (newMembers.length > 0) {
+      if (activeIndex < newMembers.length) {
+         nextActiveId = newMembers[activeIndex].id;
+      } else {
+         nextActiveId = newMembers[newMembers.length - 1].id;
       }
     }
+
+    updateState({ 
+      manifest: { ...state.manifest, members: newMembers },
+      activeMemberId: nextActiveId
+    });
+    
+    if (newMembers.length === 0) {
+      updateState({ currentPage: 'entry' });
+    }
+    setShowDeleteConfirm(false);
   };
 
   if (!activeMember) {
@@ -239,11 +244,11 @@ export default function ReviewPage() {
                 Flag as Error
               </button>
               <button 
-                className="px-4 py-2 bg-transparent text-red-600 rounded-lg text-[14px] font-semibold border border-red-300 cursor-pointer transition-all hover:bg-red-50 hover:text-red-700 flex items-center justify-center gap-2 ml-auto"
-                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-[14px] font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-sm hover:bg-red-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                onClick={handleDeleteClick}
                 title="Hapus passport dari manifest"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
                 Hapus Passport
               </button>
             </div>
@@ -251,6 +256,36 @@ export default function ReviewPage() {
           
         </div>
       </section>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 w-full max-w-[400px] shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
+            <h3 className="m-0 mb-4 text-[#1a1c1e] text-[20px] flex items-center gap-2 font-semibold">
+              <span className="material-symbols-outlined text-[#ba1a1a] text-[24px]">warning</span>
+              Konfirmasi Hapus
+            </h3>
+            <p className="m-0 mb-6 text-[#43474e] text-[15px] leading-[1.5]">
+              Yakin ingin menghapus data passport {memberDisplayName(activeMember)}?
+              <br/>
+              Data yang dihapus tidak akan di-export ke JSON.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="bg-transparent border border-[#74777f] text-[#43474e] px-4 py-2 rounded-lg cursor-pointer font-medium hover:bg-slate-100 transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={executeDelete}
+                className="bg-[#ba1a1a] border-none text-white px-4 py-2 rounded-lg cursor-pointer font-medium hover:bg-red-800 transition-colors"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
