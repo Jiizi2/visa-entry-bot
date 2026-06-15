@@ -329,13 +329,13 @@ export default function PreparePage() {
                   <span className="material-symbols-outlined text-[20px]">rotate_right</span>
                   Rotasi Kanan
                 </button>
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
+                  <span className="material-symbols-outlined text-[20px]">folder_special</span>
+                  Endorsement
+                </button>
                 <button className="flex items-center gap-2 bg-red-600/5 border border-red-600/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-red-700 cursor-pointer transition-all duration-200 hover:bg-red-700 hover:border-red-700 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-4" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">delete</span>
                   Hapus Foto
-                </button>
-                <button className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-amber-700 cursor-pointer transition-all duration-200 hover:bg-amber-600 hover:border-amber-600 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
-                  <span className="material-symbols-outlined text-[20px]">folder_special</span>
-                  Pindahkan ke Endorsement
                 </button>
                 
                 {/* Find next item for "Berikutnya" */}
