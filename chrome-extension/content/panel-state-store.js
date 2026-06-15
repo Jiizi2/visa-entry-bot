@@ -53,6 +53,7 @@
           total: state.progressTotal,
         },
         logs: state.logs,
+        autofillFailures: state.autofillFailures || [],
       });
     }
 

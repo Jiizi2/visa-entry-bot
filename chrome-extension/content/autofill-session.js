@@ -275,11 +275,57 @@
       }
     }
 
+    async function restartFailedFromPanel() {
+      if (state.executionState === "running") {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Autofill sedang berjalan." });
+        return;
+      }
+      const failures = state.autofillFailures || [];
+      if (!failures.length) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada jamaah gagal untuk diulang." });
+        return;
+      }
+      const members = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
+      const failedMemberIds = new Set(failures.map((f) => String(f.memberId || "")));
+      const membersToRun = members.filter((member) => failedMemberIds.has(String(member.id || "")));
+      
+      if (!membersToRun.length) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Data jamaah gagal tidak ditemukan di manifest." });
+        return;
+      }
+      if (!hasPassportDebuggerPathSource(state.manifest, membersToRun)) {
+        postToPanel("NUSUK_PANEL_STATUS", {
+          tone: "error",
+          message: "JSON belum punya path lokal untuk upload debugger. Buat/export JSON dari PC ini, atau jangan pindahkan folder hasil scan sebelum entry.",
+        });
+        return;
+      }
+
+      state.autofillFailures = [];
+      state.autofillAttemptFailures = [];
+      state.currentRunPayload = {
+        members: membersToRun,
+        startMemberIndex: 0,
+        totalMembers: membersToRun.length,
+        manifestPath: String(state.manifest?.manifestPath || ""),
+      };
+      state.runToken += 1;
+      state.executionState = "running";
+      resetProgress();
+      appendLog("info", `Mengulang autofill untuk ${membersToRun.length} jamaah yang gagal...`);
+      await lockTabForBackgroundRun();
+      await persistState();
+      postPanelState();
+
+      await runCurrentPayload(membersToRun.length);
+    }
+
     return {
       startAutofillFromPanel,
       resumeAutofillAfterReload,
       pauseAutofillFromPanel,
       resetAutofillFromPanel,
+      restartFailedFromPanel,
     };
   }
 

@@ -13,6 +13,7 @@
     startAutofillFromPanel,
     pauseAutofillFromPanel,
     resetAutofillFromPanel,
+    restartFailedFromPanel,
     runAutomation,
     setTabAutoDiscardable,
   }) {
@@ -108,6 +109,14 @@
 
         if (message.type === "NUSUK_PANEL_RESET_AUTOFILL") {
           void resetAutofillFromPanel();
+          return;
+        }
+
+        if (message.type === "NUSUK_PANEL_RESTART_FAILED") {
+          if (typeof restartFailedFromPanel === "function") {
+            void restartFailedFromPanel();
+          }
+          return;
         }
       });
     }

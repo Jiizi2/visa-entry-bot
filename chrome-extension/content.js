@@ -274,6 +274,7 @@
     resumeAutofillAfterReload,
     pauseAutofillFromPanel,
     resetAutofillFromPanel,
+    restartFailedFromPanel,
   } = createAutofillSession({
     state,
     isControlError,
@@ -306,6 +307,7 @@
       startAutofillFromPanel,
       pauseAutofillFromPanel,
       resetAutofillFromPanel,
+      restartFailedFromPanel,
       runAutomation,
       setTabAutoDiscardable,
     });

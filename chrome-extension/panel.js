@@ -25,6 +25,9 @@ const dom = {
   previewTravel: document.getElementById("preview-travel"),
   previewContact: document.getElementById("preview-contact"),
   logList: document.getElementById("log-list"),
+  failuresCard: document.getElementById("failures-card"),
+  failuresList: document.getElementById("failures-list"),
+  restartFailedBtn: document.getElementById("restart-failed-btn"),
 };
 
 const state = {
@@ -41,6 +44,7 @@ const state = {
   uploadFileCount: 0,
   uploadFileNames: [],
   resumeAvailable: false,
+  autofillFailures: [],
 };
 
 const EXECUTION_LABELS = {
@@ -142,6 +146,10 @@ dom.resetBtn.addEventListener("click", () => {
   postToParent("NUSUK_PANEL_RESET_AUTOFILL");
 });
 
+dom.restartFailedBtn.addEventListener("click", () => {
+  postToParent("NUSUK_PANEL_RESTART_FAILED");
+});
+
 window.addEventListener("message", (event) => {
   if (event.source !== window.parent) {
     return;
@@ -205,6 +213,7 @@ async function init() {
   renderProgress();
   renderPassportFilesSummary();
   renderLogs();
+  renderFailures();
   updateRunControls();
   postToParent("NUSUK_PANEL_READY");
 }
@@ -227,12 +236,14 @@ function applyIncomingState(payload) {
     ? payload.uploadFileNames.slice(0, 5)
     : state.uploadFileNames;
   state.resumeAvailable = Boolean(payload.resumeAvailable);
+  state.autofillFailures = Array.isArray(payload.autofillFailures) ? payload.autofillFailures : state.autofillFailures;
 
   renderManifestSection();
   renderPreview();
   renderProgress();
   renderPassportFilesSummary();
   renderLogs();
+  renderFailures();
   updateRunControls();
 }
 
@@ -442,6 +453,41 @@ function updateRunControls() {
   dom.resetBtn.disabled = stateName === "idle" && state.progress.current === 0 && state.logs.length === 0;
   dom.minimizeBtn.disabled = state.collapsed;
   dom.minimizeBtn.setAttribute("aria-disabled", dom.minimizeBtn.disabled ? "true" : "false");
+  
+  if (state.autofillFailures && state.autofillFailures.length > 0) {
+    dom.failuresCard.style.display = "block";
+    dom.restartFailedBtn.disabled = stateName === "running";
+  } else {
+    dom.failuresCard.style.display = "none";
+  }
+}
+
+function renderFailures() {
+  if (!dom.failuresList) return;
+  dom.failuresList.innerHTML = "";
+  if (!state.autofillFailures || state.autofillFailures.length === 0) {
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  for (const failure of state.autofillFailures) {
+    const member = getMembers().find(m => String(m.id) === String(failure.memberId));
+    const name = member ? memberDisplayName(member) : `ID: ${failure.memberId}`;
+    
+    const wrapper = document.createElement("div");
+    wrapper.className = "log-row error";
+    
+    const label = document.createElement("span");
+    label.className = "log-level";
+    label.textContent = "GAGAL";
+    
+    const msg = document.createElement("span");
+    msg.className = "log-message";
+    msg.textContent = `${name} - ${failure.reason}`;
+    
+    wrapper.append(label, msg);
+    fragment.append(wrapper);
+  }
+  dom.failuresList.append(fragment);
 }
 
 function setStatus(message, tone = "neutral") {
