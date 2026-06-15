@@ -358,7 +358,7 @@ export default function PreparePage() {
                   {(() => {
                     const info = getFileSizeInfo(activeImageData.dataUrl);
                     return (
-                      <div className={`absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm backdrop-blur-md flex items-center gap-1.5 ${info.isOversize ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white'}`}>
+                      <div className={`absolute bottom-4 right-4 z-20 px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm backdrop-blur-md flex items-center gap-1.5 ${info.isOversize ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white'}`}>
                         <span className="material-symbols-outlined text-[16px]">{info.isOversize ? 'warning' : 'check_circle'}</span>
                         {info.formatted} {info.isOversize && '(> 1 MB)'}
                       </div>
@@ -375,30 +375,30 @@ export default function PreparePage() {
             
             {/* Image Action Bar */}
             {!state.isPreparingImages && activeItem && (
-              <div className="bg-white/70 backdrop-blur-md border-b border-slate-300/30 absolute top-0 left-0 right-0 rounded-t-2xl p-4 flex justify-center gap-4 z-20">
-                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
+              <div className="bg-white/70 backdrop-blur-md border-b border-slate-300/30 absolute top-0 left-0 right-0 rounded-t-2xl p-4 flex flex-wrap items-center justify-center gap-2 md:gap-3 z-20">
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-4 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">crop</span>
-                  Crop Foto
+                  Crop
                 </button>
-                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleRotate(-90)} disabled={!activeImageData.dataUrl}>
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-4 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleRotate(-90)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">rotate_left</span>
-                  Rotasi Kiri
+                  Kiri
                 </button>
-                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleRotate(90)} disabled={!activeImageData.dataUrl}>
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-4 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleRotate(90)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">rotate_right</span>
-                  Rotasi Kanan
+                  Kanan
                 </button>
-                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
+                <button className="flex items-center gap-2 bg-white border border-slate-300/60 px-4 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">folder_special</span>
                   Endorsement
                 </button>
                 {activeImageData.dataUrl && getFileSizeInfo(activeImageData.dataUrl).isOversize && (
-                  <button className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-amber-700 cursor-pointer transition-all duration-200 hover:bg-amber-600 hover:border-amber-600 hover:text-white active:scale-95 ml-2" onClick={handleCompress}>
+                  <button className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-xl text-[14px] font-semibold text-amber-700 cursor-pointer transition-all duration-200 hover:bg-amber-600 hover:border-amber-600 hover:text-white active:scale-95" onClick={handleCompress}>
                     <span className="material-symbols-outlined text-[20px]">compress</span>
                     Kompres (&lt; 1MB)
                   </button>
                 )}
-                <button className="flex items-center gap-2 bg-red-600/5 border border-red-600/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-red-700 cursor-pointer transition-all duration-200 hover:bg-red-700 hover:border-red-700 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-4" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
+                <button className="flex items-center gap-2 bg-red-600/5 border border-red-600/30 px-4 py-2 rounded-xl text-[14px] font-semibold text-red-700 cursor-pointer transition-all duration-200 hover:bg-red-700 hover:border-red-700 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">delete</span>
                   Hapus Foto
                 </button>
@@ -409,7 +409,7 @@ export default function PreparePage() {
                   const hasNext = currentIndex >= 0 && currentIndex < items.length - 1;
                   return (
                     <button 
-                      className="flex items-center gap-2 bg-white border border-slate-300/60 px-5 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-2" 
+                      className="flex items-center gap-2 bg-white border border-slate-300/60 px-4 py-2 rounded-xl shadow-sm text-[14px] font-semibold text-slate-700 cursor-pointer transition-all duration-200 hover:bg-slate-200 hover:border-slate-400 hover:text-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" 
                       disabled={!hasNext}
                       onClick={() => {
                         if (hasNext) updateState({ activePreparedItemId: String(items[currentIndex + 1].id) });
