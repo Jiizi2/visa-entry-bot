@@ -94,8 +94,15 @@ def _convert_pdf_to_image_result(
             return PdfImageConversionResult([], [], [], ())
 
         stem = _safe_stem(pdf_path)
-        page_scores = _first_page_only_scores(page_count)
-        selected_page_indices = (0,)
+        is_batch_mode = os.environ.get("PASSPORT_PDF_BATCH_MODE") == "1"
+        
+        if is_batch_mode:
+            page_scores = [100] * page_count
+            selected_page_indices = tuple(range(page_count))
+        else:
+            page_scores = _first_page_only_scores(page_count)
+            selected_page_indices = (0,)
+            
         selected_set = set(selected_page_indices)
         render_indices = tuple(range(page_count)) if render_skipped else selected_page_indices
         for page_index in render_indices:

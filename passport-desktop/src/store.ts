@@ -15,6 +15,7 @@ export interface AppState {
   validationFilter: string;
   selectedDir: string;
   ocrMode: string;
+  pdfBatchMode: boolean;
   recentBatches: any[];
   defaultEntry: DefaultEntry;
   manifest: any | null;
@@ -72,6 +73,7 @@ const initialState: Omit<AppState, 'updateState' | 'initializeStore'> = {
   validationFilter: 'all',
   selectedDir: '',
   ocrMode: 'balanced',
+  pdfBatchMode: false,
   recentBatches: [],
   defaultEntry: {
     profesi: 'OTHER',

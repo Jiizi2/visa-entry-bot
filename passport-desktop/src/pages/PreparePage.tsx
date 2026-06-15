@@ -77,7 +77,10 @@ export default function PreparePage() {
   const prepareImages = async () => {
     updateState({ isPreparingImages: true, statusHeadline: 'Menyiapkan foto' });
     try {
-      const session = await invoke('prepare_passport_images', { selectedDir: state.selectedDir });
+      const session = await invoke('prepare_passport_images', { 
+        selectedDir: state.selectedDir,
+        pdfBatchMode: state.pdfBatchMode || false
+      });
       updateState({ preparedSession: session, isPreparingImages: false, statusHeadline: 'Foto siap dicek' });
     } catch (e) {
       setError(String(e));

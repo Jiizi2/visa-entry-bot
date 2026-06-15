@@ -433,7 +433,10 @@ fn start_scan(
 }
 
 #[tauri::command]
-fn prepare_passport_images(selected_dir: String) -> Result<Value, String> {
+fn prepare_passport_images(
+    selected_dir: String,
+    pdf_batch_mode: Option<bool>,
+) -> Result<Value, String> {
     let selected_dir = selected_dir.trim().to_string();
     if selected_dir.is_empty() {
         return Err("Folder passport belum dipilih.".to_string());
@@ -445,6 +448,10 @@ fn prepare_passport_images(selected_dir: String) -> Result<Value, String> {
     command
         .current_dir(&worker_paths.working_dir)
         .env("PYTHONUNBUFFERED", "1");
+
+    if pdf_batch_mode.unwrap_or(false) {
+        command.env("PASSPORT_PDF_BATCH_MODE", "1");
+    }
 
     if let Some(worker_script) = &worker_paths.worker_script {
         command.arg("-u").arg(worker_script);

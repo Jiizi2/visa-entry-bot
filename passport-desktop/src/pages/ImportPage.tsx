@@ -191,6 +191,24 @@ export default function ImportPage() {
                   );
                 })}
               </div>
+
+              <div className="mt-5 pt-5 border-t border-slate-200 flex items-center">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className={`w-6 h-6 rounded flex items-center justify-center border transition-all ${state.pdfBatchMode ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100 border-slate-300 text-transparent group-hover:border-blue-400'}`}>
+                    <span className="material-symbols-outlined text-[16px]">check</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="hidden" 
+                    checked={state.pdfBatchMode} 
+                    onChange={e => updateState({ pdfBatchMode: e.target.checked })} 
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-bold text-slate-900">Ekstrak Semua Halaman PDF</span>
+                    <span className="text-[11px] text-slate-500">Aktifkan jika 1 file PDF berisi banyak passport. (Proses lebih lambat)</span>
+                  </div>
+                </label>
+              </div>
             </div>
 
             {/* Default Entry */}
