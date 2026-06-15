@@ -8,6 +8,14 @@ export default function ImportPage() {
   const state = useStore();
   const updateState = useStore(s => s.updateState);
   const [showToast, setShowToast] = useState(false);
+  const [batchToDelete, setBatchToDelete] = useState<{path: string, name: string} | null>(null);
+
+  const handleDeleteHistory = () => {
+    if (!batchToDelete) return;
+    const updatedRecent = state.recentBatches.filter(b => b.path !== batchToDelete.path);
+    updateState({ recentBatches: updatedRecent });
+    setBatchToDelete(null);
+  };
 
   const handleChooseFolder = async () => {
     try {
@@ -296,7 +304,19 @@ export default function ImportPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-[12px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md shrink-0">{batch.fileCount} file</div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-[12px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md">{batch.fileCount} file</div>
+                        <button 
+                          className="flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBatchToDelete({ path: batch.path, name: batch.name });
+                          }}
+                          title="Hapus riwayat"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -325,6 +345,36 @@ export default function ImportPage() {
         }}>
           <span className="material-symbols-outlined text-[24px]">check_circle</span>
           <span style={{ fontWeight: 500 }}>Default otomatis aktif</span>
+        </div>
+      )}
+      {/* Modal Hapus Riwayat */}
+      {batchToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden animate-[slideUp_0.3s_ease-out]">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4 text-red-600">
+                <span className="material-symbols-outlined text-[32px]">delete</span>
+                <h3 className="text-[20px] font-bold text-slate-900 m-0">Konfirmasi Hapus Riwayat</h3>
+              </div>
+              <p className="text-[15px] text-slate-600 leading-relaxed m-0">
+                Apakah Anda yakin ingin menghapus folder <strong>{batchToDelete.name}</strong> dari riwayat pilihan? Ini tidak akan menghapus file aslinya.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200">
+              <button 
+                className="px-5 py-2 rounded-xl font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition-colors"
+                onClick={() => setBatchToDelete(null)}
+              >
+                Batal
+              </button>
+              <button 
+                className="px-5 py-2 rounded-xl font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
+                onClick={handleDeleteHistory}
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
