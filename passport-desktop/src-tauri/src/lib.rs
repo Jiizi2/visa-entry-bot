@@ -659,7 +659,82 @@ fn remove_prepared_passport_image(
         items.remove(index)
     };
 
-    move_removed_prepared_files(&manifest_path, &removed_item, trimmed_item_id)?;
+    move_removed_prepared_files(&manifest_path, &removed_item, trimmed_item_id, "removed-images")?;
+
+    let next_image_count =
+        if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
+            for (index, item) in items.iter_mut().enumerate() {
+                if let Some(map) = item.as_object_mut() {
+                    map.insert("index".to_string(), json!(index + 1));
+                }
+            }
+            Some(items.len())
+        } else {
+            None
+        };
+
+    if let Some(map) = manifest.as_object_mut() {
+        if let Some(count) = next_image_count {
+            map.insert("imageCount".to_string(), json!(count));
+        }
+        let removed_log = map
+            .entry("removedItems".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if let Some(list) = removed_log.as_array_mut() {
+            list.push(removed_item);
+        }
+    }
+
+    let serialized = serde_json::to_string_pretty(&manifest)
+        .map_err(|err| format!("Gagal menyiapkan prepared manifest: {err}"))?;
+    fs::write(&manifest_path, serialized).map_err(|err| {
+        format!(
+            "Gagal menyimpan prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+
+    Ok(manifest)
+}
+
+#[tauri::command]
+fn endorse_prepared_passport_image(
+    prepared_manifest_path: String,
+    item_id: String,
+) -> Result<Value, String> {
+    let manifest_path = resolve_prepared_manifest_path(&prepared_manifest_path)?;
+    let content = fs::read_to_string(&manifest_path).map_err(|err| {
+        format!(
+            "Gagal membaca prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+    let mut manifest: Value = serde_json::from_str(&content)
+        .map_err(|err| format!("Prepared manifest tidak valid: {err}"))?;
+    if manifest.get("schemaVersion").and_then(Value::as_str) != Some("passport-prepared-inputs-v1")
+    {
+        return Err("Prepared manifest tidak dikenali.".to_string());
+    }
+
+    let trimmed_item_id = item_id.trim();
+    let removed_item = {
+        let items = manifest
+            .get_mut("items")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| "Prepared manifest tidak memiliki daftar items.".to_string())?;
+        let Some(index) = items.iter().position(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .map(|value| value == trimmed_item_id)
+                .unwrap_or(false)
+        }) else {
+            return Err("Prepared item tidak ditemukan.".to_string());
+        };
+
+        items.remove(index)
+    };
+
+    move_removed_prepared_files(&manifest_path, &removed_item, trimmed_item_id, "endorsement-images")?;
 
     let next_image_count =
         if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
@@ -1038,14 +1113,16 @@ fn move_removed_prepared_files(
     manifest_path: &Path,
     item: &Value,
     item_id: &str,
+    target_dir_name: &str,
 ) -> Result<(), String> {
     let prepared_dir = manifest_path
         .parent()
         .ok_or_else(|| "Lokasi prepared manifest tidak valid.".to_string())?;
-    let removed_dir = prepared_dir.join("removed-images");
+    let removed_dir = prepared_dir.join(target_dir_name);
     fs::create_dir_all(&removed_dir).map_err(|err| {
         format!(
-            "Gagal membuat folder removed image {}: {err}",
+            "Gagal membuat folder {} {}: {err}",
+            target_dir_name,
             removed_dir.display()
         )
     })?;
@@ -1124,7 +1201,7 @@ fn move_file_to_removed_dir(
         })
         .map_err(|err| {
             format!(
-                "Gagal memindahkan foto {} ke removed-images: {err}",
+                "Gagal memindahkan foto {} ke folder tujuan: {err}",
                 file_name
             )
         })?;
@@ -1652,7 +1729,7 @@ fn is_manifest_file(path: &Path) -> bool {
 fn resolve_prepared_manifest_path(path: &str) -> Result<PathBuf, String> {
     let candidate = PathBuf::from(path.trim());
     if candidate.as_os_str().is_empty() {
-        return Err("Lokasi prepared manifest tidak valid.".to_string());
+        return Err("Lokasi prepared manifest tidak valid.".to_string())
     }
     let manifest_path = if candidate.is_dir() {
         candidate
@@ -1940,6 +2017,7 @@ pub fn run() {
             save_cropped_passport_image,
             save_prepared_passport_image,
             remove_prepared_passport_image,
+            endorse_prepared_passport_image,
             create_nusuk_batch
         ])
         .run(tauri::generate_context!())

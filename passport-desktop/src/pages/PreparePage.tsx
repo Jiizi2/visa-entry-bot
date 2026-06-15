@@ -12,6 +12,7 @@ export default function PreparePage() {
   const [activeImageData, setActiveImageData] = useState<{dataUrl?: string, path?: string}>({});
   const [isCropping, setIsCropping] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEndorseConfirm, setShowEndorseConfirm] = useState(false);
   const [thumbCache, setThumbCache] = useState<Record<string, string>>({});
   const [listPage, setListPage] = useState(0);
 
@@ -180,6 +181,22 @@ export default function PreparePage() {
     }
   };
 
+  const handleEndorse = async () => {
+    if (!activeItem) return;
+    try {
+      const session: any = await invoke('endorse_prepared_passport_image', {
+        preparedManifestPath: state.preparedSession?.preparedManifestPath || '',
+        itemId: String(activeItem.id),
+      });
+      const nextActive = session?.items?.length ? String(session.items[0].id) : '';
+      updateState({ preparedSession: session, activePreparedItemId: nextActive });
+      setShowEndorseConfirm(false);
+    } catch (e) {
+      setError(String(e));
+      setShowEndorseConfirm(false);
+    }
+  };
+
   const handleSaveCrop = async (dataUrl: string, rect: CropRect) => {
     if (!activeItem) return;
     updateState({ statusHeadline: 'Menyimpan crop...' });
@@ -316,6 +333,10 @@ export default function PreparePage() {
                   <span className="material-symbols-outlined text-[20px]">delete</span>
                   Hapus Foto
                 </button>
+                <button className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-amber-700 cursor-pointer transition-all duration-200 hover:bg-amber-600 hover:border-amber-600 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
+                  <span className="material-symbols-outlined text-[20px]">folder_special</span>
+                  Pindahkan ke Endorsement
+                </button>
                 
                 {/* Find next item for "Berikutnya" */}
                 {(() => {
@@ -391,6 +412,37 @@ export default function PreparePage() {
                 style={{ background: '#ba1a1a', border: 'none', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}
               >
                 Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Endorsement Confirm */}
+      {showEndorseConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden animate-[slideUp_0.3s_ease-out]">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4 text-amber-600">
+                <span className="material-symbols-outlined text-[32px]">folder_special</span>
+                <h3 className="text-[20px] font-bold text-slate-900 m-0">Konfirmasi Endorsement</h3>
+              </div>
+              <p className="text-[15px] text-slate-600 leading-relaxed m-0">
+                Apakah Anda yakin ingin menjadikan foto ini sebagai Endorsement? Foto ini tidak akan discan, tapi akan disimpan di folder terpisah (<code className="bg-slate-100 px-1 py-0.5 rounded text-[13px]">endorsement-images</code>) sehingga bisa Anda lihat kembali.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200">
+              <button 
+                className="px-5 py-2 rounded-xl font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition-colors"
+                onClick={() => setShowEndorseConfirm(false)}
+              >
+                Batal
+              </button>
+              <button 
+                className="px-5 py-2 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-sm shadow-amber-600/20"
+                onClick={handleEndorse}
+              >
+                Pindahkan
               </button>
             </div>
           </div>
