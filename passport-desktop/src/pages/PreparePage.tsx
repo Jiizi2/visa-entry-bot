@@ -302,23 +302,23 @@ export default function PreparePage() {
           </div>
 
           {!state.isPreparingImages && totalPages > 1 && (
-            <div className="flex justify-between items-center p-3 border-t border-slate-300/40">
+            <div className="flex justify-center items-center gap-2 p-3 border-t border-slate-300/40">
               <button 
                 onClick={() => setListPage(p => Math.max(0, p - 1))}
                 disabled={listPage === 0}
-                className={`flex items-center justify-center p-1 bg-transparent border-none text-blue-700 ${listPage === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded'}`}
+                className={`flex items-center justify-center w-6 h-6 bg-transparent border-none text-blue-700 ${listPage === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded-md'}`}
               >
-                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
               </button>
-              <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+              <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap min-w-[32px] text-center">
                 {listPage + 1} / {totalPages}
               </span>
               <button 
                 onClick={() => setListPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={listPage === totalPages - 1}
-                className={`flex items-center justify-center p-1 bg-transparent border-none text-blue-700 ${listPage === totalPages - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded'}`}
+                className={`flex items-center justify-center w-6 h-6 bg-transparent border-none text-blue-700 ${listPage === totalPages - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded-md'}`}
               >
-                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
               </button>
             </div>
           )}
