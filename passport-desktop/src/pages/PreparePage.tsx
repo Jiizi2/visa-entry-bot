@@ -216,6 +216,54 @@ export default function PreparePage() {
     }
   };
 
+  const getFileSizeInfo = (dataUrl: string) => {
+    if (!dataUrl || !dataUrl.includes('base64,')) return { bytes: 0, formatted: '0 KB', isOversize: false };
+    const base64str = dataUrl.split('base64,')[1];
+    const bytes = Math.round(base64str.length * 0.75);
+    const mb = bytes / (1024 * 1024);
+    const formatted = mb >= 1 ? `${mb.toFixed(2)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
+    return { bytes, formatted, isOversize: bytes > 1000000 };
+  };
+
+  const handleCompress = async () => {
+    if (!activeItem || !activeImageData.dataUrl) return;
+    updateState({ statusHeadline: 'Mengkompresi foto...' });
+    try {
+      const img = new Image();
+      img.src = activeImageData.dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+      
+      const canvas = document.createElement("canvas");
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      if (width > 1600) {
+        height = Math.round((height * 1600) / width);
+        width = 1600;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) throw new Error("Canvas error");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      const newUrl = canvas.toDataURL("image/jpeg", 0.7);
+      
+      const session = await invoke('save_prepared_passport_image', {
+        preparedManifestPath: state.preparedSession?.preparedManifestPath || '',
+        itemId: String(activeItem.id),
+        sourceImagePath: getEffectiveImagePath(activeItem),
+        dataUrl: newUrl,
+        crop: { operation: 'compress', sourceImagePath: getEffectiveImagePath(activeItem) },
+        rotationDegrees: Number(activeItem.rotationDegrees || 0),
+      });
+      updateState({ preparedSession: session, statusHeadline: 'Kompresi berhasil' });
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   return (
     <section id="page-prepare" className="flex flex-col h-full p-4 pb-6 px-6">
       <div className="flex w-full max-w-[1440px] mx-auto gap-6 h-full overflow-hidden p-0">
@@ -306,11 +354,22 @@ export default function PreparePage() {
               )}
               
               {!state.isPreparingImages && activeImageData.dataUrl && (
-                <img 
-                  className="max-w-full max-h-full object-contain relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] rounded-lg transition-transform duration-300 hover:scale-[1.02]" 
-                  src={activeImageData.dataUrl} 
-                  alt="Large passport preview" 
-                />
+                <>
+                  {(() => {
+                    const info = getFileSizeInfo(activeImageData.dataUrl);
+                    return (
+                      <div className={`absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm backdrop-blur-md flex items-center gap-1.5 ${info.isOversize ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white'}`}>
+                        <span className="material-symbols-outlined text-[16px]">{info.isOversize ? 'warning' : 'check_circle'}</span>
+                        {info.formatted} {info.isOversize && '(> 1 MB)'}
+                      </div>
+                    );
+                  })()}
+                  <img 
+                    className="max-w-full max-h-full object-contain relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] rounded-lg transition-transform duration-300 hover:scale-[1.02]" 
+                    src={activeImageData.dataUrl} 
+                    alt="Large passport preview" 
+                  />
+                </>
               )}
             </div>
             
@@ -333,6 +392,12 @@ export default function PreparePage() {
                   <span className="material-symbols-outlined text-[20px]">folder_special</span>
                   Endorsement
                 </button>
+                {activeImageData.dataUrl && getFileSizeInfo(activeImageData.dataUrl).isOversize && (
+                  <button className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-amber-700 cursor-pointer transition-all duration-200 hover:bg-amber-600 hover:border-amber-600 hover:text-white active:scale-95 ml-2" onClick={handleCompress}>
+                    <span className="material-symbols-outlined text-[20px]">compress</span>
+                    Kompres (&lt; 1MB)
+                  </button>
+                )}
                 <button className="flex items-center gap-2 bg-red-600/5 border border-red-600/30 px-5 py-2 rounded-xl text-[14px] font-semibold text-red-700 cursor-pointer transition-all duration-200 hover:bg-red-700 hover:border-red-700 hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-4" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
                   <span className="material-symbols-outlined text-[20px]">delete</span>
                   Hapus Foto
