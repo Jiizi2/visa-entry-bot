@@ -484,7 +484,7 @@
     function looksLikeCompanionPicker(node) {
       const text = normalizeOption(node.textContent || "");
       return text.includes("mutamer list")
-        && (text.includes("passport number") || text.includes("mutamer name") || Boolean(node.querySelector?.("tbody tr input[type='checkbox']")));
+        && (text.includes("passport number") || text.includes("mutamer name") || Boolean(node.querySelector?.("tbody tr input[type='checkbox'], tbody tr p-tablecheckbox, tbody tr p-checkbox, tbody tr .p-checkbox")));
     }
 
     async function filterCompanionPicker(rootNode, target, runId) {
@@ -663,8 +663,13 @@
     }
 
     function findSelectableRowCheckbox(row) {
-      return Array.from(row.querySelectorAll("input[type='checkbox']"))
-        .find((checkbox) => checkbox instanceof HTMLInputElement && isVisible(checkbox) && isEnabled(checkbox)) || null;
+      return Array.from(row.querySelectorAll([
+        "p-tablecheckbox",
+        "p-checkbox",
+        ".p-checkbox",
+        ".p-checkbox-box",
+        "input[type='checkbox']",
+      ].join(", "))).find((checkbox) => checkbox instanceof HTMLElement && isVisible(checkbox) && isEnabled(checkbox)) || null;
     }
 
     function findCompanionPickerConfirmButton(rootNode) {
@@ -702,7 +707,9 @@
       const className = String(control?.className || "").toLowerCase();
       return className.includes("p-radiobutton-checked")
         || className.includes("p-highlight")
+        || className.includes("p-checkbox-checked")
         || String(control?.querySelector?.(".p-radiobutton-box")?.className || "").toLowerCase().includes("p-highlight")
+        || String(control?.querySelector?.(".p-checkbox-box")?.className || "").toLowerCase().includes("p-highlight")
         || (row instanceof HTMLElement && String(row.className || "").toLowerCase().includes("selected"));
     }
 
@@ -727,8 +734,9 @@
           await sleep(160, runId);
           continue;
         }
-        markActiveElement(trigger);
-        await clickElement(trigger);
+        const clickTarget = trigger.querySelector?.(".p-dropdown-trigger, [role='combobox']") || trigger;
+        markActiveElement(clickTarget);
+        await clickElement(clickTarget);
         await sleep(250, runId);
         const option = findCompanionRelationOption(relation);
         if (!option) {
@@ -764,7 +772,7 @@
       if (gender.includes("female") || gender === "f") {
         return "Mother";
       }
-      return "Mother";
+      return "Father";
     }
 
     function normalizeCompanionRelation(value) {
@@ -777,6 +785,7 @@
         "Granddaughter",
         "Maternal Aunt",
         "Niece (Sister side)",
+        "Niece (Brother side)",
         "Nephew (Brother side)",
         "Nephew (Sister side)",
         "Mother in law",
@@ -787,10 +796,25 @@
         "Wife",
         "Husband's mother",
         "Husband's father",
+        "Father",
+        "Son",
+        "Brother",
+        "Grandfather",
+        "Grandson",
+        "Maternal Uncle",
+        "Wife's Father",
+        "Brother in law (Wife's brother)",
+        "Brother in law (Husband's brother)",
+        "Son in law",
+        "Step Father",
+        "Father in law",
+        "Paternal Uncle",
+        "Husband",
+        "Other"
       ];
       return options.find((option) => normalizeOption(option) === normalized)
         || options.find((option) => normalizeOption(option).includes(normalized) || normalized.includes(normalizeOption(option)))
-        || "Mother";
+        || value;
     }
 
     function preferredCompanionMemberFromContext(context) {
