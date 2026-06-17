@@ -33,7 +33,7 @@ from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_resu
 from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
 from services.passport_page import clear_passport_page_cache, extract_aligned_passport_page
 from services.parser import format_date, parse_mrz_data
-from services.tesseract_runner import get_tesseract_ocr_stats, reset_tesseract_ocr_stats
+from services.ocr_runner import get_ocr_stats, reset_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext

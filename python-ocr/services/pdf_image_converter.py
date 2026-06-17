@@ -6,7 +6,7 @@ import shutil
 from dataclasses import dataclass
 
 from services.mrz_validation import validate_td3_line2
-from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
+from services.ocr_runner import build_ocr_config, run_rapid_ocr
 
 try:
     import pytesseract
@@ -155,7 +155,7 @@ def _convert_pdf_to_image_result(
 
 
 def _select_pdf_page_indices(document: object, page_count: int) -> tuple[int, ...]:
-    if page_count <= 1 or not _configure_tesseract():
+    if page_count <= 1:
         return tuple(range(page_count))
 
     return _select_pdf_page_indices_from_scores(_score_pdf_pages(document, page_count))
@@ -208,12 +208,11 @@ def _score_pdf_page(document: object, page_index: int) -> int:
 
 
 def _ocr_pdf_preflight_image(image: object) -> str:
-    config = build_tesseract_config(
-        psm=6,
+    config = build_ocr_config(
         whitelist=PDF_PREFLIGHT_MRZ_WHITELIST,
         dpi=PDF_PREFLIGHT_DPI,
     )
-    return run_tesseract_ocr(image, config, timeout_seconds=PDF_PREFLIGHT_TIMEOUT_SECONDS)
+    return run_rapid_ocr(image, config, timeout_seconds=PDF_PREFLIGHT_TIMEOUT_SECONDS)
 
 
 def _score_pdf_preflight_text(text: str) -> int:
@@ -258,14 +257,7 @@ def _looks_like_td3_line1(line: str) -> bool:
     return repaired.startswith("P<IDN") or (repaired.startswith("P<") and repaired.count("<") >= 4)
 
 
-def _configure_tesseract() -> bool:
-    if pytesseract is None:
-        return False
-    tesseract_cmd = _resolve_tesseract_cmd()
-    if tesseract_cmd is None:
-        return False
-    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-    return True
+
 
 
 def _resolve_tesseract_cmd() -> str | None:

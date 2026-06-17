@@ -130,7 +130,6 @@ def _add_candidates(candidates: dict[str, int], lines: list[str], parsed: Parsed
 def _add_raw_candidates(candidates: dict[str, int], crop: object, parsed: ParsedPassportData) -> None:
     lines = collect_ocr_lines(
         crop,
-        psm_values=(6,),
         whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
         variant_mode="fast",
         max_lines=30,
@@ -328,7 +327,6 @@ def _extend_with_mrz_hints(page: object | None, candidate: str) -> str:
     for window in ((0.80, 0.98, 0.05, 0.98), (0.82, 0.98, 0.05, 0.98)):
         for line in collect_ocr_lines(
             crop_relative(page, *window),
-            psm_values=(6,),
             whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ<",
             variant_mode="hint",
             max_lines=6,

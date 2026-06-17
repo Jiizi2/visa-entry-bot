@@ -31,7 +31,7 @@ from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_resu
 from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
 from services.passport_page import clear_passport_page_cache, extract_aligned_passport_page
 from services.parser import format_date, parse_mrz_data
-from services.tesseract_runner import get_tesseract_ocr_stats, reset_tesseract_ocr_stats
+from services.ocr_runner import get_ocr_stats, reset_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
@@ -158,7 +158,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
     clear_passport_page_cache()
     clear_image_preprocess_cache()
     start_ocr_result_cache_session(file_path)
-    reset_tesseract_ocr_stats()
+    reset_ocr_stats()
     reset_image_preprocessor_stats()
     reset_fast_location_ocr_stats()
 
@@ -201,7 +201,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "budgetExceeded": _budget_exceeded(started_at, _ocr_budget_ms()),
             "skippedStages": list(skipped_ocr_stages),
             "ocrCache": get_ocr_result_cache_stats(),
-            "tesseract": get_tesseract_ocr_stats(),
+            "tesseract": get_ocr_stats(),
             "imagePreprocessor": get_image_preprocessor_stats(),
             "ocrMode": "DEEP",
             "ocrModeReasons": ["PROCESSING_EXCEPTION"],
@@ -211,7 +211,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         clear_passport_page_cache()
         clear_image_preprocess_cache()
         end_ocr_result_cache_session()
-        reset_tesseract_ocr_stats()
+        reset_ocr_stats()
         reset_image_preprocessor_stats()
 
 

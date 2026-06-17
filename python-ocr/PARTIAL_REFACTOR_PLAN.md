@@ -412,9 +412,9 @@ Tasks:
   - timeout
   - cache key
   - latency logging
-- Initial centralized runner exists in `services/tesseract_runner.py`.
+- Initial centralized runner exists in `services/ocr_runner.py`.
 - Direct `pytesseract.image_to_string` calls now route through the runner.
-- Tesseract config construction is centralized through `build_tesseract_config(...)` for PSM, whitelist, DPI, and spacing flags.
+- Tesseract config construction is centralized through `build_ocr_config(...)` for PSM, whitelist, DPI, and spacing flags.
 - Per-passport `processingMetrics.tesseract` now reports:
   - `callCount`
   - `errorCount`

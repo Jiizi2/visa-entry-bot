@@ -67,40 +67,14 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         clear_ocr_result_cache()
         clear_passport_page_cache()
 
-    def test_collect_ocr_lines_reuses_cached_result(self) -> None:
-        region = np.zeros((10, 10), dtype=np.uint8)
-        with (
-            patch("services.passport_page.configure_tesseract", return_value=True),
-            patch("services.passport_page._build_variants", return_value=[region]),
-            patch("services.tesseract_runner.pytesseract.image_to_string", return_value="LINE 1\n") as image_to_string,
-        ):
-            first = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
-            second = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
-
-        self.assertEqual(first, ["LINE 1"])
-        self.assertEqual(second, ["LINE 1"])
-        self.assertEqual(image_to_string.call_count, 1)
-
-    def test_collect_ocr_lines_continues_after_tesseract_error(self) -> None:
-        region = np.zeros((10, 10), dtype=np.uint8)
-        with (
-            patch("services.passport_page.configure_tesseract", return_value=True),
-            patch("services.passport_page._build_variants", return_value=[region, region]),
-            patch("services.tesseract_runner.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "LINE 2\n"]),
-        ):
-            result = collect_ocr_lines(region, psm_values=(6,), variant_mode="fast", max_lines=10)
-
-        self.assertEqual(result, ["LINE 2"])
-
     def test_scan_region_texts_continues_after_fallback_tesseract_error(self) -> None:
         region = np.zeros((10, 10), dtype=np.uint8)
         with (
-            patch("services.visual_region_scanner.collect_ocr_lines", return_value=[]),
             patch("services.visual_region_scanner.cv2", object()),
             patch("services.visual_region_scanner._build_variants", return_value=[region, region]),
-            patch("services.tesseract_runner.pytesseract.image_to_string", side_effect=[RuntimeError("boom"), "TEXT"]),
+            patch("services.ocr_runner.RAPID_OCR_INSTANCE", side_effect=[RuntimeError("boom"), ([[[[0,0], [1,0], [1,1], [0,1]], "TEXT", 0.99]], None)]),
         ):
-            result = scan_region_texts(region, 7, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            result = scan_region_texts(region, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
         self.assertEqual(result, ["TEXT"])
 
@@ -246,13 +220,11 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             result = _extract_field(object(), "placeOfBirth")
 
         self.assertEqual(result, "SEMARANG")
-        self.assertEqual(scanner.call_args.args[1], 6)
 
     def test_visual_field_scope_limits_extracted_fields(self) -> None:
         page = object()
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr.extract_aligned_passport_page", return_value=page),
+                        patch("services.indonesia_field_ocr.extract_aligned_passport_page", return_value=page),
             patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
             patch(
                 "services.indonesia_field_ocr._extract_field",
@@ -275,8 +247,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         raw_image = np.zeros((100, 100, 3), dtype=np.uint8)
         region = np.zeros((20, 20, 3), dtype=np.uint8)
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._extract_field") as extractor,
+                        patch("services.indonesia_field_ocr._extract_field") as extractor,
             patch("services.indonesia_field_ocr._load_image", return_value=raw_image),
             patch("services.indonesia_field_ocr.crop_relative", return_value=region),
             patch("services.indonesia_field_ocr.scan_region_texts", return_value=["PACITAN"]) as scanner,
@@ -287,7 +258,6 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         extractor.assert_not_called()
         self.assertEqual(scanner.call_args.kwargs["variant_mode"], "fast")
         self.assertFalse(scanner.call_args.kwargs["include_psm_fallback"])
-        self.assertEqual(scanner.call_args.args[1], 6)
 
     def test_fast_location_fields_scan_raw_right_side_windows_without_preprocess_by_default(self) -> None:
         image = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -295,8 +265,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         region = np.zeros((10, 10), dtype=np.uint8)
         with (
             patch.dict("os.environ", {"PASSPORT_FAST_LOCATION_PREPROCESS": ""}, clear=False),
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr.build_processed_document_image", return_value=processed) as preprocess,
+                        patch("services.indonesia_field_ocr.build_processed_document_image", return_value=processed) as preprocess,
             patch("services.indonesia_field_ocr._load_image", return_value=image),
             patch("services.indonesia_field_ocr.crop_relative", return_value=region),
             patch(
@@ -323,8 +292,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         region = np.zeros((10, 10), dtype=np.uint8)
         with (
             patch.dict("os.environ", {"PASSPORT_LOCATION_OCR_DEBUG": "1"}, clear=False),
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._load_image", return_value=image),
+                        patch("services.indonesia_field_ocr._load_image", return_value=image),
             patch("services.indonesia_field_ocr.crop_relative", return_value=region),
             patch("services.indonesia_field_ocr.scan_region_texts", return_value=["TEMPAT LAHIR PAREPARE"]),
         ):
@@ -341,8 +309,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         processed = np.zeros((100, 100), dtype=np.uint8)
         with (
             patch.dict("os.environ", {"PASSPORT_FAST_LOCATION_PREPROCESS": "fallback"}, clear=False),
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._load_image", return_value=image),
+                        patch("services.indonesia_field_ocr._load_image", return_value=image),
             patch("services.indonesia_field_ocr.build_processed_document_image", return_value=processed) as preprocess,
             patch(
                 "services.indonesia_field_ocr._extract_fast_location_from_image",
@@ -362,8 +329,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         region = np.zeros((10, 10), dtype=np.uint8)
         with (
             patch.dict("os.environ", {"PASSPORT_FAST_LOCATION_PREPROCESS": ""}, clear=False),
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._load_image", return_value=image),
+                        patch("services.indonesia_field_ocr._load_image", return_value=image),
             patch("services.indonesia_field_ocr.crop_relative", return_value=region),
             patch(
                 "services.indonesia_field_ocr.scan_region_texts",
@@ -384,8 +350,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             return "PAREPARE"
 
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._load_image", return_value=image),
+                        patch("services.indonesia_field_ocr._load_image", return_value=image),
             patch("services.indonesia_field_ocr.build_processed_document_image") as preprocess,
             patch("services.indonesia_field_ocr._extract_fast_location_from_image", side_effect=extract_from_image),
         ):
@@ -408,8 +373,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             return "PAREPARE"
 
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._load_image", return_value=image),
+                        patch("services.indonesia_field_ocr._load_image", return_value=image),
             patch("services.indonesia_field_ocr.build_processed_document_image") as preprocess,
             patch("services.indonesia_field_ocr._extract_fast_location_from_image", side_effect=extract_from_image),
         ):
@@ -454,8 +418,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
     def test_visual_location_uses_aligned_page_when_raw_probe_misses(self) -> None:
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
+                        patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
             patch("services.indonesia_field_ocr._extract_field", return_value="PACITAN"),
         ):
             result = extract_visual_fields("file.png", page=object(), field_names=("placeOfBirth",))
@@ -465,8 +428,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_visual_fields_use_processed_document_when_alignment_fails(self) -> None:
         processed_page = object()
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
+                        patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
             patch("services.indonesia_field_ocr.extract_aligned_passport_page", return_value=None),
             patch("services.indonesia_field_ocr.build_processed_document_image", return_value=processed_page) as preprocess,
             patch("services.indonesia_field_ocr._extract_field", return_value="PACITAN") as extractor,
@@ -479,8 +441,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
     def test_visual_location_can_skip_aligned_fallback_after_raw_probe_misses(self) -> None:
         with (
-            patch("services.indonesia_field_ocr.configure_tesseract", return_value=True),
-            patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
+                        patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
             patch("services.indonesia_field_ocr.extract_aligned_passport_page") as align_page,
         ):
             result = extract_visual_fields(
@@ -1178,9 +1139,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_aligned_page_cache_reuses_failed_alignment(self) -> None:
         with (
             patch("services.passport_page.cv2", object()),
-            patch("services.passport_page.MRZPipeline", object()),
-            patch("services.passport_page.configure_tesseract", return_value=True),
-            patch("services.passport_page._extract_page_from_path", return_value=None) as extract_page,
+                                    patch("services.passport_page._extract_page_from_path", return_value=None) as extract_page,
             patch("services.passport_page.temporary_mrz_variants", return_value=_EmptyVariants()),
         ):
             first = extract_aligned_passport_page("missing-page.png")
@@ -1298,7 +1257,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         )
         with (
             patch("services.mrz_extractor._build_direct_mrz_variants", return_value=[region, region]),
-            patch("services.mrz_extractor.run_tesseract_ocr", return_value=text) as tesseract,
+            patch("services.mrz_extractor.run_rapid_ocr", return_value=text) as tesseract,
         ):
             result = _extract_direct_mrz_from_region(region)
 

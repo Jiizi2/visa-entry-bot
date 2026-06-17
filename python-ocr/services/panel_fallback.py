@@ -155,7 +155,7 @@ def _extract_name(panel: object, windows: tuple[tuple[float, float, float, float
     hints = salvage_family_hints(family_hint)
     candidates: list[tuple[int, str]] = []
     for window in _prioritized_name_windows(windows, hints):
-        for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=(6,), whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ", variant_mode="fast", max_lines=8):
+        for line in collect_ocr_lines(crop_relative(panel, *window), whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ", variant_mode="fast", max_lines=8):
             cleaned = _clean_name_line(line)
             normalized = normalize_name_candidate(cleaned, hints)
             if not normalized:
@@ -174,7 +174,6 @@ def _extract_passport_number(panel: object, windows: tuple[tuple[float, float, f
     for window in windows:
         lines = collect_ocr_lines(
             crop_relative(panel, *window),
-            psm_values=(6, 7, 8, 11),
             whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
             variant_mode="fast",
             max_lines=20,
@@ -384,7 +383,7 @@ def _is_iso_date(value: str) -> bool:
 def _collect_date_candidates(panel: object, windows: tuple[tuple[float, float, float, float], ...]) -> list[str]:
     candidates: list[str] = []
     for window in windows:
-        for line in collect_ocr_lines(crop_relative(panel, *window), psm_values=(6, 7), whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", variant_mode="fast", max_lines=10):
+        for line in collect_ocr_lines(crop_relative(panel, *window), whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", variant_mode="fast", max_lines=10):
             value = _clean_date(line)
             if value:
                 candidates.append(value)

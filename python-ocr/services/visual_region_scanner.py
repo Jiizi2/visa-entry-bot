@@ -8,31 +8,24 @@ try:
 except ImportError:  # pragma: no cover - depends on local environment
     cv2 = None
 
-try:
-    import pytesseract
-except ImportError:  # pragma: no cover - depends on local environment
-    pytesseract = None
-
 from services.ocr_result_cache import build_region_cache_key, get_cached_lines, store_cached_lines
-from services.passport_page import collect_ocr_lines
-from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
+from services.ocr_runner import build_ocr_config, run_rapid_ocr
 
 
 def scan_region_texts(
     region: object,
-    psm: int,
     whitelist: str,
     variant_mode: str = "fast",
     max_lines: int = 10,
     stop_when: Callable[[list[str]], bool] | None = None,
-    include_psm_fallback: bool = True,
-    oem: int = 3,
+    include_psm_fallback: bool = True, # Kept for API compatibility, unused
+    oem: int = 3, # Kept for API compatibility, unused
     user_words_file: str | None = None,
 ) -> list[str]:
     cache_key = build_region_cache_key(
         "scan",
         region,
-        psm,
+        1, # default psm dummy
         whitelist,
         variant_mode,
         max_lines,
@@ -43,40 +36,31 @@ def scan_region_texts(
     cached = get_cached_lines(cache_key)
     if cached is not None:
         return cached
-    psm_values = (
-        (psm, 6 if psm != 6 else 7)
-        if include_psm_fallback
-        else (psm,)
-    )
-    texts = collect_ocr_lines(
-        region,
-        psm_values=psm_values,
-        whitelist=whitelist,
-        variant_mode=variant_mode,
-        max_lines=max_lines,
-        stop_when=stop_when,
-        oem=oem,
-        user_words_file=user_words_file,
-    )
-    if stop_when is not None and stop_when(texts):
-        return store_cached_lines(cache_key, _unique(texts))
-    if _has_sufficient_seed_text(texts):
-        return store_cached_lines(cache_key, _unique(texts))
-    if cv2 is None or pytesseract is None:
-        return store_cached_lines(cache_key, _unique(texts))
-    config = build_tesseract_config(
-        psm=psm, 
-        oem=oem, 
+
+    if cv2 is None or region is None:
+        return []
+
+    config = build_ocr_config(
         whitelist=whitelist, 
         user_words_file=user_words_file
     )
+
+    seen: set[str] = set()
+    texts: list[str] = []
+
     for variant in _build_variants(region):
-        text = run_tesseract_ocr(variant, config).strip()
-        if text:
-            texts.append(text)
-            if stop_when is not None and stop_when(texts):
-                return store_cached_lines(cache_key, _unique(texts))
-    return store_cached_lines(cache_key, _unique(texts))
+        text_result = run_rapid_ocr(variant, config).strip()
+        for raw_line in text_result.splitlines():
+            cleaned = re.sub(r"\s+", " ", raw_line).strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                texts.append(cleaned)
+                if max_lines and len(texts) >= max_lines:
+                    return store_cached_lines(cache_key, texts)
+                if stop_when is not None and stop_when(texts):
+                    return store_cached_lines(cache_key, texts)
+
+    return store_cached_lines(cache_key, texts)
 
 
 def _build_variants(region: object) -> list[object]:

@@ -178,7 +178,6 @@ def _run_tesseract_full_image(file_path: str) -> str:
         raise RuntimeError(f"Cannot read image: {file_path}")
     lines = collect_ocr_lines(
         image,
-        psm_values=(6, 11),
         whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789< /-",
         variant_mode="fast",
         max_lines=120,

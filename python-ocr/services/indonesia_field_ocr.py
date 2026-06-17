@@ -13,11 +13,11 @@ from services.image_preprocessor import _load_image, build_processed_document_im
 from services.layout_profiles import load_indonesia_passport_layout_profile
 from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.parser import clean_gender
-from services.passport_page import collect_ocr_lines, configure_tesseract, crop_relative, extract_aligned_passport_page
+from services.passport_page import collect_ocr_lines, collect_ocr_lines, crop_relative, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
 from services.models import ParsedPassportData
 
-from services.tesseract_runner import _user_words_path
+from services.ocr_runner import _user_words_path
 
 _LOCATION_WORDS = _user_words_path("tesseract_indonesian_locations.txt")
 _NAME_WORDS = _user_words_path("tesseract_indonesian_names.txt")
@@ -119,8 +119,6 @@ def extract_visual_fields(
     allow_aligned_fallback: bool = True,
     rotation_degrees: int = 0,
 ) -> ParsedPassportData:
-    if not configure_tesseract():
-        return {}
     extracted: dict[str, str] = {}
     requested_fields = (
         tuple(FIELD_CONFIG)
@@ -163,8 +161,6 @@ def extract_fast_location_fields(
     reset_fast_location_ocr_stats()
     started = perf_counter()
     _FAST_LOCATION_OCR_STATS["rotationDegrees"] = int(rotation_degrees or 0) % 360
-    if not configure_tesseract():
-        return {}
     requested_fields = tuple(field_name for field_name in field_names if field_name in SPEED_LOCATION_WINDOWS)
     _FAST_LOCATION_OCR_STATS["requestedFields"] = list(requested_fields)
     if not requested_fields:
@@ -264,11 +260,9 @@ def _extract_field(page: object, field_name: str, field_lines: list[int] | None 
             continue
         psm_values = _field_psm_values(field_name, config["psm"])
         include_psm_fallback = len(psm_values) == 1
-        for psm in psm_values:
+        for psm in (1,):
             for text in scan_region_texts(
-                region,
-                psm,
-                config["whitelist"],
+                region, config["whitelist"],
                 variant_mode=variant_mode,
                 max_lines=12,
                 stop_when=_field_stop_when(field_name, config["kind"]),
@@ -286,10 +280,8 @@ def _extract_field(page: object, field_name: str, field_lines: list[int] | None 
     return _pick_best_field_value(field_name, candidates)
 
 
-def _field_psm_values(field_name: str, default_psm: int) -> tuple[int, ...]:
-    if field_name == "placeOfBirth":
-        return (6, 7)
-    return (default_psm,)
+def _field_psm_values(field_name: str, default_psm: int = 6) -> tuple[int, ...]:
+    return (1,)
 
 
 def _extract_raw_location_field(file_path: str, field_name: str, rotation_degrees: int = 0) -> str:
@@ -365,12 +357,10 @@ def _extract_fast_location_from_image(image: object, field_name: str) -> str:
         if region is None:
             continue
         _FAST_LOCATION_OCR_STATS["cropAttempts"] = int(_FAST_LOCATION_OCR_STATS["cropAttempts"]) + 1
-        for psm in _fast_location_psm_values(field_name):
+        for psm in (1,):
             _FAST_LOCATION_OCR_STATS["scanCalls"] = int(_FAST_LOCATION_OCR_STATS["scanCalls"]) + 1
             texts = scan_region_texts(
-                region,
-                psm,
-                config["whitelist"],
+                region, config["whitelist"],
                 variant_mode="fast",
                 max_lines=12,
                 stop_when=_field_stop_when(field_name, config["kind"]),
@@ -383,7 +373,7 @@ def _extract_fast_location_from_image(image: object, field_name: str) -> str:
                 if _is_valid(value, field_name):
                     candidates.append(value)
                     accepted_values.append(value)
-            _record_fast_location_debug(field_name, window_index, psm, texts, candidate_texts, accepted_values)
+            _record_fast_location_debug(field_name, window_index, texts, candidate_texts, accepted_values)
             best_value = _pick_best_field_value(field_name, candidates)
             if best_value and is_known_location_value(field_name, best_value):
                 return best_value
@@ -401,11 +391,9 @@ def _scan_raw_location_field(image: object, field_name: str, variant_mode: str) 
         region = crop_relative(image, *window)
         if region is None:
             continue
-        for psm in RAW_LOCATION_PSM_VALUES[field_name]:
+        for psm in (1,):
             texts = scan_region_texts(
-                region,
-                psm,
-                config["whitelist"],
+                region, config["whitelist"],
                 variant_mode=variant_mode,
                 max_lines=30,
                 stop_when=None if field_name == "issuingOffice" else _field_stop_when(field_name, config["kind"]),
@@ -476,7 +464,6 @@ def _has_issuing_office_marker(text: str) -> bool:
 def _record_fast_location_debug(
     field_name: str,
     window_index: int,
-    psm: int,
     texts: list[str],
     candidate_texts: list[str],
     accepted_values: list[str],
@@ -490,8 +477,7 @@ def _record_fast_location_debug(
         {
             "field": field_name,
             "windowIndex": window_index,
-            "psm": psm,
-            "raw": [_debug_text(text) for text in texts[:4]],
+                        "raw": [_debug_text(text) for text in texts[:4]],
             "candidates": [_debug_text(text) for text in candidate_texts[:6]],
             "accepted": list(dict.fromkeys(accepted_values))[:4],
         }
@@ -554,7 +540,6 @@ def _extract_full_name(page: object, field_lines: list[int] | None = None, layou
     for window in layout_profile["nameWindows"]:
         lines = collect_ocr_lines(
             crop_relative(page, *window, field_lines=field_lines),
-            psm_values=(6,),
             whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ /",
             variant_mode="fast",
             max_lines=12,
@@ -580,7 +565,7 @@ def _extract_full_name(page: object, field_lines: list[int] | None = None, layou
         if region is None:
             continue
         for text in scan_region_texts(
-            region, 6, config["whitelist"], max_lines=10,
+            region, config["whitelist"], max_lines=10,
             oem=config.get("oem", 3),
             user_words_file=config.get("user_words"),
         ):

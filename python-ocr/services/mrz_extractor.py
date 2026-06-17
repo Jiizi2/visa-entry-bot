@@ -29,7 +29,7 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 from services.image_preprocessor import _mrz_band_score, assess_document_quality, detect_passport_data_page_crop, resize_to_max_edge, temporary_mrz_variants
 from services.mrz_validation import MrzValidationResult, validate_td3_line2
-from services.tesseract_runner import build_tesseract_config, run_tesseract_ocr
+from services.ocr_runner import build_ocr_config, run_rapid_ocr
 
 FIELD_NAMES = (
     "names",
@@ -234,8 +234,8 @@ def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
     candidates: list[DirectMrzResult] = []
     for variant in _build_direct_mrz_variants(gray):
         for psm in (6, 7, 13):
-            config = build_tesseract_config(psm=psm, whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
-            text = run_tesseract_ocr(variant, config)
+            config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
+            text = run_rapid_ocr(variant, config)
             if not text:
                 continue
             lines = _clean_direct_mrz_lines(text)

@@ -152,7 +152,6 @@ def _collect_page_candidates(page: object | None) -> list[str]:
             continue
         for text in collect_ocr_lines(
             region,
-            psm_values=(7,),
             whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
             variant_mode="numeric",
             max_lines=20,
@@ -164,7 +163,6 @@ def _collect_page_candidates(page: object | None) -> list[str]:
             continue
         for text in collect_ocr_lines(
             region,
-            psm_values=(6, 7),
             whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
             variant_mode="numeric",
             max_lines=30,
@@ -178,7 +176,6 @@ def _collect_raw_candidates(file_path: str) -> list[str]:
     for crop in build_mrz_relative_crops(file_path, RAW_WINDOWS):
         for text in collect_ocr_lines(
             crop,
-            psm_values=(6,),
             whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
             variant_mode="fast",
             max_lines=20,
@@ -198,7 +195,6 @@ def _collect_legacy_candidates(file_path: str) -> list[str]:
     candidates: list[str] = []
     for text in collect_ocr_lines(
         region,
-        psm_values=(6,),
         whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
         variant_mode="numeric",
         max_lines=20,
