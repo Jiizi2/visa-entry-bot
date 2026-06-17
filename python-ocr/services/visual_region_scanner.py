@@ -26,6 +26,8 @@ def scan_region_texts(
     max_lines: int = 10,
     stop_when: Callable[[list[str]], bool] | None = None,
     include_psm_fallback: bool = True,
+    oem: int = 3,
+    user_words_file: str | None = None,
 ) -> list[str]:
     cache_key = build_region_cache_key(
         "scan",
@@ -35,6 +37,8 @@ def scan_region_texts(
         variant_mode,
         max_lines,
         int(include_psm_fallback),
+        oem,
+        str(user_words_file),
     )
     cached = get_cached_lines(cache_key)
     if cached is not None:
@@ -51,6 +55,8 @@ def scan_region_texts(
         variant_mode=variant_mode,
         max_lines=max_lines,
         stop_when=stop_when,
+        oem=oem,
+        user_words_file=user_words_file,
     )
     if stop_when is not None and stop_when(texts):
         return store_cached_lines(cache_key, _unique(texts))
@@ -58,7 +64,12 @@ def scan_region_texts(
         return store_cached_lines(cache_key, _unique(texts))
     if cv2 is None or pytesseract is None:
         return store_cached_lines(cache_key, _unique(texts))
-    config = build_tesseract_config(psm=psm, whitelist=whitelist)
+    config = build_tesseract_config(
+        psm=psm, 
+        oem=oem, 
+        whitelist=whitelist, 
+        user_words_file=user_words_file
+    )
     for variant in _build_variants(region):
         text = run_tesseract_ocr(variant, config).strip()
         if text:

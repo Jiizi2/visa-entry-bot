@@ -17,20 +17,32 @@ _STATS = {
 }
 
 
+_SERVICES_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
+def _user_words_path(filename: str) -> str | None:
+    """Mengembalikan path file user-words jika ada, atau None."""
+    path = os.path.join(_SERVICES_DATA_DIR, filename)
+    return path if os.path.isfile(path) else None
+
+
 def build_tesseract_config(
     *,
     psm: int,
+    oem: int = 3,
     whitelist: str = "",
     dpi: int | None = None,
     preserve_interword_spaces: bool = False,
+    user_words_file: str | None = None,
 ) -> str:
-    parts = ["--oem 3", f"--psm {int(psm)}"]
+    parts = [f"--oem {int(oem)}", f"--psm {int(psm)}"]
     if dpi is not None:
         parts.append(f"-c user_defined_dpi={int(dpi)}")
     if preserve_interword_spaces:
         parts.append("-c preserve_interword_spaces=1")
     if whitelist:
         parts.append(f"-c tessedit_char_whitelist={whitelist}")
+    if user_words_file and os.path.isfile(user_words_file):
+        parts.append(f"--user-words \"{user_words_file}\"")
     return " ".join(parts)
 
 

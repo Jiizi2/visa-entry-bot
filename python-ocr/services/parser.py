@@ -4,6 +4,8 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+from services.models import ParsedPassportData
+
 COUNTRY_NAMES = {
     "IDN": "INDONESIA",
     "ARE": "UNITED ARAB EMIRATES",
@@ -32,17 +34,17 @@ def parse_mrz_data(data: dict[str, Any]) -> ParsedPassportData:
         first_name,
     )
 
-    return {
-        "firstName": first_name,
-        "familyName": family_name,
-        "passportNumber": _pick_best_document(clean_document(_pick(data, "number", "passport_number")), line_values["passportNumber"]),
-        "nationality": clean_country(_pick(data, "nationality")) or line_values["nationality"],
-        "dob": format_date(_pick(data, "date_of_birth", "dob"), "birth") or line_values["dob"],
-        "issueDate": format_date(_pick(data, "date_of_issue", "issue_date"), "issue"),
-        "expiryDate": format_date(_pick(data, "expiration_date", "expiry_date"), "expiry")
+    return ParsedPassportData(
+        firstName=first_name,
+        familyName=family_name,
+        passportNumber=_pick_best_document(clean_document(_pick(data, "number", "passport_number")), line_values["passportNumber"]),
+        nationality=clean_country(_pick(data, "nationality")) or line_values["nationality"],
+        dob=format_date(_pick(data, "date_of_birth", "dob"), "birth") or line_values["dob"],
+        issueDate=format_date(_pick(data, "date_of_issue", "issue_date"), "issue"),
+        expiryDate=format_date(_pick(data, "expiration_date", "expiry_date"), "expiry")
         or line_values["expiryDate"],
-        "gender": line_values["gender"] or clean_gender(_pick(data, "sex", "gender")),
-    }
+        gender=line_values["gender"] or clean_gender(_pick(data, "sex", "gender")),
+    )
 
 
 def format_date(value: Any, date_type: str = "birth") -> str:

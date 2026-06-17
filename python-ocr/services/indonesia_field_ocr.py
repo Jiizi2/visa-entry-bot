@@ -15,9 +15,24 @@ from services.location_normalizer import is_known_location_value, pick_best_loca
 from services.parser import clean_gender
 from services.passport_page import collect_ocr_lines, configure_tesseract, crop_relative, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
+from services.models import ParsedPassportData
+
+from services.tesseract_runner import _user_words_path
+
+_LOCATION_WORDS = _user_words_path("tesseract_indonesian_locations.txt")
+_NAME_WORDS = _user_words_path("tesseract_indonesian_names.txt")
 
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
-FIELD_CONFIG = {"fullName": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name"}, "nationality": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country"}, "dob": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "gender": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender"}, "placeOfBirth": {"psm": 7, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}, "issueDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "expiryDate": {"psm": 7, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date"}, "issuingOffice": {"psm": 6, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text"}}
+FIELD_CONFIG = {
+    "fullName":      {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name",    "user_words": _NAME_WORDS},
+    "nationality":   {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country", "user_words": None},
+    "dob":           {"psm": 7, "oem": 3, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
+    "gender":        {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender",  "user_words": None},
+    "placeOfBirth":  {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text",    "user_words": _LOCATION_WORDS},
+    "issueDate":     {"psm": 7, "oem": 3, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
+    "expiryDate":    {"psm": 7, "oem": 3, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
+    "issuingOffice": {"psm": 6, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text",    "user_words": _LOCATION_WORDS},
+}
 RAW_LOCATION_WINDOWS = {
     "placeOfBirth": (
         (0.52, 0.62, 0.30, 0.92),
@@ -131,8 +146,10 @@ def extract_visual_fields(
         page = build_processed_document_image(file_path)
     page = _orient_image(page, rotation_degrees)
     if page is not None:
+        from services.image_preprocessor import detect_horizontal_field_lines
+        field_lines = detect_horizontal_field_lines(page)
         for field_name in remaining_fields:
-            value = _extract_field(page, field_name)
+            value = _extract_field(page, field_name, field_lines)
             if value:
                 extracted[field_name] = value
     return extracted
@@ -210,12 +227,12 @@ def reset_fast_location_ocr_stats() -> None:
 
 
 def merge_visual_fields(parsed: ParsedPassportData, visual_fields: dict[str, str]) -> ParsedPassportData:
-    merged = ParsedPassportData(**parsed.as_dict())
-    if visual_fields.get("nationality") == "INDONESIA" and merged.get("nationality") in {"", "ID", "DNI"}:
-        merged["nationality"] = "INDONESIA"
+    merged = ParsedPassportData(**parsed)
+    if visual_fields.get("nationality") == "INDONESIA" and getattr(merged, "nationality", "") in {"", "ID", "DNI"}:
+        setattr(merged, "nationality", "INDONESIA")
     for field_name in ("nationality", "dob", "gender", "issueDate", "expiryDate"):
-        if _prefer_visual_value(field_name, merged.get(field_name, ""), visual_fields.get(field_name, "")):
-            merged[field_name] = visual_fields[field_name]
+        if _prefer_visual_value(field_name, getattr(merged, field_name, ""), visual_fields.get(field_name, "")):
+            setattr(merged, field_name, visual_fields[field_name])
     return merged
 
 
@@ -228,18 +245,21 @@ def build_visual_notes(visual_fields: dict[str, str]) -> str:
     return "; ".join(notes)
 
 
-def _extract_field(page: object, field_name: str) -> str:
+def _extract_field(page: object, field_name: str, field_lines: list[int] | None = None) -> str:
+    from services.layout_detector import detect_passport_layout_version
+    layout_version = detect_passport_layout_version(page)
+    
     if field_name == "fullName":
-        return _extract_full_name(page)
+        return _extract_full_name(page, field_lines, layout_version=layout_version)
     config = FIELD_CONFIG[field_name]
-    layout_profile = load_indonesia_passport_layout_profile()
+    layout_profile = load_indonesia_passport_layout_profile(version=layout_version)
     candidates: list[str] = []
     windows = [template[field_name] for template in layout_profile["fieldTemplates"]] + list(
         layout_profile["extraWindows"].get(field_name, ())
     )
     variant_mode = "numeric" if config["kind"] == "date" else "fast"
     for window in windows:
-        region = crop_relative(page, *window)
+        region = crop_relative(page, *window, field_lines=field_lines)
         if region is None:
             continue
         psm_values = _field_psm_values(field_name, config["psm"])
@@ -253,6 +273,8 @@ def _extract_field(page: object, field_name: str) -> str:
                 max_lines=12,
                 stop_when=_field_stop_when(field_name, config["kind"]),
                 include_psm_fallback=include_psm_fallback,
+                oem=config.get("oem", 3),
+                user_words_file=config.get("user_words"),
             ):
                 value = _clean_value(field_name, text, config["kind"])
                 if _is_valid(value, field_name):
@@ -526,16 +548,18 @@ def _unique_texts(texts: list[str]) -> list[str]:
     return unique
 
 
-def _extract_full_name(page: object) -> str:
-    layout_profile = load_indonesia_passport_layout_profile()
+def _extract_full_name(page: object, field_lines: list[int] | None = None, layout_version: str = "indonesia_default") -> str:
+    layout_profile = load_indonesia_passport_layout_profile(version=layout_version)
     collected: list[str] = []
     for window in layout_profile["nameWindows"]:
         lines = collect_ocr_lines(
-            crop_relative(page, *window),
+            crop_relative(page, *window, field_lines=field_lines),
             psm_values=(6,),
             whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ /",
             variant_mode="fast",
             max_lines=12,
+            oem=FIELD_CONFIG["fullName"].get("oem", 3),
+            user_words_file=FIELD_CONFIG["fullName"].get("user_words"),
         )
         for index, line in enumerate(lines):
             options = [_extract_name_tail(line)]
@@ -552,26 +576,71 @@ def _extract_full_name(page: object) -> str:
 
     config = FIELD_CONFIG["fullName"]
     for window in layout_profile["nameValueWindows"]:
-        region = crop_relative(page, *window)
+        region = crop_relative(page, *window, field_lines=field_lines)
         if region is None:
             continue
-        for text in scan_region_texts(region, 6, config["whitelist"], max_lines=10):
+        for text in scan_region_texts(
+            region, 6, config["whitelist"], max_lines=10,
+            oem=config.get("oem", 3),
+            user_words_file=config.get("user_words"),
+        ):
             cleaned = _clean_visual_name(text)
             if _is_valid(cleaned, "fullName"):
                 collected.append(cleaned)
     return _pick_best_name_candidate(collected)
 
 
+_LETTER_TO_DIGIT = str.maketrans("OQDIILBSZG", "0000118526")
+_DIGIT_TO_LETTER = str.maketrans("015836", "OISBGB")
+
+
+def _apply_date_confusion_fix(text: str) -> str:
+    """
+    Koreksi confusion matrix untuk field tanggal.
+    Format tanggal: DD MMM YYYY (contoh: 14 OCT 1990)
+    - Posisi hari dan tahun: huruf ΓåÆ digit
+    - Posisi bulan (3 huruf): digit ΓåÆ huruf
+    """
+    normalized = re.sub(r"[^A-Z0-9\s]", " ", text.upper()).strip()
+    parts = normalized.split()
+    if len(parts) < 3:
+        return text
+    day_fixed = parts[0].translate(_LETTER_TO_DIGIT)
+    year_fixed = parts[-1].translate(_LETTER_TO_DIGIT) if len(parts) >= 3 else parts[-1]
+    month_raw = parts[1] if len(parts) == 3 else " ".join(parts[1:-1])
+    month_fixed = month_raw.translate(_DIGIT_TO_LETTER)
+    return f"{day_fixed} {month_fixed} {year_fixed}"
+
+
+def _apply_location_confusion_fix(text: str) -> str:
+    """
+    Koreksi confusion matrix untuk field lokasi (placeOfBirth, issuingOffice).
+    Lokasi seharusnya semua huruf ΓÇö koreksi digit yang mirip huruf.
+    Contoh: "BANG0K" ΓåÆ "BANGOK", "JAKARTA T1MUR" ΓåÆ "JAKARTA TIMUR"
+    """
+    tokens = []
+    for token in str(text or "").upper().split():
+        has_letter = any(c.isalpha() for c in token)
+        has_digit = any(c.isdigit() for c in token)
+        if has_letter and has_digit:
+            token = token.translate(_DIGIT_TO_LETTER)
+        tokens.append(token)
+    return " ".join(tokens)
+
+
 def _clean_value(field_name: str, text: str, kind: str) -> str:
     if kind == "name":
         return _clean_visual_name(text)
     if kind == "date":
-        return _clean_date(text)
+        return _clean_date(_apply_date_confusion_fix(text))
     if kind == "gender":
         return _clean_visual_gender(text)
     if kind == "country":
         return _clean_visual_country(text)
-    return pick_best_location_value(field_name, [_clean_visual_text(text)]) if field_name in {"placeOfBirth", "issuingOffice"} else _clean_visual_text(text)
+    if field_name in {"placeOfBirth", "issuingOffice"}:
+        fixed = _apply_location_confusion_fix(text)
+        return pick_best_location_value(field_name, [_clean_visual_text(fixed)])
+    return _clean_visual_text(text)
 
 
 def _pick_best_field_value(field_name: str, candidates: list[str]) -> str:

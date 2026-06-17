@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from services.models import ParsedPassportData, ExtractionEvidence
+
 import json
 import os
 import re
@@ -44,38 +46,38 @@ def _apply_indonesian_visual_repairs(
     extraction: ExtractionEvidence,
     visual_fields: dict[str, str],
 ) -> ParsedPassportData:
-    updated = ParsedPassportData(**parsed.as_dict())
+    updated = ParsedPassportData(**parsed)
     if (visual_fields.get("placeOfBirth") or visual_fields.get("issuingOffice")) and _looks_like_noisy_indonesia_code(
-        updated.nationality
+        updated.get("nationality", "")
     ):
-        updated.nationality = "INDONESIA"
-    if not _is_iso_date(updated.dob):
+        updated["nationality"] = "INDONESIA"
+    if not _is_iso_date(updated.get("dob", "")):
         dob = _recover_dob_from_unverified_mrz(extraction)
         if dob:
-            updated.dob = dob
+            updated["dob"] = dob
     return updated
 
 def _apply_fast_mrz_repairs(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> tuple[ParsedPassportData, str]:
-    updated = ParsedPassportData(**parsed.as_dict())
+    updated = ParsedPassportData(**parsed)
     notes: list[str] = []
     if _has_indonesian_mrz_hint(extraction):
-        if _looks_like_noisy_indonesia_code(updated.nationality):
-            updated.nationality = "INDONESIA"
+        if _looks_like_noisy_indonesia_code(updated.get("nationality", "")):
+            updated["nationality"] = "INDONESIA"
             notes.append("NATIONALITY REPAIRED FROM MRZ HINT IN FAST SCAN")
-        if not re.fullmatch(r"[EX]\d{7}", updated.passportNumber or ""):
+        if not re.fullmatch(r"[EX]\d{7}", updated.get("passportNumber", "") or ""):
             passport_number = _recover_passport_number_from_mrz(extraction)
             if passport_number:
-                updated.passportNumber = passport_number
+                updated["passportNumber"] = passport_number
                 notes.append("PASSPORT NUMBER REPAIRED FROM MRZ HINT IN FAST SCAN")
-        if not _is_iso_date(updated.dob):
+        if not _is_iso_date(updated.get("dob", "")):
             dob = _recover_dob_from_unverified_mrz(extraction)
             if dob:
-                updated.dob = dob
+                updated["dob"] = dob
                 notes.append("DOB REPAIRED FROM MRZ HINT IN FAST SCAN")
-        if updated.gender not in {"MALE", "FEMALE"}:
+        if updated.get("gender", "") not in {"MALE", "FEMALE"}:
             gender = _recover_gender_from_unverified_mrz(extraction)
             if gender:
-                updated.gender = gender
+                updated["gender"] = gender
                 notes.append("GENDER REPAIRED FROM MRZ HINT IN FAST SCAN")
     return updated, "; ".join(notes)
 
@@ -165,34 +167,34 @@ def _compact_name_value(value: str) -> str:
     return re.sub(r"[^A-Z]", "", str(value or "").upper())
 
 def _apply_fast_date_repairs(parsed: ParsedPassportData) -> tuple[ParsedPassportData, str]:
-    if _is_iso_date(parsed.issueDate):
+    if _is_iso_date(parsed.get("issueDate", "")):
         return parsed, ""
-    expiry_date = parsed.expiryDate
+    expiry_date = parsed.get("expiryDate", "")
     if not _is_iso_date(expiry_date):
         return parsed, ""
-    inferred_issue = infer_issue_date(parsed.dob, expiry_date)
+    inferred_issue = infer_issue_date(parsed.get("dob", ""), expiry_date)
     if not inferred_issue:
         return parsed, ""
-    updated = ParsedPassportData(**parsed.as_dict())
-    updated.issueDate = inferred_issue
+    updated = ParsedPassportData(**parsed)
+    updated["issueDate"] = inferred_issue
     return updated, "ISSUE DATE INFERRED FROM EXPIRY DATE IN FAST SCAN"
 
 def _repair_impossible_expiry_date(parsed: ParsedPassportData) -> tuple[ParsedPassportData, str]:
-    expiry = _parse_iso_date(parsed.expiryDate)
-    dob = _parse_iso_date(parsed.dob)
+    expiry = _parse_iso_date(parsed.get("expiryDate", ""))
+    dob = _parse_iso_date(parsed.get("dob", ""))
     if expiry is None or dob is None or expiry > dob or expiry.year >= 2000:
         return parsed, ""
     repaired_expiry = expiry.replace(year=expiry.year + 80)
     today = date.today()
     if repaired_expiry <= today or repaired_expiry.year > today.year + 20:
         return parsed, ""
-    updated = ParsedPassportData(**parsed.as_dict())
-    updated.expiryDate = repaired_expiry.isoformat()
+    updated = ParsedPassportData(**parsed)
+    updated["expiryDate"] = repaired_expiry.isoformat()
     note = "EXPIRY DATE CENTURY REPAIRED FROM MRZ"
-    if not _is_iso_date(updated.issueDate):
-        inferred_issue = infer_issue_date(updated.dob, updated.expiryDate)
+    if not _is_iso_date(updated.get("issueDate", "")):
+        inferred_issue = infer_issue_date(updated.get("dob", ""), updated.get("expiryDate", ""))
         if inferred_issue:
-            updated.issueDate = inferred_issue
+            updated["issueDate"] = inferred_issue
             note = join_notes(note, "ISSUE DATE INFERRED FROM REPAIRED EXPIRY")
     return updated, note
 
@@ -233,11 +235,11 @@ def _has_reliable_mrz_for_fast_path(
     if "LOW PASSPORTEYE CONFIDENCE" in str(extraction.get("notes", "") or "").upper():
         return False
     return bool(
-        parsed.passportNumber
-        and parsed.nationality
-        and _is_iso_date(parsed.dob)
-        and _is_iso_date(parsed.expiryDate)
-        and parsed.gender in {"MALE", "FEMALE"}
+        parsed.get("passportNumber", "")
+        and parsed.get("nationality", "")
+        and _is_iso_date(parsed.get("dob", ""))
+        and _is_iso_date(parsed.get("expiryDate", ""))
+        and parsed.get("gender", "") in {"MALE", "FEMALE"}
     )
 
 

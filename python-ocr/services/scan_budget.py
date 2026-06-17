@@ -37,7 +37,7 @@ from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
 
-from services.ocr_constants import (OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
+from services.ocr_constants import (OCR_PROFILE_ALIASES, OCR_PROFILES, OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
 
 
 def _ocr_profile() -> str:

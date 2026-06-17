@@ -276,7 +276,7 @@ def _variants(value: str) -> list[str]:
 
 
 def _clean_text(value: str) -> str:
-    digit_table = str.maketrans({"0": "O", "3": "E", "4": "A", "5": "S", "6": "G", "7": "T", "8": "B"})
+    digit_table = str.maketrans({"0": "O", "1": "I", "2": "Z", "3": "E", "4": "A", "5": "S", "6": "G", "7": "T", "8": "B"})
     normalized = str(value or "").upper().translate(digit_table)
     normalized = re.sub(r"[^A-Z\s-]", " ", normalized)
     normalized = normalized.replace("-", " ")

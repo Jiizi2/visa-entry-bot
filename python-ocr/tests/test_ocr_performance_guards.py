@@ -256,7 +256,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             patch("services.indonesia_field_ocr._extract_raw_location_field", return_value=""),
             patch(
                 "services.indonesia_field_ocr._extract_field",
-                side_effect=lambda _page, field_name: field_name.upper(),
+                side_effect=lambda _page, field_name, _lines=None: field_name.upper(),
             ) as extractor,
         ):
             result = extract_visual_fields(
@@ -475,7 +475,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
         self.assertEqual(result, {"placeOfBirth": "PACITAN"})
         preprocess.assert_called_once_with("file.png")
-        extractor.assert_called_once_with(processed_page, "placeOfBirth")
+        extractor.assert_called_once_with(processed_page, "placeOfBirth", [])
 
     def test_visual_location_can_skip_aligned_fallback_after_raw_probe_misses(self) -> None:
         with (

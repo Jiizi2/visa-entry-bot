@@ -8,6 +8,7 @@ from services.image_preprocessor import _load_image, detect_passport_data_page_c
 from services.issue_date_extractor import infer_issue_date, pick_issue_date
 from services.layout_profiles import load_indonesia_panel_modes
 from services.location_normalizer import is_known_location_value, pick_best_location_value
+from services.models import ExtractionEvidence, ParsedPassportData
 from services.name_support import repair_given_tokens, salvage_family_hints, score_name_fields, token_matches_simple
 from services.panel_name_support import normalize_name_candidate, pick_best_name_candidate, score_full_name
 from services.passport_page import collect_ocr_lines, crop_relative
@@ -102,7 +103,7 @@ def extract_document_panel_fields(
         date_fields = _extract_date_fields(
             panel,
             mode,
-            fields.get("dob", "") or current_dob,
+            fields.dob or current_dob,
             requested_fields=date_field_names,
             current_issue_date=current_issue_date,
             current_expiry_date=current_expiry_date,
@@ -114,28 +115,28 @@ def extract_document_panel_fields(
 def fuse_panel_fields(parsed: ParsedPassportData, extraction: ExtractionEvidence | None, panel_fields: dict[str, str]) -> tuple[ParsedPassportData, str]:
     if not panel_fields:
         return parsed, ""
-    updated = ParsedPassportData(**parsed.as_dict())
+    updated = ParsedPassportData(**parsed)
     notes: list[str] = []
-    current_passport = str(updated.passportNumber or "")
+    current_passport = str(updated.get("passportNumber", "") or "")
     repaired_passport = _repair_passport_number(current_passport, extraction, panel_fields.get("passportNumber", ""))
     if repaired_passport and repaired_passport != current_passport:
-        updated.passportNumber = repaired_passport
+        updated["passportNumber"] = repaired_passport
         notes.append("PASSPORT NUMBER RECOVERED FROM DOCUMENT PANEL")
     full_name = panel_fields.get("fullName", "")
     if full_name:
         candidate = _split_full_name(full_name)
         if (
             _panel_name_matches_existing_hints(full_name, updated)
-            and score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.firstName, updated.familyName)
+            and score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.get("firstName", ""), updated.get("familyName", ""))
         ):
             updated.update(candidate)
             notes.append("NAME RECOVERED FROM DOCUMENT PANEL")
-    if panel_fields.get("nationality") == "INDONESIA" and updated.nationality != "INDONESIA":
-        updated.nationality = "INDONESIA"
+    if panel_fields.get("nationality") == "INDONESIA" and updated.get("nationality", "") != "INDONESIA":
+        updated["nationality"] = "INDONESIA"
         notes.append("NATIONALITY RECOVERED FROM DOCUMENT PANEL")
     for field_name in ("dob", "gender", "issueDate", "expiryDate"):
-        if _prefer_panel_value(updated.get(field_name, ""), panel_fields.get(field_name, "")):
-            updated[field_name] = panel_fields[field_name]
+        if _prefer_panel_value(getattr(updated, field_name, ""), panel_fields.get(field_name, "")):
+            setattr(updated, field_name, panel_fields[field_name])
             notes.append(f"{field_name.upper()} RECOVERED FROM DOCUMENT PANEL")
     return updated, "; ".join(notes)
 
@@ -448,7 +449,7 @@ def _split_full_name(full_name: str) -> ParsedPassportData:
 
 
 def _panel_name_matches_existing_hints(full_name: str, parsed: ParsedPassportData) -> bool:
-    family_hints = salvage_family_hints(parsed.familyName)
+    family_hints = salvage_family_hints(parsed.get("familyName", ""))
     if not family_hints:
         return True
     tokens = re.sub(r"[^A-Z\s]", " ", full_name.upper()).split()

@@ -6,6 +6,7 @@ import uuid
 from services.confidence_levels import build_confidence_levels, empty_confidence_levels
 from services.field_confidence import build_field_confidence, empty_field_confidence
 from services.field_evidence import build_field_evidence, empty_field_evidence
+from services.models import ExtractionEvidence, ParsedPassportData
 from services.parser import clean_country
 from services.resolved_name_rules import build_resolved_name_fields
 from services.review_flags import build_review_flags, empty_review_flags
@@ -138,19 +139,19 @@ def _build_passport_extracted(
     visual_fields: dict[str, str],
     extraction: ExtractionEvidence,
 ) -> ParsedPassportData:
-    nationality = parsed.nationality
+    nationality = parsed.get('nationality') or ''
     return {
-        "firstName": parsed.firstName,
-        "familyName": parsed.familyName,
-        "passportNumber": parsed.passportNumber,
+        "firstName": parsed.get('firstName') or '',
+        "familyName": parsed.get('familyName') or '',
+        "passportNumber": parsed.get('passportNumber') or '',
         "nationality": nationality,
-        "dob": parsed.dob,
-        "issueDate": parsed.issueDate,
-        "expiryDate": parsed.expiryDate,
-        "gender": parsed.gender,
-        "countryOfIssued": _country_of_issued(nationality, extraction),
-        "cityOfIssued": visual_fields.get("issuingOffice", ""),
-        "birthCity": visual_fields.get("placeOfBirth", ""),
+        "dob": parsed.get('dob') or '',
+        "issueDate": parsed.get('issueDate') or '',
+        "expiryDate": parsed.get('expiryDate') or '',
+        "gender": parsed.get('gender') or '',
+        "countryOfIssued": _country_of_issued(nationality, extraction) or '',
+        "cityOfIssued": visual_fields.get("issuingOffice") or '',
+        "birthCity": visual_fields.get("placeOfBirth") or '',
     }
 
 

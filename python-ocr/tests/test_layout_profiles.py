@@ -74,7 +74,7 @@ class LayoutProfileTests(unittest.TestCase):
             result = _extract_field(page, "expiryDate")
 
         self.assertEqual(result, "2031-01-18")
-        crop_relative.assert_called_once_with(page, 0.10, 0.20, 0.30, 0.40)
+        crop_relative.assert_called_once_with(page, 0.10, 0.20, 0.30, 0.40, field_lines=None)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,8 @@ from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Any
 
+from services.models import ParsedPassportData
+
 try:
     import cv2
 except ImportError:  # pragma: no cover - depends on local environment

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from services.models import ExtractionEvidence
 
 PASSPORT_FIELDS = (
     "firstName",

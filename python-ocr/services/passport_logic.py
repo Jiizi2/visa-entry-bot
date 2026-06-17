@@ -64,7 +64,7 @@ def _is_indonesian_passport(
     panel_fields: dict[str, str],
 ) -> bool:
     country = str(extraction.get("data", {}).get("country", "")).upper()
-    nationality = parsed.nationality
+    nationality = parsed.get("nationality", "")
     return bool(panel_fields) or nationality == "INDONESIA" or country == "IDN" or panel_fields.get("nationality") == "INDONESIA"
 
 
@@ -102,15 +102,15 @@ def _select_visual_field_names(
         return None
 
     fields = ["placeOfBirth", "issuingOffice"]
-    if not _is_iso_date(parsed.issueDate) and not _can_infer_missing_issue_date(parsed):
+    if not _is_iso_date(parsed.get("issueDate", "")) and not _can_infer_missing_issue_date(parsed):
         fields.append("issueDate")
-    if not _is_iso_date(parsed.dob):
+    if not _is_iso_date(parsed.get("dob", "")):
         fields.append("dob")
-    if parsed.gender not in {"MALE", "FEMALE"}:
+    if parsed.get("gender", "") not in {"MALE", "FEMALE"}:
         fields.append("gender")
-    if parsed.nationality != "INDONESIA":
+    if parsed.get("nationality", "") != "INDONESIA":
         fields.append("nationality")
-    if not _is_iso_date(parsed.expiryDate):
+    if not _is_iso_date(parsed.get("expiryDate", "")):
         fields.append("expiryDate")
     if _needs_name_refinement(parsed):
         fields.append("fullName")
@@ -190,10 +190,10 @@ def _should_try_speed_location_ocr(parsed: ParsedPassportData, extraction: Extra
         return False
     if _has_clear_non_indonesian_mrz_hint(parsed, extraction):
         return False
-    passport_number = str(parsed.passportNumber or "").upper()
+    passport_number = str(parsed.get("passportNumber", "") or "").upper()
     if re.fullmatch(r"[EX]\d{7}", passport_number):
         return True
-    nationality = str(parsed.nationality or "")
+    nationality = str(parsed.get("nationality", "") or "")
     return _looks_like_noisy_indonesia_code(nationality)
 
 def _should_try_recovery_location_ocr(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> bool:
@@ -201,10 +201,10 @@ def _should_try_recovery_location_ocr(parsed: ParsedPassportData, extraction: Ex
         return True
     if _has_clear_non_indonesian_mrz_hint(parsed, extraction):
         return False
-    passport_number = str(parsed.passportNumber or "").upper()
+    passport_number = str(parsed.get("passportNumber", "") or "").upper()
     if re.fullmatch(r"[EX]\d{7}", passport_number):
         return True
-    nationality = str(parsed.nationality or "")
+    nationality = str(parsed.get("nationality", "") or "")
     return bool(nationality and _looks_like_noisy_indonesia_code(nationality))
 
 def _location_ocr_ambiguous_enabled() -> bool:
@@ -212,7 +212,7 @@ def _location_ocr_ambiguous_enabled() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 def _has_clear_non_indonesian_mrz_hint(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> bool:
-    nationality = str(parsed.nationality or "").upper()
+    nationality = str(parsed.get("nationality", "") or "").upper()
     if nationality and nationality != "INDONESIA" and not _looks_like_noisy_indonesia_code(nationality):
         return True
     data = extraction.get("data", {}) if extraction else {}
@@ -245,11 +245,11 @@ def _select_panel_fallback_visual_field_names(
     fields: list[str] = ["placeOfBirth", "issuingOffice"]
     if not panel_fields.get("fullName") and _needs_name_refinement(parsed):
         fields.append("fullName")
-    if parsed.nationality not in {"INDONESIA"} and not panel_fields.get("nationality"):
+    if parsed.get("nationality", "") not in {"INDONESIA"} and not panel_fields.get("nationality"):
         fields.append("nationality")
-    if not _is_iso_date(parsed.dob) and not panel_fields.get("dob"):
+    if not _is_iso_date(parsed.get("dob", "")) and not panel_fields.get("dob"):
         fields.append("dob")
-    if parsed.gender not in {"MALE", "FEMALE"} and not panel_fields.get("gender"):
+    if parsed.get("gender", "") not in {"MALE", "FEMALE"} and not panel_fields.get("gender"):
         fields.append("gender")
     return tuple(dict.fromkeys(fields))
 
@@ -258,16 +258,16 @@ def _select_panel_field_names(parsed: ParsedPassportData, extraction: Extraction
     fields = ["placeOfBirth", "issuingOffice"]
     if _needs_name_refinement(parsed):
         fields.append("fullName")
-    if not re.fullmatch(r"[A-Z]\d{7}", parsed.passportNumber or ""):
+    if not re.fullmatch(r"[A-Z]\d{7}", parsed.get("passportNumber", "") or ""):
         fields.append("passportNumber")
-    if parsed.nationality != "INDONESIA":
+    if parsed.get("nationality", "") != "INDONESIA":
         fields.append("nationality")
-    if not _is_iso_date(parsed.dob):
+    if not _is_iso_date(parsed.get("dob", "")):
         fields.append("dob")
-    if parsed.gender not in {"MALE", "FEMALE"}:
+    if parsed.get("gender", "") not in {"MALE", "FEMALE"}:
         fields.append("gender")
-    has_expiry = _is_iso_date(parsed.expiryDate)
-    has_issue = _is_iso_date(parsed.issueDate)
+    has_expiry = _is_iso_date(parsed.get("expiryDate", ""))
+    has_issue = _is_iso_date(parsed.get("issueDate", ""))
     if not has_issue and not (direct_mrz and has_expiry):
         fields.append("issueDate")
     if not has_expiry or (not direct_mrz and not has_issue and not _has_valid_mrz_validation(extraction)):
@@ -293,9 +293,9 @@ def _is_direct_mrz_extraction(extraction: ExtractionEvidence) -> bool:
 
 
 def _should_extract_dates(parsed: ParsedPassportData) -> bool:
-    issue_date = _parse_iso_date(parsed.issueDate)
-    expiry_date = _parse_iso_date(parsed.expiryDate)
-    dob = _parse_iso_date(parsed.dob)
+    issue_date = _parse_iso_date(parsed.get("issueDate", ""))
+    expiry_date = _parse_iso_date(parsed.get("expiryDate", ""))
+    dob = _parse_iso_date(parsed.get("dob", ""))
     if issue_date is None or expiry_date is None:
         return True
     if issue_date >= expiry_date:
@@ -317,14 +317,14 @@ def _should_refine_names(
     return _mrz_confidence(extraction) < 0.85 and not panel_fallback_used
 
 def _needs_name_refinement(parsed: ParsedPassportData) -> bool:
-    first_compact = _compact_name_value(parsed.firstName)
-    family_compact = _compact_name_value(parsed.familyName)
+    first_compact = _compact_name_value(parsed.get("firstName", ""))
+    family_compact = _compact_name_value(parsed.get("familyName", ""))
     if first_compact and first_compact == family_compact:
         return True
-    return score_name_fields(parsed.firstName, parsed.familyName) < 10 or _has_suspicious_name_noise(parsed)
+    return score_name_fields(parsed.get("firstName", ""), parsed.get("familyName", "")) < 10 or _has_suspicious_name_noise(parsed)
 
 def _has_suspicious_name_noise(parsed: ParsedPassportData) -> bool:
-    for field_name, value in (("firstName", parsed.firstName), ("familyName", parsed.familyName)):
+    for field_name, value in (("firstName", parsed.get("firstName", "")), ("familyName", parsed.get("familyName", ""))):
         tokens = re.sub(r"[^A-Z\s]", " ", str(value or "").upper()).split()
         if field_name == "familyName" and len(tokens) > 1:
             return True
@@ -338,12 +338,12 @@ def _has_suspicious_name_noise(parsed: ParsedPassportData) -> bool:
     return False
 
 def _can_infer_missing_issue_date(parsed: ParsedPassportData) -> bool:
-    if _is_iso_date(parsed.issueDate):
+    if _is_iso_date(parsed.get("issueDate", "")):
         return False
-    expiry_date = parsed.expiryDate
+    expiry_date = parsed.get("expiryDate", "")
     if not _is_iso_date(expiry_date):
         return False
-    return bool(infer_issue_date(parsed.dob, expiry_date))
+    return bool(infer_issue_date(parsed.get("dob", ""), expiry_date))
 
 def _merge_visual_sources(visual_fields: dict[str, str], panel_fields: dict[str, str]) -> ParsedPassportData:
     merged = dict(visual_fields)
@@ -358,7 +358,7 @@ def _pick_preferred_full_name(
     panel_fields: dict[str, str],
     file_name: str = "",
 ) -> str:
-    family_hints = salvage_family_hints(parsed.familyName)
+    family_hints = salvage_family_hints(parsed.get("familyName", ""))
     for full_name in (panel_fields.get("fullName", ""), visual_fields.get("fullName", "")):
         if not full_name:
             continue
@@ -378,10 +378,12 @@ def _full_name_matches_family(tokens: list[str], family_hints: list[str]) -> boo
     return len(tokens) == 1 and any(token_matches_simple(tokens[0], hint) for hint in family_hints)
 
 def _full_name_matches_current_name(tokens: list[str], parsed: ParsedPassportData) -> bool:
+    first_name = parsed.get("firstName", "")
+    family_name = parsed.get("familyName", "")
     current_tokens = re.sub(
         r"[^A-Z\s]",
         " ",
-        f"{parsed.get('firstName', '')} {parsed.get('familyName', '')}".upper(),
+        f"{first_name} {family_name}".upper(),
     ).split()
     return bool(tokens and current_tokens) and ("".join(tokens) == "".join(current_tokens))
 

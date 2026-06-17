@@ -33,11 +33,27 @@ _REQUIRED_PANEL_FIELDS = (
 )
 
 
-@lru_cache(maxsize=1)
-def load_indonesia_passport_layout_profile() -> VisualFieldProfile:
+@lru_cache(maxsize=4)
+def load_indonesia_passport_layout_profile(version: str = "indonesia_default") -> VisualFieldProfile:
     with _INDONESIA_LAYOUT_PATH.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    return _parse_indonesia_layout_profile(payload)
+        payloads = json.load(handle)
+        
+    if not isinstance(payloads, list):
+        payloads = [payloads]
+        
+    for payload in payloads:
+        if payload.get("version") == version:
+            return _parse_indonesia_layout_profile(payload)
+            
+    # Fallback to default if not found
+    for payload in payloads:
+        if payload.get("version") == "indonesia_default":
+            return _parse_indonesia_layout_profile(payload)
+            
+    if payloads:
+        return _parse_indonesia_layout_profile(payloads[0])
+        
+    raise ValueError(f"Layout profile {version} not found in {_INDONESIA_LAYOUT_PATH}")
 
 
 def clear_layout_profile_cache() -> None:

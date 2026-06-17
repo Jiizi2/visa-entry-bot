@@ -4,10 +4,8 @@ import os
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-OcrProfile.SPEED = "speed"
-OcrProfile.BALANCED = "balanced"
-OcrProfile.HEAVY = "heavy"
-OcrProfile.ACCURACY = "accuracy"
+from services.models import OcrProfile
+OCR_PROFILE_ALIASES = {OcrProfile.ACCURACY: OcrProfile.HEAVY}
 OCR_PROFILE_ALIASES = {OcrProfile.ACCURACY: OcrProfile.HEAVY}
 OCR_PROFILES = {OcrProfile.SPEED, OcrProfile.BALANCED, OcrProfile.HEAVY}
 OCR_PROFILE_BUDGET_MS = {

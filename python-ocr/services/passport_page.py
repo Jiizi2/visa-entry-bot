@@ -72,11 +72,22 @@ def build_mrz_relative_crops(file_path: str, windows: tuple[tuple[float, float, 
     return crops
 
 
-def crop_relative(image: object, top: float, bottom: float, left: float = 0.0, right: float = 1.0) -> object | None:
+def crop_relative(
+    image: object,
+    top: float,
+    bottom: float,
+    left: float = 0.0,
+    right: float = 1.0,
+    field_lines: list[int] | None = None,
+) -> object | None:
     if image is None:
         return None
     height, width = image.shape[:2]
-    y1, y2 = int(height * top), int(height * bottom)
+    if field_lines:
+        from services.image_preprocessor import snap_crop_to_field_lines
+        y1, y2 = snap_crop_to_field_lines(top, bottom, height, field_lines)
+    else:
+        y1, y2 = int(height * top), int(height * bottom)
     x1, x2 = int(width * left), int(width * right)
     if y2 - y1 <= 0 or x2 - x1 <= 0:
         return None
@@ -90,11 +101,13 @@ def collect_ocr_lines(
     variant_mode: str = "default",
     max_lines: int = 0,
     stop_when: Callable[[list[str]], bool] | None = None,
+    oem: int = 3,
+    user_words_file: str | None = None,
 ) -> list[str]:
     if region is None or cv2 is None or pytesseract is None or not configure_tesseract():
         return []
 
-    cache_key = None if stop_when is not None else build_region_cache_key("collect", region, psm_values, whitelist, variant_mode, max_lines)
+    cache_key = None if stop_when is not None else build_region_cache_key("collect", region, psm_values, whitelist, variant_mode, max_lines, oem, str(user_words_file))
     cached = get_cached_lines(cache_key)
     if cached is not None:
         return cached
@@ -105,9 +118,11 @@ def collect_ocr_lines(
         for psm in psm_values:
             config = build_tesseract_config(
                 psm=psm,
+                oem=oem,
                 whitelist=whitelist,
                 dpi=300,
                 preserve_interword_spaces=True,
+                user_words_file=user_words_file,
             )
             text = run_tesseract_ocr(variant, config)
             if not text:

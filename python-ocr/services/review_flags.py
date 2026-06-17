@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from services.models import ParsedPassportData
+
 LOW_CONFIDENCE_THRESHOLD = 0.75
 ENTRY_REQUIRED_PASSPORT_FIELDS = (
     "passportNumber",

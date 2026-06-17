@@ -248,6 +248,8 @@ def _mrz_band_score(image: object | None) -> float:
     if image is None or cv2 is None:
         return 0.0
     gray = _to_gray(image)
+    if not hasattr(gray, "shape"):
+        return []
     height, width = gray.shape[:2]
     if height < 120 or width < 300:
         return 0.0
@@ -281,9 +283,21 @@ def _mrz_band_score(image: object | None) -> float:
     return best_coverage * 100.0 + best_dark_ratio * 1000.0
 
 
+def _score_mrz_variant_priority(variant: object) -> float:
+    """
+    Hitung skor prioritas variant berdasarkan karakteristik gambar.
+    Variant dengan skor lebih tinggi diproses lebih dulu.
+    Menggunakan mrz_band_score yang sudah ada.
+    """
+    if variant is None:
+        return 0.0
+    return _mrz_band_score(variant)
+
+
 def _build_mrz_variants(image: object, document: object | None) -> list[tuple[object, str]]:
-    variants: list[tuple[object, str]] = []
     seen_shapes: set[tuple[int, int, int]] = set()
+    unsorted_variants: list[tuple[float, object, str]] = []  # (priority, variant, note)
+
     for base, note_prefix in (
         (document, "MRZ recovered from document crop."),
         (image, "MRZ recovered from enhanced image."),
@@ -295,22 +309,30 @@ def _build_mrz_variants(image: object, document: object | None) -> list[tuple[ob
         if shape_key in seen_shapes:
             continue
         seen_shapes.add(shape_key)
-        variants.extend(
-            [
-                (base, note_prefix),
-                (_denoise_document(base), note_prefix),
-                (_enhance_for_mrz(base), note_prefix),
-                (_enhance_for_mrz(_lower_band(base, 0.45)), note_prefix),
-                (_enhance_for_mrz(_lower_band(base, 0.58)), note_prefix),
-            ]
-        )
-    return [(variant, note) for variant, note in variants if variant is not None]
+
+        candidate_variants = [
+            (base, note_prefix),
+            (_denoise_document(base), note_prefix),
+            (_enhance_for_mrz(base), note_prefix),
+            (_enhance_for_mrz(_lower_band(base, 0.45)), note_prefix),
+            (_enhance_for_mrz(_lower_band(base, 0.58)), note_prefix),
+        ]
+        for variant, note in candidate_variants:
+            if variant is not None:
+                priority = _score_mrz_variant_priority(variant)
+                unsorted_variants.append((priority, variant, note))
+
+    # Urutkan: skor tertinggi lebih dulu
+    unsorted_variants.sort(key=lambda x: x[0], reverse=True)
+    return [(variant, note) for _, variant, note in unsorted_variants if variant is not None]
 
 
 def _enhance_for_mrz(image: object | None) -> object | None:
     if image is None:
         return None
     gray = _to_gray(image)
+    if _deskew_enabled():
+        gray = _to_gray(deskew_image(gray))
     if gray.shape[1] < 1400:
         scale = min(2.0, 1400.0 / max(gray.shape[1], 1))
         gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
@@ -410,6 +432,156 @@ def _to_gray(image: object) -> object:
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
+def _deskew_enabled() -> bool:
+    value = os.environ.get("PASSPORT_DESKEW_ENABLED", "1").strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def _estimate_skew_angle(gray: object) -> float:
+    """
+    Estimasi sudut kemiringan dokumen menggunakan Hough Line Transform.
+    Hanya digunakan untuk koreksi kecil (-15 hingga +15 derajat).
+    Mengembalikan 0.0 jika tidak ada kemiringan yang terdeteksi dengan keyakinan cukup.
+    """
+    if cv2 is None or gray is None:
+        return 0.0
+    if not hasattr(gray, "shape"):
+        return []
+    height, width = gray.shape[:2]
+    if height < 200 or width < 300:
+        return 0.0
+    # Edge detection pada gambar yang sudah di-resize untuk hemat CPU
+    scale = min(1.0, 1000.0 / max(width, 1))
+    small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else gray
+    edges = cv2.Canny(small, 50, 150, apertureSize=3)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=60, minLineLength=80, maxLineGap=10)
+    if lines is None or len(lines) == 0:
+        return 0.0
+    angles = []
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        if x2 == x1:
+            continue
+        angle = float(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+        # Hanya ambil garis yang mendekati horizontal (kemungkinan besar baris teks)
+        if -20 <= angle <= 20:
+            angles.append(angle)
+    if len(angles) < 5:
+        return 0.0
+    # Gunakan median agar robust terhadap outlier
+    median_angle = float(np.median(angles))
+    # Hanya koreksi jika sudut cukup berarti (lebih dari 0.5 derajat)
+    return median_angle if abs(median_angle) >= 0.5 else 0.0
+
+
+def deskew_image(image: object, max_angle: float = 12.0) -> object:
+    """
+    Koreksi kemiringan gambar berdasarkan estimasi sudut Hough.
+    Hanya aktif jika sudut terdeteksi dan dalam batas max_angle.
+    Selalu mengembalikan gambar (tidak pernah None).
+    """
+    if cv2 is None or image is None:
+        return image
+    gray = _to_gray(image) if hasattr(image, "shape") and len(image.shape) == 3 else image
+    angle = _estimate_skew_angle(gray)
+    if abs(angle) < 0.5 or abs(angle) > max_angle:
+        return image
+    height, width = image.shape[:2]
+    center = (width / 2, height / 2)
+    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(
+        image, matrix, (width, height),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+    return rotated
+
+
+def detect_horizontal_field_lines(image: object) -> list[int]:
+    """
+    Mendeteksi posisi Y dari garis-garis horizontal utama dalam paspor.
+    Garis-garis ini sering menjadi pemisah antar field pada paspor Indonesia.
+    Mengembalikan daftar koordinat Y (diurutkan dari atas ke bawah).
+    """
+    if cv2 is None or image is None:
+        return []
+    
+    gray = _to_gray(image) if hasattr(image, "shape") and len(image.shape) == 3 else image
+    if not hasattr(gray, "shape"):
+        return []
+    height, width = gray.shape[:2]
+    
+    # 1. Edge detection dengan threshold yang sensitif untuk garis
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 30, 100, apertureSize=3)
+    
+    # 2. Morphological operation untuk menyambung garis putus-putus horizontal
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 1))
+    connected = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+    
+    # 3. Proyeksi horizontal (jumlah pixel putih per baris)
+    row_sums = np.sum(connected > 0, axis=1)
+    
+    # 4. Cari puncak proyeksi (baris dengan banyak pixel putih)
+    # Garis biasanya memenuhi setidaknya 15% dari lebar halaman
+    threshold = width * 0.15 
+    peaks = []
+    
+    # Simple peak finding
+    for y in range(1, height - 1):
+        if row_sums[y] > threshold and row_sums[y] >= row_sums[y-1] and row_sums[y] >= row_sums[y+1]:
+            peaks.append((y, row_sums[y]))
+            
+    # 5. Filter puncak yang terlalu berdekatan (ambil yang paling kuat)
+    merged_peaks = []
+    min_distance = height * 0.02 # Minimal jarak antar garis 2% tinggi
+    
+    for y, strength in sorted(peaks, key=lambda p: p[0]):
+        if not merged_peaks:
+            merged_peaks.append((y, strength))
+        else:
+            last_y, last_strength = merged_peaks[-1]
+            if y - last_y < min_distance:
+                if strength > last_strength:
+                    merged_peaks[-1] = (y, strength)
+            else:
+                merged_peaks.append((y, strength))
+                
+    return [y for y, _ in merged_peaks]
+
+
+def snap_crop_to_field_lines(
+    y_start_ratio: float,
+    y_end_ratio: float,
+    image_height: int,
+    field_lines: list[int],
+    *,
+    snap_tolerance_px: int = 20,
+) -> tuple[int, int]:
+    """
+    Sesuaikan batas crop (y_start, y_end) agar sejajar dengan garis horizontal terdekat.
+    Mengembalikan (y_start_px, y_end_px) dalam pixel.
+    """
+    y_start_px = int(y_start_ratio * image_height)
+    y_end_px = int(y_end_ratio * image_height)
+    if not field_lines:
+        return y_start_px, y_end_px
+    
+    # Snap y_start ke garis terdekat di bawah threshold
+    for line_y in field_lines:
+        if abs(line_y - y_start_px) <= snap_tolerance_px:
+            y_start_px = line_y
+            break
+            
+    # Snap y_end ke garis terdekat di bawah threshold
+    for line_y in reversed(field_lines):
+        if abs(line_y - y_end_px) <= snap_tolerance_px:
+            y_end_px = line_y
+            break
+            
+    return y_start_px, y_end_px
+
+
 def _ensure_temp_root() -> str:
     service_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     temp_root = os.path.join(service_root, ".tmp")
@@ -468,6 +640,8 @@ def _preprocess_document_for_visual_ocr(image: object, *, max_edge: int) -> obje
     document = detect_passport_data_page_crop(image)
     if document is None:
         document = image
+    if _deskew_enabled():
+        document = deskew_image(document)
     gray = _to_gray(document)
     gray = _resize_to_max_edge(gray, max_edge=max_edge)
     normalized = _normalize_background(gray)

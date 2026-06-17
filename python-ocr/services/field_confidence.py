@@ -4,6 +4,7 @@ import re
 from datetime import date
 
 from services.location_normalizer import is_known_location_value
+from services.models import ExtractionEvidence
 from services.name_support import is_reasonable_name_value
 
 

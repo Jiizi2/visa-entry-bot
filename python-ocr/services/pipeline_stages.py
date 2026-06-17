@@ -26,6 +26,7 @@ from services.indonesia_field_ocr import (
 )
 from services.issue_date_extractor import infer_issue_date
 from services.mrz_extractor import extract_mrz_data
+from services.data_repairs import join_notes
 from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_common_name_noise, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
 from services.nusuk_manifest import build_error_record, build_member_record
 from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_result_cache_stats, start_ocr_result_cache_session
@@ -66,12 +67,12 @@ def _stage_initial_panel(ctx: ScanContext) -> None:
             stage_started = time.perf_counter()
             ctx.panel_fields = extract_document_panel_fields(
                 ctx.file_path,
-                family_hint=ctx.parsed.get('familyName', ''),
-                given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get('familyName', '')),
+                family_hint=getattr(ctx.parsed, 'familyName', ''),
+                given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, getattr(ctx.parsed, 'familyName', '')),
                 field_names=panel_field_names,
-                current_dob=ctx.parsed.get('dob', ''),
-                current_issue_date=ctx.parsed.get('issueDate', ''),
-                current_expiry_date=ctx.parsed.get('expiryDate', ''),
+                current_dob=getattr(ctx.parsed, 'dob', ''),
+                current_issue_date=getattr(ctx.parsed, 'issueDate', ''),
+                current_expiry_date=getattr(ctx.parsed, 'expiryDate', ''),
             )
             ctx.parsed, ctx.panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, ctx.panel_fields)
             ctx.record_stage_duration('panel', stage_started)
@@ -96,6 +97,17 @@ def _stage_visual_fields(ctx: ScanContext) -> None:
             ctx.visual_field_names = _select_heavy_visual_field_names(ctx.parsed, ctx.extraction, ctx.panel_fields)
         else:
             ctx.visual_field_names = _select_balanced_visual_field_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, ctx.panel_fields)
+        
+        from services.field_gate import fields_needing_recovery
+        mrz_conf = _mrz_confidence(ctx.extraction)
+        mrz_valid = _has_valid_mrz_validation(ctx.extraction)
+        ctx.visual_field_names = fields_needing_recovery(
+            ctx.parsed if hasattr(ctx.parsed, 'as_dict') else vars(ctx.parsed),
+            mrz_conf,
+            mrz_valid,
+            ctx.visual_field_names
+        )
+
         ctx.report_step("visual", "Membaca field visual", 0.46, "  - reading visual fields")
         stage_started = time.perf_counter()
         if ctx.visual_field_names != ():
@@ -144,12 +156,12 @@ def _stage_speed_panel(ctx: ScanContext) -> None:
                 stage_started = time.perf_counter()
                 speed_panel_fields = extract_document_panel_fields(
                     ctx.file_path,
-                    family_hint=ctx.parsed.familyName,
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.familyName),
+                    family_hint=ctx.parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
                     field_names=missing_speed_panel_fields,
-                    current_dob=ctx.parsed.dob,
-                    current_issue_date=ctx.parsed.issueDate,
-                    current_expiry_date=ctx.parsed.expiryDate,
+                    current_dob=ctx.parsed.get("dob", ""),
+                    current_issue_date=ctx.parsed.get("issueDate", ""),
+                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 )
                 ctx.panel_fields.update({key: value for key, value in speed_panel_fields.items() if value and not ctx.panel_fields.get(key)})
                 ctx.parsed, speed_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, speed_panel_fields)
@@ -167,6 +179,16 @@ def _stage_recovery_panel(ctx: ScanContext) -> None:
             ctx.visual_fields,
             ctx.panel_fields,
         )
+        from services.field_gate import fields_needing_recovery
+        mrz_conf = _mrz_confidence(ctx.extraction)
+        mrz_valid = _has_valid_mrz_validation(ctx.extraction)
+        missing_profile_panel_fields = fields_needing_recovery(
+            ctx.parsed if hasattr(ctx.parsed, 'as_dict') else vars(ctx.parsed),
+            mrz_conf,
+            mrz_valid,
+            missing_profile_panel_fields
+        )
+
         if missing_profile_panel_fields:
             if ctx.can_spend_ocr_time("panel"):
                 ctx.panel_recovery_field_names = tuple(dict.fromkeys((*ctx.panel_recovery_field_names, *missing_profile_panel_fields)))
@@ -175,12 +197,12 @@ def _stage_recovery_panel(ctx: ScanContext) -> None:
                 stage_started = time.perf_counter()
                 recovery_panel_fields = extract_document_panel_fields(
                     ctx.file_path,
-                    family_hint=ctx.parsed.familyName,
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.familyName),
+                    family_hint=ctx.parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
                     field_names=missing_profile_panel_fields,
-                    current_dob=ctx.parsed.dob,
-                    current_issue_date=ctx.parsed.issueDate,
-                    current_expiry_date=ctx.parsed.expiryDate,
+                    current_dob=ctx.parsed.get("dob", ""),
+                    current_issue_date=ctx.parsed.get("issueDate", ""),
+                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 )
                 ctx.panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value and not ctx.panel_fields.get(key)})
                 ctx.parsed, recovery_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, recovery_panel_fields)
@@ -197,6 +219,16 @@ def _stage_visual_recovery(ctx: ScanContext) -> None:
             for field_name in ctx.skipped_panel_field_names
             if not ctx.visual_fields.get(field_name) and not ctx.panel_fields.get(field_name)
         )
+        from services.field_gate import fields_needing_recovery
+        mrz_conf = _mrz_confidence(ctx.extraction)
+        mrz_valid = _has_valid_mrz_validation(ctx.extraction)
+        missing_panel_fields = fields_needing_recovery(
+            ctx.parsed if hasattr(ctx.parsed, 'as_dict') else vars(ctx.parsed),
+            mrz_conf,
+            mrz_valid,
+            missing_panel_fields
+        )
+
         if missing_panel_fields and ctx.visual_fields:
             if ctx.can_spend_ocr_time("visual_recovery"):
                 stage_started = time.perf_counter()
@@ -225,6 +257,16 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
             for field_name in ctx.skipped_panel_field_names
             if not ctx.visual_fields.get(field_name) and not ctx.panel_fields.get(field_name)
         )
+        from services.field_gate import fields_needing_recovery
+        mrz_conf = _mrz_confidence(ctx.extraction)
+        mrz_valid = _has_valid_mrz_validation(ctx.extraction)
+        missing_panel_fields = fields_needing_recovery(
+            ctx.parsed if hasattr(ctx.parsed, 'as_dict') else vars(ctx.parsed),
+            mrz_conf,
+            mrz_valid,
+            missing_panel_fields
+        )
+
         if missing_panel_fields:
             if ctx.can_spend_ocr_time("panel"):
                 ctx.panel_fallback_used = True
@@ -232,12 +274,12 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
                 stage_started = time.perf_counter()
                 panel_fields = extract_document_panel_fields(
                     ctx.file_path,
-                    family_hint=ctx.parsed.familyName,
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.familyName),
+                    family_hint=ctx.parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
                     field_names=missing_panel_fields,
-                    current_dob=ctx.parsed.dob,
-                    current_issue_date=ctx.parsed.issueDate,
-                    current_expiry_date=ctx.parsed.expiryDate,
+                    current_dob=ctx.parsed.get("dob", ""),
+                    current_issue_date=ctx.parsed.get("issueDate", ""),
+                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 )
                 ctx.parsed, panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, panel_fields)
                 ctx.panel_notes = join_notes(ctx.panel_notes, panel_notes)
@@ -276,14 +318,14 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
         elif ctx.can_spend_ocr_time("dates"):
             date_fields = extract_document_dates(
                 ctx.file_path,
-                dob=ctx.parsed.dob,
-                current_issue_date=ctx.parsed.issueDate,
-                current_expiry_date=ctx.parsed.expiryDate,
+                dob=ctx.parsed.get("dob", ""),
+                current_issue_date=ctx.parsed.get("issueDate", ""),
+                current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 page=ctx.page if needs_page_for_dates else None,
             )
             for field_name in ("issueDate", "expiryDate"):
                 if date_fields.get(field_name):
-                    ctx.parsed[field_name] = date_fields[field_name]
+                    setattr(ctx.parsed, field_name, date_fields[field_name])
         else:
             ctx.skip_stage("dates")
             
