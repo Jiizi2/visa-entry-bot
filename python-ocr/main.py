@@ -34,6 +34,7 @@ from services.parser import format_date, parse_mrz_data
 from services.tesseract_runner import get_tesseract_ocr_stats, reset_tesseract_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
+from services.scan_context import ScanContext
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
@@ -216,337 +217,27 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
 
     try:
         ocr_profile = _ocr_profile()
-        ocr_budget_ms = _ocr_budget_ms(ocr_profile)
-        speed_first_scan = ocr_profile == OCR_PROFILE_SPEED
-        heavy_scan = ocr_profile == OCR_PROFILE_HEAVY
-        speed_scan_notes = "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED" if speed_first_scan else ""
-        extraction: dict[str, object] = {"data": {}, "confidence": 0.0, "notes": ""}
-        parsed = parse_mrz_data({})
-        mrz_error = ""
-        early_name_notes = ""
-
-        report_step("mrz", "Mengekstrak MRZ", 0.16, "  - extracting MRZ")
-        stage_started = time.perf_counter()
-        try:
-            extraction = extract_mrz_data(file_path)
-            parsed = parse_mrz_data(extraction["data"])
-            parsed, early_name_notes = _apply_verified_mrz_name_repairs(parsed, extraction, file_name=file_name)
-        except Exception as exc:  # noqa: BLE001
-            mrz_error = str(exc)
-        stage_durations_ms["mrz"] = _elapsed_ms(stage_started)
-
-        page = None
-        ocr_rotation_degrees = _ocr_rotation_degrees(extraction)
-        visual_fields: dict[str, str] = {}
-        visual_notes = ""
-        panel_fields: dict[str, str] = {}
-        panel_notes = ""
-        skipped_panel_field_names: tuple[str, ...] = ()
-        panel_recovery_field_names: tuple[str, ...] = ()
-        if _should_run_initial_panel_scan(ocr_profile, extraction):
-            panel_field_names = _select_profile_panel_field_names(ocr_profile, parsed, extraction)
-            if _should_skip_panel_for_direct_location_only(parsed, extraction, panel_field_names):
-                skipped_panel_field_names = panel_field_names
-                panel_field_names = ()
-            elif _can_spend_ocr_time(started_at, ocr_budget_ms, "panel"):
-                panel_fallback_used = True
-                report_step("panel", "Membaca panel dokumen", 0.30, "  - reading document panel")
-                stage_started = time.perf_counter()
-                panel_fields = extract_document_panel_fields(
-                    file_path,
-                    family_hint=parsed.get("familyName", ""),
-                    given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
-                    field_names=panel_field_names,
-                    current_dob=parsed.get("dob", ""),
-                    current_issue_date=parsed.get("issueDate", ""),
-                    current_expiry_date=parsed.get("expiryDate", ""),
-                )
-                parsed, panel_notes = fuse_panel_fields(parsed, extraction, panel_fields)
-                stage_durations_ms["panel"] = _elapsed_ms(stage_started)
-            else:
-                _skip_ocr_stage(skipped_ocr_stages, "panel")
-        else:
-            panel_field_names = ()
-
-        is_indonesian_passport = _is_indonesian_passport(parsed, extraction, panel_fields) or (
-            speed_first_scan and _should_try_speed_location_ocr(parsed, extraction)
-        ) or (
-            not speed_first_scan and _should_try_recovery_location_ocr(parsed, extraction)
+        ctx = ScanContext(
+            file_path=file_path,
+            file_name=file_name,
+            ocr_profile=ocr_profile,
+            ocr_budget_ms=_ocr_budget_ms(ocr_profile),
+            step_callback=step_callback
         )
-        if is_indonesian_passport:
-            if speed_first_scan:
-                visual_field_names = _select_speed_visual_field_names(parsed, extraction)
-            elif heavy_scan:
-                visual_field_names = _select_heavy_visual_field_names(parsed, extraction, panel_fields)
-            else:
-                visual_field_names = _select_balanced_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
-            report_step("visual", "Membaca field visual", 0.46, "  - reading visual fields")
-            stage_started = time.perf_counter()
-            if visual_field_names != ():
-                if _can_spend_ocr_time(started_at, ocr_budget_ms, "visual"):
-                    visual_ocr_used = True
-                    if speed_first_scan:
-                        visual_fields = extract_fast_location_fields(
-                            file_path,
-                            field_names=visual_field_names,
-                            rotation_degrees=ocr_rotation_degrees,
-                        )
-                    elif _visual_fields_need_aligned_page(visual_field_names):
-                        if _can_spend_ocr_time(started_at, ocr_budget_ms, "page_align"):
-                            page = extract_aligned_passport_page(file_path)
-                        else:
-                            _skip_ocr_stage(skipped_ocr_stages, "page_align")
-                        visual_fields = extract_visual_fields(
-                            file_path,
-                            page=page,
-                            field_names=visual_field_names,
-                            allow_aligned_fallback=not skipped_panel_field_names and page is not None,
-                            rotation_degrees=ocr_rotation_degrees,
-                        )
-                    else:
-                        visual_fields = extract_visual_fields(
-                            file_path,
-                            page=page,
-                            field_names=visual_field_names,
-                            allow_aligned_fallback=not skipped_panel_field_names,
-                            rotation_degrees=ocr_rotation_degrees,
-                        )
-                else:
-                    _skip_ocr_stage(skipped_ocr_stages, "visual")
-            stage_durations_ms["visual"] = _elapsed_ms(stage_started)
-        else:
-            visual_field_names = ()
-        if speed_first_scan:
-            missing_speed_panel_fields = _missing_speed_location_panel_fields(visual_field_names, visual_fields)
-            if missing_speed_panel_fields:
-                if _can_spend_ocr_time(started_at, ocr_budget_ms, "speed_panel"):
-                    panel_fallback_used = True
-                    report_step("panel", "Membaca panel lokasi", 0.50, "  - reading document panel")
-                    stage_started = time.perf_counter()
-                    speed_panel_fields = extract_document_panel_fields(
-                        file_path,
-                        family_hint=parsed.get("familyName", ""),
-                        given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
-                        field_names=missing_speed_panel_fields,
-                        current_dob=parsed.get("dob", ""),
-                        current_issue_date=parsed.get("issueDate", ""),
-                        current_expiry_date=parsed.get("expiryDate", ""),
-                    )
-                    panel_fields.update({key: value for key, value in speed_panel_fields.items() if value and not panel_fields.get(key)})
-                    parsed, speed_panel_notes = fuse_panel_fields(parsed, extraction, speed_panel_fields)
-                    panel_notes = join_notes(panel_notes, speed_panel_notes)
-                    stage_durations_ms["panel"] = stage_durations_ms.get("panel", 0) + _elapsed_ms(stage_started)
-                else:
-                    _skip_ocr_stage(skipped_ocr_stages, "speed_panel")
-        if not speed_first_scan:
-            missing_profile_panel_fields = _missing_profile_visual_panel_fields(
-                ocr_profile,
-                visual_field_names,
-                visual_fields,
-                panel_fields,
-            )
-            if missing_profile_panel_fields:
-                if _can_spend_ocr_time(started_at, ocr_budget_ms, "panel"):
-                    panel_recovery_field_names = tuple(dict.fromkeys((*panel_recovery_field_names, *missing_profile_panel_fields)))
-                    panel_fallback_used = True
-                    report_step("panel", "Memperkuat field dokumen", 0.52, "  - reinforcing document fields")
-                    stage_started = time.perf_counter()
-                    recovery_panel_fields = extract_document_panel_fields(
-                        file_path,
-                        family_hint=parsed.get("familyName", ""),
-                        given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
-                        field_names=missing_profile_panel_fields,
-                        current_dob=parsed.get("dob", ""),
-                        current_issue_date=parsed.get("issueDate", ""),
-                        current_expiry_date=parsed.get("expiryDate", ""),
-                    )
-                    panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value and not panel_fields.get(key)})
-                    parsed, recovery_panel_notes = fuse_panel_fields(parsed, extraction, recovery_panel_fields)
-                    panel_notes = join_notes(panel_notes, recovery_panel_notes)
-                    stage_durations_ms["panel"] = stage_durations_ms.get("panel", 0) + _elapsed_ms(stage_started)
-                else:
-                    _skip_ocr_stage(skipped_ocr_stages, "panel")
-        if skipped_panel_field_names and not speed_first_scan:
-            missing_panel_fields = tuple(
-                field_name
-                for field_name in skipped_panel_field_names
-                if not visual_fields.get(field_name) and not panel_fields.get(field_name)
-            )
-            if missing_panel_fields and visual_fields:
-                if _can_spend_ocr_time(started_at, ocr_budget_ms, "visual_recovery"):
-                    stage_started = time.perf_counter()
-                    if page is None:
-                        if _can_spend_ocr_time(started_at, ocr_budget_ms, "page_align"):
-                            page = extract_aligned_passport_page(file_path)
-                        else:
-                            _skip_ocr_stage(skipped_ocr_stages, "page_align")
-                    recovered_visual_fields = extract_visual_fields(
-                        file_path,
-                        page=page,
-                        field_names=missing_panel_fields,
-                        allow_aligned_fallback=page is not None,
-                        rotation_degrees=ocr_rotation_degrees,
-                    )
-                    visual_fields.update(recovered_visual_fields)
-                    stage_durations_ms["visual"] = stage_durations_ms.get("visual", 0) + _elapsed_ms(stage_started)
-                else:
-                    _skip_ocr_stage(skipped_ocr_stages, "visual_recovery")
-                missing_panel_fields = tuple(
-                    field_name
-                    for field_name in skipped_panel_field_names
-                    if not visual_fields.get(field_name) and not panel_fields.get(field_name)
-                )
-            if missing_panel_fields:
-                if _can_spend_ocr_time(started_at, ocr_budget_ms, "panel"):
-                    panel_fallback_used = True
-                    report_step("panel", "Membaca panel dokumen", 0.50, "  - reading document panel")
-                    stage_started = time.perf_counter()
-                    panel_fields = extract_document_panel_fields(
-                        file_path,
-                        family_hint=parsed.get("familyName", ""),
-                        given_hint=_build_given_name_hint(file_name, extraction, parsed.get("familyName", "")),
-                        field_names=missing_panel_fields,
-                        current_dob=parsed.get("dob", ""),
-                        current_issue_date=parsed.get("issueDate", ""),
-                        current_expiry_date=parsed.get("expiryDate", ""),
-                    )
-                    parsed, panel_notes = fuse_panel_fields(parsed, extraction, panel_fields)
-                    stage_durations_ms["panel"] = _elapsed_ms(stage_started)
-                else:
-                    _skip_ocr_stage(skipped_ocr_stages, "panel")
-        merged_visual_fields = _merge_visual_sources(visual_fields, panel_fields)
-        parsed = merge_visual_fields(parsed, merged_visual_fields)
-        parsed = _apply_indonesian_visual_repairs(parsed, extraction, merged_visual_fields)
-        parsed, fast_mrz_notes = _apply_fast_mrz_repairs(parsed, extraction) if speed_first_scan else (parsed, "")
-        visual_notes = build_visual_notes(merged_visual_fields)
-        preferred_full_name = _pick_preferred_full_name(parsed, merged_visual_fields, panel_fields, file_name)
-        parsed, fast_date_notes = _apply_fast_date_repairs(parsed) if speed_first_scan else (parsed, "")
-        needs_date_scan = False if speed_first_scan else _should_extract_dates(parsed)
-        needs_name_scan = False if speed_first_scan else _should_refine_names(parsed, extraction, panel_fallback_used, preferred_full_name)
-        needs_page_for_dates = needs_date_scan and not _can_infer_missing_issue_date(parsed)
-
-        if page is None and (needs_page_for_dates or (needs_name_scan and not preferred_full_name)):
-            stage_started = time.perf_counter()
-            if _can_spend_ocr_time(started_at, ocr_budget_ms, "page_align"):
-                page = extract_aligned_passport_page(file_path)
-            else:
-                _skip_ocr_stage(skipped_ocr_stages, "page_align")
-            stage_durations_ms["page_align"] = _elapsed_ms(stage_started)
-        report_step("dates", "Mencari tanggal passport", 0.68, "  - extracting passport dates")
-        stage_started = time.perf_counter()
-        if needs_date_scan:
-            if needs_page_for_dates and page is None:
-                _skip_ocr_stage(skipped_ocr_stages, "dates")
-                needs_date_scan = False
-            elif _can_spend_ocr_time(started_at, ocr_budget_ms, "dates"):
-                date_fields = extract_document_dates(
-                    file_path,
-                    dob=parsed["dob"],
-                    current_issue_date=parsed.get("issueDate", ""),
-                    current_expiry_date=parsed.get("expiryDate", ""),
-                    page=page if needs_page_for_dates else None,
-                )
-                for field_name in ("issueDate", "expiryDate"):
-                    if date_fields.get(field_name):
-                        parsed[field_name] = date_fields[field_name]
-            else:
-                _skip_ocr_stage(skipped_ocr_stages, "dates")
-                needs_date_scan = False
-        parsed, date_repair_notes = _repair_impossible_expiry_date(parsed)
-        stage_durations_ms["dates"] = _elapsed_ms(stage_started)
-        report_step("names", "Merapikan nama", 0.88, "  - refining names")
-        stage_started = time.perf_counter()
-        if needs_name_scan:
-            if not preferred_full_name and page is None:
-                _skip_ocr_stage(skipped_ocr_stages, "names")
-                needs_name_scan = False
-                name_notes = ""
-            elif _can_spend_ocr_time(started_at, ocr_budget_ms, "names"):
-                parsed, name_notes = refine_names_from_scan(
-                    file_path,
-                    parsed,
-                    page=page,
-                    preferred_full_name=preferred_full_name,
-                )
-            else:
-                _skip_ocr_stage(skipped_ocr_stages, "names")
-                needs_name_scan = False
-                name_notes = ""
-        else:
-            name_notes = ""
-        parsed, final_name_notes = _apply_final_name_repairs(parsed, file_name=file_name)
-        if final_name_notes:
-            name_notes = join_notes(name_notes, final_name_notes)
-        stage_durations_ms["names"] = _elapsed_ms(stage_started)
-        report_step("validate", "Validasi akhir", 0.96, "  - validating")
-        stage_started = time.perf_counter()
-        validation_member = {
-            **parsed,
-            "birthCity": merged_visual_fields.get("placeOfBirth", ""),
-            "cityOfIssued": merged_visual_fields.get("issuingOffice", ""),
-        }
-        status, validation_notes = validate_member(validation_member)
-        stage_durations_ms["validate"] = _elapsed_ms(stage_started)
-        notes = join_notes(
-            mrz_error,
-            extraction.get("notes", ""),
-            panel_notes,
-            visual_notes,
-            speed_scan_notes,
-            early_name_notes,
-            fast_mrz_notes,
-            fast_date_notes,
-            date_repair_notes,
-            name_notes,
-            _build_budget_notes(skipped_ocr_stages),
-            validation_notes,
-        )
-        record = build_member_record(
-            file_name,
-            file_path,
-            parsed,
-            merged_visual_fields,
-            extraction,
-            status,
-            calculate_confidence(extraction.get("confidence", 0.0), validation_member, status),
-            notes,
-        )
-        record["processingMetrics"] = {
-            "totalMs": _elapsed_ms(started_at),
-            "stagesMs": stage_durations_ms,
-            "panelFallbackUsed": panel_fallback_used,
-            "panelFieldScope": list(dict.fromkeys((*panel_field_names, *panel_recovery_field_names))),
-            "visualOcrUsed": visual_ocr_used,
-            "visualFieldScope": list(visual_field_names) if visual_field_names is not None else "all",
-            "mrzFallbackUsed": bool(mrz_error),
-            "ocrProfile": ocr_profile,
-            "budgetMs": ocr_budget_ms,
-            "elapsedMs": _elapsed_ms(started_at),
-            "budgetExceeded": _budget_exceeded(started_at, ocr_budget_ms),
-            "skippedStages": list(skipped_ocr_stages),
-            "ocrCache": get_ocr_result_cache_stats(),
-            "tesseract": get_tesseract_ocr_stats(),
-            "imagePreprocessor": get_image_preprocessor_stats(),
-            "fastLocationOcr": get_fast_location_ocr_stats(),
-            "ocrMode": _classify_ocr_mode(
-                mrz_error=mrz_error,
-                panel_fallback_used=panel_fallback_used,
-                visual_ocr_used=visual_ocr_used,
-                needs_date_scan=needs_date_scan,
-                needs_name_scan=needs_name_scan,
-                review_status=str(record.get("reviewStatus", "")),
-            ),
-            "ocrModeReasons": _ocr_mode_reasons(
-                mrz_error=mrz_error,
-                panel_fallback_used=panel_fallback_used,
-                visual_ocr_used=visual_ocr_used,
-                needs_date_scan=needs_date_scan,
-                needs_name_scan=needs_name_scan,
-                review_status=str(record.get("reviewStatus", "")),
-            ),
-        }
-        return record
-    except Exception as exc:  # noqa: BLE001
+        ctx.started_at = started_at
+        
+        _stage_mrz(ctx)
+        _stage_initial_panel(ctx)
+        _stage_visual_fields(ctx)
+        _stage_speed_panel(ctx)
+        _stage_recovery_panel(ctx)
+        _stage_visual_recovery(ctx)
+        _stage_fallback_panel(ctx)
+        _stage_dates_recovery(ctx)
+        _stage_names_recovery(ctx)
+        
+        return _stage_validation_and_metrics(ctx)
+    except Exception as exc:  # noqa: BLE001    except Exception as exc:  # noqa: BLE001
         if step_callback is not None:
             step_callback("error", "Gagal memproses file", 0.0)
         record = build_error_record(file_name, file_path, str(exc))
@@ -1410,3 +1101,361 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+def _stage_mrz(ctx: ScanContext) -> None:
+    ctx.report_step('mrz', 'Mengekstrak MRZ', 0.16, '  - extracting MRZ')
+    stage_started = time.perf_counter()
+    try:
+        ctx.extraction = extract_mrz_data(ctx.file_path)
+        ctx.parsed = parse_mrz_data(ctx.extraction.get('data', {}))
+        ctx.parsed, ctx.early_name_notes = _apply_verified_mrz_name_repairs(ctx.parsed, ctx.extraction, file_name=ctx.file_name)
+    except Exception as exc:  # noqa: BLE001
+        ctx.mrz_error = str(exc)
+    ctx.record_stage_duration('mrz', stage_started)
+
+
+def _stage_initial_panel(ctx: ScanContext) -> None:
+    if _should_run_initial_panel_scan(ctx.ocr_profile, ctx.extraction):
+        panel_field_names = _select_profile_panel_field_names(ctx.ocr_profile, ctx.parsed, ctx.extraction)
+        if _should_skip_panel_for_direct_location_only(ctx.parsed, ctx.extraction, panel_field_names):
+            ctx.skipped_panel_field_names = panel_field_names
+            ctx.panel_field_names = ()
+        elif ctx.can_spend_ocr_time('panel'):
+            ctx.panel_fallback_used = True
+            ctx.report_step('panel', 'Membaca panel dokumen', 0.30, '  - reading document panel')
+            stage_started = time.perf_counter()
+            ctx.panel_fields = extract_document_panel_fields(
+                ctx.file_path,
+                family_hint=ctx.parsed.get('familyName', ''),
+                given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get('familyName', '')),
+                field_names=panel_field_names,
+                current_dob=ctx.parsed.get('dob', ''),
+                current_issue_date=ctx.parsed.get('issueDate', ''),
+                current_expiry_date=ctx.parsed.get('expiryDate', ''),
+            )
+            ctx.parsed, ctx.panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, ctx.panel_fields)
+            ctx.record_stage_duration('panel', stage_started)
+        else:
+            ctx.skip_stage('panel')
+            ctx.panel_field_names = ()
+    else:
+        ctx.panel_field_names = ()
+
+
+
+def _stage_visual_fields(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    heavy_scan = ctx.ocr_profile == OCR_PROFILE_HEAVY
+    is_indonesian_passport = _is_indonesian_passport(ctx.parsed, ctx.extraction, ctx.panel_fields) or (
+        speed_first_scan and _should_try_speed_location_ocr(ctx.parsed, ctx.extraction)
+    ) or (
+        not speed_first_scan and _should_try_recovery_location_ocr(ctx.parsed, ctx.extraction)
+    )
+    if is_indonesian_passport:
+        if speed_first_scan:
+            ctx.visual_field_names = _select_speed_visual_field_names(ctx.parsed, ctx.extraction)
+        elif heavy_scan:
+            ctx.visual_field_names = _select_heavy_visual_field_names(ctx.parsed, ctx.extraction, ctx.panel_fields)
+        else:
+            ctx.visual_field_names = _select_balanced_visual_field_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, ctx.panel_fields)
+        ctx.report_step("visual", "Membaca field visual", 0.46, "  - reading visual fields")
+        stage_started = time.perf_counter()
+        if ctx.visual_field_names != ():
+            if ctx.can_spend_ocr_time("visual"):
+                ctx.visual_ocr_used = True
+                if speed_first_scan:
+                    ctx.visual_fields = extract_fast_location_fields(
+                        ctx.file_path,
+                        field_names=ctx.visual_field_names,
+                        rotation_degrees=ctx.ocr_rotation_degrees,
+                    )
+                elif _visual_fields_need_aligned_page(ctx.visual_field_names):
+                    if ctx.can_spend_ocr_time("page_align"):
+                        ctx.page = extract_aligned_passport_page(ctx.file_path)
+                    else:
+                        ctx.skip_stage("page_align")
+                    ctx.visual_fields = extract_visual_fields(
+                        ctx.file_path,
+                        page=ctx.page,
+                        field_names=ctx.visual_field_names,
+                        allow_aligned_fallback=not ctx.skipped_panel_field_names and ctx.page is not None,
+                        rotation_degrees=ctx.ocr_rotation_degrees,
+                    )
+                else:
+                    ctx.visual_fields = extract_visual_fields(
+                        ctx.file_path,
+                        page=ctx.page,
+                        field_names=ctx.visual_field_names,
+                        allow_aligned_fallback=not ctx.skipped_panel_field_names,
+                        rotation_degrees=ctx.ocr_rotation_degrees,
+                    )
+            else:
+                ctx.skip_stage("visual")
+        ctx.record_stage_duration("visual", stage_started)
+    else:
+        ctx.visual_field_names = ()
+
+def _stage_speed_panel(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    if speed_first_scan:
+        missing_speed_panel_fields = _missing_speed_location_panel_fields(ctx.visual_field_names, ctx.visual_fields)
+        if missing_speed_panel_fields:
+            if ctx.can_spend_ocr_time("speed_panel"):
+                ctx.panel_fallback_used = True
+                ctx.report_step("panel", "Membaca panel lokasi", 0.50, "  - reading document panel")
+                stage_started = time.perf_counter()
+                speed_panel_fields = extract_document_panel_fields(
+                    ctx.file_path,
+                    family_hint=ctx.parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+                    field_names=missing_speed_panel_fields,
+                    current_dob=ctx.parsed.get("dob", ""),
+                    current_issue_date=ctx.parsed.get("issueDate", ""),
+                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                )
+                ctx.panel_fields.update({key: value for key, value in speed_panel_fields.items() if value and not ctx.panel_fields.get(key)})
+                ctx.parsed, speed_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, speed_panel_fields)
+                ctx.panel_notes = join_notes(ctx.panel_notes, speed_panel_notes)
+                ctx.record_stage_duration("panel", stage_started)
+            else:
+                ctx.skip_stage("speed_panel")
+
+def _stage_recovery_panel(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    if not speed_first_scan:
+        missing_profile_panel_fields = _missing_profile_visual_panel_fields(
+            ctx.ocr_profile,
+            ctx.visual_field_names,
+            ctx.visual_fields,
+            ctx.panel_fields,
+        )
+        if missing_profile_panel_fields:
+            if ctx.can_spend_ocr_time("panel"):
+                ctx.panel_recovery_field_names = tuple(dict.fromkeys((*ctx.panel_recovery_field_names, *missing_profile_panel_fields)))
+                ctx.panel_fallback_used = True
+                ctx.report_step("panel", "Memperkuat field dokumen", 0.52, "  - reinforcing document fields")
+                stage_started = time.perf_counter()
+                recovery_panel_fields = extract_document_panel_fields(
+                    ctx.file_path,
+                    family_hint=ctx.parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+                    field_names=missing_profile_panel_fields,
+                    current_dob=ctx.parsed.get("dob", ""),
+                    current_issue_date=ctx.parsed.get("issueDate", ""),
+                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                )
+                ctx.panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value and not ctx.panel_fields.get(key)})
+                ctx.parsed, recovery_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, recovery_panel_fields)
+                ctx.panel_notes = join_notes(ctx.panel_notes, recovery_panel_notes)
+                ctx.record_stage_duration("panel", stage_started)
+            else:
+                ctx.skip_stage("panel")
+
+def _stage_visual_recovery(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    if ctx.skipped_panel_field_names and not speed_first_scan:
+        missing_panel_fields = tuple(
+            field_name
+            for field_name in ctx.skipped_panel_field_names
+            if not ctx.visual_fields.get(field_name) and not ctx.panel_fields.get(field_name)
+        )
+        if missing_panel_fields and ctx.visual_fields:
+            if ctx.can_spend_ocr_time("visual_recovery"):
+                stage_started = time.perf_counter()
+                if ctx.page is None:
+                    if ctx.can_spend_ocr_time("page_align"):
+                        ctx.page = extract_aligned_passport_page(ctx.file_path)
+                    else:
+                        ctx.skip_stage("page_align")
+                recovered_visual_fields = extract_visual_fields(
+                    ctx.file_path,
+                    page=ctx.page,
+                    field_names=missing_panel_fields,
+                    allow_aligned_fallback=ctx.page is not None,
+                    rotation_degrees=ctx.ocr_rotation_degrees,
+                )
+                ctx.visual_fields.update(recovered_visual_fields)
+                ctx.record_stage_duration("visual", stage_started)
+            else:
+                ctx.skip_stage("visual_recovery")
+
+def _stage_fallback_panel(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    if ctx.skipped_panel_field_names and not speed_first_scan:
+        missing_panel_fields = tuple(
+            field_name
+            for field_name in ctx.skipped_panel_field_names
+            if not ctx.visual_fields.get(field_name) and not ctx.panel_fields.get(field_name)
+        )
+        if missing_panel_fields:
+            if ctx.can_spend_ocr_time("panel"):
+                ctx.panel_fallback_used = True
+                ctx.report_step("panel", "Membaca panel dokumen", 0.50, "  - reading document panel")
+                stage_started = time.perf_counter()
+                panel_fields = extract_document_panel_fields(
+                    ctx.file_path,
+                    family_hint=ctx.parsed.get("familyName", ""),
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+                    field_names=missing_panel_fields,
+                    current_dob=ctx.parsed.get("dob", ""),
+                    current_issue_date=ctx.parsed.get("issueDate", ""),
+                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                )
+                ctx.parsed, panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, panel_fields)
+                ctx.panel_notes = join_notes(ctx.panel_notes, panel_notes)
+                ctx.panel_fields.update(panel_fields)
+                ctx.record_stage_duration("panel", stage_started)
+            else:
+                ctx.skip_stage("panel")
+
+def _stage_dates_recovery(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
+    ctx.parsed = merge_visual_fields(ctx.parsed, ctx.merged_visual_fields)
+    ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
+    ctx.parsed, ctx.fast_mrz_notes = _apply_fast_mrz_repairs(ctx.parsed, ctx.extraction) if speed_first_scan else (ctx.parsed, "")
+    ctx.visual_notes = build_visual_notes(ctx.merged_visual_fields)
+    preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
+    ctx.parsed, ctx.fast_date_notes = _apply_fast_date_repairs(ctx.parsed) if speed_first_scan else (ctx.parsed, "")
+    
+    needs_date_scan = False if speed_first_scan else _should_extract_dates(ctx.parsed)
+    needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
+    needs_page_for_dates = needs_date_scan and not _can_infer_missing_issue_date(ctx.parsed)
+
+    if ctx.page is None and (needs_page_for_dates or (needs_name_scan and not preferred_full_name)):
+        stage_started = time.perf_counter()
+        if ctx.can_spend_ocr_time("page_align"):
+            ctx.page = extract_aligned_passport_page(ctx.file_path)
+        else:
+            ctx.skip_stage("page_align")
+        ctx.record_stage_duration("page_align", stage_started)
+        
+    ctx.report_step("dates", "Mencari tanggal passport", 0.68, "  - extracting passport dates")
+    stage_started = time.perf_counter()
+    if needs_date_scan:
+        if needs_page_for_dates and ctx.page is None:
+            ctx.skip_stage("dates")
+        elif ctx.can_spend_ocr_time("dates"):
+            date_fields = extract_document_dates(
+                ctx.file_path,
+                dob=ctx.parsed.get("dob", ""),
+                current_issue_date=ctx.parsed.get("issueDate", ""),
+                current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                page=ctx.page if needs_page_for_dates else None,
+            )
+            for field_name in ("issueDate", "expiryDate"):
+                if date_fields.get(field_name):
+                    ctx.parsed[field_name] = date_fields[field_name]
+        else:
+            ctx.skip_stage("dates")
+            
+    ctx.parsed, ctx.date_repair_notes = _repair_impossible_expiry_date(ctx.parsed)
+    ctx.record_stage_duration("dates", stage_started)
+
+def _stage_names_recovery(ctx: ScanContext) -> None:
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
+    needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
+    
+    ctx.report_step("names", "Merapikan nama", 0.88, "  - refining names")
+    stage_started = time.perf_counter()
+    if needs_name_scan:
+        if not preferred_full_name and ctx.page is None:
+            ctx.skip_stage("names")
+            ctx.name_notes = ""
+        elif ctx.can_spend_ocr_time("names"):
+            ctx.parsed, ctx.name_notes = refine_names_from_scan(
+                ctx.file_path,
+                ctx.parsed,
+                page=ctx.page,
+                preferred_full_name=preferred_full_name,
+            )
+        else:
+            ctx.skip_stage("names")
+            ctx.name_notes = ""
+    else:
+        ctx.name_notes = ""
+        
+    ctx.parsed, final_name_notes = _apply_final_name_repairs(ctx.parsed, file_name=ctx.file_name)
+    if final_name_notes:
+        ctx.name_notes = join_notes(ctx.name_notes, final_name_notes)
+    ctx.record_stage_duration("names", stage_started)
+
+def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
+    ctx.report_step("validate", "Validasi akhir", 0.96, "  - validating")
+    stage_started = time.perf_counter()
+    validation_member = {
+        **ctx.parsed,
+        "birthCity": ctx.merged_visual_fields.get("placeOfBirth", ""),
+        "cityOfIssued": ctx.merged_visual_fields.get("issuingOffice", ""),
+    }
+    status, validation_notes = validate_member(validation_member)
+    ctx.record_stage_duration("validate", stage_started)
+    
+    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_scan_notes = "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED" if speed_first_scan else ""
+    
+    notes = join_notes(
+        ctx.mrz_error,
+        ctx.extraction.get("notes", ""),
+        ctx.panel_notes,
+        ctx.visual_notes,
+        speed_scan_notes,
+        ctx.early_name_notes,
+        ctx.fast_mrz_notes,
+        ctx.fast_date_notes,
+        ctx.date_repair_notes,
+        ctx.name_notes,
+        _build_budget_notes(ctx.skipped_ocr_stages),
+        validation_notes,
+    )
+    
+    record = build_member_record(
+        ctx.file_name,
+        ctx.file_path,
+        ctx.parsed,
+        ctx.merged_visual_fields,
+        ctx.extraction,
+        status,
+        calculate_confidence(ctx.extraction.get("confidence", 0.0), validation_member, status),
+        notes,
+    )
+    
+    # Needs explicit string cast for reviewStatus
+    review_status_str = str(record.get("reviewStatus", ""))
+    
+    record["processingMetrics"] = {
+        "totalMs": ctx.elapsed_ms(),
+        "stagesMs": ctx.stage_durations_ms,
+        "panelFallbackUsed": ctx.panel_fallback_used,
+        "panelFieldScope": list(dict.fromkeys((*ctx.panel_field_names, *ctx.panel_recovery_field_names))),
+        "visualOcrUsed": ctx.visual_ocr_used,
+        "visualFieldScope": list(ctx.visual_field_names) if ctx.visual_field_names is not None else "all",
+        "mrzFallbackUsed": bool(ctx.mrz_error),
+        "ocrProfile": ctx.ocr_profile,
+        "budgetMs": ctx.ocr_budget_ms,
+        "elapsedMs": ctx.elapsed_ms(),
+        "budgetExceeded": ctx.budget_exceeded(),
+        "skippedStages": list(ctx.skipped_ocr_stages),
+        "ocrCache": get_ocr_result_cache_stats(),
+        "tesseract": get_tesseract_ocr_stats(),
+        "imagePreprocessor": get_image_preprocessor_stats(),
+        "fastLocationOcr": get_fast_location_ocr_stats(),
+        "ocrMode": _classify_ocr_mode(
+            mrz_error=ctx.mrz_error,
+            panel_fallback_used=ctx.panel_fallback_used,
+            visual_ocr_used=ctx.visual_ocr_used,
+            needs_date_scan=ctx.needs_date_scan,
+            needs_name_scan=ctx.needs_name_scan,
+            review_status=review_status_str,
+        ),
+        "ocrModeReasons": _ocr_mode_reasons(
+            mrz_error=ctx.mrz_error,
+            panel_fallback_used=ctx.panel_fallback_used,
+            visual_ocr_used=ctx.visual_ocr_used,
+            needs_date_scan=ctx.needs_date_scan,
+            needs_name_scan=ctx.needs_name_scan,
+            review_status=review_status_str,
+        ),
+    }
+    return record
