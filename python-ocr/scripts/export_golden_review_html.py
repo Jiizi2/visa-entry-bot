@@ -451,7 +451,7 @@ def _candidate_items(candidate_report: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in candidates if isinstance(item, dict)] if isinstance(candidates, list) else []
 
 
-def _expected_fields(candidate: dict[str, Any]) -> dict[str, str]:
+def _expected_fields(candidate: dict[str, Any]) -> ParsedPassportData:
     draft = candidate.get("goldenDraft", {})
     expected = draft.get("expected", {}) if isinstance(draft, dict) else {}
     if not isinstance(expected, dict):

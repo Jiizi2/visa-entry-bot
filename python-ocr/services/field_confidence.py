@@ -11,7 +11,7 @@ def build_field_confidence(
     passport_extracted: dict[str, str],
     resolved_profile: dict[str, object],
     source_by_field: dict[str, str],
-    extraction: dict[str, object],
+    extraction: ExtractionEvidence,
     visual_fields: dict[str, str],
 ) -> dict[str, object]:
     base = _clamp(float(extraction.get("confidence", 0.0) or 0.0))
@@ -28,7 +28,7 @@ def _build_passport_confidence(
     passport_extracted: dict[str, str],
     visual_fields: dict[str, str],
     base: float,
-    extraction: dict[str, object],
+    extraction: ExtractionEvidence,
 ) -> dict[str, float]:
     visual_name = visual_fields.get("fullName", "")
     nationality_confidence = _mrz_confidence(passport_extracted.get("nationality", ""), base)
@@ -187,7 +187,7 @@ def _country_confidence(passport_extracted: dict[str, str], nationality_confiden
     return _mrz_confidence(country, base)
 
 
-def _apply_mrz_checksum_caps(confidence: dict[str, float], extraction: dict[str, object]) -> dict[str, float]:
+def _apply_mrz_checksum_caps(confidence: dict[str, float], extraction: ExtractionEvidence) -> dict[str, float]:
     failed_fields = _failed_mrz_checksum_fields(extraction)
     for field_name in failed_fields:
         if field_name in confidence:
@@ -198,7 +198,7 @@ def _apply_mrz_checksum_caps(confidence: dict[str, float], extraction: dict[str,
 def _apply_valid_mrz_boosts(
     confidence: dict[str, float],
     passport_extracted: dict[str, str],
-    extraction: dict[str, object],
+    extraction: ExtractionEvidence,
 ) -> dict[str, float]:
     validation = extraction.get("mrzValidation", {}) if extraction else {}
     if not isinstance(validation, dict) or validation.get("valid") is not True:
@@ -216,7 +216,7 @@ def _apply_valid_mrz_boosts(
     return boosted
 
 
-def _failed_mrz_checksum_fields(extraction: dict[str, object]) -> set[str]:
+def _failed_mrz_checksum_fields(extraction: ExtractionEvidence) -> set[str]:
     validation = extraction.get("mrzValidation", {}) if extraction else {}
     checks = validation.get("checks", []) if isinstance(validation, dict) else []
     if not isinstance(checks, list):

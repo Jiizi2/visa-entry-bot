@@ -4,16 +4,16 @@ import os
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-OCR_PROFILE_SPEED = "speed"
-OCR_PROFILE_BALANCED = "balanced"
-OCR_PROFILE_HEAVY = "heavy"
-OCR_PROFILE_ACCURACY = "accuracy"
-OCR_PROFILE_ALIASES = {OCR_PROFILE_ACCURACY: OCR_PROFILE_HEAVY}
-OCR_PROFILES = {OCR_PROFILE_SPEED, OCR_PROFILE_BALANCED, OCR_PROFILE_HEAVY}
+OcrProfile.SPEED = "speed"
+OcrProfile.BALANCED = "balanced"
+OcrProfile.HEAVY = "heavy"
+OcrProfile.ACCURACY = "accuracy"
+OCR_PROFILE_ALIASES = {OcrProfile.ACCURACY: OcrProfile.HEAVY}
+OCR_PROFILES = {OcrProfile.SPEED, OcrProfile.BALANCED, OcrProfile.HEAVY}
 OCR_PROFILE_BUDGET_MS = {
-    OCR_PROFILE_SPEED: 15_000,
-    OCR_PROFILE_BALANCED: 30_000,
-    OCR_PROFILE_HEAVY: 90_000,
+    OcrProfile.SPEED: 15_000,
+    OcrProfile.BALANCED: 30_000,
+    OcrProfile.HEAVY: 90_000,
 }
 OCR_BALANCED_PANEL_RECOVERY_FIELDS = ("placeOfBirth", "issuingOffice", "issueDate")
 OCR_FULL_PANEL_FIELD_SCOPE = (

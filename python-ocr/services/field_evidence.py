@@ -23,7 +23,7 @@ def build_field_evidence(
     resolved_profile: dict[str, object],
     source_by_field: dict[str, str],
     field_confidence: dict[str, object],
-    extraction: dict[str, object],
+    extraction: ExtractionEvidence,
     visual_fields: dict[str, str],
     review_flags: dict[str, object],
 ) -> dict[str, object]:
@@ -110,7 +110,7 @@ def _passport_source(field_name: str, values: dict[str, str], visual_fields: dic
     return f"passportExtracted.{field_name}"
 
 
-def _raw_text_for_field(field_name: str, extraction: dict[str, object], visual_fields: dict[str, str]) -> str:
+def _raw_text_for_field(field_name: str, extraction: ExtractionEvidence, visual_fields: dict[str, str]) -> str:
     if field_name == "birthCity":
         return visual_fields.get("placeOfBirth", "")
     if field_name == "cityOfIssued":

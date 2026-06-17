@@ -322,7 +322,7 @@ def _mark_date_consistency(flags: dict[str, object], dob: str, issue_date: str, 
         flags["expiryDate"].append("UNUSUAL_VALIDITY_TERM")
 
 
-def _arabic_values(values: dict[str, object]) -> dict[str, str]:
+def _arabic_values(values: dict[str, object]) -> ParsedPassportData:
     arabic = values.get("arabic", {}) if isinstance(values.get("arabic"), dict) else {}
     return {
         "firstName": str(arabic.get("firstName", "") or ""),

@@ -8,6 +8,7 @@ import time
 from datetime import date
 from typing import Callable
 
+from services.models import OcrProfile, ParsedPassportData, ExtractionEvidence, ReviewStatus, OcrMode
 from services.date_field_extractor import extract_document_dates
 from services.image_preprocessor import (
     cleanup_temp_root,
@@ -36,7 +37,7 @@ from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
 
-from services.ocr_constants import (OCR_PROFILE_SPEED, OCR_PROFILE_BALANCED, OCR_PROFILE_HEAVY, OCR_PROFILE_ACCURACY, OCR_PROFILE_ALIASES, OCR_PROFILES, OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
+from services.ocr_constants import (OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
 
 from services.scan_budget import (_ocr_profile, _is_speed_first_scan, _is_balanced_scan, _is_heavy_scan, _ocr_budget_ms, _elapsed_ms, _time_left_ms, _has_ocr_budget_for_elapsed, _can_spend_ocr_time, _budget_exceeded, _skip_ocr_stage, _build_budget_notes, _classify_ocr_mode, _ocr_mode_reasons)
 from services.data_repairs import (_has_indonesian_mrz_hint, _looks_like_noisy_indonesia_code, _has_valid_mrz_validation, _has_failed_mrz_validation, _has_reliable_mrz_for_fast_path, _apply_indonesian_visual_repairs, _apply_fast_mrz_repairs, _recover_passport_number_from_mrz, _recover_dob_from_unverified_mrz, _recover_gender_from_unverified_mrz, _mrz_text_values, _normalize_mrz_country_hint, _apply_verified_single_word_name, _apply_verified_mrz_name_repairs, _apply_final_name_repairs, _compact_name_value, _apply_fast_date_repairs, _repair_impossible_expiry_date, _mrz_confidence, _is_iso_date, _parse_iso_date)
@@ -81,8 +82,8 @@ def _stage_initial_panel(ctx: ScanContext) -> None:
         ctx.panel_field_names = ()
 
 def _stage_visual_fields(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
-    heavy_scan = ctx.ocr_profile == OCR_PROFILE_HEAVY
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    heavy_scan = ctx.ocr_profile == OcrProfile.HEAVY
     is_indonesian_passport = _is_indonesian_passport(ctx.parsed, ctx.extraction, ctx.panel_fields) or (
         speed_first_scan and _should_try_speed_location_ocr(ctx.parsed, ctx.extraction)
     ) or (
@@ -133,7 +134,7 @@ def _stage_visual_fields(ctx: ScanContext) -> None:
         ctx.visual_field_names = ()
 
 def _stage_speed_panel(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     if speed_first_scan:
         missing_speed_panel_fields = _missing_speed_location_panel_fields(ctx.visual_field_names, ctx.visual_fields)
         if missing_speed_panel_fields:
@@ -143,12 +144,12 @@ def _stage_speed_panel(ctx: ScanContext) -> None:
                 stage_started = time.perf_counter()
                 speed_panel_fields = extract_document_panel_fields(
                     ctx.file_path,
-                    family_hint=ctx.parsed.get("familyName", ""),
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+                    family_hint=ctx.parsed.familyName,
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.familyName),
                     field_names=missing_speed_panel_fields,
-                    current_dob=ctx.parsed.get("dob", ""),
-                    current_issue_date=ctx.parsed.get("issueDate", ""),
-                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                    current_dob=ctx.parsed.dob,
+                    current_issue_date=ctx.parsed.issueDate,
+                    current_expiry_date=ctx.parsed.expiryDate,
                 )
                 ctx.panel_fields.update({key: value for key, value in speed_panel_fields.items() if value and not ctx.panel_fields.get(key)})
                 ctx.parsed, speed_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, speed_panel_fields)
@@ -158,7 +159,7 @@ def _stage_speed_panel(ctx: ScanContext) -> None:
                 ctx.skip_stage("speed_panel")
 
 def _stage_recovery_panel(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     if not speed_first_scan:
         missing_profile_panel_fields = _missing_profile_visual_panel_fields(
             ctx.ocr_profile,
@@ -174,12 +175,12 @@ def _stage_recovery_panel(ctx: ScanContext) -> None:
                 stage_started = time.perf_counter()
                 recovery_panel_fields = extract_document_panel_fields(
                     ctx.file_path,
-                    family_hint=ctx.parsed.get("familyName", ""),
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+                    family_hint=ctx.parsed.familyName,
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.familyName),
                     field_names=missing_profile_panel_fields,
-                    current_dob=ctx.parsed.get("dob", ""),
-                    current_issue_date=ctx.parsed.get("issueDate", ""),
-                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                    current_dob=ctx.parsed.dob,
+                    current_issue_date=ctx.parsed.issueDate,
+                    current_expiry_date=ctx.parsed.expiryDate,
                 )
                 ctx.panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value and not ctx.panel_fields.get(key)})
                 ctx.parsed, recovery_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, recovery_panel_fields)
@@ -189,7 +190,7 @@ def _stage_recovery_panel(ctx: ScanContext) -> None:
                 ctx.skip_stage("panel")
 
 def _stage_visual_recovery(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     if ctx.skipped_panel_field_names and not speed_first_scan:
         missing_panel_fields = tuple(
             field_name
@@ -217,7 +218,7 @@ def _stage_visual_recovery(ctx: ScanContext) -> None:
                 ctx.skip_stage("visual_recovery")
 
 def _stage_fallback_panel(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     if ctx.skipped_panel_field_names and not speed_first_scan:
         missing_panel_fields = tuple(
             field_name
@@ -231,12 +232,12 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
                 stage_started = time.perf_counter()
                 panel_fields = extract_document_panel_fields(
                     ctx.file_path,
-                    family_hint=ctx.parsed.get("familyName", ""),
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+                    family_hint=ctx.parsed.familyName,
+                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.familyName),
                     field_names=missing_panel_fields,
-                    current_dob=ctx.parsed.get("dob", ""),
-                    current_issue_date=ctx.parsed.get("issueDate", ""),
-                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                    current_dob=ctx.parsed.dob,
+                    current_issue_date=ctx.parsed.issueDate,
+                    current_expiry_date=ctx.parsed.expiryDate,
                 )
                 ctx.parsed, panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, panel_fields)
                 ctx.panel_notes = join_notes(ctx.panel_notes, panel_notes)
@@ -246,7 +247,7 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
                 ctx.skip_stage("panel")
 
 def _stage_dates_recovery(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
     ctx.parsed = merge_visual_fields(ctx.parsed, ctx.merged_visual_fields)
     ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
@@ -275,9 +276,9 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
         elif ctx.can_spend_ocr_time("dates"):
             date_fields = extract_document_dates(
                 ctx.file_path,
-                dob=ctx.parsed.get("dob", ""),
-                current_issue_date=ctx.parsed.get("issueDate", ""),
-                current_expiry_date=ctx.parsed.get("expiryDate", ""),
+                dob=ctx.parsed.dob,
+                current_issue_date=ctx.parsed.issueDate,
+                current_expiry_date=ctx.parsed.expiryDate,
                 page=ctx.page if needs_page_for_dates else None,
             )
             for field_name in ("issueDate", "expiryDate"):
@@ -290,7 +291,7 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
     ctx.record_stage_duration("dates", stage_started)
 
 def _stage_names_recovery(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
     needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
     
@@ -329,7 +330,7 @@ def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
     status, validation_notes = validate_member(validation_member)
     ctx.record_stage_duration("validate", stage_started)
     
-    speed_first_scan = ctx.ocr_profile == OCR_PROFILE_SPEED
+    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
     speed_scan_notes = "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED" if speed_first_scan else ""
     
     notes = join_notes(

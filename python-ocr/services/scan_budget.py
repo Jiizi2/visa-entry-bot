@@ -8,6 +8,7 @@ import time
 from datetime import date
 from typing import Callable
 
+from services.models import OcrProfile, ParsedPassportData, ExtractionEvidence, ReviewStatus, OcrMode
 from services.date_field_extractor import extract_document_dates
 from services.image_preprocessor import (
     cleanup_temp_root,
@@ -36,25 +37,25 @@ from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
 
-from services.ocr_constants import (OCR_PROFILE_SPEED, OCR_PROFILE_BALANCED, OCR_PROFILE_HEAVY, OCR_PROFILE_ACCURACY, OCR_PROFILE_ALIASES, OCR_PROFILES, OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
+from services.ocr_constants import (OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
 
 
 def _ocr_profile() -> str:
-    value = os.environ.get("PASSPORT_OCR_PROFILE", OCR_PROFILE_SPEED).strip().lower()
+    value = os.environ.get("PASSPORT_OCR_PROFILE", OcrProfile.SPEED).strip().lower()
     value = OCR_PROFILE_ALIASES.get(value, value)
-    return value if value in OCR_PROFILES else OCR_PROFILE_SPEED
+    return value if value in OCR_PROFILES else OcrProfile.SPEED
 
 def _is_speed_first_scan() -> bool:
-    return _ocr_profile() == OCR_PROFILE_SPEED
+    return _ocr_profile() == OcrProfile.SPEED
 
 def _is_balanced_scan() -> bool:
-    return _ocr_profile() == OCR_PROFILE_BALANCED
+    return _ocr_profile() == OcrProfile.BALANCED
 
 def _is_heavy_scan() -> bool:
-    return _ocr_profile() == OCR_PROFILE_HEAVY
+    return _ocr_profile() == OcrProfile.HEAVY
 
 def _ocr_budget_ms(profile: str | None = None) -> int:
-    return OCR_PROFILE_BUDGET_MS.get(profile or _ocr_profile(), OCR_PROFILE_BUDGET_MS[OCR_PROFILE_SPEED])
+    return OCR_PROFILE_BUDGET_MS.get(profile or _ocr_profile(), OCR_PROFILE_BUDGET_MS[OcrProfile.SPEED])
 
 def _elapsed_ms(started_at: float) -> int:
     return max(0, int((time.perf_counter() - started_at) * 1000))

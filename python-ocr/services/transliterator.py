@@ -103,7 +103,7 @@ _BATCH_OVERRIDES_PATH = Path(__file__).with_name("data").joinpath("arabic_name_o
 _ARABIC_SCRIPT_PATTERN = re.compile(r"[\u0600-\u06FF]")
 
 
-def _load_batch_word_overrides() -> dict[str, str]:
+def _load_batch_word_overrides() -> ParsedPassportData:
     try:
         raw = json.loads(_BATCH_OVERRIDES_PATH.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001

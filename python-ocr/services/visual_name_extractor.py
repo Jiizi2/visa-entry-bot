@@ -24,10 +24,10 @@ RAW_WINDOWS = ((8.0, 1.2, 0.35, 0.35), (7.0, 1.0, 0.35, 0.45))
 
 def refine_names_from_scan(
     file_path: str,
-    parsed: dict[str, str],
+    parsed: ParsedPassportData,
     page: object | None = None,
     preferred_full_name: str = "",
-) -> tuple[dict[str, str], str]:
+) -> tuple[ParsedPassportData, str]:
     parsed = clean_existing_first_name(parsed)
     full_name = preferred_full_name or extract_full_name(file_path, parsed, page=page)
     if not full_name:
@@ -37,31 +37,31 @@ def refine_names_from_scan(
     resolved, single_word = _split_full_name(full_name, parsed)
     if not resolved:
         return parsed, ""
-    projected_first_name = _project_given_name_layout(parsed.get("firstName", ""), resolved["firstName"])
+    projected_first_name = _project_given_name_layout(parsed.firstName, resolved["firstName"])
     if projected_first_name:
         resolved["firstName"] = projected_first_name
-    current_compact = re.sub(r"[^A-Z]", "", parsed.get("firstName", "").upper())
+    current_compact = re.sub(r"[^A-Z]", "", parsed.firstName.upper())
     resolved_compact = re.sub(r"[^A-Z]", "", resolved["firstName"].upper())
     if (
         current_compact
         and current_compact == resolved_compact
-        and parsed.get("familyName", "") == resolved["familyName"]
-        and score_given_name_layout(parsed.get("firstName", "")) >= score_given_name_layout(resolved["firstName"])
+        and parsed.familyName == resolved["familyName"]
+        and score_given_name_layout(parsed.firstName) >= score_given_name_layout(resolved["firstName"])
     ):
         return repair_single_word_name(parsed)
-    current_score = score_name_fields(parsed.get("firstName", ""), parsed.get("familyName", ""))
+    current_score = score_name_fields(parsed.firstName, parsed.familyName)
     resolved_score = score_name_fields(resolved["firstName"], resolved["familyName"])
     prefer_visual_name = _should_prefer_visual_name(parsed, resolved)
     if current_score > resolved_score and not prefer_visual_name:
         return repair_single_word_name(parsed)
     if (
         current_score == resolved_score
-        and score_given_name_layout(parsed.get("firstName", "")) > score_given_name_layout(resolved["firstName"])
+        and score_given_name_layout(parsed.firstName) > score_given_name_layout(resolved["firstName"])
         and not prefer_visual_name
     ):
         return repair_single_word_name(parsed)
     notes = []
-    if resolved["firstName"] != parsed.get("firstName", "") or resolved["familyName"] != parsed.get("familyName", ""):
+    if resolved["firstName"] != parsed.firstName or resolved["familyName"] != parsed.familyName:
         parsed.update(resolved)
         parsed = clean_existing_first_name(parsed)
         notes.append("NAME NORMALIZED FROM FULL NAME FIELD")
@@ -70,7 +70,7 @@ def refine_names_from_scan(
     return parsed, "; ".join(notes)
 
 
-def extract_full_name(file_path: str, parsed: dict[str, str], page: object | None = None) -> str:
+def extract_full_name(file_path: str, parsed: ParsedPassportData, page: object | None = None) -> str:
     candidates: dict[str, int] = {}
     page = page if page is not None else extract_aligned_passport_page(file_path)
     if page is not None:
@@ -96,13 +96,13 @@ def extract_full_name(file_path: str, parsed: dict[str, str], page: object | Non
     return ""
 
 
-def _score_candidate(line: str, parsed: dict[str, str]) -> int:
+def _score_candidate(line: str, parsed: ParsedPassportData) -> int:
     if not _looks_like_name(line):
         return -10_000
     tokens = line.split()
     score = len("".join(tokens)) + (12 if len(tokens) <= 4 else 0) + (4 if len(tokens) == 2 else 0)
-    family_tokens = _family_reference_tokens(parsed.get("familyName", ""))
-    first_tokens = _reference_tokens(parsed.get("firstName", ""))
+    family_tokens = _family_reference_tokens(parsed.familyName)
+    first_tokens = _reference_tokens(parsed.firstName)
     reliable_tokens = family_tokens + first_tokens
     if reliable_tokens and not _contains_any_token(tokens, reliable_tokens):
         return -10_000
@@ -115,7 +115,7 @@ def _score_candidate(line: str, parsed: dict[str, str]) -> int:
     return score
 
 
-def _add_candidates(candidates: dict[str, int], lines: list[str], parsed: dict[str, str], bonus: int = 0) -> None:
+def _add_candidates(candidates: dict[str, int], lines: list[str], parsed: ParsedPassportData, bonus: int = 0) -> None:
     for line in lines:
         prepared = _prepare_candidate(line, parsed)
         if not prepared:
@@ -125,7 +125,7 @@ def _add_candidates(candidates: dict[str, int], lines: list[str], parsed: dict[s
             candidates[prepared] = score
 
 
-def _add_raw_candidates(candidates: dict[str, int], crop: object, parsed: dict[str, str]) -> None:
+def _add_raw_candidates(candidates: dict[str, int], crop: object, parsed: ParsedPassportData) -> None:
     lines = collect_ocr_lines(
         crop,
         psm_values=(6,),
@@ -162,16 +162,16 @@ def _looks_like_name(line: str) -> bool:
     return len(letters) >= 3 and len(set(letters)) > 2
 
 
-def _prepare_candidate(line: str, parsed: dict[str, str]) -> str:
+def _prepare_candidate(line: str, parsed: ParsedPassportData) -> str:
     tokens = [_strip_repeated_suffix(token) for token in _normalize_line(line).split()]
     tokens = [token for token in tokens if token]
     if len(tokens) == 1:
-        tokens = expand_compact_name(tokens[0], salvage_family_hints(parsed.get("familyName", ""))).split()
+        tokens = expand_compact_name(tokens[0], salvage_family_hints(parsed.familyName)).split()
     if not tokens:
         return ""
     while len(tokens) > 2 and len(tokens[0]) <= 2:
         tokens.pop(0)
-    family_tokens = _family_reference_tokens(parsed.get("familyName", ""))
+    family_tokens = _family_reference_tokens(parsed.familyName)
     if family_tokens:
         family_index = _find_matching_index(tokens, family_tokens)
         if family_index >= len(tokens) // 2:
@@ -187,7 +187,7 @@ def _prepare_candidate(line: str, parsed: dict[str, str]) -> str:
     return " ".join(tokens)
 
 
-def _split_full_name(full_name: str, parsed: dict[str, str]) -> tuple[dict[str, str], bool]:
+def _split_full_name(full_name: str, parsed: ParsedPassportData) -> tuple[dict[str, str], bool]:
     tokens = _normalize_line(full_name).split()
     while tokens and (tokens[0] in NOISE_WORDS or _is_noise_token(tokens[0]) or (len(tokens) > 2 and len(tokens[0]) <= 2)):
         tokens.pop(0)
@@ -197,7 +197,7 @@ def _split_full_name(full_name: str, parsed: dict[str, str]) -> tuple[dict[str, 
     if len(tokens) == 2 and len(tokens[0]) == 1:
         return {"firstName": tokens[0], "familyName": tokens[1]}, False
     raw_family_token = tokens[-1]
-    family_tokens = _match_family_suffix(tokens, parsed.get("familyName", ""))
+    family_tokens = _match_family_suffix(tokens, parsed.familyName)
     single_word = False
     if family_tokens:
         family_name = " ".join(family_tokens)
@@ -206,17 +206,17 @@ def _split_full_name(full_name: str, parsed: dict[str, str]) -> tuple[dict[str, 
         family_name, first_tokens, single_word = tokens[0], [tokens[0]], True
     else:
         family_name, first_tokens = tokens[-1], tokens[:-1]
-    first_tokens, family_name = _repair_boundary_shift(first_tokens, raw_family_token, family_name, parsed.get("familyName", ""))
+    first_tokens, family_name = _repair_boundary_shift(first_tokens, raw_family_token, family_name, parsed.familyName)
     first_tokens = repair_given_tokens(first_tokens)
     first_name = " ".join(first_tokens).strip() or family_name
     single_word = single_word or first_name == family_name
     return {"firstName": first_name, "familyName": family_name}, single_word
 
 
-def _should_keep_single_word_mrz_name(parsed: dict[str, str], full_name: str) -> bool:
-    if parsed.get("firstName", "").strip():
+def _should_keep_single_word_mrz_name(parsed: ParsedPassportData, full_name: str) -> bool:
+    if parsed.firstName.strip():
         return False
-    family_name = _normalize_line(parsed.get("familyName", ""))
+    family_name = _normalize_line(parsed.familyName)
     if not family_name or len(family_name.split()) != 1:
         return False
     tokens = _normalize_line(full_name).split()
@@ -232,10 +232,10 @@ def _should_keep_single_word_mrz_name(parsed: dict[str, str], full_name: str) ->
     return False
 
 
-def _drop_leading_visual_noise(tokens: list[str], parsed: dict[str, str]) -> list[str]:
+def _drop_leading_visual_noise(tokens: list[str], parsed: ParsedPassportData) -> list[str]:
     if len(tokens) <= 2:
         return tokens
-    first_tokens = _reference_tokens(parsed.get("firstName", ""))
+    first_tokens = _reference_tokens(parsed.firstName)
     if not first_tokens:
         return tokens
     for index, token in enumerate(tokens[:-1]):
@@ -396,11 +396,11 @@ def _family_reference_tokens(value: str) -> list[str]:
     return list(dict.fromkeys(ordered))
 
 
-def _is_confident_candidate(line: str, score: int, parsed: dict[str, str]) -> bool:
+def _is_confident_candidate(line: str, score: int, parsed: ParsedPassportData) -> bool:
     if score <= 0:
         return False
     tokens = line.split()
-    reliable_tokens = _family_reference_tokens(parsed.get("familyName", "")) + _reference_tokens(parsed.get("firstName", ""))
+    reliable_tokens = _family_reference_tokens(parsed.familyName) + _reference_tokens(parsed.firstName)
     if reliable_tokens:
         return score >= 20
     if len(tokens) < 2 or len(tokens) > 3 or any(len(token) > 10 or len(token) < 4 for token in tokens):
@@ -484,10 +484,10 @@ def _prefer_family_token(observed: str, reference: str) -> str:
     return reference
 
 
-def _should_prefer_visual_name(parsed: dict[str, str], resolved: dict[str, str]) -> bool:
-    current_first = _normalize_line(parsed.get("firstName", ""))
+def _should_prefer_visual_name(parsed: ParsedPassportData, resolved: dict[str, str]) -> bool:
+    current_first = _normalize_line(parsed.firstName)
     resolved_first = _normalize_line(resolved.get("firstName", ""))
-    current_family = _normalize_line(parsed.get("familyName", ""))
+    current_family = _normalize_line(parsed.familyName)
     resolved_family = _normalize_line(resolved.get("familyName", ""))
     if not current_family or not resolved_family or current_family == resolved_family:
         return False

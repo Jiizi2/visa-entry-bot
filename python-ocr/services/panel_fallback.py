@@ -61,7 +61,7 @@ DEFAULT_PANEL_FIELDS = (
 NOISE = {"COUNTRY", "FULL", "IDN", "INDONESIA", "JENIS", "KELAMIN", "KEWARGANEGARAAN", "KODE", "LENGKAP", "NAME", "NAMA", "NATIONALITY", "NEGARA", "NO", "PASPOR", "PASSPORT", "TYPE"}
 
 
-def should_use_panel_fallback(extraction: dict[str, object] | None) -> bool:
+def should_use_panel_fallback(extraction: ExtractionEvidence | None) -> bool:
     if not extraction:
         return True
     notes = str(extraction.get("notes", "") or "").upper()
@@ -80,7 +80,7 @@ def extract_document_panel_fields(
     current_dob: str = "",
     current_issue_date: str = "",
     current_expiry_date: str = "",
-) -> dict[str, str]:
+) -> ParsedPassportData:
     panel, mode = _build_panel(file_path)
     if panel is None:
         return {}
@@ -111,27 +111,27 @@ def extract_document_panel_fields(
     return {key: value for key, value in fields.items() if value}
 
 
-def fuse_panel_fields(parsed: dict[str, str], extraction: dict[str, object] | None, panel_fields: dict[str, str]) -> tuple[dict[str, str], str]:
+def fuse_panel_fields(parsed: ParsedPassportData, extraction: ExtractionEvidence | None, panel_fields: dict[str, str]) -> tuple[ParsedPassportData, str]:
     if not panel_fields:
         return parsed, ""
-    updated = dict(parsed)
+    updated = ParsedPassportData(**parsed.as_dict())
     notes: list[str] = []
-    current_passport = str(updated.get("passportNumber", "") or "")
+    current_passport = str(updated.passportNumber or "")
     repaired_passport = _repair_passport_number(current_passport, extraction, panel_fields.get("passportNumber", ""))
     if repaired_passport and repaired_passport != current_passport:
-        updated["passportNumber"] = repaired_passport
+        updated.passportNumber = repaired_passport
         notes.append("PASSPORT NUMBER RECOVERED FROM DOCUMENT PANEL")
     full_name = panel_fields.get("fullName", "")
     if full_name:
         candidate = _split_full_name(full_name)
         if (
             _panel_name_matches_existing_hints(full_name, updated)
-            and score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.get("firstName", ""), updated.get("familyName", ""))
+            and score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.firstName, updated.familyName)
         ):
             updated.update(candidate)
             notes.append("NAME RECOVERED FROM DOCUMENT PANEL")
-    if panel_fields.get("nationality") == "INDONESIA" and updated.get("nationality") != "INDONESIA":
-        updated["nationality"] = "INDONESIA"
+    if panel_fields.get("nationality") == "INDONESIA" and updated.nationality != "INDONESIA":
+        updated.nationality = "INDONESIA"
         notes.append("NATIONALITY RECOVERED FROM DOCUMENT PANEL")
     for field_name in ("dob", "gender", "issueDate", "expiryDate"):
         if _prefer_panel_value(updated.get(field_name, ""), panel_fields.get(field_name, "")):
@@ -348,7 +348,7 @@ def _extract_date_fields(
     requested_fields: tuple[str, ...] = ("issueDate", "expiryDate"),
     current_issue_date: str = "",
     current_expiry_date: str = "",
-) -> dict[str, str]:
+) -> ParsedPassportData:
     config = load_indonesia_panel_modes()[mode]
     requested = set(requested_fields)
     issue_candidates = _collect_date_candidates(panel, config["issueDate"]) if "issueDate" in requested else []
@@ -439,7 +439,7 @@ def _clean_date(value: str) -> str:
         return ""
 
 
-def _split_full_name(full_name: str) -> dict[str, str]:
+def _split_full_name(full_name: str) -> ParsedPassportData:
     tokens = full_name.split()
     if len(tokens) == 1:
         return {"firstName": tokens[0], "familyName": tokens[0]}
@@ -447,8 +447,8 @@ def _split_full_name(full_name: str) -> dict[str, str]:
     return {"firstName": " ".join(first_tokens), "familyName": tokens[-1]}
 
 
-def _panel_name_matches_existing_hints(full_name: str, parsed: dict[str, str]) -> bool:
-    family_hints = salvage_family_hints(parsed.get("familyName", ""))
+def _panel_name_matches_existing_hints(full_name: str, parsed: ParsedPassportData) -> bool:
+    family_hints = salvage_family_hints(parsed.familyName)
     if not family_hints:
         return True
     tokens = re.sub(r"[^A-Z\s]", " ", full_name.upper()).split()
@@ -509,7 +509,7 @@ def _simple_field_stop_when(field_name: str) -> object | None:
     return stop_when
 
 
-def _repair_passport_number(current: str, extraction: dict[str, object] | None, visual: str) -> str:
+def _repair_passport_number(current: str, extraction: ExtractionEvidence | None, visual: str) -> str:
     candidates = _expand_passport_candidates(current) + _expand_passport_candidates(visual)
     line2 = _extract_line2(extraction)
     check_digit = line2[9] if _has_trustworthy_line2(line2) and len(line2) > 9 and line2[9].isdigit() else ""
@@ -574,7 +574,7 @@ def _best_passport_candidate(candidates: list[str]) -> str:
     return max(scored, default=(0, ""), key=lambda item: item[0])[1]
 
 
-def _extract_line2(extraction: dict[str, object] | None) -> str:
+def _extract_line2(extraction: ExtractionEvidence | None) -> str:
     data = extraction.get("data", {}) if extraction else {}
     candidates: list[str] = []
     for key in ("line2", "raw_text", "mrz_text", "text"):

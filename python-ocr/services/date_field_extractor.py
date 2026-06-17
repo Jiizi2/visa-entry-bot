@@ -24,7 +24,7 @@ def extract_document_dates(
     current_issue_date: str = "",
     current_expiry_date: str = "",
     page: object | None = None,
-) -> dict[str, str]:
+) -> ParsedPassportData:
     issue_candidates = _candidate_from_current(current_issue_date)
     expiry_candidates = _candidate_from_current(current_expiry_date)
     resolved = _resolve_date_pair(
@@ -62,7 +62,7 @@ def _resolve_date_pair(
     expiry_candidates: list[str],
     dob: str,
     allow_infer: bool = False,
-) -> dict[str, str]:
+) -> ParsedPassportData:
     shared_candidates = _unique(issue_candidates + expiry_candidates)
     expiry = pick_expiry_date(expiry_candidates or shared_candidates, dob=dob)
     issue = pick_issue_date(shared_candidates, dob, expiry)

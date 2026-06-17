@@ -147,7 +147,7 @@ def _build_candidate(file_path: Path, record: dict[str, Any], duplicate_names: d
     }
 
 
-def _candidate_expected(record: dict[str, Any]) -> dict[str, str]:
+def _candidate_expected(record: dict[str, Any]) -> ParsedPassportData:
     extracted = record.get("passportExtracted", {})
     extracted = extracted if isinstance(extracted, dict) else {}
     expected = {"status": str(record.get("status", ""))}

@@ -207,7 +207,7 @@ def compare_member(member: dict[str, object], reference: dict[str, str], match_b
     }
 
 
-def extract_visual_notes(notes: str) -> dict[str, str]:
+def extract_visual_notes(notes: str) -> ParsedPassportData:
     extracted: dict[str, str] = {}
     patterns = {"placeOfBirth": r"VISUAL PLACE OF BIRTH:\s*([^;]+)", "issuingOffice": r"VISUAL ISSUING OFFICE:\s*([^;]+)"}
     for field, pattern in patterns.items():

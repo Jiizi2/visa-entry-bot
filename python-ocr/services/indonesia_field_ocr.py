@@ -103,7 +103,7 @@ def extract_visual_fields(
     field_names: tuple[str, ...] | None = None,
     allow_aligned_fallback: bool = True,
     rotation_degrees: int = 0,
-) -> dict[str, str]:
+) -> ParsedPassportData:
     if not configure_tesseract():
         return {}
     extracted: dict[str, str] = {}
@@ -142,7 +142,7 @@ def extract_fast_location_fields(
     file_path: str,
     field_names: tuple[str, ...] = ("placeOfBirth", "issuingOffice"),
     rotation_degrees: int = 0,
-) -> dict[str, str]:
+) -> ParsedPassportData:
     reset_fast_location_ocr_stats()
     started = perf_counter()
     _FAST_LOCATION_OCR_STATS["rotationDegrees"] = int(rotation_degrees or 0) % 360
@@ -209,8 +209,8 @@ def reset_fast_location_ocr_stats() -> None:
     )
 
 
-def merge_visual_fields(parsed: dict[str, str], visual_fields: dict[str, str]) -> dict[str, str]:
-    merged = dict(parsed)
+def merge_visual_fields(parsed: ParsedPassportData, visual_fields: dict[str, str]) -> ParsedPassportData:
+    merged = ParsedPassportData(**parsed.as_dict())
     if visual_fields.get("nationality") == "INDONESIA" and merged.get("nationality") in {"", "ID", "DNI"}:
         merged["nationality"] = "INDONESIA"
     for field_name in ("nationality", "dob", "gender", "issueDate", "expiryDate"):

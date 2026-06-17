@@ -61,7 +61,7 @@ class DirectMrzResult:
     def mrz_text(self) -> str:
         return self.raw_text
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> ParsedPassportData:
         return {
             "line1": self.line1,
             "line2": self.line2,

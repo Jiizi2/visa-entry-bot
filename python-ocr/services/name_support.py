@@ -7,10 +7,10 @@ COMMON_JOINED_GIVEN_NAMES = {"MUHAMMAD"}
 COMMON_GIVEN_ABBREVIATIONS = {"MUH": "MUHAMMAD"}
 
 
-def clean_existing_first_name(parsed: dict[str, str]) -> dict[str, str]:
-    updated = dict(parsed)
+def clean_existing_first_name(parsed: ParsedPassportData) -> ParsedPassportData:
+    updated = ParsedPassportData(**parsed.as_dict())
     tokens = []
-    for index, token in enumerate(re.sub(r"[^A-Z\s]", " ", str(updated.get("firstName", "") or "").upper()).split()):
+    for index, token in enumerate(re.sub(r"[^A-Z\s]", " ", str(updated.firstName or "").upper()).split()):
         cleaned = strip_repeated_suffix(token)
         if len(cleaned) == 1 and cleaned.isalpha():
             if index == 0 and not tokens:
@@ -24,18 +24,18 @@ def clean_existing_first_name(parsed: dict[str, str]) -> dict[str, str]:
             tokens.append(cleaned)
         elif tokens:
             break
-    updated["firstName"] = " ".join(tokens)
+    updated.firstName = " ".join(tokens)
     return updated
 
 
-def repair_single_word_name(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
-    updated = dict(parsed)
-    family_name = str(updated.get("familyName", "") or "").strip()
-    first_name = str(updated.get("firstName", "") or "").strip()
+def repair_single_word_name(parsed: ParsedPassportData) -> tuple[ParsedPassportData, str]:
+    updated = ParsedPassportData(**parsed.as_dict())
+    family_name = str(updated.familyName or "").strip()
+    first_name = str(updated.firstName or "").strip()
     first_tokens = _name_tokens(first_name)
     family_tokens = _name_tokens(family_name)
     if (
-        str(updated.get("nationality", "") or "").upper() == "INDONESIA"
+        str(updated.nationality or "").upper() == "INDONESIA"
         and len(first_tokens) == 1
         and len(first_tokens[0]) == 1
         and first_tokens[0].isalpha()
@@ -43,49 +43,49 @@ def repair_single_word_name(parsed: dict[str, str]) -> tuple[dict[str, str], str
         and is_reasonable_token(family_tokens[0])
     ):
         full_name = f"{first_tokens[0]} {family_tokens[0]}"
-        updated["firstName"] = full_name
-        updated["familyName"] = full_name
+        updated.firstName = full_name
+        updated.familyName = full_name
         return updated, "INITIAL SINGLE-NAME MRZ DUPLICATED TO SATISFY REQUIRED FIELDS"
-    if not updated.get("firstName") and family_name and is_reasonable_name_value(family_name) and len(family_name.split()) == 1:
-        updated["firstName"] = family_name
+    if not updated.firstName and family_name and is_reasonable_name_value(family_name) and len(family_name.split()) == 1:
+        updated.firstName = family_name
         return updated, "SINGLE-WORD NAME DUPLICATED TO SATISFY REQUIRED FIELDS"
     return updated, ""
 
 
-def repair_common_given_name_spacing(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
-    updated = dict(parsed)
-    tokens = re.sub(r"[^A-Z\s]", " ", str(updated.get("firstName", "") or "").upper()).split()
+def repair_common_given_name_spacing(parsed: ParsedPassportData) -> tuple[ParsedPassportData, str]:
+    updated = ParsedPassportData(**parsed.as_dict())
+    tokens = re.sub(r"[^A-Z\s]", " ", str(updated.firstName or "").upper()).split()
     if tokens and tokens[0] in COMMON_GIVEN_ABBREVIATIONS:
         tokens[0] = COMMON_GIVEN_ABBREVIATIONS[tokens[0]]
-        updated["firstName"] = " ".join(tokens)
+        updated.firstName = " ".join(tokens)
         return updated, "GIVEN NAME ABBREVIATION REPAIRED FROM MRZ"
     joined = "".join(tokens)
     if len(tokens) == 2 and joined in COMMON_JOINED_GIVEN_NAMES:
-        updated["firstName"] = joined
+        updated.firstName = joined
         return updated, "GIVEN NAME SPACING REPAIRED FROM MRZ"
     if len(tokens) == 1:
         cleaned = _strip_common_given_name_noise(tokens[0])
         if cleaned != tokens[0]:
-            updated["firstName"] = cleaned
+            updated.firstName = cleaned
             return updated, "GIVEN NAME NOISE REPAIRED FROM MRZ"
     return updated, ""
 
 
-def repair_common_name_noise(parsed: dict[str, str]) -> tuple[dict[str, str], str]:
-    updated = dict(parsed)
-    first_tokens = _name_tokens(updated.get("firstName", ""))
-    family_tokens = _name_tokens(updated.get("familyName", ""))
+def repair_common_name_noise(parsed: ParsedPassportData) -> tuple[ParsedPassportData, str]:
+    updated = ParsedPassportData(**parsed.as_dict())
+    first_tokens = _name_tokens(updated.firstName)
+    family_tokens = _name_tokens(updated.familyName)
     repaired_first = _repair_given_name_tokens(first_tokens)
     repaired_family = family_tokens if _is_initial_full_name_tokens(family_tokens) else [_repair_family_token(token) for token in family_tokens]
     repaired_family = [token for token in repaired_family if token]
     first_name = " ".join(repaired_first)
     family_name = " ".join(repaired_family)
     changed = False
-    if first_tokens and first_name != updated.get("firstName", ""):
-        updated["firstName"] = first_name
+    if first_tokens and first_name != updated.firstName:
+        updated.firstName = first_name
         changed = True
-    if family_name and family_name != updated.get("familyName", ""):
-        updated["familyName"] = family_name
+    if family_name and family_name != updated.familyName:
+        updated.familyName = family_name
         changed = True
     return updated, "COMMON NAME OCR NOISE REPAIRED" if changed else ""
 

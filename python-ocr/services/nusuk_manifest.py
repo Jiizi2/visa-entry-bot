@@ -56,9 +56,9 @@ def build_error_record(file_name: str, file_path: str, message: str) -> dict[str
 def build_member_record(
     file_name: str,
     file_path: str,
-    parsed: dict[str, str],
+    parsed: ParsedPassportData,
     visual_fields: dict[str, str],
-    extraction: dict[str, object],
+    extraction: ExtractionEvidence,
     status: str,
     confidence: float,
     notes: str,
@@ -134,20 +134,20 @@ def _base_record(file_name: str, file_path: str) -> dict[str, object]:
 
 
 def _build_passport_extracted(
-    parsed: dict[str, str],
+    parsed: ParsedPassportData,
     visual_fields: dict[str, str],
-    extraction: dict[str, object],
-) -> dict[str, str]:
-    nationality = parsed.get("nationality", "")
+    extraction: ExtractionEvidence,
+) -> ParsedPassportData:
+    nationality = parsed.nationality
     return {
-        "firstName": parsed.get("firstName", ""),
-        "familyName": parsed.get("familyName", ""),
-        "passportNumber": parsed.get("passportNumber", ""),
+        "firstName": parsed.firstName,
+        "familyName": parsed.familyName,
+        "passportNumber": parsed.passportNumber,
         "nationality": nationality,
-        "dob": parsed.get("dob", ""),
-        "issueDate": parsed.get("issueDate", ""),
-        "expiryDate": parsed.get("expiryDate", ""),
-        "gender": parsed.get("gender", ""),
+        "dob": parsed.dob,
+        "issueDate": parsed.issueDate,
+        "expiryDate": parsed.expiryDate,
+        "gender": parsed.gender,
         "countryOfIssued": _country_of_issued(nationality, extraction),
         "cityOfIssued": visual_fields.get("issuingOffice", ""),
         "birthCity": visual_fields.get("placeOfBirth", ""),
@@ -197,7 +197,7 @@ def _build_resolved_profile(passport_extracted: dict[str, str]) -> dict[str, obj
 def _build_source_by_field(
     passport_extracted: dict[str, str],
     resolved_profile: dict[str, object],
-) -> dict[str, str]:
+) -> ParsedPassportData:
     resolved_name_sources = build_resolved_name_fields(passport_extracted).get("sources", {})
     return {
         "firstName": str(resolved_name_sources.get("firstName", "intentional_empty")),
@@ -232,7 +232,7 @@ def _build_source_by_field(
     }
 
 
-def _empty_passport_extracted() -> dict[str, str]:
+def _empty_passport_extracted() -> ParsedPassportData:
     return {
         "firstName": "",
         "familyName": "",
@@ -279,7 +279,7 @@ def _empty_resolved_profile() -> dict[str, object]:
     }
 
 
-def _empty_source_by_field() -> dict[str, str]:
+def _empty_source_by_field() -> ParsedPassportData:
     return {
         "firstName": "intentional_empty",
         "fatherName": "intentional_empty",
@@ -313,7 +313,7 @@ def _empty_source_by_field() -> dict[str, str]:
     }
 
 
-def _build_mrz_validation(extraction: dict[str, object]) -> dict[str, object]:
+def _build_mrz_validation(extraction: ExtractionEvidence) -> dict[str, object]:
     validation = extraction.get("mrzValidation", {}) if extraction else {}
     return validation if isinstance(validation, dict) else _empty_mrz_validation()
 
@@ -377,7 +377,7 @@ def _derived_source(values: dict[str, object], field_name: str, origin: str) -> 
     return f"derived_from_{origin}" if values.get(field_name) else "intentional_empty"
 
 
-def _country_of_issued(nationality: str, extraction: dict[str, object]) -> str:
+def _country_of_issued(nationality: str, extraction: ExtractionEvidence) -> str:
     data = extraction.get("data", {}) if extraction else {}
     country = clean_country(data.get("country", ""))
     if nationality == "INDONESIA" and country != "INDONESIA":

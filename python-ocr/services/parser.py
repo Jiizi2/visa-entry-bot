@@ -20,7 +20,7 @@ COUNTRY_NAMES = {
 }
 
 
-def parse_mrz_data(data: dict[str, Any]) -> dict[str, str]:
+def parse_mrz_data(data: dict[str, Any]) -> ParsedPassportData:
     line_values = _parse_line_fields(data)
     first_name = _pick_best_given_name(
         clean_name(_pick(data, "names", "given_names", "firstName")),
@@ -175,7 +175,7 @@ def _pick(data: dict[str, Any], *keys: str) -> Any:
     return None
 
 
-def _parse_line_fields(data: dict[str, Any]) -> dict[str, str]:
+def _parse_line_fields(data: dict[str, Any]) -> ParsedPassportData:
     empty = {
         "firstName": "",
         "familyName": "",

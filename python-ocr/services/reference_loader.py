@@ -119,7 +119,7 @@ def _find_passenger_manifest_row(rows_data: list[list[object]]) -> int:
     return -1
 
 
-def _map_row(header: list[str], values: list[object]) -> dict[str, str]:
+def _map_row(header: list[str], values: list[object]) -> ParsedPassportData:
     mapped: dict[str, str] = {}
     for key, value in zip(header, values):
         target_key = COLUMN_MAP.get(key)
@@ -133,7 +133,7 @@ def _map_row(header: list[str], values: list[object]) -> dict[str, str]:
     return mapped
 
 
-def _map_passenger_row(values: list[object]) -> dict[str, str]:
+def _map_passenger_row(values: list[object]) -> ParsedPassportData:
     mapped: dict[str, str] = {}
     for index, value in enumerate(values):
         target_key = PASSENGER_COLUMN_MAP.get(index)

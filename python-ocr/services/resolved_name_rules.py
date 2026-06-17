@@ -55,7 +55,7 @@ def _combine_name(first_name: str, family_name: str) -> str:
     return " ".join(parts)
 
 
-def _distribute_given_name_columns(tokens: list[str]) -> dict[str, str]:
+def _distribute_given_name_columns(tokens: list[str]) -> ParsedPassportData:
     remaining_tokens = list(tokens)
     columns = ["", "", ""]
     for index in range(len(columns)):
