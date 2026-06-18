@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 from collections.abc import Callable
 
 try:
@@ -10,6 +11,14 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 from services.ocr_result_cache import build_region_cache_key, get_cached_lines, store_cached_lines
 from services.ocr_runner import build_ocr_config, run_rapid_ocr
+from services.models import OcrProfile
+from services.ocr_constants import OCR_PROFILE_ALIASES
+
+def _get_active_profile() -> str:
+    value = os.environ.get("PASSPORT_OCR_PROFILE", OcrProfile.SPEED).strip().lower()
+    value = OCR_PROFILE_ALIASES.get(value, value)
+    return value if value in {OcrProfile.SPEED, OcrProfile.BALANCED, OcrProfile.HEAVY} else OcrProfile.SPEED
+
 
 
 def scan_region_texts(
@@ -64,9 +73,38 @@ def scan_region_texts(
 
 
 def _build_variants(region: object) -> list[object]:
-    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
-    gray = cv2.resize(gray, None, fx=4.0, fy=4.0, interpolation=cv2.INTER_CUBIC)
-    return [gray, cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(gray)]
+    profile = _get_active_profile()
+
+    if len(region.shape) == 3 and region.shape[2] == 4:
+        gray = cv2.cvtColor(region, cv2.COLOR_BGRA2GRAY)
+    elif len(region.shape) == 3:
+        gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = region
+        
+    scaled = cv2.resize(gray, None, fx=4.0, fy=4.0, interpolation=cv2.INTER_CUBIC)
+    
+    variants = [scaled]
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(scaled)
+    variants.append(clahe)
+    
+    if profile == OcrProfile.SPEED:
+        return variants
+    
+    sharpened = cv2.addWeighted(clahe, 1.5, cv2.GaussianBlur(clahe, (0, 0), 1.5), -0.5, 0)
+    variants.append(sharpened)
+    
+    if profile == OcrProfile.BALANCED:
+        return variants
+    
+    denoised = cv2.fastNlMeansDenoising(sharpened, None, 10, 7, 21)
+    variants.append(denoised)
+    
+    # Add adaptive thresholding to pierce through heavy hand/phone shadows
+    adaptive = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
+    variants.append(adaptive)
+    
+    return variants
 
 
 def _unique(values: list[str]) -> list[str]:

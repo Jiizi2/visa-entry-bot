@@ -551,7 +551,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         }
         extraction = {"data": {"line2": "X6725064<91DN9501289F30112616403066801000176"}}
 
-        self.assertEqual(_select_speed_visual_field_names(parsed, extraction), ("placeOfBirth", "issuingOffice"))
+        self.assertEqual(_select_speed_visual_field_names(parsed, extraction), ("placeOfBirth", "issuingOffice", "fullName", "dob", "doe", "gender"))
         self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"line2": "A1234567<8USA9001011M3001012<<<<<<<<<<<<<<04"}}), ())
 
     def test_speed_location_ocr_skips_ambiguous_indonesian_passport_numbers_by_default(self) -> None:
@@ -578,7 +578,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
         with patch.dict("os.environ", {"PASSPORT_LOCATION_OCR_AMBIGUOUS": "1"}, clear=False):
             self.assertTrue(_should_try_speed_location_ocr(parsed, {"data": {"country": ""}}))
-            self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ("placeOfBirth", "issuingOffice"))
+            self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ("placeOfBirth", "issuingOffice", "fullName", "dob", "doe", "gender"))
 
     def test_recovery_location_ocr_allows_ambiguous_indonesian_passport_without_speed_opt_in(self) -> None:
         parsed = {
