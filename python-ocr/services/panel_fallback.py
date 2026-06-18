@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 from datetime import date
+from services.log import logger
 
 from services.expiry_date_extractor import pick_expiry_date
 from services.image_preprocessor import _load_image, detect_passport_data_page_crop, resize_to_max_edge
@@ -12,6 +14,8 @@ from services.models import ExtractionEvidence, ParsedPassportData
 from services.name_support import repair_given_tokens, salvage_family_hints, score_name_fields, token_matches_simple
 from services.panel_name_support import normalize_name_candidate, pick_best_name_candidate, score_full_name
 from services.passport_page import collect_ocr_lines, crop_relative
+from services.mrz_validation import calculate_mrz_check_digit as _mrz_check_digit
+
 
 LOW_CONFIDENCE_THRESHOLD = 0.6
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
@@ -82,6 +86,7 @@ def extract_document_panel_fields(
     current_issue_date: str = "",
     current_expiry_date: str = "",
 ) -> ParsedPassportData:
+    logger.debug("Panel extraction: %d fields requested for %s", len(field_names) if field_names else len(DEFAULT_PANEL_FIELDS), os.path.basename(file_path))
     panel, mode = _build_panel(file_path)
     if panel is None:
         return {}
@@ -98,6 +103,8 @@ def extract_document_panel_fields(
         value = _extract_simple_field(panel, config[field_name], field_name)
         if value:
             fields[field_name] = value
+        else:
+            logger.debug("Panel field '%s' could not be parsed from text", field_name)
     date_field_names = tuple(field_name for field_name in ("issueDate", "expiryDate") if field_name in requested)
     if date_field_names:
         date_fields = _extract_date_fields(
@@ -590,12 +597,8 @@ def _has_trustworthy_line2(line2: str) -> bool:
     return bool(line2) and len(line2) >= 10 and line2[0] in {"E", "X"} and line2[1:8].isdigit()
 
 
-def _mrz_check_digit(value: str) -> str:
-    return str(sum(_mrz_char_value(char) * (7, 3, 1)[index % 3] for index, char in enumerate(value)) % 10)
 
 
-def _mrz_char_value(char: str) -> int:
-    return 0 if char == "<" else int(char) if char.isdigit() else ord(char) - 55
 
 
 def _prefer_panel_value(current: str, candidate: str) -> bool:

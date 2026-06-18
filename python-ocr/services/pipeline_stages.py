@@ -1,50 +1,67 @@
 from __future__ import annotations
 
-import json
-import os
-import re
-import sys
 import time
-from datetime import date
-from typing import Callable
 
-from services.models import OcrProfile, ParsedPassportData, ExtractionEvidence, ReviewStatus, OcrMode
+from services.log import logger
+from services.models import OcrProfile
 from services.date_field_extractor import extract_document_dates
-from services.image_preprocessor import (
-    cleanup_temp_root,
-    clear_image_preprocess_cache,
-    get_image_preprocessor_stats,
-    reset_image_preprocessor_stats,
-)
+from services.image_preprocessor import get_image_preprocessor_stats
 from services.indonesia_field_ocr import (
     build_visual_notes,
     extract_fast_location_fields,
     extract_visual_fields,
     get_fast_location_ocr_stats,
     merge_visual_fields,
-    reset_fast_location_ocr_stats,
 )
-from services.issue_date_extractor import infer_issue_date
 from services.mrz_extractor import extract_mrz_data
-from services.data_repairs import join_notes
-from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_common_name_noise, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
-from services.nusuk_manifest import build_error_record, build_member_record
-from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_result_cache_stats, start_ocr_result_cache_session
-from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
-from services.passport_page import clear_passport_page_cache, extract_aligned_passport_page
-from services.parser import format_date, parse_mrz_data
-from services.ocr_runner import get_ocr_stats, reset_ocr_stats
+from services.data_repairs import (
+    join_notes,
+    _has_valid_mrz_validation,
+    _mrz_confidence,
+    _apply_indonesian_visual_repairs,
+    _apply_fast_mrz_repairs,
+    _apply_fast_date_repairs,
+    _apply_verified_mrz_name_repairs,
+    _apply_final_name_repairs,
+    _repair_impossible_expiry_date,
+)
+from services.nusuk_manifest import build_member_record
+from services.ocr_result_cache import get_ocr_result_cache_stats
+from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields
+from services.parser import parse_mrz_data
+from services.passport_page import extract_aligned_passport_page
+from services.ocr_runner import get_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
-
-from services.ocr_constants import (OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
-
-from services.scan_budget import (_ocr_profile, _is_speed_first_scan, _is_balanced_scan, _is_heavy_scan, _ocr_budget_ms, _elapsed_ms, _time_left_ms, _has_ocr_budget_for_elapsed, _can_spend_ocr_time, _budget_exceeded, _skip_ocr_stage, _build_budget_notes, _classify_ocr_mode, _ocr_mode_reasons)
-from services.data_repairs import (_has_indonesian_mrz_hint, _looks_like_noisy_indonesia_code, _has_valid_mrz_validation, _has_failed_mrz_validation, _has_reliable_mrz_for_fast_path, _apply_indonesian_visual_repairs, _apply_fast_mrz_repairs, _recover_passport_number_from_mrz, _recover_dob_from_unverified_mrz, _recover_gender_from_unverified_mrz, _mrz_text_values, _normalize_mrz_country_hint, _apply_verified_single_word_name, _apply_verified_mrz_name_repairs, _apply_final_name_repairs, _compact_name_value, _apply_fast_date_repairs, _repair_impossible_expiry_date, _mrz_confidence, _is_iso_date, _parse_iso_date)
-from services.passport_logic import (_should_run_initial_panel_scan, _select_profile_panel_field_names, _is_indonesian_passport, _ocr_rotation_degrees, _normalize_ocr_rotation_degrees, _select_visual_field_names, _select_balanced_visual_field_names, _select_speed_visual_field_names, _select_heavy_visual_field_names, _missing_profile_visual_panel_fields, _missing_speed_location_panel_fields, _should_try_speed_location_ocr, _should_try_recovery_location_ocr, _location_ocr_ambiguous_enabled, _has_clear_non_indonesian_mrz_hint, _visual_fields_need_aligned_page, _select_panel_fallback_visual_field_names, _select_panel_field_names, _should_skip_panel_for_direct_location_only, _is_direct_mrz_extraction, _should_extract_dates, _should_refine_names, _needs_name_refinement, _has_suspicious_name_noise, _can_infer_missing_issue_date, _merge_visual_sources, _pick_preferred_full_name, _full_name_matches_family, _full_name_matches_current_name, _build_given_name_hint, _extract_given_name_hint)
+from services.scan_budget import _build_budget_notes, _classify_ocr_mode, _ocr_mode_reasons
+from services.passport_logic import (
+    _is_indonesian_passport,
+    _ocr_rotation_degrees,
+    _select_visual_field_names,
+    _select_balanced_visual_field_names,
+    _select_speed_visual_field_names,
+    _select_heavy_visual_field_names,
+    _missing_profile_visual_panel_fields,
+    _missing_speed_location_panel_fields,
+    _should_try_speed_location_ocr,
+    _should_try_recovery_location_ocr,
+    _visual_fields_need_aligned_page,
+    _select_panel_field_names,
+    _should_skip_panel_for_direct_location_only,
+    _should_extract_dates,
+    _should_refine_names,
+    _can_infer_missing_issue_date,
+    _merge_visual_sources,
+    _pick_preferred_full_name,
+    _build_given_name_hint,
+    _select_profile_panel_field_names,
+    _should_run_initial_panel_scan,
+    _needs_name_refinement,
+)
 
 def _stage_mrz(ctx: ScanContext) -> None:
+    logger.debug("[%s] Stage: mrz", ctx.file_name)
     ctx.report_step('mrz', 'Mengekstrak MRZ', 0.16, '  - extracting MRZ')
     stage_started = time.perf_counter()
     try:
@@ -54,8 +71,10 @@ def _stage_mrz(ctx: ScanContext) -> None:
     except Exception as exc:  # noqa: BLE001
         ctx.mrz_error = str(exc)
     ctx.record_stage_duration('mrz', stage_started)
+    logger.debug("[%s] Stage mrz done in %dms", ctx.file_name, ctx.stage_durations_ms.get("mrz", 0))
 
 def _stage_initial_panel(ctx: ScanContext) -> None:
+    logger.debug("[%s] Stage: initial_panel", ctx.file_name)
     if _should_run_initial_panel_scan(ctx.ocr_profile, ctx.extraction):
         panel_field_names = _select_profile_panel_field_names(ctx.ocr_profile, ctx.parsed, ctx.extraction)
         if _should_skip_panel_for_direct_location_only(ctx.parsed, ctx.extraction, panel_field_names):
@@ -76,6 +95,7 @@ def _stage_initial_panel(ctx: ScanContext) -> None:
             )
             ctx.parsed, ctx.panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, ctx.panel_fields)
             ctx.record_stage_duration('panel', stage_started)
+            logger.debug("[%s] Stage panel done in %dms", ctx.file_name, ctx.stage_durations_ms.get("panel", 0))
         else:
             ctx.skip_stage('panel')
             ctx.panel_field_names = ()
@@ -83,8 +103,9 @@ def _stage_initial_panel(ctx: ScanContext) -> None:
         ctx.panel_field_names = ()
 
 def _stage_visual_fields(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
-    heavy_scan = ctx.ocr_profile == OcrProfile.HEAVY
+    logger.debug("[%s] Stage: visual_fields", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
+    heavy_scan = ctx.is_heavy_scan
     is_indonesian_passport = _is_indonesian_passport(ctx.parsed, ctx.extraction, ctx.panel_fields) or (
         speed_first_scan and _should_try_speed_location_ocr(ctx.parsed, ctx.extraction)
     ) or (
@@ -142,11 +163,13 @@ def _stage_visual_fields(ctx: ScanContext) -> None:
             else:
                 ctx.skip_stage("visual")
         ctx.record_stage_duration("visual", stage_started)
+        logger.debug("[%s] Stage visual done in %dms", ctx.file_name, ctx.stage_durations_ms.get("visual", 0))
     else:
         ctx.visual_field_names = ()
 
 def _stage_speed_panel(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    logger.debug("[%s] Stage: speed_panel", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
     if speed_first_scan:
         missing_speed_panel_fields = _missing_speed_location_panel_fields(ctx.visual_field_names, ctx.visual_fields)
         if missing_speed_panel_fields:
@@ -167,11 +190,13 @@ def _stage_speed_panel(ctx: ScanContext) -> None:
                 ctx.parsed, speed_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, speed_panel_fields)
                 ctx.panel_notes = join_notes(ctx.panel_notes, speed_panel_notes)
                 ctx.record_stage_duration("panel", stage_started)
+                logger.debug("[%s] Stage speed_panel done in %dms", ctx.file_name, ctx.stage_durations_ms.get("panel", 0))
             else:
                 ctx.skip_stage("speed_panel")
 
 def _stage_recovery_panel(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    logger.debug("[%s] Stage: recovery_panel", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
     if not speed_first_scan:
         missing_profile_panel_fields = _missing_profile_visual_panel_fields(
             ctx.ocr_profile,
@@ -212,7 +237,8 @@ def _stage_recovery_panel(ctx: ScanContext) -> None:
                 ctx.skip_stage("panel")
 
 def _stage_visual_recovery(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    logger.debug("[%s] Stage: visual_recovery", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
     if ctx.skipped_panel_field_names and not speed_first_scan:
         missing_panel_fields = tuple(
             field_name
@@ -245,12 +271,14 @@ def _stage_visual_recovery(ctx: ScanContext) -> None:
                     rotation_degrees=ctx.ocr_rotation_degrees,
                 )
                 ctx.visual_fields.update(recovered_visual_fields)
-                ctx.record_stage_duration("visual", stage_started)
+                ctx.record_stage_duration("visual_recovery", stage_started)
+                logger.debug("[%s] Stage visual_recovery done in %dms", ctx.file_name, ctx.stage_durations_ms.get("visual_recovery", 0))
             else:
                 ctx.skip_stage("visual_recovery")
 
 def _stage_fallback_panel(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    logger.debug("[%s] Stage: fallback_panel", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
     if ctx.skipped_panel_field_names and not speed_first_scan:
         missing_panel_fields = tuple(
             field_name
@@ -285,11 +313,13 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
                 ctx.panel_notes = join_notes(ctx.panel_notes, panel_notes)
                 ctx.panel_fields.update(panel_fields)
                 ctx.record_stage_duration("panel", stage_started)
+                logger.debug("[%s] Stage fallback_panel done in %dms", ctx.file_name, ctx.stage_durations_ms.get("panel", 0))
             else:
                 ctx.skip_stage("panel")
 
 def _stage_dates_recovery(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    logger.debug("[%s] Stage: dates_recovery", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
     ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
     ctx.parsed = merge_visual_fields(ctx.parsed, ctx.merged_visual_fields)
     ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
@@ -331,9 +361,11 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
             
     ctx.parsed, ctx.date_repair_notes = _repair_impossible_expiry_date(ctx.parsed)
     ctx.record_stage_duration("dates", stage_started)
+    logger.debug("[%s] Stage dates_recovery done in %dms", ctx.file_name, ctx.stage_durations_ms.get("dates", 0))
 
 def _stage_names_recovery(ctx: ScanContext) -> None:
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    logger.debug("[%s] Stage: names_recovery", ctx.file_name)
+    speed_first_scan = ctx.is_speed_scan
     preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
     needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
     
@@ -360,8 +392,10 @@ def _stage_names_recovery(ctx: ScanContext) -> None:
     if final_name_notes:
         ctx.name_notes = join_notes(ctx.name_notes, final_name_notes)
     ctx.record_stage_duration("names", stage_started)
+    logger.debug("[%s] Stage names_recovery done in %dms", ctx.file_name, ctx.stage_durations_ms.get("names", 0))
 
 def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
+    logger.debug("[%s] Stage: validation_and_metrics", ctx.file_name)
     ctx.report_step("validate", "Validasi akhir", 0.96, "  - validating")
     stage_started = time.perf_counter()
     validation_member = {
@@ -371,8 +405,9 @@ def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
     }
     status, validation_notes = validate_member(validation_member)
     ctx.record_stage_duration("validate", stage_started)
+    logger.debug("[%s] Stage validation_and_metrics done in %dms", ctx.file_name, ctx.stage_durations_ms.get("validate", 0))
     
-    speed_first_scan = ctx.ocr_profile == OcrProfile.SPEED
+    speed_first_scan = ctx.is_speed_scan
     speed_scan_notes = "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED" if speed_first_scan else ""
     
     notes = join_notes(

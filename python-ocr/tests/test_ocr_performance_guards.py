@@ -23,39 +23,9 @@ from services.mrz_extractor import DirectMrzResult, _extract_direct_mrz_from_reg
 from services.ocr_result_cache import clear_ocr_result_cache
 from services.passport_page import clear_passport_page_cache, collect_ocr_lines, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
-from main import (
-    _apply_final_name_repairs,
-    _apply_fast_date_repairs,
-    _apply_fast_mrz_repairs,
-    _apply_indonesian_visual_repairs,
-    _apply_verified_mrz_name_repairs,
-    _apply_verified_single_word_name,
-    _build_budget_notes,
-    _can_infer_missing_issue_date,
-    _has_ocr_budget_for_elapsed,
-    _is_balanced_scan,
-    _is_heavy_scan,
-    _is_speed_first_scan,
-    _missing_profile_visual_panel_fields,
-    _ocr_budget_ms,
-    _ocr_profile,
-    _missing_speed_location_panel_fields,
-    _ocr_rotation_degrees,
-    _pick_preferred_full_name,
-    _repair_impossible_expiry_date,
-    _select_balanced_visual_field_names,
-    _select_heavy_visual_field_names,
-    _select_panel_field_names,
-    _select_profile_panel_field_names,
-    _select_speed_visual_field_names,
-    _select_visual_field_names,
-    _should_run_initial_panel_scan,
-    _should_refine_names,
-    _should_skip_panel_for_direct_location_only,
-    _should_try_recovery_location_ocr,
-    _should_try_speed_location_ocr,
-    _visual_fields_need_aligned_page,
-)
+from services.data_repairs import _apply_final_name_repairs, _apply_fast_date_repairs, _apply_fast_mrz_repairs, _apply_indonesian_visual_repairs, _apply_verified_mrz_name_repairs, _apply_verified_single_word_name, _repair_impossible_expiry_date
+from services.passport_logic import _can_infer_missing_issue_date, _missing_profile_visual_panel_fields, _missing_speed_location_panel_fields, _ocr_rotation_degrees, _pick_preferred_full_name, _select_balanced_visual_field_names, _select_heavy_visual_field_names, _select_panel_field_names, _select_profile_panel_field_names, _select_speed_visual_field_names, _select_visual_field_names, _should_run_initial_panel_scan, _should_refine_names, _should_skip_panel_for_direct_location_only, _should_try_recovery_location_ocr, _should_try_speed_location_ocr, _visual_fields_need_aligned_page
+from services.scan_budget import _build_budget_notes, _has_ocr_budget_for_elapsed, _is_balanced_scan, _is_heavy_scan, _is_speed_first_scan, _ocr_budget_ms, _ocr_profile
 
 
 class OcrPerformanceGuardTests(unittest.TestCase):
@@ -551,7 +521,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         }
         extraction = {"data": {"line2": "X6725064<91DN9501289F30112616403066801000176"}}
 
-        self.assertEqual(_select_speed_visual_field_names(parsed, extraction), ("placeOfBirth", "issuingOffice", "fullName", "dob", "doe", "gender"))
+        self.assertEqual(_select_speed_visual_field_names(parsed, extraction), ("placeOfBirth", "issuingOffice"))
         self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"line2": "A1234567<8USA9001011M3001012<<<<<<<<<<<<<<04"}}), ())
 
     def test_speed_location_ocr_skips_ambiguous_indonesian_passport_numbers_by_default(self) -> None:
@@ -578,7 +548,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
         with patch.dict("os.environ", {"PASSPORT_LOCATION_OCR_AMBIGUOUS": "1"}, clear=False):
             self.assertTrue(_should_try_speed_location_ocr(parsed, {"data": {"country": ""}}))
-            self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ("placeOfBirth", "issuingOffice", "fullName", "dob", "doe", "gender"))
+            self.assertEqual(_select_speed_visual_field_names(parsed, {"data": {"country": ""}}), ("placeOfBirth", "issuingOffice"))
 
     def test_recovery_location_ocr_allows_ambiguous_indonesian_passport_without_speed_opt_in(self) -> None:
         parsed = {

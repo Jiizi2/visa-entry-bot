@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from main import _classify_ocr_mode, _ocr_mode_reasons  # noqa: E402
+from services.scan_budget import _classify_ocr_mode, _ocr_mode_reasons  # noqa: E402
 
 
 class OcrModeTests(unittest.TestCase):

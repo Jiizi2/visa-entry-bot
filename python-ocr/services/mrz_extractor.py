@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from services.log import logger
 import shutil
 import warnings
 from dataclasses import dataclass, replace
@@ -9,6 +10,7 @@ from datetime import date, datetime
 from typing import Any
 
 from services.models import ParsedPassportData
+from services.mrz_validation import calculate_mrz_check_digit as _mrz_check_digit
 
 try:
     import cv2
@@ -86,18 +88,29 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     quality_penalty, quality_notes = assess_document_quality(file_path)
-    mrz, source_note = _read_best_mrz(file_path)
+    try:
+        mrz, source_note = _read_best_mrz(file_path)
+    except Exception as exc:
+        logger.warning("MRZ extraction failed for %s: %s", file_path, exc)
+        raise ValueError(f"MRZ extraction failed: {exc}")
+        
     if mrz is None:
+        logger.warning("MRZ not detected for %s", file_path)
         raise ValueError(_merge_notes("MRZ not detected.", quality_notes))
 
     data = _repair_extracted_mrz_data(_to_dictionary(mrz))
     if not data:
+        logger.warning("PassportEye returned empty MRZ data for %s", file_path)
         raise ValueError("PassportEye returned empty MRZ data.")
     mrz_validation = _build_mrz_validation(data)
 
+    confidence = _calculate_confidence(mrz, data, quality_penalty)
+    if confidence < 0.5:
+        logger.debug("Low MRZ confidence (%.2f) for %s", confidence, file_path)
+
     return {
         "data": data,
-        "confidence": _calculate_confidence(mrz, data, quality_penalty),
+        "confidence": confidence,
         "notes": _merge_notes(_build_notes(mrz), source_note, quality_notes, _build_validation_note(mrz_validation)),
         "mrzValidation": mrz_validation.to_dict(),
     }
@@ -389,8 +402,6 @@ def _score_direct_line2(line2: str) -> int:
     return int(checks)
 
 
-def _mrz_check_digit(value: str) -> str:
-    return str(sum(_mrz_char_value(char) * (7, 3, 1)[index % 3] for index, char in enumerate(value)) % 10)
 
 
 def _mrz_char_value(char: str) -> int:

@@ -11,13 +11,11 @@ from services.parser import clean_country
 from services.resolved_name_rules import build_resolved_name_fields
 from services.review_flags import build_review_flags, empty_review_flags
 from services.transliterator import transliterate_name
+from services.path_utils import normalize_filesystem_path as _normalize_filesystem_path
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-EMAIL_TEMPLATE = "huseinghanim@gmail.com"
-MOBILE_TEMPLATE = "+6282137434147"
-DEFAULT_PROFESSION = "OTHER"
-DEFAULT_MARITAL_STATUS = "OTHER"
-DEFAULT_PASSPORT_TYPE = "NORMAL"
+from services.config import DEFAULT_EMAIL as EMAIL_TEMPLATE, DEFAULT_MOBILE as MOBILE_TEMPLATE, DEFAULT_PROFESSION, DEFAULT_MARITAL_STATUS, DEFAULT_PASSPORT_TYPE
 
 
 def build_error_record(file_name: str, file_path: str, message: str) -> dict[str, object]:
@@ -395,10 +393,3 @@ def _relative_path(path: str) -> str:
         return normalized_path.replace(os.sep, "/")
 
 
-def _normalize_filesystem_path(path: str) -> str:
-    text = str(path or "").strip()
-    if text.startswith("\\\\?\\UNC\\"):
-        return "\\\\" + text[8:]
-    if text.startswith("\\\\?\\"):
-        return text[4:]
-    return text

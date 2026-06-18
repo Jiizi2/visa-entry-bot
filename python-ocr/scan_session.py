@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import Callable
 
 from main import ROOT_DIR, has_passport_folder, process_passport, resolve_passports_dir, write_manifest
+from services.path_utils import normalize_filesystem_path as _normalize_filesystem_path
+
 from services.image_preprocessor import cleanup_temp_root
 from services.nusuk_manifest import build_error_record
 from services.pdf_image_converter import PdfImageConversionResult, convert_pdf_to_images
@@ -559,10 +561,3 @@ def _manifest_relative_path(path: str) -> str:
         return normalized_path.replace(os.sep, "/")
 
 
-def _normalize_filesystem_path(path: str) -> str:
-    text = str(path or "").strip()
-    if text.startswith("\\\\?\\UNC\\"):
-        return "\\\\" + text[8:]
-    if text.startswith("\\\\?\\"):
-        return text[4:]
-    return text

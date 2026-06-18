@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import Any
 
 from services.models import ParsedPassportData
+from services.mrz_validation import calculate_mrz_check_digit as _mrz_check_digit
 
 COUNTRY_NAMES = {
     "IDN": "INDONESIA",
@@ -594,8 +595,6 @@ def _line2_check_score(line2: str) -> int:
     return int(checks)
 
 
-def _mrz_check_digit(value: str) -> str:
-    return str(sum(_mrz_char_value(char) * (7, 3, 1)[index % 3] for index, char in enumerate(value)) % 10)
 
 
 def _mrz_char_value(char: str) -> int:

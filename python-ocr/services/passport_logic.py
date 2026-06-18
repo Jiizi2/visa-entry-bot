@@ -1,46 +1,33 @@
 from __future__ import annotations
 
-import json
 import os
 import re
-import sys
-import time
-from datetime import date
-from typing import Callable
+from typing import Any
 
-from services.models import OcrProfile, ParsedPassportData, ExtractionEvidence, ReviewStatus, OcrMode
-from services.date_field_extractor import extract_document_dates
-from services.image_preprocessor import (
-    cleanup_temp_root,
-    clear_image_preprocess_cache,
-    get_image_preprocessor_stats,
-    reset_image_preprocessor_stats,
-)
-from services.indonesia_field_ocr import (
-    build_visual_notes,
-    extract_fast_location_fields,
-    extract_visual_fields,
-    get_fast_location_ocr_stats,
-    merge_visual_fields,
-    reset_fast_location_ocr_stats,
-)
+from services.models import OcrProfile, ParsedPassportData, ExtractionEvidence
 from services.issue_date_extractor import infer_issue_date
-from services.mrz_extractor import extract_mrz_data
-from services.name_support import is_reasonable_token, repair_common_given_name_spacing, repair_common_name_noise, repair_single_word_name, salvage_family_hints, score_name_fields, token_matches_simple
-from services.nusuk_manifest import build_error_record, build_member_record
-from services.ocr_result_cache import end_ocr_result_cache_session, get_ocr_result_cache_stats, start_ocr_result_cache_session
-from services.panel_fallback import extract_document_panel_fields, fuse_panel_fields, should_use_panel_fallback
-from services.passport_page import clear_passport_page_cache, extract_aligned_passport_page
-from services.parser import format_date, parse_mrz_data
-from services.ocr_runner import get_ocr_stats, reset_ocr_stats
-from services.validator import calculate_confidence, validate_member
-from services.visual_name_extractor import refine_names_from_scan
-from services.scan_context import ScanContext
-
-from services.ocr_constants import (OCR_PROFILE_BUDGET_MS, OCR_BALANCED_PANEL_RECOVERY_FIELDS, OCR_FULL_PANEL_FIELD_SCOPE, OCR_FULL_VISUAL_FIELD_SCOPE, OCR_STAGE_MIN_REMAINING_MS, StepCallback)
-
-from services.scan_budget import (_ocr_profile, _is_speed_first_scan, _is_balanced_scan, _is_heavy_scan, _ocr_budget_ms, _elapsed_ms, _time_left_ms, _has_ocr_budget_for_elapsed, _can_spend_ocr_time, _budget_exceeded, _skip_ocr_stage, _build_budget_notes, _classify_ocr_mode, _ocr_mode_reasons)
-from services.data_repairs import (_has_indonesian_mrz_hint, _looks_like_noisy_indonesia_code, _has_valid_mrz_validation, _has_failed_mrz_validation, _has_reliable_mrz_for_fast_path, _apply_indonesian_visual_repairs, _apply_fast_mrz_repairs, _recover_passport_number_from_mrz, _recover_dob_from_unverified_mrz, _recover_gender_from_unverified_mrz, _mrz_text_values, _normalize_mrz_country_hint, _apply_verified_single_word_name, _apply_verified_mrz_name_repairs, _apply_final_name_repairs, _compact_name_value, _apply_fast_date_repairs, _repair_impossible_expiry_date, _mrz_confidence, _is_iso_date, _parse_iso_date)
+from services.name_support import salvage_family_hints, score_name_fields, token_matches_simple, is_reasonable_token
+from services.panel_fallback import should_use_panel_fallback
+from services.ocr_constants import (
+    OCR_BALANCED_PANEL_RECOVERY_FIELDS,
+    OCR_FULL_PANEL_FIELD_SCOPE,
+    OCR_FULL_VISUAL_FIELD_SCOPE,
+)
+from services.scan_budget import _ocr_profile, _is_speed_first_scan, _is_balanced_scan, _is_heavy_scan
+from services.data_repairs import (
+    _has_indonesian_mrz_hint,
+    _looks_like_noisy_indonesia_code,
+    _has_valid_mrz_validation,
+    _has_failed_mrz_validation,
+    _has_reliable_mrz_for_fast_path,
+    _mrz_text_values,
+    _normalize_mrz_country_hint,
+    _apply_verified_single_word_name,
+    _compact_name_value,
+    _mrz_confidence,
+    _is_iso_date,
+    _parse_iso_date,
+)
 
 def _should_run_initial_panel_scan(ocr_profile: str, extraction: ExtractionEvidence) -> bool:
     if ocr_profile == OcrProfile.SPEED:

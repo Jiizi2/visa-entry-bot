@@ -13,9 +13,7 @@ from main import print_summary  # noqa: E402
 
 class MainSummaryTests(unittest.TestCase):
     def test_print_summary_includes_needs_review_count(self) -> None:
-        stream = io.StringIO()
-
-        with contextlib.redirect_stdout(stream):
+        with self.assertLogs("entrymate.ocr", level="INFO") as log:
             print_summary(
                 [
                     {"status": "VALID", "reviewStatus": "VALID"},
@@ -23,8 +21,7 @@ class MainSummaryTests(unittest.TestCase):
                     {"status": "ERROR", "reviewStatus": "ERROR"},
                 ]
             )
-
-        self.assertEqual(stream.getvalue().strip(), "Processed 3 files: 2 VALID, 1 ERROR, 1 NEEDS_REVIEW")
+        self.assertIn("Processed 3 files: 2 VALID, 1 ERROR, 1 NEEDS_REVIEW", log.output[0])
 
 
 if __name__ == "__main__":
