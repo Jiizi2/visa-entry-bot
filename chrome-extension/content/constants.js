@@ -49,7 +49,7 @@
     AUTOFILL_MEMBER_WATCHDOG_MS: 180000,
     AUTOFILL_SESSION_RECOVERY_WAIT_MS: 180000,
     UPLOAD_MIN_TARGET_BYTES: 0,
-    UPLOAD_MAX_BYTES: 1024 * 1024,
+    UPLOAD_MAX_BYTES: 1000000,
     PASSPORT_UPLOAD_SELECTOR: [
       ".passport-upload-section input[type='file']",
       ".passport-upload-section .upload-container input[type='file']",

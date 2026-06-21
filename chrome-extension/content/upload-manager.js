@@ -105,7 +105,7 @@
         const estimatedScale = Math.sqrt(targetBytes / Math.max(1, file.size));
         const scaleCandidates = file.size > UPLOAD_MAX_BYTES
           ? uniqueNumbers([estimatedScale, estimatedScale * 0.9, estimatedScale * 0.78, 0.72, 0.58, 0.45, 0.32, 0.22], 0.08, 1)
-          : uniqueNumbers([estimatedScale, estimatedScale * 1.12, estimatedScale * 1.3, 1.35, 1.7, 2.2, 3, 4], 1, 5);
+          : uniqueNumbers([estimatedScale, estimatedScale * 1.12, estimatedScale * 1.3, 1.35, 1.7, 2.2, 3, 4], Math.min(1.0, estimatedScale), 5);
         const qualityCandidates = file.size < UPLOAD_MIN_TARGET_BYTES
           ? [0.96, 0.92, 0.88]
           : [0.86, 0.78, 0.7, 0.62, 0.54];
@@ -188,7 +188,7 @@
     }
 
     function formatBytesAsKb(bytes) {
-      return `${Math.max(1, Math.round(Number(bytes || 0) / 1024))} KB`;
+      return `${Math.max(1, Math.round(Number(bytes || 0) / 1000))} KB`;
     }
 
     async function trySetFileInputWithDebugger(input, filePath, runId = state.runToken) {

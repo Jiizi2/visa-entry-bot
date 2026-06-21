@@ -243,3 +243,36 @@ test("upload file store resolves selected files by basename and rejects duplicat
     null,
   );
 });
+
+test("looksLikeUploadError distinguishes between hints and actual errors", () => {
+  const root = loadBrowserScripts([
+    "content/constants.js",
+    "content/value-utils.js",
+    "content/dom-utils.js",
+    "content/step-upload-actions.js",
+  ], {
+    extra: {
+      chrome: {
+        runtime: {
+          getURL: () => "chrome-extension://test/",
+        },
+      },
+    },
+  });
+
+  const looksLikeUploadError = root.stepUploadActions.looksLikeUploadError;
+
+  // Static Hints (Should NOT be classified as upload errors)
+  assert.equal(looksLikeUploadError("Allowed file size: 1 MB", true), false);
+  assert.equal(looksLikeUploadError("Allowed file size 1MB", true), false);
+  assert.equal(looksLikeUploadError("Maximum file size: 1 MB", true), false);
+  assert.equal(looksLikeUploadError("Supported formats: jpeg, png", true), false);
+  assert.equal(looksLikeUploadError("Allowed file size 1024 KB", true), false);
+
+  // Actual Errors (Should be classified as upload errors)
+  assert.equal(looksLikeUploadError("File size exceeded the allowed limit of 1MB", true), true);
+  assert.equal(looksLikeUploadError("File size too large", true), true);
+  assert.equal(looksLikeUploadError("Invalid file type", true), true);
+  assert.equal(looksLikeUploadError("Upload failed", false), true);
+  assert.equal(looksLikeUploadError("Maximum file size exceeded", true), true);
+});

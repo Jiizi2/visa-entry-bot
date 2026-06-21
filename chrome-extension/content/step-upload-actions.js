@@ -493,23 +493,33 @@
   function isUploadRequirementHint(normalized) {
     if (
       normalized.includes("allowed file size")
-      && normalized.includes("1024 kb")
+      && (
+        normalized.includes("1024 kb")
+        || normalized.includes("1 mb")
+        || normalized.includes("1mb")
+        || normalized.includes("1000 kb")
+        || normalized.includes("1000kb")
+      )
     ) {
       return true;
     }
-    const isFormatHint = normalized.includes("supported format")
+    const isGeneralHint = normalized.includes("supported format")
       || normalized.includes("supported formats")
       || normalized.includes("accepted format")
-      || normalized.includes("accepted formats");
-    if (!isFormatHint) {
+      || normalized.includes("accepted formats")
+      || normalized.includes("maximum file size")
+      || normalized.includes("allowed file size");
+    if (!isGeneralHint) {
       return false;
     }
     return !(
-      normalized.includes("allowed file size")
-      || normalized.includes("invalid")
+      normalized.includes("invalid")
       || normalized.includes("not allowed")
       || normalized.includes("failed")
       || normalized.includes("error")
+      || normalized.includes("exceeded")
+      || normalized.includes("too large")
+      || normalized.includes("exceeds")
     );
   }
 
@@ -542,5 +552,6 @@
 
   root.stepUploadActions = Object.freeze({
     createStepUploadActions,
+    looksLikeUploadError,
   });
 })();

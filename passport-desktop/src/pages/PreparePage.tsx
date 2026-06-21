@@ -220,8 +220,8 @@ export default function PreparePage() {
     if (!dataUrl || !dataUrl.includes('base64,')) return { bytes: 0, formatted: '0 KB', isOversize: false };
     const base64str = dataUrl.split('base64,')[1];
     const bytes = Math.round(base64str.length * 0.75);
-    const mb = bytes / (1024 * 1024);
-    const formatted = mb >= 1 ? `${mb.toFixed(2)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
+    const mb = bytes / 1000000;
+    const formatted = mb >= 1 ? `${mb.toFixed(2)} MB` : `${Math.round(bytes / 1000)} KB`;
     return { bytes, formatted, isOversize: bytes > 1000000 };
   };
 
