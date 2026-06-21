@@ -101,6 +101,7 @@ function Build-FunModeWorker {
       --add-data "${RepoRoot}\passport-desktop\public\review_complete.jpeg;." `
       --add-data "${RepoRoot}\passport-desktop\public\export_complete.jpeg;." `
       --collect-submodules passporteye `
+      --collect-all rapidocr_onnxruntime `
       --copy-metadata imageio `
       main_fun.py
     if ($LASTEXITCODE -ne 0) {

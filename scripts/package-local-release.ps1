@@ -153,6 +153,7 @@ function Build-OcrWorker {
       --specpath $SpecRoot `
       --add-data "${ServicesData};services\data" `
       --collect-submodules passporteye `
+      --collect-all rapidocr_onnxruntime `
       --copy-metadata imageio `
       scan_worker.py
     if ($LASTEXITCODE -ne 0) {
