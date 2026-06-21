@@ -4,6 +4,14 @@ import os
 import re
 from time import perf_counter
 
+max_threads = os.environ.get("PASSPORT_OCR_MAX_THREADS", "").strip()
+if max_threads:
+    os.environ["OMP_NUM_THREADS"] = max_threads
+    os.environ["MKL_NUM_THREADS"] = max_threads
+    os.environ["OPENBLAS_NUM_THREADS"] = max_threads
+    os.environ["VECLIB_MAXIMUM_THREADS"] = max_threads
+    os.environ["NUMEXPR_NUM_THREADS"] = max_threads
+
 try:
     from rapidocr_onnxruntime import RapidOCR
     RAPID_OCR_INSTANCE = RapidOCR()

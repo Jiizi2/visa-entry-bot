@@ -8,10 +8,6 @@ from dataclasses import dataclass
 from services.mrz_validation import validate_td3_line2
 from services.ocr_runner import build_ocr_config, run_rapid_ocr
 
-try:
-    import pytesseract
-except ImportError:  # pragma: no cover - depends on local environment
-    pytesseract = None
 
 DEFAULT_PDF_DPI = 200
 MAX_PDF_DPI = 200
@@ -260,18 +256,6 @@ def _looks_like_td3_line1(line: str) -> bool:
 
 
 
-def _resolve_tesseract_cmd() -> str | None:
-    configured = os.environ.get("TESSERACT_CMD")
-    candidates = [
-        configured,
-        shutil.which("tesseract"),
-        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-    ]
-    for candidate in candidates:
-        if candidate and os.path.exists(candidate):
-            return candidate
-    return None
 
 
 def _safe_stem(path: str) -> str:

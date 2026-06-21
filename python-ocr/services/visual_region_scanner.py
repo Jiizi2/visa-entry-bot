@@ -82,14 +82,15 @@ def _build_variants(region: object) -> list[object]:
     else:
         gray = region
         
-    scaled = cv2.resize(gray, None, fx=4.0, fy=4.0, interpolation=cv2.INTER_CUBIC)
+    scale = 2.0 if profile == OcrProfile.SPEED else 4.0
+    scaled = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    
+    if profile == OcrProfile.SPEED:
+        return [scaled]
     
     variants = [scaled]
     clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(scaled)
     variants.append(clahe)
-    
-    if profile == OcrProfile.SPEED:
-        return variants
     
     sharpened = cv2.addWeighted(clahe, 1.5, cv2.GaussianBlur(clahe, (0, 0), 1.5), -0.5, 0)
     variants.append(sharpened)

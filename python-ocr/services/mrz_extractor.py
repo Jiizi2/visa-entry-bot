@@ -76,7 +76,7 @@ class DirectMrzResult:
         }
 
 
-def extract_mrz_data(file_path: str) -> dict[str, Any]:
+def _initialize_tesseract_if_needed() -> None:
     if read_mrz is None:
         detail = f": {PASSPORTEYE_IMPORT_ERROR}" if PASSPORTEYE_IMPORT_ERROR else "."
         raise RuntimeError(f"passporteye is not installed{detail}")
@@ -87,6 +87,8 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
         raise RuntimeError("Tesseract executable is not installed or not available on PATH.")
     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
+
+def extract_mrz_data(file_path: str) -> dict[str, Any]:
     quality_penalty, quality_notes = assess_document_quality(file_path)
     try:
         mrz, source_note = _read_best_mrz(file_path)
@@ -120,6 +122,12 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     direct_mrz = _read_direct_mrz(file_path)
     if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
         return direct_mrz, _direct_mrz_note(direct_mrz)
+
+    is_speed = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower() == "speed"
+    if is_speed:
+        return direct_mrz, _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
+
+    _initialize_tesseract_if_needed()
 
     best_mrz = direct_mrz
     best_note = _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
@@ -246,16 +254,15 @@ def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
         gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
     candidates: list[DirectMrzResult] = []
     for variant in _build_direct_mrz_variants(gray):
-        for psm in (6, 7, 13):
-            config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
-            text = run_rapid_ocr(variant, config)
-            if not text:
-                continue
-            lines = _clean_direct_mrz_lines(text)
-            candidates.extend(_direct_mrz_candidates_from_lines(lines))
-            best_candidate = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
-            if _is_high_confidence_indonesian_direct_mrz(best_candidate):
-                return best_candidate
+        config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
+        text = run_rapid_ocr(variant, config)
+        if not text:
+            continue
+        lines = _clean_direct_mrz_lines(text)
+        candidates.extend(_direct_mrz_candidates_from_lines(lines))
+        best_candidate = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+        if _is_high_confidence_indonesian_direct_mrz(best_candidate):
+            return best_candidate
     return max(candidates, default=None, key=lambda candidate: candidate.valid_score)
 
 
