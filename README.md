@@ -4,6 +4,8 @@
 
 Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari tiga komponen yang beroperasi secara mandiri dan berkomunikasi lewat file JSON.
 
+> **OCR Engine**: RapidOCR (ONNX Runtime) — ringan, cepat, dan tidak membutuhkan instalasi Tesseract di device target.
+
 ---
 
 ## Arsitektur
@@ -31,7 +33,7 @@ Desktop app dan extension **tidak berkomunikasi secara langsung**. JSON adalah s
 | Komponen | Lokasi | Teknologi |
 |---|---|---|
 | Desktop App | `passport-desktop/` | Tauri 2 · Rust · React 19 · TypeScript · TailwindCSS 4 |
-| OCR Worker | `python-ocr/` | Python 3.12 · Tesseract · OpenCV · passporteye |
+| OCR Worker | `python-ocr/` | Python 3.12 · RapidOCR (ONNX Runtime) · OpenCV · passporteye |
 | Browser Extension | `chrome-extension/` | Chrome MV3 · Vanilla JS |
 | Packaging | `scripts/` | PowerShell |
 
@@ -67,7 +69,7 @@ Desktop app dan extension **tidak berkomunikasi secara langsung**. JSON adalah s
 - Node.js ≥ 20
 - Rust / cargo ≥ 1.95 (install via [rustup](https://rustup.rs))
 - Python 3.12 + virtualenv di `python-ocr/.venv`
-- Tesseract OCR terinstall di sistem
+- Tesseract OCR terinstall di sistem _(opsional, hanya untuk fallback MRZ via passporteye)_
 - **Windows**: Visual Studio Build Tools 2022 dengan workload C++/MSVC
 
 ### Menjalankan Desktop App
@@ -110,7 +112,7 @@ npm run package:local
 ```
 
 Output di `.local-release/entrymate-by-ghaniya-<version>-<timestamp>/`:
-- **`entrymate-by-ghaniya-desktop-<version>-setup.exe`** — Installer desktop, sudah membawa OCR worker executable dan Tesseract. Device target tidak perlu install Python atau Tesseract.
+- **`entrymate-by-ghaniya-desktop-<version>-setup.exe`** — Installer desktop, sudah membawa OCR worker executable (RapidOCR) dan Tesseract (untuk fallback MRZ). Device target tidak perlu install Python, Tesseract, atau dependency OCR lainnya.
 
 Dengan flag portable:
 
@@ -132,6 +134,8 @@ powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -Incl
 ---
 
 ## Mode OCR
+
+Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang berjalan lokal tanpa GPU. Tesseract hanya digunakan sebagai fallback untuk ekstraksi MRZ via library `passporteye`.
 
 | Mode | Budget | Cocok Untuk |
 |---|---|---|
@@ -161,7 +165,7 @@ visa-entry-bot/
 │   │   └── utils/           # export, fields, helpers, members, transliterator
 │   └── src-tauri/           # Rust backend
 │       └── src/lib.rs       # Semua Tauri commands (1941 baris)
-├── python-ocr/              # OCR worker
+├── python-ocr/              # OCR worker (RapidOCR + passporteye)
 │   ├── scan_worker.py       # Entry point (dipanggil Rust)
 │   ├── scan_session.py      # Session management
 │   ├── main.py              # Pipeline OCR per file

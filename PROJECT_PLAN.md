@@ -97,7 +97,7 @@ File JSON menjadi satu-satunya kontrak antara desktop app dan extension. Tidak a
 
 ### OCR production readiness
 
-Rencana peningkatan OCR passport Indonesia dicatat di `python-ocr/PARTIAL_REFACTOR_PLAN.md`. Dokumen tersebut menjadi acuan untuk refactor bertahap: mulai dari golden dataset dan benchmark, lalu MRZ validation, field evidence, mode OCR hemat resource, layout profile Indonesia, dan failure handling production.
+Engine OCR utama telah dimigrasikan ke **RapidOCR (ONNX Runtime)**. Tesseract hanya digunakan sebagai fallback untuk ekstraksi MRZ via library `passporteye`. Rencana peningkatan OCR passport Indonesia dicatat di `python-ocr/PARTIAL_REFACTOR_PLAN.md`. Dokumen tersebut menjadi acuan untuk refactor bertahap: mulai dari golden dataset dan benchmark, lalu MRZ validation, field evidence, mode OCR hemat resource, layout profile Indonesia, dan failure handling production.
 
 ### 2. Extension utama memakai `chrome-extension`
 
@@ -198,7 +198,7 @@ npm run package:local
 ```
 
 - Output lokal berada di `.local-release/entrymate-by-ghaniya-<version>-<timestamp>/`.
-- Paket berisi satu file installer desktop yang sudah membawa OCR worker executable + Tesseract, dan ZIP extension.
+- Paket berisi satu file installer desktop yang sudah membawa OCR worker executable (RapidOCR) + Tesseract (fallback MRZ), dan ZIP extension.
 - Paket tidak berisi passport, review artifact, atau manifest group lokal.
 
 ## File Kandidat Perubahan

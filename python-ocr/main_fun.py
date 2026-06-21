@@ -10,6 +10,11 @@ from PIL import Image, ImageTk
 from datetime import date
 from typing import Callable
 
+if hasattr(sys, '_MEIPASS'):
+    tess_path = os.path.join(sys._MEIPASS, 'tesseract')
+    if os.path.isdir(tess_path):
+        os.environ["PATH"] += os.pathsep + tess_path
+
 from services.log import logger
 
 from services.image_preprocessor import (
@@ -296,7 +301,17 @@ def _resolve_output_path_reference(path: str, manifest_dir: str) -> str:
 
 
 
+def get_resource_path(relative_path: str) -> str:
+    import sys
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    # Fallback for dev mode
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "passport-desktop", "public", relative_path)
+    if os.path.exists(path): return path
+    return relative_path
+
 def show_fun_modal(image_path: str, title: str) -> None:
+    image_path = get_resource_path(image_path)
     if not os.path.exists(image_path):
         logger.warning(f"File {image_path} tidak ditemukan!")
         return

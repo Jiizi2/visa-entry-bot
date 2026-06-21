@@ -5,6 +5,7 @@
     "desktop:browser": "npm --prefix passport-desktop run browser --",
     "desktop:build": "npm --prefix passport-desktop run build --",
     "desktop:test": "npm --prefix passport-desktop test",
-    "package:local": "powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1"
+    "package:local": "powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1",
+    "package:fun": "powershell -ExecutionPolicy Bypass -File scripts/package-fun-release.ps1"
   }
 }
