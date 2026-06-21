@@ -124,8 +124,8 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
     is_speed = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower() == "speed"
-    if is_speed:
-        return direct_mrz, _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
+    if is_speed and direct_mrz is not None and getattr(direct_mrz, "valid_score", 0) >= 98:
+        return direct_mrz, _direct_mrz_note(direct_mrz)
 
     _initialize_tesseract_if_needed()
 
