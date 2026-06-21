@@ -28,7 +28,7 @@ $TauriConfig = Get-Content $TauriConfigPath -Raw | ConvertFrom-Json
 $ExtensionManifest = Get-Content $ExtensionManifestPath -Raw | ConvertFrom-Json
 $Version = if ($TauriConfig.version) { [string]$TauriConfig.version } else { "0.0.0" }
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$ReleaseDir = Join-Path (Join-Path $RepoRoot $ReleaseRoot) "entrymate-by-ghaniya-$Version-$Stamp"
+$ReleaseDir = Join-Path (Join-Path $RepoRoot $ReleaseRoot) "entrymate-by-ghaniya-$Version-$Stamp-jiddan-version"
 $DesktopPortableDir = Join-Path $ReleaseDir "desktop-portable"
 $ExtensionReleaseDir = Join-Path $ReleaseDir "extension"
 $TauriReleaseResourcesDir = Join-Path $DesktopDir "src-tauri\release-resources"
@@ -253,7 +253,7 @@ try {
     throw "NSIS installer desktop tidak ditemukan di $BundleDir"
   }
 
-  $DesktopInstallerName = "entrymate-by-ghaniya-desktop-$Version-setup.exe"
+  $DesktopInstallerName = "entrymate-by-ghaniya-desktop-$Version-jiddan-version-setup.exe"
   $DesktopInstallerOutput = Join-Path $ReleaseDir $DesktopInstallerName
   Copy-Item -LiteralPath $Installer.FullName -Destination $DesktopInstallerOutput -Force
 
