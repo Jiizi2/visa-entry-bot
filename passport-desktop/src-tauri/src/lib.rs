@@ -452,7 +452,6 @@ fn prepare_passport_images(
 
     let worker_paths = locate_worker_paths()?;
     let mut command = Command::new(&worker_paths.command_executable);
-    configure_worker_tesseract_environment(&mut command, &worker_paths.repo_root);
     command
         .current_dir(&worker_paths.working_dir)
         .env("PYTHONUNBUFFERED", "1");
@@ -1618,7 +1617,6 @@ fn run_worker_process(
     cancel_requested: Arc<Mutex<bool>>,
 ) -> Result<(), String> {
     let mut command = Command::new(&worker_paths.command_executable);
-    configure_worker_tesseract_environment(&mut command, &worker_paths.repo_root);
     command
         .current_dir(&worker_paths.working_dir)
         .env("PYTHONUNBUFFERED", "1");
@@ -1749,54 +1747,7 @@ fn run_worker_process(
     Ok(())
 }
 
-fn configure_worker_tesseract_environment(command: &mut Command, repo_root: &Path) {
-    let Some(tesseract_cmd) = resolve_bundled_tesseract_cmd(repo_root) else {
-        return;
-    };
 
-    command.env("TESSERACT_CMD", &tesseract_cmd);
-    if let Some(tesseract_dir) = tesseract_cmd.parent() {
-        prepend_command_path(command, "PATH", tesseract_dir);
-        let tessdata_dir = tesseract_dir.join("tessdata");
-        if tessdata_dir.is_dir() {
-            command.env("TESSDATA_PREFIX", tessdata_dir);
-        }
-    }
-}
-
-fn resolve_bundled_tesseract_cmd(repo_root: &Path) -> Option<PathBuf> {
-    let executable_name = if cfg!(target_os = "windows") {
-        "tesseract.exe"
-    } else {
-        "tesseract"
-    };
-
-    [
-        repo_root.join("tesseract").join(executable_name),
-        repo_root.join("Tesseract-OCR").join(executable_name),
-        repo_root
-            .join("python-ocr")
-            .join("tesseract")
-            .join(executable_name),
-    ]
-    .into_iter()
-    .find(|candidate| candidate.is_file())
-}
-
-fn prepend_command_path(command: &mut Command, env_name: &str, directory: &Path) {
-    if !directory.is_dir() {
-        return;
-    }
-
-    let mut paths = vec![directory.to_path_buf()];
-    if let Some(current_path) = std::env::var_os(env_name) {
-        paths.extend(std::env::split_paths(&current_path));
-    }
-
-    if let Ok(joined_path) = std::env::join_paths(paths) {
-        command.env(env_name, joined_path);
-    }
-}
 
 fn terminate_active_child(active_child: &Arc<Mutex<Option<Child>>>) -> Result<(), String> {
     let mut guard = active_child

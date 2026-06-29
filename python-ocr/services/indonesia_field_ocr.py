@@ -13,7 +13,7 @@ from services.image_preprocessor import _load_image, build_processed_document_im
 from services.layout_profiles import load_indonesia_passport_layout_profile
 from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.parser import clean_gender
-from services.passport_page import collect_ocr_lines, collect_ocr_lines, crop_relative, extract_aligned_passport_page
+from services.passport_page import collect_ocr_lines, crop_relative, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
 from services.models import ParsedPassportData
 
@@ -24,14 +24,14 @@ _NAME_WORDS = _user_words_path("tesseract_indonesian_names.txt")
 
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 FIELD_CONFIG = {
-    "fullName":      {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name",    "user_words": _NAME_WORDS},
-    "nationality":   {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country", "user_words": None},
-    "dob":           {"psm": 7, "oem": 3, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
-    "gender":        {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender",  "user_words": None},
-    "placeOfBirth":  {"psm": 7, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text",    "user_words": _LOCATION_WORDS},
-    "issueDate":     {"psm": 7, "oem": 3, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
-    "expiryDate":    {"psm": 7, "oem": 3, "whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
-    "issuingOffice": {"psm": 6, "oem": 1, "whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text",    "user_words": _LOCATION_WORDS},
+    "fullName":      {"whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "name",    "user_words": _NAME_WORDS},
+    "nationality":   {"whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "country", "user_words": None},
+    "dob":           {"whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
+    "gender":        {"whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "gender",  "user_words": None},
+    "placeOfBirth":  {"whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text",    "user_words": _LOCATION_WORDS},
+    "issueDate":     {"whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
+    "expiryDate":    {"whitelist": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "date",    "user_words": None},
+    "issuingOffice": {"whitelist": "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", "kind": "text",    "user_words": _LOCATION_WORDS},
 }
 RAW_LOCATION_WINDOWS = {
     "placeOfBirth": (
@@ -56,7 +56,6 @@ RAW_LOCATION_WINDOWS = {
         (0.70, 0.94, 0.62, 1.00),
     ),
 }
-RAW_LOCATION_PSM_VALUES = {"placeOfBirth": (6, 11, 7), "issuingOffice": (6, 11, 12, 7)}
 RAW_LOCATION_WINDOW_ORDER = {
     "placeOfBirth": (0, 1, 2, 4, 5, 3, 6, 7),
     "issuingOffice": (0, 1, 2, 6, 7, 8, 3, 4, 5),
@@ -79,8 +78,6 @@ SPEED_LOCATION_WINDOWS = {
         (0.68, 0.94, 0.52, 1.00),
     ),
 }
-SPEED_LOCATION_PSM_VALUES = {"placeOfBirth": (7,), "issuingOffice": (7,)}
-SPEED_LOCATION_FALLBACK_PSM_VALUES = {"placeOfBirth": (7, 6), "issuingOffice": (7, 6)}
 SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD = 2
 SPEED_LOCATION_OCR_MAX_EDGE = 1800
 SPEED_LOCATION_DEBUG_SAMPLE_LIMIT = 16
@@ -258,30 +255,19 @@ def _extract_field(page: object, field_name: str, field_lines: list[int] | None 
         region = crop_relative(page, *window, field_lines=field_lines)
         if region is None:
             continue
-        psm_values = _field_psm_values(field_name, config["psm"])
-        include_psm_fallback = len(psm_values) == 1
-        for psm in (1,):
-            for text in scan_region_texts(
-                region, config["whitelist"],
-                variant_mode=variant_mode,
-                max_lines=12,
-                stop_when=_field_stop_when(field_name, config["kind"]),
-                include_psm_fallback=include_psm_fallback,
-                oem=config.get("oem", 3),
-                user_words_file=config.get("user_words"),
-            ):
-                value = _clean_value(field_name, text, config["kind"])
-                if _is_valid(value, field_name):
-                    candidates.append(value)
-            if _has_stable_field_candidate(field_name, candidates):
-                break
+        for text in scan_region_texts(
+            region, config["whitelist"],
+            variant_mode=variant_mode,
+            max_lines=12,
+            stop_when=_field_stop_when(field_name, config["kind"]),
+            user_words_file=config.get("user_words"),
+        ):
+            value = _clean_value(field_name, text, config["kind"])
+            if _is_valid(value, field_name):
+                candidates.append(value)
         if _has_stable_field_candidate(field_name, candidates):
             break
     return _pick_best_field_value(field_name, candidates)
-
-
-def _field_psm_values(field_name: str, default_psm: int = 6) -> tuple[int, ...]:
-    return (1,)
 
 
 def _extract_raw_location_field(file_path: str, field_name: str, rotation_degrees: int = 0) -> str:
@@ -303,12 +289,6 @@ def _fast_location_preprocess_enabled() -> bool:
     value = os.environ.get("PASSPORT_FAST_LOCATION_PREPROCESS", "").strip().lower()
     return value in {"1", "true", "yes", "on", "fallback"}
 
-
-def _fast_location_psm_values(field_name: str) -> tuple[int, ...]:
-    value = os.environ.get("PASSPORT_LOCATION_OCR_PSM_FALLBACK", "").strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return SPEED_LOCATION_FALLBACK_PSM_VALUES[field_name]
-    return SPEED_LOCATION_PSM_VALUES[field_name]
 
 
 def _fast_location_max_windows() -> int:

@@ -1,6 +1,5 @@
 param(
   [string]$ReleaseRoot = ".local-release",
-  [string]$TesseractRoot = "",
   [switch]$IncludePortable
 )
 
@@ -74,40 +73,6 @@ function Copy-DirectoryWithRobocopy {
   $global:LASTEXITCODE = 0
 }
 
-function Resolve-TesseractRoot {
-  param([string]$ConfiguredRoot)
-
-  $Candidates = @()
-  if ($ConfiguredRoot) {
-    $Candidates += $ConfiguredRoot
-  }
-  $Command = Get-Command tesseract -ErrorAction SilentlyContinue
-  if ($Command -and $Command.Source) {
-    $Candidates += (Split-Path -Parent $Command.Source)
-  }
-  $Candidates += @(
-    "C:\Program Files\Tesseract-OCR",
-    "C:\Program Files (x86)\Tesseract-OCR"
-  )
-
-  foreach ($Candidate in $Candidates) {
-    if (-not $Candidate) {
-      continue
-    }
-    $Resolved = $null
-    try {
-      $Resolved = (Resolve-Path $Candidate -ErrorAction Stop).Path
-    } catch {
-      continue
-    }
-    if (Test-Path (Join-Path $Resolved "tesseract.exe")) {
-      return $Resolved
-    }
-  }
-
-  throw "Tesseract tidak ditemukan. Install Tesseract atau jalankan: powershell -File scripts/package-local-release.ps1 -TesseractRoot 'C:\Path\Tesseract-OCR'"
-}
-
 function Ensure-PyInstaller {
   $PreviousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
@@ -172,7 +137,6 @@ function Build-OcrWorker {
 
 function Stage-DesktopInstallerResources {
   $WorkerDist = Build-OcrWorker
-  $ResolvedTesseractRoot = Resolve-TesseractRoot -ConfiguredRoot $TesseractRoot
   $SrcTauriDir = Join-Path $DesktopDir "src-tauri"
 
   if (Test-Path $TauriReleaseResourcesDir) {
@@ -188,26 +152,11 @@ function Stage-DesktopInstallerResources {
     throw "OCR worker bundle tidak lengkap: scan_worker.exe tidak ditemukan."
   }
 
-  $BundledTesseractTarget = Join-Path $TauriReleaseResourcesDir "tesseract"
-  Write-Host "Staging Tesseract for desktop installer from $ResolvedTesseractRoot..."
-  Copy-DirectoryWithRobocopy `
-    -Source $ResolvedTesseractRoot `
-    -Destination $BundledTesseractTarget `
-    -ExcludeDirs @("doc") `
-    -ExcludeFiles @("*.html", "*.txt")
-  if (-not (Test-Path (Join-Path $BundledTesseractTarget "tesseract.exe"))) {
-    throw "Tesseract bundle tidak lengkap: tesseract.exe tidak ditemukan."
-  }
-  if (-not (Test-Path (Join-Path $BundledTesseractTarget "tessdata\eng.traineddata"))) {
-    throw "Tesseract bundle tidak lengkap: tessdata\eng.traineddata tidak ditemukan."
-  }
-
   @"
 {
   "bundle": {
     "resources": {
-      "release-resources/python-ocr-dist": "python-ocr-dist",
-      "release-resources/tesseract": "tesseract"
+      "release-resources/python-ocr-dist": "python-ocr-dist"
     }
   }
 }
@@ -225,9 +174,6 @@ function Copy-OptionalPortableDesktop {
   Copy-DirectoryWithRobocopy `
     -Source (Join-Path $TauriReleaseResourcesDir "python-ocr-dist") `
     -Destination (Join-Path $DesktopPortableDir "python-ocr-dist")
-  Copy-DirectoryWithRobocopy `
-    -Source (Join-Path $TauriReleaseResourcesDir "tesseract") `
-    -Destination (Join-Path $DesktopPortableDir "tesseract")
 }
 
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
@@ -274,7 +220,7 @@ Install file ini:
 
 - $DesktopInstallerName
 
-Installer desktop sudah membawa OCR worker executable dan Tesseract, jadi device target tidak perlu install Python atau Tesseract manual.
+Installer desktop sudah membawa OCR worker executable (RapidOCR), jadi device target tidak perlu install Python manual.
 
 ## Data Lokal
 

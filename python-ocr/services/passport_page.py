@@ -84,30 +84,6 @@ def crop_relative(
     return image[y1:y2, x1:x2]
 
 
-def _build_variants(region: object, mode: str = "default") -> list[object]:
-    gray = _to_gray(region)
-    scale = _ocr_scale(gray)
-    enlarged = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    enlarged = _pad_for_tesseract(enlarged)
-    return [enlarged]
-
-
-def _ocr_scale(gray: object) -> float:
-    height, width = gray.shape[:2]
-    shortest = max(min(height, width), 1)
-    target_shortest = 220 if shortest < 140 else 320
-    scale = max(1.6, target_shortest / shortest)
-    if width < 700:
-        scale = max(scale, 2.6)
-    if width > 1600:
-        scale = min(scale, 1.4)
-    return min(scale, 4.0)
-
-
-def _pad_for_tesseract(gray: object) -> object:
-    border = max(12, min(gray.shape[:2]) // 16)
-    return cv2.copyMakeBorder(gray, border, border, border, border, cv2.BORDER_CONSTANT, value=255)
-
 
 def _extract_page_from_path(file_path: str) -> object | None:
     image = cv2.imread(file_path)

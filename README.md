@@ -69,7 +69,6 @@ Desktop app dan extension **tidak berkomunikasi secara langsung**. JSON adalah s
 - Node.js ≥ 20
 - Rust / cargo ≥ 1.95 (install via [rustup](https://rustup.rs))
 - Python 3.12 + virtualenv di `python-ocr/.venv`
-- Tesseract OCR terinstall di sistem _(opsional, hanya untuk fallback MRZ via passporteye)_
 - **Windows**: Visual Studio Build Tools 2022 dengan workload C++/MSVC
 
 ### Menjalankan Desktop App
@@ -112,7 +111,7 @@ npm run package:local
 ```
 
 Output di `.local-release/entrymate-by-ghaniya-<version>-<timestamp>/`:
-- **`entrymate-by-ghaniya-desktop-<version>-setup.exe`** — Installer desktop, sudah membawa OCR worker executable (RapidOCR) dan Tesseract (untuk fallback MRZ). Device target tidak perlu install Python, Tesseract, atau dependency OCR lainnya.
+- **`entrymate-by-ghaniya-desktop-<version>-setup.exe`** — Installer desktop, sudah membawa OCR worker executable (RapidOCR). Device target tidak perlu install Python atau dependency OCR lainnya.
 
 Dengan flag portable:
 
@@ -135,7 +134,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -Incl
 
 ## Mode OCR
 
-Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang berjalan lokal tanpa GPU. Tesseract hanya digunakan sebagai fallback untuk ekstraksi MRZ via library `passporteye`.
+Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang berjalan lokal tanpa GPU.
 
 | Mode | Budget | Cocok Untuk |
 |---|---|---|

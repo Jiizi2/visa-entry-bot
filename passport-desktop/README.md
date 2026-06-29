@@ -61,7 +61,6 @@ passport-desktop/
 - Node.js ≥ 20
 - Rust toolchain (`rustup`, `cargo`, `rustc` ≥ 1.95)
 - Python 3.12 + virtualenv di `python-ocr/.venv`
-- Tesseract OCR _(opsional, hanya untuk fallback MRZ via passporteye)_
 - **Windows**: Visual Studio Build Tools 2022 dengan workload C++/MSVC
 
 ### Perintah
@@ -151,12 +150,7 @@ Saat `start_scan` dipanggil, Rust mencari worker secara bertingkat:
 1. **Release bundle**: `<repo>/python-ocr-dist/scan_worker.exe` (atau tanpa `.exe` di non-Windows)
 2. **Development**: `<repo>/python-ocr/.venv/Scripts/python.exe` + `scan_worker.py`
 
-Engine OCR utama adalah **RapidOCR (ONNX Runtime)** yang sudah ter-bundle di dalam worker executable. Tesseract hanya digunakan sebagai fallback oleh library `passporteye` untuk ekstraksi MRZ.
-
-Tesseract (fallback) dicari di:
-1. `<repo>/tesseract/tesseract.exe`
-2. `<repo>/Tesseract-OCR/tesseract.exe`
-3. `<repo>/python-ocr/tesseract/tesseract.exe`
+Engine OCR utama adalah **RapidOCR (ONNX Runtime)** yang sudah ter-bundle di dalam worker executable.
 
 ---
 
@@ -175,7 +169,7 @@ npm run package:local
 ```
 
 Output di `.local-release/entrymate-by-ghaniya-<version>-<timestamp>/`:
-- `entrymate-by-ghaniya-desktop-<version>-setup.exe` — NSIS installer, membawa OCR worker (RapidOCR) + Tesseract (fallback MRZ)
+- `entrymate-by-ghaniya-desktop-<version>-setup.exe` — NSIS installer, membawa OCR worker (RapidOCR)
 - `README_LOCAL_RELEASE.md` — Panduan instalasi
 
 Device target **tidak perlu install Python, Tesseract, atau dependency OCR lainnya**. Untuk portable debug:

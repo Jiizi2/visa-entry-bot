@@ -368,7 +368,6 @@ class OcrPerformanceGuardTests(unittest.TestCase):
                 {"issuingOffice": ((0, 1, 0, 1),)},
             ),
             patch("services.indonesia_field_ocr.RAW_LOCATION_WINDOW_ORDER", {"issuingOffice": (0,)}),
-            patch("services.indonesia_field_ocr.RAW_LOCATION_PSM_VALUES", {"issuingOffice": (6,)}),
             patch(
                 "services.indonesia_field_ocr._weighted_raw_location_texts",
                 side_effect=[
