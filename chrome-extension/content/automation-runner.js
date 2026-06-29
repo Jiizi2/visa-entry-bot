@@ -66,6 +66,15 @@
         };
 
         state.selectedMemberId = String(member.id || state.selectedMemberId || "");
+        if (chrome?.runtime?.sendMessage) {
+          chrome.runtime.sendMessage({
+            type: "NUSUK_WS_EVENT",
+            payload: {
+              eventType: "CURRENT_MEMBER",
+              memberId: member.id || `member-${memberOffset + 1}`
+            }
+          });
+        }
         appendLog?.("info", `Memproses jamaah ${memberOffset + 1}/${members.length}: ${describeMember(member)}`);
         postPanelState();
 
@@ -82,11 +91,28 @@
 
         if (result.success) {
           appendLog?.("success", `Jamaah ${memberOffset + 1}/${members.length} berhasil dientry: ${describeMember(member)}`);
+          if (chrome?.runtime?.sendMessage) {
+            chrome.runtime.sendMessage({
+              type: "NUSUK_WS_EVENT",
+              payload: {
+                eventType: "MEMBER_COMPLETED",
+                memberId: member.id
+              }
+            });
+          }
           continue;
         }
 
         appendLog?.("error", `Jamaah ${memberOffset + 1}/${members.length} dilewati setelah retry maksimal: ${describeMember(member)}. Alasan: ${result.reason}`);
         await recordMemberFailure(payload, members, startMemberIndex, memberOffset, result.reason);
+      }
+      if (chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({
+          type: "NUSUK_WS_EVENT",
+          payload: {
+            eventType: "SESSION_COMPLETED"
+          }
+        });
       }
     }
 
@@ -134,6 +160,15 @@
         }
         await checkpoint(runId);
         await ensureSessionStillUsable();
+        if (chrome?.runtime?.sendMessage) {
+          chrome.runtime.sendMessage({
+            type: "NUSUK_WS_EVENT",
+            payload: {
+              eventType: "CURRENT_STEP",
+              stepName: globalSteps[index].label || globalSteps[index].action || `Langkah ${index + 1}`
+            }
+          });
+        }
         await runStep(globalSteps[index], { ...context, index });
         await slowModeDelayAfterStep(globalSteps[index], runId);
       }
@@ -142,6 +177,15 @@
         await checkpoint(runId);
         await ensureSessionStillUsable();
         const step = perMemberSteps[index];
+        if (chrome?.runtime?.sendMessage) {
+          chrome.runtime.sendMessage({
+            type: "NUSUK_WS_EVENT",
+            payload: {
+              eventType: "CURRENT_STEP",
+              stepName: step.label || step.action || `Langkah ${index + 1}`
+            }
+          });
+        }
         await runStep(step, { ...context, index: globalSteps.length + index });
         if (isMutamerSuccessPopupWaitStep(step)) {
           await markMemberAddedForResume(payload, members, startMemberIndex, memberOffset);

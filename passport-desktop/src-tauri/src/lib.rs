@@ -1,4 +1,12 @@
 use base64::{engine::general_purpose, Engine as _};
+pub mod transport;
+pub mod server;
+pub mod protocol;
+pub mod protocol_validator;
+pub mod session_manager;
+pub mod automation_service;
+pub mod message_router;
+pub mod event_dispatcher;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
@@ -757,6 +765,180 @@ fn endorse_prepared_passport_image(
             .or_insert_with(|| Value::Array(Vec::new()));
         if let Some(list) = removed_log.as_array_mut() {
             list.push(removed_item);
+        }
+    }
+
+    let serialized = serde_json::to_string_pretty(&manifest)
+        .map_err(|err| format!("Gagal menyiapkan prepared manifest: {err}"))?;
+    fs::write(&manifest_path, serialized).map_err(|err| {
+        format!(
+            "Gagal menyimpan prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+
+    Ok(manifest)
+}
+
+#[tauri::command]
+fn endorse_prepared_passport_images_batch(
+    prepared_manifest_path: String,
+    item_ids: Vec<String>,
+) -> Result<Value, String> {
+    let manifest_path = resolve_prepared_manifest_path(&prepared_manifest_path)?;
+    let content = fs::read_to_string(&manifest_path).map_err(|err| {
+        format!(
+            "Gagal membaca prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+    let mut manifest: Value = serde_json::from_str(&content)
+        .map_err(|err| format!("Prepared manifest tidak valid: {err}"))?;
+    if manifest.get("schemaVersion").and_then(Value::as_str) != Some("passport-prepared-inputs-v1")
+    {
+        return Err("Prepared manifest tidak dikenali.".to_string());
+    }
+
+    let item_ids_set: std::collections::HashSet<String> = item_ids.into_iter().map(|id| id.trim().to_string()).collect();
+    let mut removed_items = Vec::new();
+
+    if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
+        let mut indices_to_remove = Vec::new();
+        for (index, item) in items.iter().enumerate() {
+            if let Some(id) = item.get("id").and_then(Value::as_str) {
+                if item_ids_set.contains(id) {
+                    indices_to_remove.push(index);
+                }
+            }
+        }
+
+        indices_to_remove.reverse();
+        for index in indices_to_remove {
+            let removed = items.remove(index);
+            removed_items.push(removed);
+        }
+    }
+
+    if removed_items.is_empty() {
+        return Ok(manifest);
+    }
+
+    for removed_item in &removed_items {
+        if let Some(id) = removed_item.get("id").and_then(Value::as_str) {
+            move_removed_prepared_files(&manifest_path, removed_item, id, "endorsement-images")?;
+        }
+    }
+
+    let next_image_count =
+        if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
+            for (index, item) in items.iter_mut().enumerate() {
+                if let Some(map) = item.as_object_mut() {
+                    map.insert("index".to_string(), json!(index + 1));
+                }
+            }
+            Some(items.len())
+        } else {
+            None
+        };
+
+    if let Some(map) = manifest.as_object_mut() {
+        if let Some(count) = next_image_count {
+            map.insert("imageCount".to_string(), json!(count));
+        }
+        let removed_log = map
+            .entry("removedItems".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if let Some(list) = removed_log.as_array_mut() {
+            for removed_item in removed_items {
+                list.push(removed_item);
+            }
+        }
+    }
+
+    let serialized = serde_json::to_string_pretty(&manifest)
+        .map_err(|err| format!("Gagal menyiapkan prepared manifest: {err}"))?;
+    fs::write(&manifest_path, serialized).map_err(|err| {
+        format!(
+            "Gagal menyimpan prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+
+    Ok(manifest)
+}
+
+#[tauri::command]
+fn remove_prepared_passport_images_batch(
+    prepared_manifest_path: String,
+    item_ids: Vec<String>,
+) -> Result<Value, String> {
+    let manifest_path = resolve_prepared_manifest_path(&prepared_manifest_path)?;
+    let content = fs::read_to_string(&manifest_path).map_err(|err| {
+        format!(
+            "Gagal membaca prepared manifest {}: {err}",
+            manifest_path.display()
+        )
+    })?;
+    let mut manifest: Value = serde_json::from_str(&content)
+        .map_err(|err| format!("Prepared manifest tidak valid: {err}"))?;
+    if manifest.get("schemaVersion").and_then(Value::as_str) != Some("passport-prepared-inputs-v1")
+    {
+        return Err("Prepared manifest tidak dikenali.".to_string());
+    }
+
+    let item_ids_set: std::collections::HashSet<String> = item_ids.into_iter().map(|id| id.trim().to_string()).collect();
+    let mut removed_items = Vec::new();
+
+    if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
+        let mut indices_to_remove = Vec::new();
+        for (index, item) in items.iter().enumerate() {
+            if let Some(id) = item.get("id").and_then(Value::as_str) {
+                if item_ids_set.contains(id) {
+                    indices_to_remove.push(index);
+                }
+            }
+        }
+
+        indices_to_remove.reverse();
+        for index in indices_to_remove {
+            let removed = items.remove(index);
+            removed_items.push(removed);
+        }
+    }
+
+    if removed_items.is_empty() {
+        return Ok(manifest);
+    }
+
+    for removed_item in &removed_items {
+        if let Some(id) = removed_item.get("id").and_then(Value::as_str) {
+            move_removed_prepared_files(&manifest_path, removed_item, id, "removed-images")?;
+        }
+    }
+
+    let next_image_count =
+        if let Some(items) = manifest.get_mut("items").and_then(Value::as_array_mut) {
+            for (index, item) in items.iter_mut().enumerate() {
+                if let Some(map) = item.as_object_mut() {
+                    map.insert("index".to_string(), json!(index + 1));
+                }
+            }
+            Some(items.len())
+        } else {
+            None
+        };
+
+    if let Some(map) = manifest.as_object_mut() {
+        if let Some(count) = next_image_count {
+            map.insert("imageCount".to_string(), json!(count));
+        }
+        let removed_log = map
+            .entry("removedItems".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if let Some(list) = removed_log.as_array_mut() {
+            for removed_item in removed_items {
+                list.push(removed_item);
+            }
         }
     }
 
@@ -1958,6 +2140,262 @@ mod tests {
     }
 }
 
+fn start_websocket_orchestrator(
+    app_handle: AppHandle,
+    connection_manager: Arc<server::connection_manager::ConnectionManager>,
+    session_manager: Arc<session_manager::SessionManager>,
+) {
+    let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel::<transport::websocket::TransportEvent>();
+    let ws_server = Arc::new(transport::websocket::WebSocketServer::new(event_tx));
+    let cm = connection_manager.clone();
+    let sm = session_manager.clone();
+    let app_for_messages = app_handle.clone();
+
+    tauri::async_runtime::spawn(async move {
+        match ws_server.start(9001..=9005).await {
+            Ok(port) => {
+                println!("[Transport] WebSocket Server terpasang di port: {}", port);
+            }
+            Err(e) => {
+                eprintln!("[Error] Gagal menjalankan WebSocket Server: {:?}", e);
+            }
+        }
+    });
+
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = event_rx.recv().await {
+            match event {
+                transport::websocket::TransportEvent::Connect { client_id, sender, addr } => {
+                    cm.register_client(client_id, sender, addr);
+                    let _ = app_handle.emit("transport-connected", serde_json::json!({ "clientId": client_id.to_string() }));
+                }
+                transport::websocket::TransportEvent::Disconnect { client_id } => {
+                    cm.unregister_client(client_id);
+                    let _ = app_handle.emit("transport-disconnected", serde_json::json!({ "clientId": client_id.to_string() }));
+                }
+                transport::websocket::TransportEvent::Message { client_id, text } => {
+                    println!("[Protocol] Menerima pesan mentah: {}", text);
+                    match protocol_validator::ProtocolValidator::validate(&text) {
+                        Ok(envelope) => {
+                            match envelope.r#type {
+                                protocol::MessageType::Hello => {
+                                    if let Ok(payload) = serde_json::from_value::<protocol::HelloPayload>(envelope.payload.clone()) {
+                                        println!(
+                                            "[Protocol] HELLO diterima: browser={}, version={}",
+                                            payload.browser, payload.extension_version
+                                        );
+                                        cm.complete_handshake(client_id, payload.browser, payload.extension_version);
+                                        let ack_payload = serde_json::json!({
+                                            "authToken": "local-orchestrator-auth"
+                                        });
+                                        send_envelope(
+                                            &cm,
+                                            client_id,
+                                            protocol::MessageType::HelloAck,
+                                            &envelope.correlation_id,
+                                            ack_payload,
+                                            Some(envelope.message_id.clone()),
+                                        );
+                                    } else {
+                                        send_error(&cm, client_id, "ERR_INVALID_PAYLOAD", "Payload HELLO tidak valid.", &envelope);
+                                    }
+                                }
+                                protocol::MessageType::Ready => {
+                                    if cm.is_client_ready(client_id) {
+                                        if let Ok(payload) = serde_json::from_value::<protocol::ReadyPayload>(envelope.payload.clone()) {
+                                            println!("[Protocol] READY diterima dari URL: {}", payload.current_url);
+                                            send_envelope(
+                                                &cm,
+                                                client_id,
+                                                protocol::MessageType::Ack,
+                                                &envelope.correlation_id,
+                                                serde_json::json!({}),
+                                                Some(envelope.message_id.clone()),
+                                            );
+                                            println!("[Protocol] Handshake selesai untuk klien: {}", client_id);
+                                            sm.close_session();
+
+                                            // Picu CREATE_SESSION otomatis untuk pengujian alur Sprint 2
+                                            let test_session_id = uuid::Uuid::new_v4().to_string();
+                                            let test_correlation_id = uuid::Uuid::new_v4().to_string();
+                                            let create_session_env = protocol::Envelope {
+                                                protocol_version: 1,
+                                                r#type: protocol::MessageType::CreateSession,
+                                                message_id: uuid::Uuid::new_v4().to_string(),
+                                                session_id: test_session_id.clone(),
+                                                correlation_id: test_correlation_id.clone(),
+                                                timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                                                reply_to_message_id: None,
+                                                payload: serde_json::json!({
+                                                    "workspaceId": "test-workspace-path"
+                                                }),
+                                            };
+                                            if let Ok(text) = serde_json::to_string(&create_session_env) {
+                                                let _ = cm.send_to(client_id, text);
+                                                println!("[Session] Mengirim CREATE_SESSION otomatis. SessionID: {}", test_session_id);
+                                            }
+                                        } else {
+                                            send_error(&cm, client_id, "ERR_INVALID_PAYLOAD", "Payload READY tidak valid.", &envelope);
+                                        }
+                                    } else {
+                                        send_error(&cm, client_id, "ERR_ILLEGAL_TRANSITION", "Klien belum menyelesaikan handshake HELLO.", &envelope);
+                                    }
+                                }
+                                protocol::MessageType::Ping => {
+                                    send_envelope(
+                                        &cm,
+                                        client_id,
+                                        protocol::MessageType::Pong,
+                                        &envelope.correlation_id,
+                                        serde_json::json!({}),
+                                        Some(envelope.message_id.clone()),
+                                    );
+                                }
+                                _ => {
+                                    if let Err(e) = message_router::MessageRouter::route(&app_for_messages, envelope, client_id, &cm, &sm) {
+                                        eprintln!("[Error] Router gagal meneruskan pesan: {}", e);
+                                    }
+                                }
+                            }
+                        }
+                        Err(err_payload) => {
+                            eprintln!("[Error] Validasi protokol gagal: {:?}", err_payload);
+                            let error_env = protocol::Envelope {
+                                protocol_version: 1,
+                                r#type: protocol::MessageType::Error,
+                                message_id: uuid::Uuid::new_v4().to_string(),
+                                session_id: "".to_string(),
+                                correlation_id: "".to_string(),
+                                timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                                reply_to_message_id: None,
+                                payload: serde_json::to_value(&err_payload).unwrap(),
+                            };
+                            if let Ok(error_text) = serde_json::to_string(&error_env) {
+                                let _ = cm.send_to(client_id, error_text);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn send_envelope(
+    cm: &server::connection_manager::ConnectionManager,
+    client_id: transport::websocket::ClientId,
+    msg_type: protocol::MessageType,
+    correlation_id: &str,
+    payload: serde_json::Value,
+    reply_to: Option<String>,
+) {
+    let envelope = protocol::Envelope {
+        protocol_version: 1,
+        r#type: msg_type,
+        message_id: uuid::Uuid::new_v4().to_string(),
+        session_id: "".to_string(),
+        correlation_id: correlation_id.to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        reply_to_message_id: reply_to,
+        payload,
+    };
+    if let Ok(text) = serde_json::to_string(&envelope) {
+        if let Err(e) = cm.send_to(client_id, text) {
+            eprintln!("[Error] Gagal mengirim amplop {:?}: {:?}", envelope.r#type, e);
+        }
+    }
+}
+
+fn send_error(
+    cm: &server::connection_manager::ConnectionManager,
+    client_id: transport::websocket::ClientId,
+    code: &str,
+    message: &str,
+    reply_to_envelope: &protocol::Envelope,
+) {
+    let err_payload = protocol::ErrorPayload {
+        code: code.to_string(),
+        message: message.to_string(),
+        recoverable: true,
+        details: None,
+    };
+    send_envelope(
+        cm,
+        client_id,
+        protocol::MessageType::Error,
+        &reply_to_envelope.correlation_id,
+        serde_json::to_value(&err_payload).unwrap(),
+        Some(reply_to_envelope.message_id.clone()),
+    );
+}
+#[tauri::command]
+fn is_automation_connected(
+    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
+) -> bool {
+    !connection_manager.get_active_client_ids().is_empty()
+}
+
+#[tauri::command]
+fn send_automation_load_batch(
+    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
+    _session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
+    members: Vec<serde_json::Value>,
+    manifest_path: String,
+) -> Result<(), String> {
+    let client_ids = connection_manager.get_active_client_ids();
+    if let Some(client_id) = client_ids.first().cloned() {
+        let correlation_id = uuid::Uuid::new_v4().to_string();
+        let load_batch_payload = serde_json::json!({
+            "members": members,
+            "manifestPath": manifest_path
+        });
+        let envelope = protocol::Envelope {
+            protocol_version: 1,
+            r#type: protocol::MessageType::LoadBatch,
+            message_id: uuid::Uuid::new_v4().to_string(),
+            session_id: "".to_string(),
+            correlation_id,
+            timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            reply_to_message_id: None,
+            payload: load_batch_payload,
+        };
+        if let Ok(text) = serde_json::to_string(&envelope) {
+            let _ = connection_manager.send_to(client_id, text);
+            println!("[Session] Mengirim LOAD_BATCH dari UI dengan {} jamaah.", members.len());
+            return Ok(());
+        }
+    }
+    Err("Tidak ada ekstensi Chrome yang terhubung.".to_string())
+}
+
+#[tauri::command]
+fn send_automation_start(
+    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
+    session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
+) -> Result<(), String> {
+    let client_ids = connection_manager.get_active_client_ids();
+    if let Some(client_id) = client_ids.first().cloned() {
+        let correlation_id = uuid::Uuid::new_v4().to_string();
+        let envelope = protocol::Envelope {
+            protocol_version: 1,
+            r#type: protocol::MessageType::Start,
+            message_id: uuid::Uuid::new_v4().to_string(),
+            session_id: "".to_string(),
+            correlation_id,
+            timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            reply_to_message_id: None,
+            payload: serde_json::json!({}),
+        };
+        if let Ok(text) = serde_json::to_string(&envelope) {
+            let _ = connection_manager.send_to(client_id, text);
+            let _ = session_manager.update_status(session_manager::SessionState::Running);
+            println!("[Session] Mengirim START dari UI.");
+            return Ok(());
+        }
+    }
+    Err("Tidak ada ekstensi Chrome yang terhubung.".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     configure_webview2_runtime();
@@ -1966,14 +2404,27 @@ pub fn run() {
     let renderer_health_for_setup = renderer_health.clone();
     let renderer_health_for_window_events = renderer_health.clone();
 
+    let connection_manager = Arc::new(server::connection_manager::ConnectionManager::new());
+    let connection_manager_for_setup = connection_manager.clone();
+
+    let session_manager = Arc::new(session_manager::SessionManager::new());
+    let session_manager_for_setup = session_manager.clone();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(ScanState::default())
         .manage(renderer_health)
+        .manage(connection_manager)
+        .manage(session_manager)
         .setup(move |app| {
             log_diagnostic("tauri setup complete");
             start_renderer_watchdog(app.handle().clone(), renderer_health_for_setup.clone());
+            start_websocket_orchestrator(
+                app.handle().clone(),
+                connection_manager_for_setup.clone(),
+                session_manager_for_setup.clone(),
+            );
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -2018,7 +2469,12 @@ pub fn run() {
             save_prepared_passport_image,
             remove_prepared_passport_image,
             endorse_prepared_passport_image,
-            create_nusuk_batch
+            endorse_prepared_passport_images_batch,
+            remove_prepared_passport_images_batch,
+            create_nusuk_batch,
+            send_automation_load_batch,
+            send_automation_start,
+            is_automation_connected
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

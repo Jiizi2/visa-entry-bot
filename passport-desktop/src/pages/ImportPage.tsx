@@ -143,19 +143,19 @@ export default function ImportPage() {
                 readOnly 
                 value={state.selectedDir} 
                 placeholder="Belum ada folder terpilih..." 
-                className="w-full h-11 !pl-10 pr-4 bg-slate-100 border border-transparent rounded-lg text-sm text-slate-700 transition-all focus:bg-white focus:border-blue-500/30 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)] outline-none"
+                className="w-full h-10 !pl-10 pr-4 bg-slate-100 border border-transparent rounded-lg text-sm text-slate-700 outline-none"
               />
             </div>
-            <button className="h-[46px] px-6 bg-gradient-to-r from-blue-700 to-blue-600 text-white font-semibold text-[14px] rounded-lg shadow-[0_4px_12px_rgba(0,74,198,0.2)] transition-all hover:-translate-y-[1px] hover:shadow-[0_6px_16px_rgba(0,74,198,0.3)] active:scale-[0.98]" onClick={(e) => { e.stopPropagation(); handleChooseFolder(); }}>
+            <button className="primary-action" onClick={(e) => { e.stopPropagation(); handleChooseFolder(); }}>
               {state.selectedDir ? 'Ganti' : 'Pilih Folder'}
             </button>
             {state.selectedDir && (
               <button 
-                className="flex items-center gap-2 h-[46px] px-6 bg-emerald-500 text-white font-semibold text-[14px] rounded-lg shadow-[0_4px_12px_rgba(16,185,129,0.2)] transition-all hover:-translate-y-[1px] hover:shadow-[0_6px_16px_rgba(16,185,129,0.3)] active:scale-[0.98]" 
+                className="primary-action !bg-emerald-600 hover:!bg-emerald-700" 
                 onClick={(e) => { e.stopPropagation(); handleNext(); }} 
               >
                 Lanjutkan
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_forward</span>
+                <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             )}
           </div>
@@ -230,41 +230,41 @@ export default function ImportPage() {
                   <label className="text-[11px] font-bold tracking-wider text-slate-600">PROFESI</label>
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">work</span>
-                    <input type="text" className="w-full h-9 !pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 transition-all focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.2)] outline-none" value={state.defaultEntry.profesi} onChange={e => handleDefaultChange('profesi', e.target.value)} />
+                    <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.profesi} onChange={e => handleDefaultChange('profesi', e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider text-slate-600">STATUS NIKAH</label>
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">blinds</span>
-                    <input type="text" className="w-full h-9 !pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 transition-all focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.2)] outline-none" value={state.defaultEntry.statusNikah} onChange={e => handleDefaultChange('statusNikah', e.target.value)} />
+                    <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.statusNikah} onChange={e => handleDefaultChange('statusNikah', e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider text-slate-600">TIPE PASSPORT</label>
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">menu_book</span>
-                    <input type="text" className="w-full h-9 !pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 transition-all focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.2)] outline-none" value={state.defaultEntry.tipePassport} onChange={e => handleDefaultChange('tipePassport', e.target.value)} />
+                    <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.tipePassport} onChange={e => handleDefaultChange('tipePassport', e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider text-slate-600">EMAIL</label>
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">mail</span>
-                    <input type="text" className="w-full h-9 !pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 transition-all focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.2)] outline-none" value={state.defaultEntry.email} onChange={e => handleDefaultChange('email', e.target.value)} placeholder="Contoh: husein@gmail.com" />
+                    <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.email} onChange={e => handleDefaultChange('email', e.target.value)} placeholder="Contoh: husein@gmail.com" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
                   <label className="text-[11px] font-bold tracking-wider text-slate-600">NOMOR TELEPON</label>
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-pink-500 text-[20px]">call</span>
-                    <input type="text" className="w-full h-9 !pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 transition-all focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.2)] outline-none" value={state.defaultEntry.nomorTelepon} onChange={e => handleDefaultChange('nomorTelepon', e.target.value)} placeholder="Contoh: 62821..." />
+                    <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.nomorTelepon} onChange={e => handleDefaultChange('nomorTelepon', e.target.value)} placeholder="Contoh: 62821..." />
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center justify-between mt-6 pt-5 border-t border-slate-200">
-                <button className="flex items-center gap-2 h-9 px-4 bg-slate-100 text-slate-600 font-semibold text-[12px] rounded-lg transition-colors hover:bg-slate-200 hover:text-slate-900" onClick={handleApplyDefault}>
+                <button className="secondary-button" onClick={handleApplyDefault}>
                   <span className="material-symbols-outlined text-[18px]">done_all</span> Terapkan Default
                 </button>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-[12px] font-semibold rounded-full border border-emerald-200">
@@ -349,26 +349,26 @@ export default function ImportPage() {
       )}
       {/* Modal Hapus Riwayat */}
       {batchToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden animate-[slideUp_0.3s_ease-out]">
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4 text-red-600">
-                <span className="material-symbols-outlined text-[32px]">delete</span>
-                <h3 className="text-[20px] font-bold text-slate-900 m-0">Konfirmasi Hapus Riwayat</h3>
-              </div>
-              <p className="text-[15px] text-slate-600 leading-relaxed m-0">
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <span className="material-symbols-outlined text-red-600">delete</span>
+              <h3>Konfirmasi Hapus Riwayat</h3>
+            </div>
+            <div className="modal-body">
+              <p>
                 Apakah Anda yakin ingin menghapus folder <strong>{batchToDelete.name}</strong> dari riwayat pilihan? Ini tidak akan menghapus file aslinya.
               </p>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200">
+            <div className="modal-footer">
               <button 
-                className="px-5 py-2 rounded-xl font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition-colors"
+                className="secondary-button"
                 onClick={() => setBatchToDelete(null)}
               >
                 Batal
               </button>
               <button 
-                className="px-5 py-2 rounded-xl font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
+                className="primary-action !bg-red-600 hover:!bg-red-700"
                 onClick={handleDeleteHistory}
               >
                 Hapus

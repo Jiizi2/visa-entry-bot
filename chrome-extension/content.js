@@ -1,5 +1,6 @@
 (function () {
-  const { constants } = window.NusukAutofill || {};
+  const root = window.NusukAutofill = window.NusukAutofill || {};
+  const { constants } = root;
   if (!constants) {
     throw new Error("NusukAutofill constants were not loaded.");
   }
@@ -7,9 +8,8 @@
     STORAGE_KEY,
     PANEL_WIDTH_DEFAULT,
   } = constants;
-  const { createPanelShell, clampPanelWidth } = window.NusukAutofill.panelShell || {};
-  if (!createPanelShell) {
-    throw new Error("NusukAutofill panel shell was not loaded.");
+  function clampPanelWidth(width) {
+    return Math.max(320, Math.min(600, Number(width || 420)));
   }
   const { createPanelBridge } = window.NusukAutofill.panelBridge || {};
   if (!createPanelBridge) {
@@ -74,6 +74,10 @@
   if (!createAutofillSession) {
     throw new Error("NusukAutofill autofill session was not loaded.");
   }
+  const { createWidgetManager } = window.NusukAutofill.widgetManager || {};
+  if (!createWidgetManager) {
+    throw new Error("NusukAutofill widget manager was not loaded.");
+  }
 
   const state = {
     manifest: null,
@@ -109,7 +113,6 @@
     humanDelayBeforeAction,
   } = createWaitUtils({ state, checkpoint, sleep });
 
-  let panelShell = null;
   let panelBridge = null;
   let uploadManager = null;
   const {
@@ -140,7 +143,7 @@
     persistState,
   } = createPanelStateStore({
     state,
-    getPanelShell: () => panelShell,
+    getPanelShell: () => null,
     getUploadState: () => uploadManager?.getUploadState() || { uploadFileCount: 0, uploadFileNames: [] },
   });
   const {
@@ -295,29 +298,102 @@
   });
 
   async function bootstrap() {
-    panelShell = createPanelShell({ state, persistState, postPanelState });
-    panelBridge = createPanelBridge({
-      state,
-      panelShell,
-      persistState,
-      postPanelState,
-      postToPanel,
-      registerUploadFiles,
-      getUploadFileCount: () => uploadManager.getUploadState().uploadFileCount,
-      startAutofillFromPanel,
-      pauseAutofillFromPanel,
-      resetAutofillFromPanel,
-      restartFailedFromPanel,
-      runAutomation,
-      setTabAutoDiscardable,
-    });
-    await hydrateState();
-    ensureHighlightStyle();
-    panelShell.injectPanelShell();
-    panelBridge.bindWindowBridge();
-    panelBridge.bindRuntimeMessages();
-    bindVisibilityStatus();
-    resumeRunningAutofillAfterReload();
+    try {
+      panelBridge = createPanelBridge({
+        state,
+        persistState,
+        postPanelState,
+        postToPanel,
+        registerUploadFiles,
+        getUploadFileCount: () => uploadManager.getUploadState().uploadFileCount,
+        startAutofillFromPanel,
+        pauseAutofillFromPanel,
+        resetAutofillFromPanel,
+        restartFailedFromPanel,
+        runAutomation,
+        setTabAutoDiscardable,
+      });
+      await hydrateState();
+      ensureHighlightStyle();
+      panelBridge.bindWindowBridge();
+      panelBridge.bindRuntimeMessages();
+      bindVisibilityStatus();
+      resumeRunningAutofillAfterReload();
+
+      // Instansiasi widget melayang
+      root.widgetInstance = createWidgetManager({ state });
+
+      // Dengarkan perubahan status minimize di storage secara reaktif
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+          if (areaName === "local" && changes.entrymate_minimized) {
+            const isMinimized = changes.entrymate_minimized.newValue;
+            console.log("[Content] Status minimize berubah di storage:", isMinimized);
+            
+            const currentUrl = window.location.href;
+            const isTargetPage = currentUrl.includes("/umrah/mutamer/add-mutamer") || currentUrl.includes("/umrah/mutamer/mutamer-list");
+            
+            if (isMinimized && isTargetPage) {
+              root.widgetInstance?.showWidget();
+            } else {
+              root.widgetInstance?.hideWidget();
+            }
+          }
+        });
+      }
+
+      // Pemantauan URL otomatis untuk halaman SPA Nusuk
+      let lastUrl = "";
+      let hasAutoOpenedThisSession = false;
+
+      function checkUrlChange() {
+        const currentUrl = window.location.href;
+        if (currentUrl !== lastUrl) {
+          lastUrl = currentUrl;
+          onUrlChanged(currentUrl);
+        }
+      }
+
+      function onUrlChanged(url) {
+        console.log("[EntryMate] URL terdeteksi:", url);
+        const isTargetPage = url.includes("/umrah/mutamer/add-mutamer") || url.includes("/umrah/mutamer/mutamer-list");
+        if (isTargetPage) {
+          if (chrome?.storage?.local) {
+            chrome.storage.local.get(["entrymate_minimized"], (result) => {
+              const isMinimized = result.entrymate_minimized === true;
+              
+              if (!hasAutoOpenedThisSession) {
+                hasAutoOpenedThisSession = true;
+                
+                if (!isMinimized) {
+                  // Coba buka SidePanel secara otomatis jika tidak dimimimize
+                  chrome.runtime.sendMessage({ type: "NUSUK_OPEN_PANEL" }, (response) => {
+                    // Jika gagal membuka (pembatasan user gesture Chrome), tampilkan widget melayang sebagai alternatif
+                    if (!response || !response.ok) {
+                      console.log("[EntryMate] Pembatasan user gesture terdeteksi. Menampilkan widget melayang.");
+                      root.widgetInstance?.showWidget();
+                    }
+                  });
+                } else {
+                  root.widgetInstance?.showWidget();
+                }
+              } else if (isMinimized) {
+                root.widgetInstance?.showWidget();
+              }
+            });
+          }
+        } else {
+          hasAutoOpenedThisSession = false;
+          // Sembunyikan widget jika keluar dari halaman target
+          root.widgetInstance?.hideWidget();
+        }
+      }
+
+      window.setInterval(checkUrlChange, 1000);
+      checkUrlChange();
+    } catch (bootstrapError) {
+      console.error("[EntryMate] Bootstrap error:", bootstrapError);
+    }
   }
 
   function bindVisibilityStatus() {

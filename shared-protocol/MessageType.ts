@@ -1,0 +1,30 @@
+export enum MessageType {
+  // Commands (Desktop -> Extension)
+  CREATE_SESSION = 'CREATE_SESSION',
+  LOAD_BATCH = 'LOAD_BATCH',
+  START = 'START',
+  NEXT = 'NEXT',
+  PAUSE = 'PAUSE',
+  STOP = 'STOP',
+  PING = 'PING',
+  HELLO_ACK = 'HELLO_ACK',
+
+  // Events (Extension -> Desktop)
+  HELLO = 'HELLO',
+  READY = 'READY',
+  RUNNING = 'RUNNING',
+  CURRENT_MEMBER = 'CURRENT_MEMBER',
+  CURRENT_STEP = 'CURRENT_STEP',
+  PROGRESS = 'PROGRESS',
+  MEMBER_COMPLETED = 'MEMBER_COMPLETED',
+  SESSION_COMPLETED = 'SESSION_COMPLETED',
+  PONG = 'PONG',
+
+  // Responses
+  ACK = 'ACK',
+  SESSION_CREATED = 'SESSION_CREATED',
+  BATCH_LOADED = 'BATCH_LOADED',
+
+  // Errors
+  ERROR = 'ERROR'
+}

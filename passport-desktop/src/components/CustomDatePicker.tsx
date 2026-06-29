@@ -91,7 +91,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
       <button 
         key={d} 
         onClick={(e) => { e.preventDefault(); handleDayClick(d); }}
-        className={`flex items-center justify-center h-8 border-none rounded-md text-[13px] cursor-pointer transition-colors ${isSelected ? 'bg-[#004ac6] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
+        className={`flex items-center justify-center h-8 border-none rounded-md text-[13px] cursor-pointer transition-colors ${isSelected ? 'bg-[var(--primary)] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
       >
         {d}
       </button>
@@ -111,7 +111,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
         placeholder={placeholder}
       />
       <span 
-        className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#004ac6] text-[20px] cursor-pointer pointer-events-auto"
+        className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[var(--primary)] text-[20px] cursor-pointer pointer-events-auto"
         onClick={() => setIsOpen(!isOpen)}
       >
         calendar_month
@@ -126,7 +126,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
             
             {viewMode === 'days' ? (
               <span 
-                className="font-semibold text-sm text-slate-900 flex items-center gap-1 transition-colors hover:text-[#004ac6] cursor-pointer" 
+                className="font-semibold text-sm text-slate-900 flex items-center gap-1 transition-colors hover:text-[var(--primary)] cursor-pointer" 
                 onClick={() => { 
                   setViewMode('years'); 
                   setYearPageStart(currentYear - (currentYear % 12)); 
@@ -160,7 +160,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
               {Array.from({length: 12}, (_, i) => yearPageStart + i).map(y => (
                 <button 
                   key={y}
-                  className={`h-10 border-none rounded-md text-sm cursor-pointer transition-colors ${y === currentYear ? 'bg-[#004ac6] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
+                  className={`h-10 border-none rounded-md text-sm cursor-pointer transition-colors ${y === currentYear ? 'bg-[var(--primary)] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
                   onClick={(e) => {
                     e.preventDefault();
                     setCurrentViewDate(new Date(y, currentMonthIdx, 1));

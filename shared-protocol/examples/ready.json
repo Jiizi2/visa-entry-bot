@@ -1,0 +1,11 @@
+{
+  "protocolVersion": 1,
+  "type": "READY",
+  "messageId": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+  "sessionId": "",
+  "correlationId": "",
+  "timestamp": "2026-06-29T00:30:02.000Z",
+  "payload": {
+    "currentUrl": "https://mutamer.nusuk.sa/en/mutamer/add"
+  }
+}

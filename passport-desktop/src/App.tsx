@@ -47,12 +47,12 @@ function FunModalsOverlay() {
   if (!currentImage) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 600, width: '90%' }}>
-        <img src={currentImage} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 10, objectFit: 'contain' }} alt="Fun Modal" />
+    <div className="modal-overlay" style={{ zIndex: 99999 }}>
+      <div className="flex flex-col items-center max-w-[600px] w-[90%]">
+        <img src={currentImage} className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl" alt="Fun Modal" />
         <button 
           onClick={() => setCurrentImage(null)}
-          style={{ marginTop: 24, padding: '14px 40px', background: '#0055d4', color: 'white', fontWeight: 'bold', borderRadius: 30, border: 'none', cursor: 'pointer', fontSize: 16, transition: 'transform 0.2s' }}
+          className="primary-action mt-6 px-10 h-11 text-base"
         >
           OK Lanjut
         </button>
@@ -108,7 +108,7 @@ export default function App() {
         <Sidebar currentPage={currentPage} onChangePage={(p: Page) => updateState({ currentPage: p })} />
         <main className="flex flex-col flex-1 overflow-y-auto min-w-0 items-stretch">
           
-          <Suspense fallback={<div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', fontFamily: '"Hanken Grotesk", sans-serif', color: '#434655' }}>Memuat halaman...</div>}>
+          <Suspense fallback={<div className="flex flex-1 items-center justify-center text-slate-500 font-sans">Memuat halaman...</div>}>
             <PageTransition pageKey={currentPage}>
               {currentPage === 'import' && <ImportPage key="import" />}
               {currentPage === 'prepare' && <PreparePage key="prepare" />}

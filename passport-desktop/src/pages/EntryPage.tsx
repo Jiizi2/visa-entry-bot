@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../store';
 import {
   buildExportPreviewState,
   effectiveSelectedIdsForExport,
   validateCompanionsForExport,
   buildManifestForEntryExport,
+  enrichMemberForEntry,
 } from '../utils/export';
 import { memberReviewStatus } from '../utils/members';
 import EntrySummaryCards from './entry/EntrySummaryCards';
 import EntryTable from './entry/EntryTable';
+import SimplifiedConsole from './entry/SimplifiedConsole';
 
 export default function EntryPage() {
   const state = useStore();
@@ -23,6 +26,7 @@ export default function EntryPage() {
   };
 
   const manifestMembers = state.manifest?.members || [];
+  const effectiveSelectedIds = effectiveSelectedIdsForExport(state.manifest, state.selectedIds);
 
   const appendLog = (msg: string, level: 'info' | 'warn' | 'error' | 'success' = 'info') => {
     const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -140,41 +144,106 @@ export default function EntryPage() {
   if (!exportPreview) return null;
 
   return (
-    <section className="flex flex-col h-screen bg-slate-50 font-['Inter',sans-serif] text-slate-900">
-      <div className="p-8 flex-1 overflow-y-auto">
-        <header className="flex justify-between items-center mb-6 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-5 px-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-700 to-blue-500 rounded-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,74,198,0.2)]">
-              <span className="material-symbols-outlined text-[24px]">upload_file</span>
+    <section className="page-container">
+      <div className="flex-1 overflow-y-auto max-w-[1200px] w-full mx-auto p-0">
+        <header className="app-page-header">
+          <div className="app-page-header-left">
+            <div className="app-page-header-icon">
+              <span className="material-symbols-outlined">upload_file</span>
             </div>
-            <div>
-              <span className="block text-[11px] font-bold text-blue-700 tracking-[0.1em] mb-1 uppercase">LANGKAH 5: BATCH NUSUK</span>
-              <h1 className="font-['Inter',sans-serif] text-[24px] font-bold text-slate-900 m-0 tracking-[-0.01em]">Batch Export</h1>
-              <p className="m-0 mt-1 text-slate-500 text-[14px]">Review final counts before generating JSON payload.</p>
+            <div className="app-page-header-info">
+              <span className="app-page-step-label">LANGKAH 5: OTOMATISASI ENTRY</span>
+              <h1 className="app-page-title">Otomatisasi Entry Nusuk</h1>
+              <p className="app-page-subtitle">Jalankan otomatisasi pengisian mutamer ke Nusuk via ekstensi Chrome.</p>
             </div>
           </div>
-          <div className="flex gap-4">
-            <button className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-5 py-2.5 rounded-lg text-[14px] font-semibold cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-400" onClick={() => updateState({ currentPage: 'validation' })}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <div className="flex gap-2.5 items-center">
+            {/* Legacy Mode Toggle Switch */}
+            <label className="flex items-center gap-1.5 text-[12px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200/80 px-3 h-10 rounded-lg cursor-pointer select-none transition-colors border border-slate-200">
+              <input 
+                type="checkbox" 
+                checked={state.legacyMode}
+                onChange={(e) => updateState({ legacyMode: e.target.checked })}
+                className="w-3 h-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <span>Legacy Mode (JSON Manual)</span>
+            </label>
+
+            <button className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
               Back to Review
             </button>
-            <button className="flex items-center gap-2 bg-blue-700 border-none text-white px-6 py-2.5 rounded-lg text-[14px] font-semibold cursor-pointer transition-all shadow-sm hover:bg-blue-800 hover:-translate-y-[1px] hover:shadow-md disabled:bg-blue-300 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              {state.isEntryRunning ? 'Membuat JSON...' : 'Export to JSON'}
-            </button>
+
+            {state.legacyMode && (
+              <button className="primary-action" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                {state.isEntryRunning ? 'Membuat JSON...' : 'Export to JSON'}
+              </button>
+            )}
           </div>
         </header>
 
-        <EntrySummaryCards exportPreview={exportPreview} />
+        {/* Console Otomatisasi (Full Width) */}
+        <div className="mb-6">
+          <SimplifiedConsole 
+            manifestPath={state.manifestPath}
+            members={manifestMembers
+              .filter((m: any) => 
+                effectiveSelectedIds.has(m.id) && 
+                (m.reviewConfirmed || state.reviewedMemberIds.has(m.id))
+              )
+              .map((m: any) => {
+                const copy = JSON.parse(JSON.stringify(m));
+                copy.reviewConfirmed = true;
+                if (copy.reviewStatus === 'NEEDS_REVIEW') {
+                  copy.reviewStatus = 'VALID';
+                }
+                return enrichMemberForEntry(copy, manifestMembers);
+              })
+            } 
+          />
+        </div>
 
-        <EntryTable 
-          exportPreview={exportPreview} 
-          reviewedMemberIds={state.reviewedMemberIds} 
-        />
+        {/* Langkah Otomatisasi (Full Width Card with Buka Halaman Nusuk Button) */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex-1 col-span-2">
+            <h3 className="text-[14px] font-bold text-slate-800 m-0 mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-blue-600">help_outline</span>
+              Langkah Otomatisasi
+            </h3>
+            <ol className="m-0 pl-4 text-[13px] leading-relaxed space-y-2 text-slate-600">
+              <li>Pastikan data paspor di bawah berstatus <strong>VALID</strong>.</li>
+              <li>Buka panel samping ekstensi <strong>EntryMate</strong> di browser Chrome halaman Nusuk.</li>
+              <li>Tunggu hingga indikator koneksi di sebelah kiri menyala <strong className="text-emerald-600">Terhubung</strong>.</li>
+              <li>Klik <strong>Load Batch</strong> untuk mengirim data mutamer ke browser.</li>
+              <li>Klik <strong>Start</strong> untuk memulai otomatisasi pengisian form.</li>
+            </ol>
+          </div>
+          <div className="shrink-0 w-full md:w-auto">
+            <button 
+              className="primary-action !bg-emerald-600 hover:!bg-emerald-700 w-full md:w-auto"
+              onClick={() => openUrl('https://masar.nusuk.sa')}
+            >
+              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+              Buka Halaman Nusuk
+            </button>
+          </div>
+        </div>
 
-        <div className="flex items-center gap-2.5 text-slate-500 text-[13px] mb-6">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          Only reviewed documents will be included in the final JSON payload. Skipped or errored items remain unexported.
+        {/* Summary Cards (Full Width: 4 columns in a row) */}
+        <div className="mb-8">
+          <EntrySummaryCards exportPreview={exportPreview} />
+        </div>
+
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[16px] font-bold text-slate-800 m-0">Daftar Mutamer dalam Batch</h2>
+            <span className="text-[12px] text-slate-500 font-medium">{manifestMembers.length} Mutamer total</span>
+          </div>
+          <EntryTable 
+            exportPreview={exportPreview} 
+            reviewedMemberIds={state.reviewedMemberIds} 
+          />
         </div>
 
         {(state.exportError || state.exportedBatchPath) && (
@@ -182,7 +251,7 @@ export default function EntryPage() {
             {state.exportError || (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>JSON dibuat: {state.exportedBatchPath}</span>
-                <button className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-[12px] font-semibold cursor-pointer transition-all hover:bg-slate-50" onClick={handleOpenJsonLocation}>
+                <button className="secondary-button" onClick={handleOpenJsonLocation}>
                   Buka Folder JSON
                 </button>
               </div>

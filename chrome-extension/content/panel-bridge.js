@@ -4,7 +4,6 @@
 
   function createPanelBridge({
     state,
-    panelShell,
     persistState,
     postPanelState,
     postToPanel,
@@ -19,20 +18,19 @@
   }) {
     let previousRuntimeAutoDiscardable = null;
 
+    // Konsolidasi seluruh pesan runtime & window ke dalam 1 listener tunggal yang stabil
     function bindWindowBridge() {
-      window.addEventListener("message", (event) => {
-        if (!panelShell.isPanelMessageEvent(event)) {
-          return;
-        }
-        const message = event.data;
-        if (!message || typeof message !== "object") {
-          return;
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (!message || typeof message !== "object" || !message.type) {
+          return false;
         }
 
+        console.log(`[Bridge] Menerima pesan tipe: ${message.type}`, message.payload);
+
+        // --- NUSUK_PANEL_ Messages ---
         if (message.type === "NUSUK_PANEL_READY") {
-          panelShell.setReady(true);
           postPanelState();
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_UPLOAD_MANIFEST") {
@@ -48,7 +46,7 @@
               tone: "error",
               message: error instanceof Error ? error.message : String(error),
             });
-            return;
+            return false;
           }
           state.manifest = manifest;
           state.selectedMemberId = String(message.payload?.selectedMemberId || manifest.members[0]?.id || "");
@@ -58,7 +56,7 @@
             tone: validation.warnings.length ? "warning" : "success",
             message: formatManifestUploadMessage(manifest.members.length, validation),
           });
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_UPLOAD_FILES") {
@@ -72,97 +70,110 @@
               ? `${uploadFileCount} file passport siap dipakai.`
               : "Tidak ada file passport yang bisa dipakai.",
           });
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_SELECT_MEMBER") {
           state.selectedMemberId = String(message.payload?.memberId || "");
           void persistState();
           postPanelState();
-          return;
-        }
-
-        if (message.type === "NUSUK_PANEL_TOGGLE") {
-          void panelShell.setCollapsed(Boolean(message.payload?.collapsed), true);
-          return;
-        }
-
-        if (message.type === "NUSUK_PANEL_MINIMIZE") {
-          void panelShell.setCollapsed(true, true);
-          return;
-        }
-
-        if (message.type === "NUSUK_PANEL_CLOSE") {
-          void panelShell.setPanelClosed(true, true);
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_START_AUTOFILL") {
           void startAutofillFromPanel();
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_PAUSE_AUTOFILL") {
           void pauseAutofillFromPanel();
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_RESET_AUTOFILL") {
           void resetAutofillFromPanel();
-          return;
+          return false;
         }
 
         if (message.type === "NUSUK_PANEL_RESTART_FAILED") {
           if (typeof restartFailedFromPanel === "function") {
             void restartFailedFromPanel();
           }
-          return;
+          return false;
         }
+
+        if (message.type === "NUSUK_PANEL_MINIMIZE") {
+          console.log("[Bridge] Menerima pesan NUSUK_PANEL_MINIMIZE. Menampilkan widget.");
+          if (root.widgetInstance) {
+            root.widgetInstance.showWidget();
+            sessionStorage.setItem("entrymate_widget_minimized", "true");
+          }
+          return false;
+        }
+
+        // --- NUSUK_WS_ & Other Background Messages ---
+        if (message.type === "NUSUK_WS_CONNECTION_CHANGE") {
+          postToPanel("NUSUK_WS_CONNECTION_STATE", { isConnected: message.payload.isConnected });
+          sendResponse({ ok: true });
+          return false;
+        }
+
+        if (message.type === "NUSUK_WS_LOAD_BATCH") {
+          state.manifest = {
+            manifestVersion: "1.0.19",
+            manifestPath: message.payload.manifestPath,
+            members: message.payload.members
+          };
+          state.selectedMemberId = state.manifest.members[0]?.id || "";
+          void persistState();
+          postPanelState();
+          sendResponse({ ok: true });
+          return false;
+        }
+
+        if (message.type === "NUSUK_WS_START") {
+          console.log("[Bridge] Menjalankan startAutofillFromPanel dipicu oleh NUSUK_WS_START.");
+          void startAutofillFromPanel();
+          sendResponse({ ok: true });
+          return false;
+        }
+
+        if (message.type === "NUSUK_AUTOFILL_MEMBER") {
+          if (state.executionState === "running" || state.executionState === "paused") {
+            sendResponse({ ok: false, error: "Autofill sedang berjalan di tab ini." });
+            return false;
+          }
+
+          state.executionState = "running";
+          state.runToken += 1;
+          void lockTabForRuntimeRun();
+          runAutomation({
+            member: message.payload?.member,
+            memberIndex: Number(message.payload?.memberIndex || 0),
+            totalMembers: Number(message.payload?.totalMembers || 1),
+          }, state.runToken)
+            .then(() => {
+              sendResponse({ ok: true, message: "Autofill selesai." });
+            })
+            .catch((error) => {
+              sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
+            })
+            .finally(() => {
+              void unlockTabAfterRuntimeRun();
+              if (state.executionState !== "paused") {
+                state.executionState = "idle";
+              }
+            });
+
+          return true;
+        }
+
+        return false;
       });
     }
 
     function bindRuntimeMessages() {
-      chrome.runtime.onMessage.addListener(onRuntimeMessage);
-    }
-
-    function onRuntimeMessage(message, _sender, sendResponse) {
-      if (message?.type === "NUSUK_OPEN_PANEL") {
-        void panelShell.openFromExtensionAction();
-        sendResponse({ ok: true });
-        return false;
-      }
-
-      if (message?.type !== "NUSUK_AUTOFILL_MEMBER") {
-        return false;
-      }
-
-      if (state.executionState === "running" || state.executionState === "paused") {
-        sendResponse({ ok: false, error: "Autofill sedang berjalan di tab ini." });
-        return false;
-      }
-
-      state.executionState = "running";
-      state.runToken += 1;
-      void lockTabForRuntimeRun();
-      runAutomation({
-        member: message.payload?.member,
-        memberIndex: Number(message.payload?.memberIndex || 0),
-        totalMembers: Number(message.payload?.totalMembers || 1),
-      }, state.runToken)
-        .then(() => {
-          sendResponse({ ok: true, message: "Autofill selesai." });
-        })
-        .catch((error) => {
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
-        })
-        .finally(() => {
-          void unlockTabAfterRuntimeRun();
-          if (state.executionState !== "paused") {
-            state.executionState = "idle";
-          }
-        });
-
-      return true;
+      // Didelegasikan seluruhnya ke bindWindowBridge
     }
 
     async function lockTabForRuntimeRun() {

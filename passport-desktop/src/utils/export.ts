@@ -74,10 +74,16 @@ export function buildManifestForEntryExport(manifest: any, selectedIds = new Set
   const members = Array.isArray(source?.members) ? source.members : [];
   const enrichedMembers = members.map((m: any) => enrichMemberForEntry(m, members));
   
+  const requiresCompanion = (m: any) => {
+    const info = childInfoForMember(m);
+    const companionId = String(m.resolvedProfile?.companionId || m.companionMemberId || "").trim();
+    return info.isChild || companionId !== "";
+  };
+
   enrichedMembers.sort((left: any, right: any) => {
-    const leftChild = childInfoForMember(left).isChild ? 1 : 0;
-    const rightChild = childInfoForMember(right).isChild ? 1 : 0;
-    return leftChild - rightChild;
+    const leftReq = requiresCompanion(left) ? 1 : 0;
+    const rightReq = requiresCompanion(right) ? 1 : 0;
+    return leftReq - rightReq;
   });
   
   source.members = enrichedMembers;

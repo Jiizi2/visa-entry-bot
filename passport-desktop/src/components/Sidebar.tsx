@@ -58,16 +58,16 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
               type="button"
               title={isMinimized ? step.label : ''}
             >
-              <div className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[#004ac6] rounded-r-md transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0'} ${isMinimized ? 'left-0' : '-left-6'}`} aria-hidden="true"></div>
+              <div className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[var(--primary)] rounded-r-md transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0'} ${isMinimized ? 'left-0' : '-left-6'}`} aria-hidden="true"></div>
               
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 transition-all duration-200 ${isActive ? 'bg-gradient-to-r from-[#004ac6] to-[#0053db] text-white font-bold shadow-md' : 'bg-slate-200/80 text-slate-600 group-hover:bg-slate-300/80'}`} aria-hidden="true">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 transition-all duration-200 ${isActive ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] text-white font-bold shadow-md' : 'bg-slate-200/80 text-slate-600 group-hover:bg-slate-300/80'}`} aria-hidden="true">
                 <span className="material-symbols-outlined text-[24px]">{step.icon}</span>
               </div>
               
               {!isMinimized && (
-                <div className={`flex flex-col transition-all duration-200 ${isActive ? 'opacity-100 text-[#004ac6]' : 'opacity-60 group-hover:opacity-100 group-hover:text-[#004ac6]'}`}>
+                <div className={`flex flex-col transition-all duration-200 ${isActive ? 'opacity-100 text-[var(--primary)]' : 'opacity-60 group-hover:opacity-100 group-hover:text-[var(--primary)]'}`}>
                   <strong className={`text-base leading-tight ${isActive ? 'font-bold' : 'font-medium'}`}>{step.label}</strong>
-                  <span className={`text-[11px] font-normal ${isActive ? 'text-[#004ac6]/80' : ''}`}>{step.subtitle}</span>
+                  <span className={`text-[11px] font-normal ${isActive ? 'text-[var(--primary)]/80' : ''}`}>{step.subtitle}</span>
                 </div>
               )}
             </button>

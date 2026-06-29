@@ -8,7 +8,7 @@
         "browser": "node scripts/browser-backend.mjs",
         "build": "tauri build",
         "tauri": "tauri",
-        "test": "node --test",
+        "test": "vitest run",
         "dev:frontend": "vite --config vite.config.ts",
         "build:frontend": "vite build"
     },
@@ -23,7 +23,8 @@
         "postcss": "^8.5.15",
         "tailwindcss": "^4.3.0",
         "typescript": "^6.0.3",
-        "vite": "^5.4.21"
+        "vite": "^5.4.21",
+        "vitest": "^2.1.8"
     },
     "dependencies": {
         "@fontsource/hanken-grotesk": "^5.2.8",
@@ -31,6 +32,7 @@
         "@tailwindcss/vite": "^4.3.0",
         "@tauri-apps/api": "^2.11.0",
         "@tauri-apps/plugin-dialog": "^2.7.1",
+        "@tauri-apps/plugin-opener": "^2.5.4",
         "@tauri-apps/plugin-process": "^2.3.1",
         "@tauri-apps/plugin-updater": "^2.10.1",
         "lucide-react": "^1.17.0",

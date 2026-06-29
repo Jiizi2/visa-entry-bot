@@ -30,13 +30,23 @@
         current: state.progressCurrent,
         total: state.progressTotal,
       });
+      try {
+        if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({
+            type: "NUSUK_WS_EVENT",
+            payload: {
+              eventType: "PROGRESS",
+              current: state.progressCurrent,
+              total: state.progressTotal
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to send progress via runtime.sendMessage:", e);
+      }
     }
 
     function postPanelState() {
-      const panelShell = getPanelShell();
-      if (!panelShell?.isReady()) {
-        return;
-      }
       const { uploadFileCount, uploadFileNames } = getUploadState();
       postToPanel("NUSUK_PANEL_STATE", {
         manifest: state.manifest,
@@ -55,6 +65,9 @@
         logs: state.logs,
         autofillFailures: state.autofillFailures || [],
       });
+      if (root.widgetInstance) {
+        root.widgetInstance.updateWidgetUI();
+      }
     }
 
     function isRunnablePayload(payload) {
@@ -62,7 +75,13 @@
     }
 
     function postToPanel(type, payload) {
-      getPanelShell()?.postToPanel(type, payload);
+      try {
+        if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({ type, payload });
+        }
+      } catch (e) {
+        console.warn("Failed to send message to side panel:", e);
+      }
     }
 
     async function persistState() {
@@ -90,7 +109,14 @@
     }
 
     function getStorageLocal() {
-      return globalThis.chrome?.storage?.local || null;
+      try {
+        if (typeof globalThis !== "undefined" && globalThis.chrome && globalThis.chrome.storage && globalThis.chrome.storage.local) {
+          return globalThis.chrome.storage.local;
+        }
+      } catch (e) {
+        console.warn("Chrome storage API not accessible:", e);
+      }
+      return null;
     }
 
     return {

@@ -14,10 +14,14 @@
     "debugger",
     "scripting",
     "storage",
+    "sidePanel",
     "tabs"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
   },
   "host_permissions": [
     "https://masar.nusuk.sa/*",
@@ -40,6 +44,7 @@
       ],
       "js": [
         "content/namespace.js",
+        "content/protocol-types.js",
         "content/manifest-validator.js",
         "content/constants.js",
         "content/date-utils.js",
@@ -47,7 +52,6 @@
         "content/dom-utils.js",
         "content/automation-steps.js",
         "content/path-utils.js",
-        "content/panel-shell.js",
         "content/panel-bridge.js",
         "content/execution-control.js",
         "content/panel-state-store.js",
@@ -72,6 +76,7 @@
         "content/step-runner.js",
         "content/automation-runner.js",
         "content/autofill-session.js",
+        "content/widget-manager.js",
         "content.js"
       ],
       "run_at": "document_idle"
@@ -83,7 +88,8 @@
         "panel.html",
         "panel.css",
         "panel.js",
-        "content/manifest-validator.js"
+        "content/manifest-validator.js",
+        "content/protocol-types.js"
       ],
       "matches": [
         "https://masar.nusuk.sa/*",

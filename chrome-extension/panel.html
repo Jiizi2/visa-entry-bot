@@ -6,87 +6,27 @@
     <title>EntryMate By Ghaniya Panel</title>
     <link rel="stylesheet" href="panel.css">
   </head>
-  <body>
+  <body class="compact-mode">
     <div class="panel-shell">
+      
+      <!-- HEADER -->
       <header class="panel-header">
-        <div>
-          <p class="eyebrow">EntryMate By Ghaniya</p>
-          <h1>Asisten Entry</h1>
+        <div class="brand">
+          <div id="ws-indicator" class="ws-indicator disconnected"></div>
+          <h1>EntryMate</h1>
         </div>
         <div class="header-actions">
           <span id="state-pill" class="state-pill idle">Menunggu</span>
-          <button id="minimize-btn" class="ghost-btn panel-window-btn" type="button" aria-label="Minimize panel">Minimize</button>
-          <button id="close-btn" class="ghost-btn panel-window-btn" type="button" aria-label="Tutup panel">Tutup</button>
+          <button id="mode-toggle-btn" class="ghost-btn panel-window-btn" type="button" title="Buka Detail & Upload">Detail</button>
+          <button id="minimize-btn" class="ghost-btn panel-window-btn" type="button" title="Kecilkan Panel">−</button>
         </div>
       </header>
 
-      <section class="panel-card">
-        <div class="section-head">
-          <div>
-            <h2>Manifest</h2>
-            <p>JSON hasil export desktop.</p>
-          </div>
-          <button id="upload-btn" class="primary-btn" type="button">Upload JSON</button>
-          <input id="json-input" type="file" accept=".json,application/json" hidden>
-        </div>
-
-        <div class="member-select-wrap">
-          <label for="member-select">Mulai Dari Jamaah</label>
-          <select id="member-select" disabled></select>
-        </div>
-      </section>
-
-      <section class="panel-card">
-        <div class="section-head">
-          <div>
-            <h2>File Passport</h2>
-            <p>Sumber file untuk upload.</p>
-          </div>
-          <div class="file-action-row">
-            <button id="passport-folder-btn" class="primary-btn" type="button">Pilih Folder</button>
-            <button id="passport-files-btn" class="ghost-btn" type="button">Pilih File</button>
-          </div>
-          <input id="passport-folder-input" type="file" accept="image/*,.pdf" multiple webkitdirectory hidden>
-          <input id="passport-files-input" type="file" accept="image/*,.pdf" multiple hidden>
-        </div>
-        <div id="passport-files-summary" class="file-summary">Belum ada file passport dipilih.</div>
-      </section>
-
-      <section class="panel-card">
-        <div class="section-head compact">
-          <div>
-            <h2>Pratinjau</h2>
-            <p>Ringkasan data jamaah.</p>
-          </div>
-        </div>
-
-        <div id="preview-empty" class="empty-state">Upload manifest untuk melihat detail jamaah.</div>
-        <div id="preview-grid" class="preview-grid hidden">
-          <div class="preview-group">
-            <h3>Identitas</h3>
-            <dl id="preview-identity"></dl>
-          </div>
-          <div class="preview-group">
-            <h3>Passport</h3>
-            <dl id="preview-passport"></dl>
-          </div>
-          <div class="preview-group">
-            <h3>Perjalanan</h3>
-            <dl id="preview-travel"></dl>
-          </div>
-          <div class="preview-group">
-            <h3>Kontak</h3>
-            <dl id="preview-contact"></dl>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel-card">
-        <div class="section-head compact">
-          <div>
-            <h2>Jalankan</h2>
-            <p>Tab Nusuk aktif.</p>
-          </div>
+      <!-- COMPACT CONTAINER (Selalu Terlihat) -->
+      <div class="compact-container">
+        <div class="active-mutamer-card">
+          <div class="active-label">Sedang Diproses:</div>
+          <div id="active-mutamer-name" class="active-name">Belum ada proses aktif</div>
         </div>
 
         <div class="control-row">
@@ -97,40 +37,121 @@
 
         <div class="progress-block">
           <div class="progress-meta">
-            <span>Progress</span>
+            <span id="status-banner" class="status-banner neutral">Siap.</span>
             <span id="progress-text">0 / 0</span>
           </div>
           <div class="progress-track">
             <div id="progress-bar" class="progress-bar"></div>
           </div>
         </div>
+      </div>
 
-        <div id="status-banner" class="status-banner neutral">Siap.</div>
-      </section>
-
-      <section class="panel-card" id="failures-card" style="display: none;">
-        <div class="section-head compact">
-          <div>
-            <h2>Jamaah Gagal</h2>
-            <p>Daftar gagal entry.</p>
+      <!-- EXPANDED CONTAINER (Hanya Terlihat Di Mode Expanded) -->
+      <div class="expanded-container">
+        
+        <!-- Connection Card (Detail Notice) -->
+        <section class="panel-card connection-card">
+          <div class="connection-status">
+            <div>
+              <h2 id="ws-status-title">Hubungan Desktop: Terputus</h2>
+              <p id="ws-status-desc">Hubungkan dengan membuka aplikasi desktop EntryMate.</p>
+            </div>
           </div>
-          <button id="restart-failed-btn" class="ghost-btn" type="button">Ulangi Gagal</button>
-        </div>
-        <div id="failures-list" class="log-list" style="max-height: 120px;"></div>
-      </section>
-
-      <section class="panel-card logs-card">
-        <div class="section-head compact">
-          <div>
-            <h2>Log</h2>
-            <p>Aktivitas terbaru.</p>
+          <div id="ws-notice-banner" class="ws-notice-banner hidden">
+            <span class="info-icon">i</span>
+            <span>Mode Otomatisasi WebSocket aktif. Klik <strong>Start</strong> langsung pada aplikasi desktop Anda untuk memulai pengisian otomatis secara terintegrasi.</span>
           </div>
-        </div>
-        <div id="log-list" class="log-list" aria-live="polite"></div>
-      </section>
+        </section>
+
+        <!-- Legacy Manual Controls -->
+        <details class="legacy-controls-details">
+          <summary class="legacy-controls-summary">
+            <span>Legacy Mode (Kontrol Manual)</span>
+            <span class="summary-toggle-icon">▼</span>
+          </summary>
+          <div class="legacy-controls-content">
+            <section class="panel-card">
+              <div class="section-head">
+                <div>
+                  <h2>Manifest</h2>
+                  <p>JSON hasil export desktop.</p>
+                </div>
+                <button id="upload-btn" class="primary-btn" type="button">Upload JSON</button>
+                <input id="json-input" type="file" accept=".json,application/json" hidden>
+              </div>
+
+              <div class="member-select-wrap">
+                <label for="member-select">Mulai Dari Jamaah</label>
+                <select id="member-select" disabled></select>
+              </div>
+            </section>
+
+            <section class="panel-card">
+              <div class="section-head">
+                <div>
+                  <h2>File Passport</h2>
+                  <p>Sumber file untuk upload.</p>
+                </div>
+                <div class="file-action-row">
+                  <button id="passport-folder-btn" class="primary-btn" type="button">Pilih Folder</button>
+                  <button id="passport-files-btn" class="ghost-btn" type="button">Pilih File</button>
+                </div>
+                <input id="passport-folder-input" type="file" accept="image/*,.pdf" multiple webkitdirectory hidden>
+                <input id="passport-files-input" type="file" accept="image/*,.pdf" multiple hidden>
+              </div>
+              <div id="passport-files-summary" class="file-summary">Belum ada file passport dipilih.</div>
+            </section>
+          </div>
+        </details>
+
+        <!-- Preview Card -->
+        <section class="panel-card">
+          <div class="section-head compact">
+            <div>
+              <h2>Pratinjau</h2>
+              <p>Ringkasan data jamaah.</p>
+            </div>
+          </div>
+
+          <div id="preview-empty" class="empty-state">Upload manifest untuk melihat detail jamaah.</div>
+          <div id="preview-grid" class="preview-grid hidden">
+            <div class="preview-group">
+              <h3>Identitas</h3>
+              <dl id="preview-identity"></dl>
+            </div>
+            <div class="preview-group">
+              <h3>Passport</h3>
+              <dl id="preview-passport"></dl>
+            </div>
+            <div class="preview-group">
+              <h3>Perjalanan</h3>
+              <dl id="preview-travel"></dl>
+            </div>
+            <div class="preview-group">
+              <h3>Kontak</h3>
+              <dl id="preview-contact"></dl>
+            </div>
+          </div>
+        </section>
+
+        <!-- Failures Card -->
+        <section class="panel-card" id="failures-card" style="display: none;">
+          <div class="section-head compact">
+            <div>
+              <h2>Jamaah Gagal</h2>
+              <p>Daftar gagal entry.</p>
+            </div>
+            <button id="restart-failed-btn" class="ghost-btn" type="button">Ulangi Gagal</button>
+          </div>
+          <div id="failures-list" class="log-list" style="max-height: 120px;"></div>
+        </section>
+
+      </div>
+
     </div>
 
+    <script src="content/protocol-types.js"></script>
     <script src="content/manifest-validator.js"></script>
     <script src="panel.js"></script>
   </body>
-  </html>
+</html>

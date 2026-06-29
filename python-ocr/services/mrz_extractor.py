@@ -17,17 +17,9 @@ try:
 except ImportError:  # pragma: no cover - depends on local environment
     cv2 = None
 
-try:
-    from passporteye import read_mrz
-    PASSPORTEYE_IMPORT_ERROR = ""
-except ImportError as exc:  # pragma: no cover - depends on local environment
-    read_mrz = None
-    PASSPORTEYE_IMPORT_ERROR = str(exc)
-
-try:
-    import pytesseract
-except ImportError:  # pragma: no cover - depends on local environment
-    pytesseract = None
+read_mrz = None
+PASSPORTEYE_IMPORT_ERROR = "passporteye is deprecated and replaced by RapidOCR"
+pytesseract = None
 
 from services.image_preprocessor import _mrz_band_score, assess_document_quality, detect_passport_data_page_crop, resize_to_max_edge, temporary_mrz_variants
 from services.mrz_validation import MrzValidationResult, validate_td3_line2
@@ -77,15 +69,7 @@ class DirectMrzResult:
 
 
 def _initialize_tesseract_if_needed() -> None:
-    if read_mrz is None:
-        detail = f": {PASSPORTEYE_IMPORT_ERROR}" if PASSPORTEYE_IMPORT_ERROR else "."
-        raise RuntimeError(f"passporteye is not installed{detail}")
-    if pytesseract is None:
-        raise RuntimeError("pytesseract is not installed.")
-    tesseract_cmd = _resolve_tesseract_cmd()
-    if tesseract_cmd is None:
-        raise RuntimeError("Tesseract executable is not installed or not available on PATH.")
-    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+    pass
 
 
 def extract_mrz_data(file_path: str) -> dict[str, Any]:
@@ -150,22 +134,39 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
 
 
 def _read_mrz(file_path: str) -> Any:
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=FutureWarning, module="passporteye")
-            warnings.filterwarnings("ignore", category=FutureWarning, module="skimage")
-            return read_mrz(file_path, save_roi=False)
-    except TypeError:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=FutureWarning, module="passporteye")
-            warnings.filterwarnings("ignore", category=FutureWarning, module="skimage")
-            return read_mrz(file_path)
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError(f"PassportEye failed to read image: {exc}") from exc
+    if cv2 is None:
+        return None
+    image = cv2.imread(file_path)
+    if image is None:
+        return None
+        
+    result = _extract_direct_mrz_from_region(image)
+    if result and result.valid:
+        return result
+        
+    document = detect_passport_data_page_crop(image)
+    if document is None:
+        document = image
+    document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
+    
+    best_result = result
+    for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
+        for start_ratio in (0.82, 0.75):
+            height = candidate_document.shape[0]
+            region = candidate_document[int(height * start_ratio) :, :]
+            res = _extract_direct_mrz_from_region(region)
+            if res is None:
+                continue
+            res = replace(res, rotation_degrees=rotation_degrees)
+            if best_result is None or res.valid_score > best_result.valid_score:
+                best_result = res
+            if _is_high_confidence_indonesian_direct_mrz(res):
+                return res
+    return best_result
 
 
 def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
-    if cv2 is None or pytesseract is None:
+    if cv2 is None:
         return None
     image = cv2.imread(file_path)
     if image is None:
@@ -249,21 +250,36 @@ def _direct_mrz_note(mrz: DirectMrzResult | None) -> str:
 
 def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
     gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
-    if gray.shape[1] < 1600:
-        scale = 1600.0 / max(gray.shape[1], 1)
-        gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    candidates: list[DirectMrzResult] = []
-    for variant in _build_direct_mrz_variants(gray):
-        config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
-        text = run_rapid_ocr(variant, config)
-        if not text:
-            continue
-        lines = _clean_direct_mrz_lines(text)
-        candidates.extend(_direct_mrz_candidates_from_lines(lines))
-        best_candidate = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+    
+    best_candidate: DirectMrzResult | None = None
+    
+    # Coba pada dua skala lebar target untuk meningkatkan resiliensi deteksi text box
+    for target_width in (1600, 2000):
         if _is_high_confidence_indonesian_direct_mrz(best_candidate):
             return best_candidate
-    return max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+            
+        scaled_gray = gray
+        if gray.shape[1] != target_width:
+            scale = target_width / max(gray.shape[1], 1)
+            interp = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
+            scaled_gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=interp)
+            
+        candidates: list[DirectMrzResult] = []
+        for variant in _build_direct_mrz_variants(scaled_gray):
+            config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
+            text = run_rapid_ocr(variant, config)
+            if not text:
+                continue
+            lines = _clean_direct_mrz_lines(text)
+            candidates.extend(_direct_mrz_candidates_from_lines(lines))
+            current_best = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+            if current_best is not None:
+                if best_candidate is None or current_best.valid_score > best_candidate.valid_score:
+                    best_candidate = current_best
+                if _is_high_confidence_indonesian_direct_mrz(current_best):
+                    return current_best
+                    
+    return best_candidate
 
 
 def _build_direct_mrz_variants(gray: object) -> list[object]:
@@ -278,13 +294,13 @@ def _build_direct_mrz_variants(gray: object) -> list[object]:
 def _direct_mrz_candidates_from_lines(lines: list[str]) -> list[DirectMrzResult]:
     candidates: list[DirectMrzResult] = []
     for index, line in enumerate(lines):
-        if not line.startswith(("P<", "P1", "PI")):
-            continue
-        line1 = _repair_direct_line1(line)
-        for line2 in _direct_line2_candidates(lines[index + 1 :]):
-            score = _score_direct_mrz(line1, line2)
-            if score >= 70:
-                candidates.append(DirectMrzResult(line1=line1, line2=line2, valid_score=score))
+        # Lebih toleran terhadap misread pada karakter ke-2 (seperti PK, PH, P1, PI, P0)
+        if len(line) >= 10 and line[0] == "P" and (line[1] == "<" or line.count("<") >= 2 or "IDN" in line[1:8] or line.startswith(("P1", "PI"))):
+            line1 = _repair_direct_line1(line)
+            for line2 in _direct_line2_candidates(lines[index + 1 :]):
+                score = _score_direct_mrz(line1, line2)
+                if score >= 70:
+                    candidates.append(DirectMrzResult(line1=line1, line2=line2, valid_score=score))
     return candidates
 
 
@@ -298,7 +314,11 @@ def _clean_direct_mrz_lines(text: str) -> list[str]:
 
 
 def _repair_direct_line1(value: str) -> str:
-    line = value.replace("P1", "P<", 1).replace("PI", "P<", 1)
+    line = value
+    if len(line) >= 5 and line[0] == "P" and line[1] != "<" and not line.startswith(("P1", "PI")):
+        # Jika karakter kedua misread (misal: PK, PH, P0), ubah menjadi '<'
+        line = "P<" + line[2:]
+    line = line.replace("P1", "P<", 1).replace("PI", "P<", 1)
     if line.startswith("P<ID") and len(line) >= 5 and line[4] != "N":
         line = f"P<IDN{line[5:]}"
     return line[:44].ljust(44, "<")
@@ -509,14 +529,4 @@ def _has_value(value: Any) -> bool:
 
 
 def _resolve_tesseract_cmd() -> str | None:
-    configured = os.environ.get("TESSERACT_CMD")
-    candidates = [
-        configured,
-        shutil.which("tesseract"),
-        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-    ]
-    for candidate in candidates:
-        if candidate and os.path.exists(candidate):
-            return candidate
     return None

@@ -165,7 +165,57 @@
         return [];
       }
       const selectedIndex = getSelectedMemberIndex();
-      return selectedIndex >= 0 ? members.slice(selectedIndex) : members;
+      const rawSlice = selectedIndex >= 0 ? members.slice(selectedIndex) : members;
+      return sortMembersByDependency(rawSlice);
+    }
+
+    function sortMembersByDependency(membersList) {
+      const dependents = [];
+      const nonDependents = [];
+      for (const m of membersList) {
+        if (hasCompanionDependency(m)) {
+          dependents.push(m);
+        } else {
+          nonDependents.push(m);
+        }
+      }
+      return [...nonDependents, ...dependents];
+    }
+
+    function hasCompanionDependency(member) {
+      if (isMinorMember(member)) {
+        return true;
+      }
+      const companionObj = member?.companion || member?.companionProfile || member?.guardian || member?.mahram || member?.resolvedProfile?.companion;
+      if (companionObj && typeof companionObj === "object" && Object.keys(companionObj).length > 0) {
+        return true;
+      }
+      return false;
+    }
+
+    function isMinorMember(member) {
+      const dob = String(member?.resolvedProfile?.dob || member?.passportExtracted?.dob || "").trim();
+      const birthDate = parseIsoDate(dob);
+      if (!birthDate) {
+        return false;
+      }
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const beforeBirthday = today.getMonth() < birthDate.getMonth()
+        || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+      if (beforeBirthday) {
+        age -= 1;
+      }
+      return age < 18;
+    }
+
+    function parseIsoDate(value) {
+      const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) {
+        return null;
+      }
+      const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(date.getTime()) ? null : date;
     }
 
     function getSelectedMemberIndex() {
@@ -208,11 +258,14 @@
 
     function hasPassportDebuggerPathSource(manifest, members) {
       const manifestPath = String(manifest?.manifestPath || "").trim();
+      console.log("[EntryMate Debug] manifestPath:", manifestPath);
       return Array.isArray(members)
         && members.length > 0
         && members.every((member) => {
           const passportPath = String(member?.passportImagePath || "").trim();
-          return Boolean(passportPath && (manifestPath || isAbsoluteWindowsPath(passportPath)));
+          const isAbs = isAbsoluteWindowsPath(passportPath);
+          console.log(`[EntryMate Debug] member ID: ${member.id}, passportImagePath: "${passportPath}", isAbsolute: ${isAbs}`);
+          return Boolean(passportPath && (manifestPath || isAbs));
         });
     }
 

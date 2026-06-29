@@ -453,7 +453,7 @@ def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
         "budgetExceeded": ctx.budget_exceeded(),
         "skippedStages": list(ctx.skipped_ocr_stages),
         "ocrCache": get_ocr_result_cache_stats(),
-        "tesseract": get_ocr_stats(),
+        "rapidocr": get_ocr_stats(),
         "imagePreprocessor": get_image_preprocessor_stats(),
         "fastLocationOcr": get_fast_location_ocr_stats(),
         "ocrMode": _classify_ocr_mode(

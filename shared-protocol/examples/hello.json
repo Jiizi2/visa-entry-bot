@@ -1,0 +1,17 @@
+{
+  "protocolVersion": 1,
+  "type": "HELLO",
+  "messageId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+  "sessionId": "",
+  "correlationId": "",
+  "timestamp": "2026-06-29T00:30:00.000Z",
+  "payload": {
+    "extensionVersion": "1.0.0",
+    "browser": "chrome",
+    "capabilities": {
+      "supportsDebugger": true,
+      "supportsScreenshot": true,
+      "supportsResume": true
+    }
+  }
+}

@@ -17,6 +17,9 @@
         --danger: #b91c1c;
         --shadow-soft: 0 8px 22px rgba(15, 23, 42, 0.06);
         --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 8px;
       }
 
       * {
@@ -52,7 +55,7 @@
       .panel {
         background: var(--surface-card);
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 14px;
         box-shadow: var(--shadow-soft);
       }
@@ -73,7 +76,7 @@
       select {
         width: 100%;
         min-height: 40px;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         border: 1px solid var(--line);
         padding: 0 12px;
         font: inherit;
@@ -119,7 +122,7 @@
         overflow: auto;
         white-space: pre-wrap;
         word-break: break-word;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         background: var(--surface-soft);
         border: 1px solid rgba(100, 116, 139, 0.18);
         color: #334155;

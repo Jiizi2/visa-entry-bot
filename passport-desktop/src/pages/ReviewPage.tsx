@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../store';
+import { invoke } from '@tauri-apps/api/core';
 import { 
   memberDisplayName, 
   resolvedProfileOf, 
@@ -25,6 +26,18 @@ export default function ReviewPage() {
   const activeMember = members.find((m: any) => m.id === state.activeMemberId) || members[0];
   const activeIndex = members.findIndex((m: any) => m.id === activeMember?.id);
   
+  const saveManifestDisk = async (manifestData: any) => {
+    if (!state.manifestPath || !manifestData) return;
+    try {
+      await invoke('save_manifest', { 
+        manifestPath: state.manifestPath, 
+        manifestData: JSON.parse(JSON.stringify(manifestData)) 
+      });
+    } catch (e) {
+      console.error("Failed to save manifest to disk:", e);
+    }
+  };
+
   const handleNext = () => {
     let nextManifest = state.manifest;
     let nextSet = state.reviewedMemberIds;
@@ -46,6 +59,7 @@ export default function ReviewPage() {
       }
       
       updateState({ reviewedMemberIds: nextSet, manifest: nextManifest });
+      saveManifestDisk(nextManifest);
     }
 
     if (activeIndex >= 0 && activeIndex < members.length - 1) {
@@ -93,7 +107,10 @@ export default function ReviewPage() {
 
       updatedMember.reviewStatus = 'NEEDS_REVIEW'; // mark modified
       newMembers[index] = updatedMember;
-      updateState({ manifest: { ...state.manifest, members: newMembers } });
+      
+      const nextManifest = { ...state.manifest, members: newMembers };
+      updateState({ manifest: nextManifest });
+      saveManifestDisk(nextManifest);
     }
   };
 
@@ -128,10 +145,12 @@ export default function ReviewPage() {
       }
     }
 
+    const nextManifest = { ...state.manifest, members: newMembers };
     updateState({ 
-      manifest: { ...state.manifest, members: newMembers },
+      manifest: nextManifest,
       activeMemberId: nextActiveId
     });
+    saveManifestDisk(nextManifest);
     
     if (newMembers.length === 0) {
       updateState({ currentPage: 'entry' });
@@ -153,30 +172,30 @@ export default function ReviewPage() {
   const filledCount = allRequiredKeys.filter(k => rawValueFrom(resolved, k)).length;
   const progressText = `${filledCount}/${allRequiredKeys.length} Wajib`;
 
+  const isReviewed = Boolean(activeMember?.reviewConfirmed || state.reviewedMemberIds.has(activeMember?.id));
+
   return (
-    <div className="flex-1 h-full flex flex-col overflow-hidden bg-slate-50 w-full text-slate-900 font-['Inter',sans-serif] text-[16px] leading-[24px]">
+    <div className="page-container">
       {/* Top Workspace Header */}
-      <div className="px-4 pt-4 shrink-0 z-20">
-        <header className="flex justify-between items-center bg-white border-b border-slate-300 shadow-sm py-4 px-6 rounded-2xl relative z-20">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white bg-gradient-to-br from-blue-700 to-blue-500 shadow-[0_4px_12px_rgba(0,74,198,0.2)]">
-              <span className="material-symbols-outlined text-[24px]">fact_check</span>
-            </div>
-            <div>
-              <span className="block text-[11px] font-bold text-blue-700 tracking-[0.1em] mb-1 uppercase">LANGKAH 4: VALIDASI DATA</span>
-              <h1 className="font-['Inter',sans-serif] text-[20px] font-semibold text-slate-900 m-0 leading-7">Data Review</h1>
-            </div>
+      <header className="app-page-header">
+        <div className="app-page-header-left">
+          <div className="app-page-header-icon">
+            <span className="material-symbols-outlined">fact_check</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-200 text-slate-600 border border-slate-300/50">
-              {remaining} Documents Remaining
-            </span>
+          <div className="app-page-header-info">
+            <span className="app-page-step-label">LANGKAH 4: VALIDASI DATA</span>
+            <h1 className="app-page-title">Data Review</h1>
           </div>
-        </header>
-      </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-200 text-slate-600 border border-slate-300/50">
+            {remaining} Documents Remaining
+          </span>
+        </div>
+      </header>
 
       {/* Main Workspace: Two Columns (Form Dominant) */}
-      <section className="flex-1 flex overflow-hidden p-4 gap-4">
+      <section className="flex-1 flex overflow-hidden gap-4">
         
         {/* Left Column: Dropdown and Image */}
         <div className="flex flex-col min-w-0 flex-[2]">
@@ -186,6 +205,7 @@ export default function ReviewPage() {
             activeMember={activeMember}
             resolved={resolved}
             onMemberSelect={handleMemberSelect}
+            reviewedMemberIds={state.reviewedMemberIds}
           />
 
           <ReviewImageViewer 
@@ -196,7 +216,7 @@ export default function ReviewPage() {
         </div>
 
         {/* Right Column: Streamlined Data Form */}
-        <div className="flex flex-col flex-[3] min-w-0 bg-white rounded-xl border border-slate-300/40 shadow-sm p-4 relative z-10 h-full">
+        <div className="flex flex-col flex-[3] min-w-0 app-card relative z-10 h-full !p-4">
           
           {/* Form Header */}
           <div className="pb-4 border-b border-slate-300/50 shrink-0">
@@ -204,9 +224,15 @@ export default function ReviewPage() {
               <h2 className="font-['Inter',sans-serif] text-[24px] font-semibold text-slate-900 m-0 pr-4 leading-8">{memberDisplayName(activeMember)}</h2>
             </div>
             <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                <div className="w-2 h-2 rounded-full shrink-0 bg-amber-400"></div> Needs Review
-              </span>
+              {isReviewed ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-green-50 text-green-700 border border-green-200">
+                  <div className="w-2 h-2 rounded-full shrink-0 bg-green-500"></div> Reviewed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                  <div className="w-2 h-2 rounded-full shrink-0 bg-amber-400"></div> Needs Review
+                </span>
+              )}
               <span className="font-mono text-[14px] text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
                 {resolved?.passportNumber || '-'}
               </span>
@@ -231,24 +257,24 @@ export default function ReviewPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <button 
-                className="px-4 py-2 bg-blue-700 text-white rounded-lg text-[14px] font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-sm hover:bg-blue-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="primary-action"
                 onClick={handleNext}
                 disabled={filledCount < allRequiredKeys.length}
               >
                 {activeIndex === members.length - 1 ? 'Approve & Finish Review' : 'Approve & Next Document'}
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                <span className="material-symbols-outlined">
                   {activeIndex === members.length - 1 ? 'done_all' : 'arrow_forward'}
                 </span>
               </button>
-              <button className="px-4 py-2 bg-transparent text-slate-600 rounded-lg text-[14px] font-semibold border border-slate-300 cursor-pointer transition-all hover:bg-slate-200 hover:text-slate-900">
+              <button className="secondary-button">
                 Flag as Error
               </button>
               <button 
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-[14px] font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-sm hover:bg-red-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                className="primary-action !bg-red-600 hover:!bg-red-700 ml-auto"
                 onClick={handleDeleteClick}
                 title="Hapus passport dari manifest"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
+                <span className="material-symbols-outlined">delete</span>
                 Hapus Passport
               </button>
             </div>
@@ -258,27 +284,28 @@ export default function ReviewPage() {
       </section>
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 w-full max-w-[400px] shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
-            <h3 className="m-0 mb-4 text-[#1a1c1e] text-[20px] flex items-center gap-2 font-semibold">
-              <span className="material-symbols-outlined text-[#ba1a1a] text-[24px]">warning</span>
-              Konfirmasi Hapus
-            </h3>
-            <p className="m-0 mb-6 text-[#43474e] text-[15px] leading-[1.5]">
-              Yakin ingin menghapus data passport {memberDisplayName(activeMember)}?
-              <br/>
-              Data yang dihapus tidak akan di-export ke JSON.
-            </p>
-            <div className="flex justify-end gap-3">
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <span className="material-symbols-outlined text-red-600">warning</span>
+              <h3>Konfirmasi Hapus</h3>
+            </div>
+            <div className="modal-body">
+              <p>
+                Yakin ingin menghapus data passport <strong>{memberDisplayName(activeMember)}</strong>?
+                Data yang dihapus tidak akan di-export ke JSON.
+              </p>
+            </div>
+            <div className="modal-footer">
               <button 
                 onClick={() => setShowDeleteConfirm(false)}
-                className="bg-transparent border border-[#74777f] text-[#43474e] px-4 py-2 rounded-lg cursor-pointer font-medium hover:bg-slate-100 transition-colors"
+                className="secondary-button"
               >
                 Batal
               </button>
               <button 
                 onClick={executeDelete}
-                className="bg-[#ba1a1a] border-none text-white px-4 py-2 rounded-lg cursor-pointer font-medium hover:bg-red-800 transition-colors"
+                className="primary-action !bg-red-600 hover:!bg-red-700"
               >
                 Ya, Hapus
               </button>

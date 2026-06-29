@@ -62,6 +62,7 @@ export interface AppState {
   isStoppingScan: boolean;
   isStartingScan: boolean;
   isChoosingFolder: boolean;
+  legacyMode: boolean;
   
   // Actions
   updateState: (updates: Partial<AppState>) => void;
@@ -126,6 +127,7 @@ const initialState: Omit<AppState, 'updateState' | 'initializeStore'> = {
   isStoppingScan: false,
   isStartingScan: false,
   isChoosingFolder: false,
+  legacyMode: false,
 };
 
 export const useStore = create<AppState>((set) => ({
@@ -139,6 +141,9 @@ export const useStore = create<AppState>((set) => ({
     if (updates.defaultEntry !== undefined) {
       try { localStorage.setItem('defaultEntry', JSON.stringify(updates.defaultEntry)); } catch(e){}
     }
+    if (updates.legacyMode !== undefined) {
+      try { localStorage.setItem('legacyMode', JSON.stringify(updates.legacyMode)); } catch(e){}
+    }
     return updates as AppState;
   }),
   
@@ -146,9 +151,11 @@ export const useStore = create<AppState>((set) => ({
     try {
       const savedRecent = localStorage.getItem('recentBatches');
       const savedDefaultEntry = localStorage.getItem('defaultEntry');
+      const savedLegacy = localStorage.getItem('legacyMode');
       set((state) => ({
         recentBatches: savedRecent ? JSON.parse(savedRecent) : state.recentBatches,
-        defaultEntry: savedDefaultEntry ? JSON.parse(savedDefaultEntry) : state.defaultEntry
+        defaultEntry: savedDefaultEntry ? JSON.parse(savedDefaultEntry) : state.defaultEntry,
+        legacyMode: savedLegacy ? JSON.parse(savedLegacy) : state.legacyMode
       }));
     } catch (e) {
       console.warn('Failed to load state from localStorage', e);

@@ -94,7 +94,7 @@ def _write_invalid_golden_report(args: argparse.Namespace, target: Any, golden_v
             "maxTotalMs": 0,
             "stageTotalsMs": {},
             "ocrCacheTotals": {"hitCount": 0, "missCount": 0, "storeCount": 0},
-            "tesseractTotals": {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0},
+            "rapidocrTotals": {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0},
             "imagePreprocessorTotals": {
                 "requestCount": 0,
                 "cacheHitCount": 0,
@@ -186,7 +186,7 @@ def _summarize_record(record: dict[str, Any], expected: dict[str, str]) -> dict[
         "visualOcrUsed": bool(metrics.get("visualOcrUsed")),
         "mrzFallbackUsed": bool(metrics.get("mrzFallbackUsed")),
         "ocrCache": _dict_value(metrics.get("ocrCache", {})),
-        "tesseract": _dict_value(metrics.get("tesseract", {})),
+        "rapidocr": _dict_value(metrics.get("rapidocr", {})),
         "imagePreprocessor": _dict_value(metrics.get("imagePreprocessor", {})),
         "ocrMode": str(metrics.get("ocrMode", "")),
         "ocrModeReasons": _list_values(metrics.get("ocrModeReasons", [])),
@@ -201,8 +201,8 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     field_totals: dict[str, int] = {}
     field_mismatches: dict[str, int] = {}
     ocr_mode_counts: dict[str, int] = {}
-    tesseract_totals = {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0}
-    tesseract_total_ms_values: list[int] = []
+    rapidocr_totals = {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0}
+    rapidocr_total_ms_values: list[int] = []
     image_preprocessor_totals = {
         "requestCount": 0,
         "cacheHitCount": 0,
@@ -240,14 +240,14 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         ocr_mode = str(record.get("ocrMode", "") or "")
         if ocr_mode:
             ocr_mode_counts[ocr_mode] = ocr_mode_counts.get(ocr_mode, 0) + 1
-        tesseract = record.get("tesseract", {})
-        if isinstance(tesseract, dict):
-            record_tesseract_total = int(tesseract.get("totalMs", 0) or 0)
-            tesseract_totals["callCount"] += int(tesseract.get("callCount", 0) or 0)
-            tesseract_totals["errorCount"] += int(tesseract.get("errorCount", 0) or 0)
-            tesseract_totals["totalMs"] += record_tesseract_total
-            tesseract_totals["maxMs"] = max(tesseract_totals["maxMs"], int(tesseract.get("maxMs", 0) or 0))
-            tesseract_total_ms_values.append(record_tesseract_total)
+        rapidocr = record.get("rapidocr", {})
+        if isinstance(rapidocr, dict):
+            record_rapidocr_total = int(rapidocr.get("totalMs", 0) or 0)
+            rapidocr_totals["callCount"] += int(rapidocr.get("callCount", 0) or 0)
+            rapidocr_totals["errorCount"] += int(rapidocr.get("errorCount", 0) or 0)
+            rapidocr_totals["totalMs"] += record_rapidocr_total
+            rapidocr_totals["maxMs"] = max(rapidocr_totals["maxMs"], int(rapidocr.get("maxMs", 0) or 0))
+            rapidocr_total_ms_values.append(record_rapidocr_total)
         image_preprocessor = record.get("imagePreprocessor", {})
         if isinstance(image_preprocessor, dict):
             record_preprocess_total = int(image_preprocessor.get("totalMs", 0) or 0)
@@ -272,8 +272,8 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             ocr_cache_totals["hitCount"] += int(ocr_cache.get("hitCount", 0) or 0)
             ocr_cache_totals["missCount"] += int(ocr_cache.get("missCount", 0) or 0)
             ocr_cache_totals["storeCount"] += int(ocr_cache.get("storeCount", 0) or 0)
-    tesseract_totals["avgMs"] = int(statistics.fmean(tesseract_total_ms_values)) if tesseract_total_ms_values else 0
-    tesseract_totals["p95Ms"] = _percentile(tesseract_total_ms_values, 0.95)
+    rapidocr_totals["avgMs"] = int(statistics.fmean(rapidocr_total_ms_values)) if rapidocr_total_ms_values else 0
+    rapidocr_totals["p95Ms"] = _percentile(rapidocr_total_ms_values, 0.95)
     image_preprocessor_totals["avgMs"] = (
         int(statistics.fmean(image_preprocessor_total_ms_values)) if image_preprocessor_total_ms_values else 0
     )
@@ -292,7 +292,7 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "maxTotalMs": max(total_ms, default=0),
         "stageTotalsMs": dict(sorted(stage_totals.items())),
         "ocrCacheTotals": ocr_cache_totals,
-        "tesseractTotals": tesseract_totals,
+        "rapidocrTotals": rapidocr_totals,
         "imagePreprocessorTotals": image_preprocessor_totals,
         "fieldAccuracy": _summarize_field_accuracy(field_totals, field_mismatches),
         "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
@@ -399,8 +399,8 @@ def _resolve_latency_assumption(args: argparse.Namespace, targets: dict[str, Any
 
 def _project_latency(summary: dict[str, Any], assumption: dict[str, Any]) -> dict[str, Any]:
     multiplier = float(assumption.get("latencyMultiplier", 1.0) or 1.0)
-    tesseract_totals = summary.get("tesseractTotals", {})
-    tesseract_totals = tesseract_totals if isinstance(tesseract_totals, dict) else {}
+    rapidocr_totals = summary.get("rapidocrTotals", {})
+    rapidocr_totals = rapidocr_totals if isinstance(rapidocr_totals, dict) else {}
     image_preprocessor_totals = summary.get("imagePreprocessorTotals", {})
     image_preprocessor_totals = image_preprocessor_totals if isinstance(image_preprocessor_totals, dict) else {}
     return {
@@ -409,11 +409,11 @@ def _project_latency(summary: dict[str, Any], assumption: dict[str, Any]) -> dic
         "avgTotalMs": _scale_ms(summary.get("avgTotalMs", 0), multiplier),
         "p95TotalMs": _scale_ms(summary.get("p95TotalMs", 0), multiplier),
         "maxTotalMs": _scale_ms(summary.get("maxTotalMs", 0), multiplier),
-        "tesseractTotalMs": _scale_ms(tesseract_totals.get("totalMs", 0), multiplier),
-        "tesseractAvgMs": _scale_ms(tesseract_totals.get("avgMs", 0), multiplier),
-        "tesseractP95Ms": _scale_ms(tesseract_totals.get("p95Ms", 0), multiplier),
-        "tesseractMaxMs": _scale_ms(tesseract_totals.get("maxMs", 0), multiplier),
-        "tesseractCallCount": int(tesseract_totals.get("callCount", 0) or 0),
+        "rapidocrTotalMs": _scale_ms(rapidocr_totals.get("totalMs", 0), multiplier),
+        "rapidocrAvgMs": _scale_ms(rapidocr_totals.get("avgMs", 0), multiplier),
+        "rapidocrP95Ms": _scale_ms(rapidocr_totals.get("p95Ms", 0), multiplier),
+        "rapidocrMaxMs": _scale_ms(rapidocr_totals.get("maxMs", 0), multiplier),
+        "rapidocrCallCount": int(rapidocr_totals.get("callCount", 0) or 0),
         "imagePreprocessorTotalMs": _scale_ms(image_preprocessor_totals.get("totalMs", 0), multiplier),
         "imagePreprocessorAvgMs": _scale_ms(image_preprocessor_totals.get("avgMs", 0), multiplier),
         "imagePreprocessorP95Ms": _scale_ms(image_preprocessor_totals.get("p95Ms", 0), multiplier),
@@ -450,10 +450,10 @@ def _evaluate_assumed_hardware_targets(
         "avgTotalMs",
         "p95TotalMs",
         "maxTotalMs",
-        "tesseractTotalMs",
-        "tesseractAvgMs",
-        "tesseractP95Ms",
-        "tesseractMaxMs",
+        "rapidocrTotalMs",
+        "rapidocrAvgMs",
+        "rapidocrP95Ms",
+        "rapidocrMaxMs",
         "imagePreprocessorTotalMs",
         "imagePreprocessorAvgMs",
         "imagePreprocessorP95Ms",

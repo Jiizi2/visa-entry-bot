@@ -36,9 +36,9 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
   
   let alertClass = '';
   if (isMissing) {
-    alertClass = 'bg-red-50 border-red-500 text-red-900 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]';
+    alertClass = 'input-error';
   } else if (isLowConf) {
-    alertClass = 'bg-amber-50 border-amber-400 shadow-[0_0_0_2px_rgba(251,191,36,0.2)]';
+    alertClass = 'input-warning';
   }
   
   const warningText = changed ? `Scan Asli: "${ocrValue}"` : null;
@@ -58,14 +58,14 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
       </div>
       {isDate ? (
           <CustomDatePicker 
-            className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] ${alertClass}`}
+            className={`w-full ${alertClass}`}
             value={(finalValue || '').replace(/\//g, '-')}
             onChange={(val) => onChange(keyName, val)}
             placeholder="YYYY-MM-DD"
           />
         ) : (
           <input 
-            className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] ${alertClass}`}
+            className={`w-full ${alertClass}`}
             type="text" 
             value={finalValue || ''}
             maxLength={maxLen || undefined}
@@ -150,7 +150,7 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
                 </span>
               </div>
               <select 
-                className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionId ? 'bg-red-50 border-red-500 text-red-900 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : ''}`}
+                className={`w-full appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionId ? 'input-error' : ''}`}
                 value={resolved?.companionId || ''}
                 onChange={(e) => onChange('companionId', e.target.value)}
               >
@@ -179,7 +179,7 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
                 </span>
               </div>
               <select 
-                className={`w-full bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-3 font-['Inter',sans-serif] text-[14px] text-slate-900 transition-all outline-none focus:border-blue-700 focus:shadow-[0_0_0_2px_rgba(37,99,235,0.2)] appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionRelation ? 'bg-red-50 border-red-500 text-red-900 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : ''}`}
+                className={`w-full appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionRelation ? 'input-error' : ''}`}
                 value={resolved?.companionRelation || ''}
                 onChange={(e) => onChange('companionRelation', e.target.value)}
                 disabled={!resolved?.companionId}

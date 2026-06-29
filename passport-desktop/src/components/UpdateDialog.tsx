@@ -89,20 +89,18 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
   }, [isOpen]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-[400px] overflow-hidden flex flex-col">
+    <div className="modal-overlay" style={{ zIndex: 100 }}>
+      <div className="modal-card">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-            <span className="material-symbols-outlined text-[20px]">system_update</span>
-          </div>
-          <h2 className="text-lg font-bold text-slate-800 m-0">Pembaruan Aplikasi</h2>
+        <div className="modal-header">
+          <span className="material-symbols-outlined text-blue-600">system_update</span>
+          <h3>Pembaruan Aplikasi</h3>
         </div>
 
         {/* Body */}
-        <div className="p-6 text-slate-600 text-sm">
+        <div className="modal-body">
           {status === 'checking' && (
-            <div className="flex flex-col items-center gap-3 py-4">
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
               <span className="material-symbols-outlined text-[32px] text-blue-500 animate-spin">refresh</span>
               <p>Sedang memeriksa pembaruan...</p>
             </div>
@@ -166,11 +164,11 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+        <div className="modal-footer">
           {(status === 'checking' || status === 'up-to-date' || status === 'error' || status === 'available') && (
             <button 
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+              className="secondary-button"
             >
               {status === 'available' ? 'Nanti Saja' : 'Tutup'}
             </button>
@@ -179,7 +177,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
           {status === 'available' && (
             <button 
               onClick={handleDownloadAndInstall}
-              className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
+              className="primary-action"
             >
               Unduh & Instal
             </button>
@@ -188,7 +186,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
           {status === 'ready' && (
             <button 
               onClick={handleRelaunch}
-              className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm w-full"
+              className="primary-action w-full !bg-emerald-600 hover:!bg-emerald-700"
             >
               Mulai Ulang Sekarang
             </button>

@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { useStore } from './store';
+import { MessageType } from '../../shared-protocol/MessageType';
+console.log('Shared Protocol MessageType loaded in React:', MessageType.HELLO);
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';

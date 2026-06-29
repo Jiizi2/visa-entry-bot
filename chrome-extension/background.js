@@ -1,14 +1,8 @@
-chrome.action.onClicked.addListener((tab) => {
-  if (!tab?.id) {
-    return;
-  }
+importScripts('content/protocol-types.js');
 
-  openPanelInTab(tab)
-    .catch((error) => {
-      console.error("EntryMate panel open failed:", error);
-      showTemporaryBadge(tab.id, "!", "#b91c1c");
-    });
-});
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "NUSUK_DEBUGGER_SET_FILE") {
@@ -23,6 +17,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "NUSUK_CAPTURE_FAILURE_SCREENSHOT") {
     handleCaptureFailureScreenshot(sender, sendResponse);
+    return true;
+  }
+
+  if (message?.type === "NUSUK_OPEN_PANEL") {
+    const tabId = sender?.tab?.id;
+    if (tabId && chrome.sidePanel && chrome.sidePanel.open) {
+      chrome.sidePanel.open({ tabId })
+        .then(() => sendResponse({ ok: true }))
+        .catch((err) => sendResponse({ ok: false, error: err.message }));
+      return true;
+    }
+    sendResponse({ ok: false, error: "SidePanel API not supported or tabId missing." });
     return true;
   }
 
@@ -43,72 +49,6 @@ function handleDebuggerSetFile(message, sender, sendResponse) {
     .catch((error) => {
       sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
     });
-}
-
-async function openPanelInTab(tab) {
-  const tabId = tab.id;
-  if (!tabId) {
-    return;
-  }
-  if (!isSupportedNusukUrl(tab.url)) {
-    throw new Error("Buka halaman Nusuk dulu sebelum membuka panel EntryMate.");
-  }
-
-  try {
-    await sendOpenPanelMessage(tabId);
-    return;
-  } catch (error) {
-    await ensureContentScripts(tabId);
-    await sendOpenPanelMessageWithRetry(tabId);
-  }
-}
-
-function isSupportedNusukUrl(url) {
-  return /^https:\/\/([^/]+\.)?nusuk\.sa\//i.test(String(url || ""));
-}
-
-function sendOpenPanelMessage(tabId) {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, { type: "NUSUK_OPEN_PANEL" }, (response) => {
-      const error = chrome.runtime.lastError;
-      if (error) {
-        reject(new Error(error.message));
-        return;
-      }
-      if (!response?.ok) {
-        reject(new Error(response?.error || "Panel EntryMate tidak merespons."));
-        return;
-      }
-      resolve(response);
-    });
-  });
-}
-
-async function sendOpenPanelMessageWithRetry(tabId) {
-  const deadline = Date.now() + 2500;
-  let lastError = null;
-  while (Date.now() < deadline) {
-    try {
-      return await sendOpenPanelMessage(tabId);
-    } catch (error) {
-      lastError = error;
-      await sleep(120);
-    }
-  }
-  throw lastError || new Error("Panel EntryMate belum siap.");
-}
-
-async function ensureContentScripts(tabId) {
-  const manifest = chrome.runtime.getManifest();
-  const scripts = manifest.content_scripts?.[0]?.js || [];
-  if (!scripts.length) {
-    throw new Error("Daftar content script extension kosong.");
-  }
-
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: scripts,
-  });
 }
 
 function showTemporaryBadge(tabId, text, color) {
@@ -212,6 +152,7 @@ function debuggerAttach(target) {
   });
 }
 
+// Keep other debugger helper functions
 function debuggerDetach(target) {
   return new Promise((resolve, reject) => {
     chrome.debugger.detach(target, () => {
