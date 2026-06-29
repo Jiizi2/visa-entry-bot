@@ -2,15 +2,28 @@ from __future__ import annotations
 
 import os
 import re
-from services.log import logger
-import shutil
-import warnings
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Any
 
+from services.log import logger
 from services.models import ParsedPassportData
-from services.mrz_validation import calculate_mrz_check_digit as _mrz_check_digit
+from services.mrz_parser import (
+    DirectMrzResult,
+    _clean_direct_mrz_lines,
+    _direct_mrz_candidates_from_lines,
+    _repair_direct_line2,
+    _score_direct_line2,
+)
+from services.image_preprocessor import (
+    _mrz_band_score,
+    assess_document_quality,
+    detect_passport_data_page_crop,
+    resize_to_max_edge,
+    temporary_mrz_variants,
+)
+from services.mrz_validation import MrzValidationResult, validate_td3_line2
+from services.ocr_runner import build_ocr_config, run_rapid_ocr
 
 try:
     import cv2
@@ -20,10 +33,6 @@ except ImportError:  # pragma: no cover - depends on local environment
 read_mrz = None
 PASSPORTEYE_IMPORT_ERROR = "passporteye is deprecated and replaced by RapidOCR"
 pytesseract = None
-
-from services.image_preprocessor import _mrz_band_score, assess_document_quality, detect_passport_data_page_crop, resize_to_max_edge, temporary_mrz_variants
-from services.mrz_validation import MrzValidationResult, validate_td3_line2
-from services.ocr_runner import build_ocr_config, run_rapid_ocr
 
 FIELD_NAMES = (
     "names",
@@ -35,41 +44,6 @@ FIELD_NAMES = (
     "sex",
 )
 DIRECT_MRZ_MAX_EDGE = 2200
-
-
-@dataclass(frozen=True)
-class DirectMrzResult:
-    line1: str
-    line2: str
-    valid_score: int
-    valid: bool = True
-    rotation_degrees: int = 0
-
-    @property
-    def raw_text(self) -> str:
-        return f"{self.line1}\n{self.line2}"
-
-    @property
-    def text(self) -> str:
-        return self.raw_text
-
-    @property
-    def mrz_text(self) -> str:
-        return self.raw_text
-
-    def to_dict(self) -> ParsedPassportData:
-        return {
-            "line1": self.line1,
-            "line2": self.line2,
-            "raw_text": self.raw_text,
-            "text": self.raw_text,
-            "mrz_text": self.raw_text,
-            "rotationDegrees": self.rotation_degrees,
-        }
-
-
-def _initialize_tesseract_if_needed() -> None:
-    pass
 
 
 def extract_mrz_data(file_path: str) -> dict[str, Any]:
@@ -102,16 +76,18 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
     }
 
 
+def _get_speed_profile() -> bool:
+    return os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower() == "speed"
+
+
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     direct_mrz = _read_direct_mrz(file_path)
     if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
-    is_speed = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower() == "speed"
+    is_speed = _get_speed_profile()
     if is_speed and direct_mrz is not None and getattr(direct_mrz, "valid_score", 0) >= 98:
         return direct_mrz, _direct_mrz_note(direct_mrz)
-
-    _initialize_tesseract_if_needed()
 
     best_mrz = direct_mrz
     best_note = _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
@@ -133,44 +109,32 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     return best_mrz, best_note
 
 
-def _read_mrz(file_path: str) -> Any:
+def _read_image(file_path: str) -> Any:
     if cv2 is None:
         return None
-    image = cv2.imread(file_path)
+    return cv2.imread(file_path)
+
+
+def _read_mrz(file_path: str) -> Any:
+    image = _read_image(file_path)
     if image is None:
         return None
-        
-    result = _extract_direct_mrz_from_region(image)
-    if result and result.valid:
-        return result
-        
-    document = detect_passport_data_page_crop(image)
-    if document is None:
-        document = image
-    document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
-    
-    best_result = result
-    for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
-        for start_ratio in (0.82, 0.75):
-            height = candidate_document.shape[0]
-            region = candidate_document[int(height * start_ratio) :, :]
-            res = _extract_direct_mrz_from_region(region)
-            if res is None:
-                continue
-            res = replace(res, rotation_degrees=rotation_degrees)
-            if best_result is None or res.valid_score > best_result.valid_score:
-                best_result = res
-            if _is_high_confidence_indonesian_direct_mrz(res):
-                return res
-    return best_result
+    return _scan_document(image, try_full_image_first=True)
 
 
 def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
-    if cv2 is None:
-        return None
-    image = cv2.imread(file_path)
+    image = _read_image(file_path)
     if image is None:
         return None
+    return _scan_document(image, try_full_image_first=False)
+
+
+def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | None:
+    if try_full_image_first:
+        result = _extract_direct_mrz_from_region(image)
+        if result and result.valid:
+            return result
+
     document = detect_passport_data_page_crop(image)
     if document is None:
         document = image
@@ -192,7 +156,7 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
     return best_result
 
 
-def _direct_mrz_orientation_candidates(document: object):
+def _direct_mrz_orientation_candidates(document: Any):
     yield document, 0
     if not _should_try_direct_mrz_rotations(document):
         return
@@ -201,26 +165,26 @@ def _direct_mrz_orientation_candidates(document: object):
     yield _rotate_image_270(document), 270
 
 
-def _should_try_direct_mrz_rotations(document: object) -> bool:
+def _should_try_direct_mrz_rotations(document: Any) -> bool:
     height, width = document.shape[:2]
     if width >= height and _mrz_band_score(document) >= 120.0:
         return False
     return True
 
 
-def _rotate_image_180(image: object) -> object:
+def _rotate_image_180(image: Any) -> Any:
     return _rotate_image(image, 180)
 
 
-def _rotate_image_90(image: object) -> object:
+def _rotate_image_90(image: Any) -> Any:
     return _rotate_image(image, 90)
 
 
-def _rotate_image_270(image: object) -> object:
+def _rotate_image_270(image: Any) -> Any:
     return _rotate_image(image, 270)
 
 
-def _rotate_image(image: object, degrees: int) -> object:
+def _rotate_image(image: Any, degrees: int) -> Any:
     rotation = int(degrees or 0) % 360
     if rotation == 90 and hasattr(cv2, "ROTATE_90_CLOCKWISE"):
         return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
@@ -248,41 +212,51 @@ def _direct_mrz_note(mrz: DirectMrzResult | None) -> str:
     return "MRZ recovered from direct lower-band OCR."
 
 
-def _extract_direct_mrz_from_region(region: object) -> DirectMrzResult | None:
+def _scale_gray_image(gray: Any, target_width: int) -> Any:
+    if gray.shape[1] == target_width:
+        return gray
+    scale = target_width / max(gray.shape[1], 1)
+    interp = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
+    return cv2.resize(gray, None, fx=scale, fy=scale, interpolation=interp)
+
+
+def _run_ocr_on_variant(variant: Any) -> str:
+    config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
+    return run_rapid_ocr(variant, config)
+
+
+def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResult | None) -> DirectMrzResult | None:
+    candidates: list[DirectMrzResult] = []
+    for variant in _build_direct_mrz_variants(scaled_gray):
+        text = _run_ocr_on_variant(variant)
+        if not text:
+            continue
+        lines = _clean_direct_mrz_lines(text)
+        candidates.extend(_direct_mrz_candidates_from_lines(lines))
+        current_best = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
+        if current_best is not None:
+            if best_candidate is None or current_best.valid_score > best_candidate.valid_score:
+                best_candidate = current_best
+            if _is_high_confidence_indonesian_direct_mrz(current_best):
+                return current_best
+    return best_candidate
+
+
+def _extract_direct_mrz_from_region(region: Any) -> DirectMrzResult | None:
     gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
-    
     best_candidate: DirectMrzResult | None = None
     
-    # Coba pada dua skala lebar target untuk meningkatkan resiliensi deteksi text box
     for target_width in (1600, 2000):
         if _is_high_confidence_indonesian_direct_mrz(best_candidate):
             return best_candidate
             
-        scaled_gray = gray
-        if gray.shape[1] != target_width:
-            scale = target_width / max(gray.shape[1], 1)
-            interp = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
-            scaled_gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=interp)
-            
-        candidates: list[DirectMrzResult] = []
-        for variant in _build_direct_mrz_variants(scaled_gray):
-            config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
-            text = run_rapid_ocr(variant, config)
-            if not text:
-                continue
-            lines = _clean_direct_mrz_lines(text)
-            candidates.extend(_direct_mrz_candidates_from_lines(lines))
-            current_best = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
-            if current_best is not None:
-                if best_candidate is None or current_best.valid_score > best_candidate.valid_score:
-                    best_candidate = current_best
-                if _is_high_confidence_indonesian_direct_mrz(current_best):
-                    return current_best
-                    
+        scaled_gray = _scale_gray_image(gray, target_width)
+        best_candidate = _process_variants_for_width(scaled_gray, best_candidate)
+        
     return best_candidate
 
 
-def _build_direct_mrz_variants(gray: object) -> list[object]:
+def _build_direct_mrz_variants(gray: Any) -> list[Any]:
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
     sharpened = cv2.addWeighted(clahe, 1.6, cv2.GaussianBlur(clahe, (0, 0), 1.6), -0.6, 0)
     denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
@@ -291,154 +265,12 @@ def _build_direct_mrz_variants(gray: object) -> list[object]:
     return [gray, clahe, otsu, adaptive]
 
 
-def _direct_mrz_candidates_from_lines(lines: list[str]) -> list[DirectMrzResult]:
-    candidates: list[DirectMrzResult] = []
-    for index, line in enumerate(lines):
-        # Lebih toleran terhadap misread pada karakter ke-2 (seperti PK, PH, P1, PI, P0)
-        if len(line) >= 10 and line[0] == "P" and (line[1] == "<" or line.count("<") >= 2 or "IDN" in line[1:8] or line.startswith(("P1", "PI"))):
-            line1 = _repair_direct_line1(line)
-            for line2 in _direct_line2_candidates(lines[index + 1 :]):
-                score = _score_direct_mrz(line1, line2)
-                if score >= 70:
-                    candidates.append(DirectMrzResult(line1=line1, line2=line2, valid_score=score))
-    return candidates
-
-
-def _clean_direct_mrz_lines(text: str) -> list[str]:
-    lines: list[str] = []
-    for raw_line in str(text or "").splitlines():
-        cleaned = re.sub(r"[^A-Z0-9<]", "", raw_line.upper())
-        if len(cleaned.replace("<", "")) >= 8:
-            lines.append(cleaned)
-    return lines
-
-
-def _repair_direct_line1(value: str) -> str:
-    line = value
-    if len(line) >= 5 and line[0] == "P" and line[1] != "<" and not line.startswith(("P1", "PI")):
-        # Jika karakter kedua misread (misal: PK, PH, P0), ubah menjadi '<'
-        line = "P<" + line[2:]
-    line = line.replace("P1", "P<", 1).replace("PI", "P<", 1)
-    if line.startswith("P<ID") and len(line) >= 5 and line[4] != "N":
-        line = f"P<IDN{line[5:]}"
-    return line[:44].ljust(44, "<")
-
-
-def _pick_direct_line2(lines: list[str]) -> str:
-    return next(iter(_direct_line2_candidates(lines)), "")
-
-
-def _direct_line2_candidates(lines: list[str]) -> list[str]:
-    candidates: list[str] = []
-    for line in lines[:4]:
-        candidate = _repair_direct_line2(line)
-        if _score_direct_line2(candidate) >= 2:
-            candidates.append(candidate)
-    return sorted(set(candidates), key=_score_direct_line2, reverse=True)
-
-
-def _repair_direct_line2(value: str) -> str:
-    line = value[:44].ljust(44, "<")
-    candidates = {line}
-    candidates.update(_direct_line2_alignment_repairs(line))
-    repaired = {_repair_direct_line2_digits(_repair_direct_line2_country(candidate)) for candidate in candidates}
-    repaired.update(_repair_missing_composite_check_digit(candidate) for candidate in list(repaired))
-    return max(repaired, key=_line2_repair_score)
-
-
 def _repair_extracted_mrz_data(data: dict[str, Any]) -> dict[str, Any]:
     updated = dict(data)
     line2 = str(updated.get("line2") or _extract_line2(updated) or "")
     if line2:
         updated["line2"] = _repair_direct_line2(line2)
     return updated
-
-
-def _direct_line2_alignment_repairs(line: str) -> set[str]:
-    repairs: set[str] = set()
-    if len(line) != 44:
-        return repairs
-    if line[0] in {"1", "7", "I", "L"} and line[1:8].isdigit() and line[8] == "<":
-        repairs.add("E" + line[1:])
-    if re.match(r"^[A-Z0-9][EX]\d{7}<", line):
-        repairs.add((line[1:] + "<")[:44].ljust(44, "<"))
-    return repairs
-
-
-def _repair_direct_line2_digits(line: str) -> str:
-    chars = list(line)
-    digit_table = str.maketrans({"O": "0", "Q": "0", "D": "0", "I": "1", "L": "1", "S": "5", "B": "8", "Z": "2", "G": "6"})
-    for index in (9, 42, 43):
-        if index < len(chars):
-            chars[index] = chars[index].translate(digit_table)
-    for start, end in ((13, 20), (21, 28)):
-        for index in range(start, min(end, len(chars))):
-            chars[index] = chars[index].translate(digit_table)
-    if len(chars) > 20 and chars[20] in {"L", "I", "1"}:
-        chars[20] = "M"
-    if len(chars) > 20 and chars[20] == "P":
-        chars[20] = "F"
-    return "".join(chars)
-
-
-def _repair_missing_composite_check_digit(line: str) -> str:
-    result = validate_td3_line2(line)
-    if result.valid or result.valid_check_count < 4 or len(line) != 44:
-        return line
-    if line[43].isdigit():
-        return line
-    chars = list(line)
-    chars[43] = _mrz_check_digit(line[0:10] + line[13:20] + line[21:43])
-    candidate = "".join(chars)
-    return candidate if validate_td3_line2(candidate).valid_check_count > result.valid_check_count else line
-
-
-def _line2_repair_score(line: str) -> tuple[int, int, int]:
-    result = validate_td3_line2(line)
-    return (100 if result.valid else 0, result.valid_check_count, _score_direct_line2(line))
-
-
-def _repair_direct_line2_country(line: str) -> str:
-    if len(line) < 14:
-        return line
-
-    def normalize_country(value: str) -> str:
-        table = str.maketrans({"1": "I", "L": "I", "0": "D", "O": "D", "Q": "D"})
-        return value.translate(table)
-
-    if normalize_country(line[10:13]) == "IDN":
-        return f"{line[:10]}IDN{line[13:]}"[:44].ljust(44, "<")
-    if normalize_country(line[11:14]) == "IDN" and line[10] in {"1", "I", "L", "<"}:
-        shifted = line[:10] + line[11:] + "<"
-        return f"{shifted[:10]}IDN{shifted[13:]}"[:44].ljust(44, "<")
-    return line
-
-
-def _score_direct_mrz(line1: str, line2: str) -> int:
-    score = 62 + _score_direct_line2(line2) * 12
-    if line1.startswith("P<") and "<<" in line1:
-        score += 8
-    return min(score, 100)
-
-
-def _score_direct_line2(line2: str) -> int:
-    checks = 0
-    checks += _mrz_check_digit(line2[0:9]) == line2[9]
-    checks += _mrz_check_digit(line2[13:19]) == line2[19]
-    checks += _mrz_check_digit(line2[21:27]) == line2[27]
-    return int(checks)
-
-
-
-
-def _mrz_char_value(char: str) -> int:
-    if char == "<":
-        return 0
-    if char.isdigit():
-        return int(char)
-    if "A" <= char <= "Z":
-        return ord(char) - 55
-    return 0
 
 
 def _to_dictionary(mrz: Any) -> dict[str, Any]:
@@ -526,7 +358,3 @@ def _has_value(value: Any) -> bool:
     if isinstance(value, (date, datetime)):
         return True
     return str(value).strip() != ""
-
-
-def _resolve_tesseract_cmd() -> str | None:
-    return None

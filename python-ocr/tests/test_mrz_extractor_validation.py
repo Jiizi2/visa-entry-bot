@@ -6,7 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from services.mrz_extractor import _build_mrz_validation, _build_validation_note, _repair_direct_line1, _repair_direct_line2, _repair_extracted_mrz_data  # noqa: E402
+from services.mrz_extractor import _build_mrz_validation, _build_validation_note, _repair_extracted_mrz_data  # noqa: E402
+from services.mrz_parser import _repair_direct_line1, _repair_direct_line2
 
 
 class MrzExtractorValidationTests(unittest.TestCase):

@@ -19,7 +19,8 @@ from services.indonesia_field_ocr import (
     get_fast_location_ocr_stats,
 )
 from services.issue_date_extractor import extract_issue_date
-from services.mrz_extractor import DirectMrzResult, _extract_direct_mrz_from_region, _read_best_mrz, _read_direct_mrz, _repair_direct_line2, _score_direct_line2
+from services.mrz_extractor import _extract_direct_mrz_from_region, _read_best_mrz, _read_direct_mrz
+from services.mrz_parser import DirectMrzResult, _repair_direct_line2, _score_direct_line2
 from services.ocr_result_cache import clear_ocr_result_cache
 from services.passport_page import clear_passport_page_cache, collect_ocr_lines, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
