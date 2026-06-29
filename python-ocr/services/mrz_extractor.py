@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Any
@@ -24,6 +25,7 @@ from services.image_preprocessor import (
 )
 from services.mrz_validation import MrzValidationResult, validate_td3_line2
 from services.ocr_runner import build_ocr_config, run_rapid_ocr
+from services.mrz_metrics import get_mrz_collector
 
 try:
     import cv2
@@ -58,7 +60,13 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
         logger.warning("MRZ not detected for %s", file_path)
         raise ValueError(_merge_notes("MRZ not detected.", quality_notes))
 
+    collector = get_mrz_collector()
+    t0 = time.perf_counter()
     data = _repair_extracted_mrz_data(_to_dictionary(mrz))
+    t_rep = time.perf_counter() - t0
+    if collector is not None:
+        collector.t_repair += t_rep
+
     if not data:
         logger.warning("PassportEye returned empty MRZ data for %s", file_path)
         raise ValueError("PassportEye returned empty MRZ data.")
@@ -81,18 +89,30 @@ def _get_speed_profile() -> bool:
 
 
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
+    collector = get_mrz_collector()
     direct_mrz = _read_direct_mrz(file_path)
     if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
+        if collector is not None and direct_mrz is not None:
+            collector.direct_success = True
+            collector.successful_orientation = direct_mrz.successful_orientation
+            collector.successful_variant = direct_mrz.successful_variant
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
     is_speed = _get_speed_profile()
     if is_speed and direct_mrz is not None and getattr(direct_mrz, "valid_score", 0) >= 98:
+        if collector is not None:
+            collector.direct_success = True
+            collector.successful_orientation = direct_mrz.successful_orientation
+            collector.successful_variant = direct_mrz.successful_variant
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
     best_mrz = direct_mrz
     best_note = _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
     best_score = getattr(direct_mrz, "valid_score", -1) if direct_mrz is not None else -1
+    
     with temporary_mrz_variants(file_path) as variants:
+        if collector is not None:
+            collector.fallback_used = True
         for variant_path, note in variants:
             mrz = None
             try:
@@ -105,7 +125,22 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
                 best_note = note
                 best_score = score
             if mrz is not None and getattr(mrz, "valid", False):
+                if collector is not None:
+                    collector.fallback_success = True
+                    collector.successful_orientation = mrz.successful_orientation
+                    collector.successful_variant = mrz.successful_variant
                 return mrz, note
+
+    if collector is not None and best_mrz is not None:
+        if best_mrz is direct_mrz:
+            collector.direct_success = True
+            collector.successful_orientation = direct_mrz.successful_orientation
+            collector.successful_variant = direct_mrz.successful_variant
+        else:
+            collector.fallback_success = True
+            collector.successful_orientation = best_mrz.successful_orientation
+            collector.successful_variant = best_mrz.successful_variant
+
     return best_mrz, best_note
 
 
@@ -130,7 +165,10 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
 
 
 def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | None:
+    collector = get_mrz_collector()
     if try_full_image_first:
+        if collector is not None:
+            collector.current_orientation = 0
         result = _extract_direct_mrz_from_region(image)
         if result and result.valid:
             return result
@@ -142,6 +180,8 @@ def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | 
 
     best_result: DirectMrzResult | None = None
     for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
+        if collector is not None:
+            collector.current_orientation = rotation_degrees
         for start_ratio in (0.82, 0.75):
             height = candidate_document.shape[0]
             region = candidate_document[int(height * start_ratio) :, :]
@@ -222,22 +262,55 @@ def _scale_gray_image(gray: Any, target_width: int) -> Any:
 
 def _run_ocr_on_variant(variant: Any) -> str:
     config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
-    return run_rapid_ocr(variant, config)
+    collector = get_mrz_collector()
+    if collector is not None:
+        collector.rapidocr_runs += 1
+        collector.variant_attempts += 1
+        collector.orientation_attempts[collector.current_orientation] = (
+            collector.orientation_attempts.get(collector.current_orientation, 0) + 1
+        )
+    t0 = time.perf_counter()
+    res = run_rapid_ocr(variant, config)
+    if collector is not None:
+        collector.t_ocr += (time.perf_counter() - t0)
+    return res
 
 
 def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResult | None) -> DirectMrzResult | None:
     candidates: list[DirectMrzResult] = []
-    for variant in _build_direct_mrz_variants(scaled_gray):
+    variant_names = ["gray", "clahe", "otsu", "adaptive"]
+    collector = get_mrz_collector()
+    for idx, variant in enumerate(_build_direct_mrz_variants(scaled_gray)):
+        if collector is not None:
+            collector.current_variant = variant_names[idx]
         text = _run_ocr_on_variant(variant)
         if not text:
             continue
         lines = _clean_direct_mrz_lines(text)
-        candidates.extend(_direct_mrz_candidates_from_lines(lines))
+        
+        t0 = time.perf_counter()
+        cands = _direct_mrz_candidates_from_lines(lines)
+        t_rep = time.perf_counter() - t0
+        if collector is not None:
+            collector.t_repair += t_rep
+
+        for cand in cands:
+            cand = replace(
+                cand,
+                successful_variant=collector.current_variant if collector else None,
+                successful_orientation=collector.current_orientation if collector else 0
+            )
+            candidates.append(cand)
+            
         current_best = max(candidates, default=None, key=lambda candidate: candidate.valid_score)
         if current_best is not None:
             if best_candidate is None or current_best.valid_score > best_candidate.valid_score:
                 best_candidate = current_best
             if _is_high_confidence_indonesian_direct_mrz(current_best):
+                if collector is not None:
+                    collector.successful_variant = current_best.successful_variant
+                    collector.successful_orientation = current_best.successful_orientation
+                    collector.early_exit_triggered = True
                 return current_best
     return best_candidate
 
@@ -358,3 +431,4 @@ def _has_value(value: Any) -> bool:
     if isinstance(value, (date, datetime)):
         return True
     return str(value).strip() != ""
+

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "profile": "balanced",
+  "created_at": "2026-06-30 01:41:11",
+  "total_passports": 115,
+  "successful_passports": 115,
+  "failed_passports": 0,
+  "elapsed_ms": {
+    "avg": 7021.2,
+    "median": 1436.0,
+    "p95": 35608.0,
+    "p99": 38346.0,
+    "min": 630,
+    "max": 39136
+  },
+  "rapidocr_runs": {
+    "avg": 10.02,
+    "max": 66
+  },
+  "fallback_rate": 0.1652,
+  "orientation_distribution": {
+    "0": 624,
+    "90": 176,
+    "180": 176,
+    "270": 176
+  },
+  "successful_orientation_distribution": {
+    "0": 115,
+    "90": 0,
+    "180": 0,
+    "270": 0,
+    "None": 0
+  },
+  "successful_variant_distribution": {
+    "gray": 108,
+    "clahe": 5,
+    "otsu": 2,
+    "adaptive": 0,
+    "None": 0
+  },
+  "direct_success_count": 96,
+  "fallback_success_count": 19,
+  "early_exit_count": 115,
+  "slowest_passport": {
+    "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (5)",
+    "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.49 (5).jpeg",
+    "total_ms": 39136
+  },
+  "fastest_passport": {
+    "id": "45 PAX_YUSUP",
+    "relative_path": "data/example-group/passports/SecondTest/45 PAX/YUSUP.png",
+    "total_ms": 630
+  }
+}

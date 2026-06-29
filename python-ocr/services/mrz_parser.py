@@ -15,6 +15,8 @@ class DirectMrzResult:
     valid_score: int
     valid: bool = True
     rotation_degrees: int = 0
+    successful_variant: str | None = None
+    successful_orientation: int | None = None
 
     @property
     def raw_text(self) -> str:

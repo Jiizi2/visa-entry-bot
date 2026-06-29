@@ -1,0 +1,468 @@
+{
+  "version": 1,
+  "created_at": "2026-06-30 01:17:29",
+  "root": "data/example-group/passports",
+  "count": 115,
+  "items": [
+    {
+      "id": "companionTest_ABDULLAH",
+      "relative_path": "data/example-group/passports/companionTest/ABDULLAH.png"
+    },
+    {
+      "id": "companionTest_WhatsApp Image 2026-06-14 at 23.03.49 (3)",
+      "relative_path": "data/example-group/passports/companionTest/WhatsApp Image 2026-06-14 at 23.03.49 (3).jpeg"
+    },
+    {
+      "id": "entrmate2.0_Screenshot 2026-06-15 000854",
+      "relative_path": "data/example-group/passports/entrmate2.0/Screenshot 2026-06-15 000854.png"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (2)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.49 (2).jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (3)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.49 (3).jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (4)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.49 (4).jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (5)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.49 (5).jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.49.jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (1)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.51 (1).jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (2)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.51 (2).jpeg"
+    },
+    {
+      "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (3)",
+      "relative_path": "data/example-group/passports/entrmate2.0/WhatsApp Image 2026-06-14 at 23.03.51 (3).jpeg"
+    },
+    {
+      "id": "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.00",
+      "relative_path": "data/example-group/passports/entrmate2.0/BATCH 2/WhatsApp Image 2026-06-15 at 00.19.00.jpeg"
+    },
+    {
+      "id": "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.01",
+      "relative_path": "data/example-group/passports/entrmate2.0/BATCH 2/WhatsApp Image 2026-06-15 at 00.19.01.jpeg"
+    },
+    {
+      "id": "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.02",
+      "relative_path": "data/example-group/passports/entrmate2.0/BATCH 2/WhatsApp Image 2026-06-15 at 00.19.02.jpeg"
+    },
+    {
+      "id": "batch3_WhatsApp Image 2026-06-15 at 00.33.35",
+      "relative_path": "data/example-group/passports/entrmate2.0/batch3/WhatsApp Image 2026-06-15 at 00.33.35.jpeg"
+    },
+    {
+      "id": "batch3_WhatsApp Image 2026-06-15 at 00.33.36",
+      "relative_path": "data/example-group/passports/entrmate2.0/batch3/WhatsApp Image 2026-06-15 at 00.33.36.jpeg"
+    },
+    {
+      "id": "finalTets_prep-0001-Copy-of-Muhammad-Fauzi-Azka-Fradilah-1",
+      "relative_path": "data/example-group/passports/finalTets/prep-0001-Copy-of-Muhammad-Fauzi-Azka-Fradilah-1.jpeg"
+    },
+    {
+      "id": "finalTets_prep-0002-Salinan_01_FEBRIYANTO_PASPOR_page_001",
+      "relative_path": "data/example-group/passports/finalTets/prep-0002-Salinan_01_FEBRIYANTO_PASPOR_page_001.jpg"
+    },
+    {
+      "id": "FirstTest_AHMAD",
+      "relative_path": "data/example-group/passports/FirstTest/AHMAD.png"
+    },
+    {
+      "id": "FirstTest_ARIFIN",
+      "relative_path": "data/example-group/passports/FirstTest/ARIFIN.png"
+    },
+    {
+      "id": "FirstTest_DESY",
+      "relative_path": "data/example-group/passports/FirstTest/DESY.png"
+    },
+    {
+      "id": "FirstTest_ETTY",
+      "relative_path": "data/example-group/passports/FirstTest/ETTY.png"
+    },
+    {
+      "id": "FirstTest_FENDY",
+      "relative_path": "data/example-group/passports/FirstTest/FENDY.png"
+    },
+    {
+      "id": "FirstTest_HALIMAH 1",
+      "relative_path": "data/example-group/passports/FirstTest/HALIMAH 1.png"
+    },
+    {
+      "id": "FirstTest_KAMILA",
+      "relative_path": "data/example-group/passports/FirstTest/KAMILA.png"
+    },
+    {
+      "id": "FirstTest_M HAMDI 1",
+      "relative_path": "data/example-group/passports/FirstTest/M HAMDI 1.png"
+    },
+    {
+      "id": "FirstTest_MAULANA",
+      "relative_path": "data/example-group/passports/FirstTest/MAULANA.png"
+    },
+    {
+      "id": "FirstTest_MUH DAKRUN",
+      "relative_path": "data/example-group/passports/FirstTest/MUH DAKRUN.png"
+    },
+    {
+      "id": "FirstTest_MUH DARIAN",
+      "relative_path": "data/example-group/passports/FirstTest/MUH DARIAN.png"
+    },
+    {
+      "id": "FirstTest_NORDAM",
+      "relative_path": "data/example-group/passports/FirstTest/NORDAM.png"
+    },
+    {
+      "id": "FirstTest_NUR",
+      "relative_path": "data/example-group/passports/FirstTest/NUR.png"
+    },
+    {
+      "id": "FirstTest_NURHIDAYAH 1",
+      "relative_path": "data/example-group/passports/FirstTest/NURHIDAYAH 1.png"
+    },
+    {
+      "id": "FirstTest_PATHUL",
+      "relative_path": "data/example-group/passports/FirstTest/PATHUL.png"
+    },
+    {
+      "id": "FirstTest_RATNA 1",
+      "relative_path": "data/example-group/passports/FirstTest/RATNA 1.png"
+    },
+    {
+      "id": "FirstTest_RONY",
+      "relative_path": "data/example-group/passports/FirstTest/RONY.png"
+    },
+    {
+      "id": "FirstTest_SAKDILLAH 1",
+      "relative_path": "data/example-group/passports/FirstTest/SAKDILLAH 1.png"
+    },
+    {
+      "id": "FirstTest_SITI",
+      "relative_path": "data/example-group/passports/FirstTest/SITI.png"
+    },
+    {
+      "id": "FirstTest_SUDARWATI 1",
+      "relative_path": "data/example-group/passports/FirstTest/SUDARWATI 1.png"
+    },
+    {
+      "id": "PASSPOR_ADEN BUSTOMI",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/ADEN BUSTOMI.jpg"
+    },
+    {
+      "id": "PASSPOR_EVY ENDAHRIYAH NOOR",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/EVY ENDAHRIYAH NOOR.png"
+    },
+    {
+      "id": "PASSPOR_GITA MARNIKASARI",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/GITA MARNIKASARI.jpg"
+    },
+    {
+      "id": "PASSPOR_HANI HANIFAH",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/HANI HANIFAH.jpg"
+    },
+    {
+      "id": "PASSPOR_NANAG RIDWAN IYUN",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/NANAG RIDWAN IYUN.jpg"
+    },
+    {
+      "id": "PASSPOR_OMOD HASBIANSYAH KAMALUDIN",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/OMOD HASBIANSYAH KAMALUDIN.jpg"
+    },
+    {
+      "id": "PASSPOR_SRI SETIAWATI DOENGALI",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/SRI SETIAWATI DOENGALI.jpg"
+    },
+    {
+      "id": "PASSPOR_YAMAN NURYAMAN FAOZI",
+      "relative_path": "data/example-group/passports/prodTest/PASSPOR-20260506T221902Z-3-001/PASSPOR/YAMAN NURYAMAN FAOZI.png"
+    },
+    {
+      "id": "45 PAX_ABDULLAH",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/ABDULLAH.png"
+    },
+    {
+      "id": "45 PAX_ACHMAD",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/ACHMAD.png"
+    },
+    {
+      "id": "45 PAX_ADIBAH 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/ADIBAH 1.png"
+    },
+    {
+      "id": "45 PAX_AISYAH",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/AISYAH.png"
+    },
+    {
+      "id": "45 PAX_ARIF",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/ARIF.png"
+    },
+    {
+      "id": "45 PAX_DJUMADI",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/DJUMADI.png"
+    },
+    {
+      "id": "45 PAX_FAITH 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/FAITH 1.png"
+    },
+    {
+      "id": "45 PAX_HERLINES 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/HERLINES 1.png"
+    },
+    {
+      "id": "45 PAX_IHSAN 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/IHSAN 1.png"
+    },
+    {
+      "id": "45 PAX_ISMINI 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/ISMINI 1.png"
+    },
+    {
+      "id": "45 PAX_JARIAH 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/JARIAH 1.png"
+    },
+    {
+      "id": "45 PAX_JUMARNI 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/JUMARNI 1.png"
+    },
+    {
+      "id": "45 PAX_KAHARRUDDIN 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/KAHARRUDDIN 1.png"
+    },
+    {
+      "id": "45 PAX_KARIM",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/KARIM.png"
+    },
+    {
+      "id": "45 PAX_MAISARAH 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MAISARAH 1.png"
+    },
+    {
+      "id": "45 PAX_MARGONO 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MARGONO 1.png"
+    },
+    {
+      "id": "45 PAX_MASKURDI",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MASKURDI.png"
+    },
+    {
+      "id": "45 PAX_MAWAR",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MAWAR.png"
+    },
+    {
+      "id": "45 PAX_MEYSI",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MEYSI.png"
+    },
+    {
+      "id": "45 PAX_MUH DZAKI 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH DZAKI 1.png"
+    },
+    {
+      "id": "45 PAX_MUH FADIL",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH FADIL.png"
+    },
+    {
+      "id": "45 PAX_MUH FAUZI",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH FAUZI.png"
+    },
+    {
+      "id": "45 PAX_MUH HANIF",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH HANIF.png"
+    },
+    {
+      "id": "45 PAX_MUH IHSAN",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH IHSAN.png"
+    },
+    {
+      "id": "45 PAX_MUH MUGNI 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH MUGNI 1.png"
+    },
+    {
+      "id": "45 PAX_MUH NUR",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH NUR.png"
+    },
+    {
+      "id": "45 PAX_MUH TSABIT 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH TSABIT 1.png"
+    },
+    {
+      "id": "45 PAX_MUH YUSUP",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/MUH YUSUP.png"
+    },
+    {
+      "id": "45 PAX_NORSIYAH 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/NORSIYAH 1.png"
+    },
+    {
+      "id": "45 PAX_NUR",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/NUR.png"
+    },
+    {
+      "id": "45 PAX_PUJI",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/PUJI.png"
+    },
+    {
+      "id": "45 PAX_PURWANTO 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/PURWANTO 1.png"
+    },
+    {
+      "id": "45 PAX_RASID 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/RASID 1.png"
+    },
+    {
+      "id": "45 PAX_RASYDDIQ 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/RASYDDIQ 1.png"
+    },
+    {
+      "id": "45 PAX_RAYHAN 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/RAYHAN 1.png"
+    },
+    {
+      "id": "45 PAX_RIKA",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/RIKA.png"
+    },
+    {
+      "id": "45 PAX_ROBIYANTO",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/ROBIYANTO.png"
+    },
+    {
+      "id": "45 PAX_SITI 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/SITI 1.png"
+    },
+    {
+      "id": "45 PAX_SUPARDIN 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/SUPARDIN 1.png"
+    },
+    {
+      "id": "45 PAX_SUTRIS 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/SUTRIS 1.png"
+    },
+    {
+      "id": "45 PAX_SUWARTO 1",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/SUWARTO 1.png"
+    },
+    {
+      "id": "45 PAX_TAUFIK",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/TAUFIK.png"
+    },
+    {
+      "id": "45 PAX_TRI",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/TRI.png"
+    },
+    {
+      "id": "45 PAX_YUNITA",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/YUNITA.png"
+    },
+    {
+      "id": "45 PAX_YUSUP",
+      "relative_path": "data/example-group/passports/SecondTest/45 PAX/YUSUP.png"
+    },
+    {
+      "id": "testApp_Copy of Muhammad Fauzi Azka Fradilah 1",
+      "relative_path": "data/example-group/passports/testApp/Copy of Muhammad Fauzi Azka Fradilah 1.jpeg"
+    },
+    {
+      "id": "testApp_Copy of Rasyddiq Mauliddhan1",
+      "relative_path": "data/example-group/passports/testApp/Copy of Rasyddiq Mauliddhan1.jpeg"
+    },
+    {
+      "id": "nusuk-crops",
+      "relative_path": "data/example-group/passports/testApp/nusuk-crops/Copy-of-Muhammad-Fauzi-Azka-Fradilah-1-edeebec5-crop.jpg"
+    },
+    {
+      "id": "thirdTest_ABDULLAH",
+      "relative_path": "data/example-group/passports/thirdTest/ABDULLAH.png"
+    },
+    {
+      "id": "thirdTest_HERLINES 1",
+      "relative_path": "data/example-group/passports/thirdTest/HERLINES 1.png"
+    },
+    {
+      "id": "trainingData_Copy of Arif Maulana",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Arif Maulana.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Djumadi Yusuf",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Djumadi Yusuf.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Faith Ghaisan 1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Faith Ghaisan 1.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of IMG_4530",
+      "relative_path": "data/example-group/passports/trainingData/Copy of IMG_4530.jpg"
+    },
+    {
+      "id": "trainingData_Copy of IMG_4531",
+      "relative_path": "data/example-group/passports/trainingData/Copy of IMG_4531.jpg"
+    },
+    {
+      "id": "trainingData_Copy of Jumarni Cagga 1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Jumarni Cagga 1.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Karim Alfarizi Ramadan",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Karim Alfarizi Ramadan.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Margono1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Margono1.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Mawar Nurani La Rani",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Mawar Nurani La Rani.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Meysi Salsahbilla",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Meysi Salsahbilla.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Muhammad Dzaki 1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Muhammad Dzaki 1.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Muhammad Fauzi Azka Fradilah 1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Muhammad Fauzi Azka Fradilah 1.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Muhammad Ihsan",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Muhammad Ihsan.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Muhammad Mugni zar Gifari1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Muhammad Mugni zar Gifari1.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Nur Fitriana Ibrahim",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Nur Fitriana Ibrahim.jpeg"
+    },
+    {
+      "id": "trainingData_Copy of Rasyddiq Mauliddhan1",
+      "relative_path": "data/example-group/passports/trainingData/Copy of Rasyddiq Mauliddhan1.jpeg"
+    },
+    {
+      "id": "trainingData_IMG_4532",
+      "relative_path": "data/example-group/passports/trainingData/IMG_4532.jpg"
+    },
+    {
+      "id": "nusuk-crops_Copy-of-Arif-Maulana-2fd7173f-crop",
+      "relative_path": "data/example-group/passports/trainingData/nusuk-crops/Copy-of-Arif-Maulana-2fd7173f-crop.jpg"
+    },
+    {
+      "id": "nusuk-crops_Copy-of-Djumadi-Yusuf-9d1ff022-crop",
+      "relative_path": "data/example-group/passports/trainingData/nusuk-crops/Copy-of-Djumadi-Yusuf-9d1ff022-crop.jpg"
+    }
+  ]
+}
