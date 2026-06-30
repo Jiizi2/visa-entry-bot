@@ -274,6 +274,6 @@ def print_health_report(
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Validate MRZ benchmark performance budget and consistency.")
-    parser.add_argument("--profile", default="optimized", choices=["legacy", "optimized"], help="Benchmark profile directory to validate.")
+    parser.add_argument("--profile", default="optimized", choices=["legacy", "optimized", "speed", "balanced", "heavy"], help="Benchmark profile directory to validate.")
     args = parser.parse_args()
     sys.exit(validate_benchmark(args.profile))

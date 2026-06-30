@@ -16,6 +16,7 @@ from services.parser import clean_gender
 from services.passport_page import collect_ocr_lines, crop_relative, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
 from services.models import ParsedPassportData
+from services.scan_context import ScanContext
 
 from services.ocr_runner import _user_words_path
 
@@ -219,14 +220,23 @@ def reset_fast_location_ocr_stats() -> None:
     )
 
 
-def merge_visual_fields(parsed: ParsedPassportData, visual_fields: dict[str, str]) -> ParsedPassportData:
-    merged = ParsedPassportData(**parsed)
-    if visual_fields.get("nationality") == "INDONESIA" and getattr(merged, "nationality", "") in {"", "ID", "DNI"}:
-        setattr(merged, "nationality", "INDONESIA")
+def merge_visual_fields(ctx: ScanContext, visual_fields: dict[str, str]) -> None:
+    from services.decision_rules import DecisionRules
+    if not visual_fields:
+        return
+    if visual_fields.get("nationality") == "INDONESIA" and getattr(ctx.parsed, "nationality", "") in {"", "ID", "DNI"}:
+        DecisionRules.evaluate_and_update(ctx, "nationality", "INDONESIA", source="VISUAL", confidence=0.80, tentative=False, validated=True)
     for field_name in ("nationality", "dob", "gender", "issueDate", "expiryDate"):
-        if _prefer_visual_value(field_name, getattr(merged, field_name, ""), visual_fields.get(field_name, "")):
-            setattr(merged, field_name, visual_fields[field_name])
-    return merged
+        val = visual_fields.get(field_name, "")
+        if val:
+            is_valid = _is_iso_date(val) if field_name in ("dob", "issueDate", "expiryDate") else (val in ("MALE", "FEMALE"))
+            DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=0.80, tentative=True, validated=is_valid)
+    for field_name in ("placeOfBirth", "issuingOffice"):
+        val = visual_fields.get(field_name, "")
+        if val:
+            from services.location_normalizer import is_known_location_value
+            is_valid = is_known_location_value(field_name, val)
+            DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=0.80, tentative=True, validated=is_valid)
 
 
 def build_visual_notes(visual_fields: dict[str, str]) -> str:

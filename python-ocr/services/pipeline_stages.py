@@ -34,6 +34,7 @@ from services.ocr_runner import get_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
+from services.decision_rules import DecisionRules
 from services.scan_budget import _build_budget_notes, _classify_ocr_mode, _ocr_mode_reasons
 from services.passport_logic import (
     _is_indonesian_passport,
@@ -68,6 +69,14 @@ def _stage_mrz(ctx: ScanContext) -> None:
         ctx.extraction = extract_mrz_data(ctx.file_path)
         ctx.parsed = parse_mrz_data(ctx.extraction.get('data', {}))
         ctx.parsed, ctx.early_name_notes = _apply_verified_mrz_name_repairs(ctx.parsed, ctx.extraction, file_name=ctx.file_name)
+        
+        # P5: Parallel Provenance Metadata Registration for baseline MRZ fields
+        mrz_valid = _has_valid_mrz_validation(ctx.extraction)
+        mrz_conf = ctx.extraction.get("confidence", 0.0)
+        for field_name in ("passportNumber", "dob", "expiryDate", "firstName", "familyName", "nationality", "gender"):
+            val = getattr(ctx.parsed, field_name, "")
+            if val:
+                DecisionRules.update_field(ctx, field_name, val, "MRZ", mrz_conf, tentative=False, validated=mrz_valid, reason="Initial MRZ extraction and verification repairs")
     except Exception as exc:  # noqa: BLE001
         ctx.mrz_error = str(exc)
     ctx.record_stage_duration('mrz', stage_started)
@@ -93,7 +102,7 @@ def _stage_initial_panel(ctx: ScanContext) -> None:
                 current_issue_date=getattr(ctx.parsed, 'issueDate', ''),
                 current_expiry_date=getattr(ctx.parsed, 'expiryDate', ''),
             )
-            ctx.parsed, ctx.panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, ctx.panel_fields)
+            ctx.panel_notes = fuse_panel_fields(ctx, ctx.panel_fields)
             ctx.record_stage_duration('panel', stage_started)
             logger.debug("[%s] Stage panel done in %dms", ctx.file_name, ctx.stage_durations_ms.get("panel", 0))
         else:
@@ -187,7 +196,7 @@ def _stage_speed_panel(ctx: ScanContext) -> None:
                     current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 )
                 ctx.panel_fields.update({key: value for key, value in speed_panel_fields.items() if value and not ctx.panel_fields.get(key)})
-                ctx.parsed, speed_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, speed_panel_fields)
+                speed_panel_notes = fuse_panel_fields(ctx, speed_panel_fields)
                 ctx.panel_notes = join_notes(ctx.panel_notes, speed_panel_notes)
                 ctx.record_stage_duration("panel", stage_started)
                 logger.debug("[%s] Stage speed_panel done in %dms", ctx.file_name, ctx.stage_durations_ms.get("panel", 0))
@@ -230,7 +239,7 @@ def _stage_recovery_panel(ctx: ScanContext) -> None:
                     current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 )
                 ctx.panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value and not ctx.panel_fields.get(key)})
-                ctx.parsed, recovery_panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, recovery_panel_fields)
+                recovery_panel_notes = fuse_panel_fields(ctx, recovery_panel_fields)
                 ctx.panel_notes = join_notes(ctx.panel_notes, recovery_panel_notes)
                 ctx.record_stage_duration("panel", stage_started)
             else:
@@ -309,7 +318,7 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
                     current_issue_date=ctx.parsed.get("issueDate", ""),
                     current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 )
-                ctx.parsed, panel_notes = fuse_panel_fields(ctx.parsed, ctx.extraction, panel_fields)
+                panel_notes = fuse_panel_fields(ctx, panel_fields)
                 ctx.panel_notes = join_notes(ctx.panel_notes, panel_notes)
                 ctx.panel_fields.update(panel_fields)
                 ctx.record_stage_duration("panel", stage_started)
@@ -321,18 +330,28 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
     logger.debug("[%s] Stage: dates_recovery", ctx.file_name)
     speed_first_scan = ctx.is_speed_scan
     ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
-    ctx.parsed = merge_visual_fields(ctx.parsed, ctx.merged_visual_fields)
+    
+    # Track pre-repair state
+    pre_parsed = dict(ctx.parsed)
+    
+    merge_visual_fields(ctx, ctx.merged_visual_fields)
     ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
     ctx.parsed, ctx.fast_mrz_notes = _apply_fast_mrz_repairs(ctx.parsed, ctx.extraction) if speed_first_scan else (ctx.parsed, "")
     ctx.visual_notes = build_visual_notes(ctx.merged_visual_fields)
     preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
     ctx.parsed, ctx.fast_date_notes = _apply_fast_date_repairs(ctx.parsed) if speed_first_scan else (ctx.parsed, "")
     
-    needs_date_scan = False if speed_first_scan else _should_extract_dates(ctx.parsed)
-    needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
-    needs_page_for_dates = needs_date_scan and not _can_infer_missing_issue_date(ctx.parsed)
+    # Register repair modifications as INFERENCE
+    for field_name in ("passportNumber", "dob", "expiryDate", "firstName", "familyName", "nationality", "gender", "issueDate"):
+        curr_val = ctx.parsed.get(field_name, "")
+        if curr_val != pre_parsed.get(field_name, ""):
+            DecisionRules.evaluate_and_update(ctx, field_name, curr_val, source="INFERENCE", confidence=0.90, tentative=False, validated=True)
+    
+    ctx.needs_date_scan = False if speed_first_scan else _should_extract_dates(ctx.parsed)
+    ctx.needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
+    needs_page_for_dates = ctx.needs_date_scan and not _can_infer_missing_issue_date(ctx.parsed)
 
-    if ctx.page is None and (needs_page_for_dates or (needs_name_scan and not preferred_full_name)):
+    if ctx.page is None and (needs_page_for_dates or (ctx.needs_name_scan and not preferred_full_name)):
         stage_started = time.perf_counter()
         if ctx.can_spend_ocr_time("page_align"):
             ctx.page = extract_aligned_passport_page(ctx.file_path)
@@ -342,7 +361,7 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
         
     ctx.report_step("dates", "Mencari tanggal passport", 0.68, "  - extracting passport dates")
     stage_started = time.perf_counter()
-    if needs_date_scan:
+    if ctx.needs_date_scan:
         if needs_page_for_dates and ctx.page is None:
             ctx.skip_stage("dates")
         elif ctx.can_spend_ocr_time("dates"):
@@ -353,13 +372,21 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
                 current_expiry_date=ctx.parsed.get("expiryDate", ""),
                 page=ctx.page if needs_page_for_dates else None,
             )
+            from services.indonesia_field_ocr import _is_iso_date
             for field_name in ("issueDate", "expiryDate"):
-                if date_fields.get(field_name):
-                    setattr(ctx.parsed, field_name, date_fields[field_name])
+                val = date_fields.get(field_name, "")
+                if val:
+                    is_valid = _is_iso_date(val)
+                    DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=0.75, tentative=False, validated=is_valid)
         else:
             ctx.skip_stage("dates")
             
+    # Track pre-repair state for century repairs
+    pre_parsed_century = dict(ctx.parsed)
     ctx.parsed, ctx.date_repair_notes = _repair_impossible_expiry_date(ctx.parsed)
+    if ctx.date_repair_notes:
+        DecisionRules.evaluate_and_update(ctx, "expiryDate", ctx.parsed.get("expiryDate", ""), source="INFERENCE", confidence=0.95, tentative=False, validated=True)
+        
     ctx.record_stage_duration("dates", stage_started)
     logger.debug("[%s] Stage dates_recovery done in %dms", ctx.file_name, ctx.stage_durations_ms.get("dates", 0))
 
@@ -367,30 +394,44 @@ def _stage_names_recovery(ctx: ScanContext) -> None:
     logger.debug("[%s] Stage: names_recovery", ctx.file_name)
     speed_first_scan = ctx.is_speed_scan
     preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
-    needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
+    ctx.needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
     
     ctx.report_step("names", "Merapikan nama", 0.88, "  - refining names")
     stage_started = time.perf_counter()
-    if needs_name_scan:
+    if ctx.needs_name_scan:
         if not preferred_full_name and ctx.page is None:
             ctx.skip_stage("names")
             ctx.name_notes = ""
         elif ctx.can_spend_ocr_time("names"):
-            ctx.parsed, ctx.name_notes = refine_names_from_scan(
+            candidate, name_notes = refine_names_from_scan(
                 ctx.file_path,
                 ctx.parsed,
                 page=ctx.page,
                 preferred_full_name=preferred_full_name,
             )
+            # Evaluate using DecisionRules
+            first_changed = DecisionRules.evaluate_and_update(ctx, "firstName", candidate.get("firstName", ""), source="VISUAL", confidence=0.80, tentative=False)
+            family_changed = DecisionRules.evaluate_and_update(ctx, "familyName", candidate.get("familyName", ""), source="VISUAL", confidence=0.80, tentative=False)
+            if first_changed or family_changed:
+                ctx.name_notes = name_notes
+            else:
+                ctx.name_notes = ""
         else:
             ctx.skip_stage("names")
             ctx.name_notes = ""
     else:
         ctx.name_notes = ""
         
+    # Track pre-repair for final repairs
+    pre_parsed_final = dict(ctx.parsed)
     ctx.parsed, final_name_notes = _apply_final_name_repairs(ctx.parsed, file_name=ctx.file_name)
     if final_name_notes:
         ctx.name_notes = join_notes(ctx.name_notes, final_name_notes)
+        for field_name in ("firstName", "familyName"):
+            curr_val = ctx.parsed.get(field_name, "")
+            if curr_val != pre_parsed_final.get(field_name, ""):
+                DecisionRules.evaluate_and_update(ctx, field_name, curr_val, source="INFERENCE", confidence=0.90, tentative=False, validated=True)
+                
     ctx.record_stage_duration("names", stage_started)
     logger.debug("[%s] Stage names_recovery done in %dms", ctx.file_name, ctx.stage_durations_ms.get("names", 0))
 
@@ -438,6 +479,18 @@ def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
     
     # Needs explicit string cast for reviewStatus
     review_status_str = str(record.get("reviewStatus", ""))
+    
+    record["fieldMetadata"] = ctx.field_metadata
+    record["stageReports"] = [
+        {
+            "stage_name": r.stage_name,
+            "duration_ms": r.duration_ms,
+            "fields_changed": r.fields_changed,
+            "fields_rejected": r.fields_rejected,
+            "warnings": r.warnings,
+            "exception": r.exception
+        } for r in ctx.stage_reports
+    ]
     
     record["processingMetrics"] = {
         "totalMs": ctx.elapsed_ms(),

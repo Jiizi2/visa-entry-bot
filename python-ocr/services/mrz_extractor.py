@@ -105,7 +105,13 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
 
 def _is_optimized_pipeline() -> bool:
     val = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower()
-    return val != "legacy"
+    if val == "legacy":
+        return False
+    from services.scan_budget import _ocr_profile
+    from services.models import OcrProfile
+    # SPEED and BALANCED run with optimized pipeline, HEAVY runs unoptimized accuracy path
+    return _ocr_profile() in {OcrProfile.SPEED, OcrProfile.BALANCED}
+
 
 
 def _get_speed_profile() -> bool:

@@ -11,9 +11,9 @@ if str(PYTHON_OCR_DIR) not in sys.path:
 from scripts.benchmark_utils import load_json, save_json, resolve_profile_paths, COMPARISON_PATH, COMPARISON_MD_PATH, PYTHON_OCR_DIR
 
 
-def run_comparison() -> int:
-    paths_legacy = resolve_profile_paths("legacy")
-    paths_optimized = resolve_profile_paths("optimized")
+def run_comparison(base: str = "legacy", candidate: str = "optimized") -> int:
+    paths_legacy = resolve_profile_paths(base)
+    paths_optimized = resolve_profile_paths(candidate)
 
     leg_results_path = paths_legacy["per_image_results"]
     opt_results_path = paths_optimized["per_image_results"]
@@ -25,10 +25,10 @@ def run_comparison() -> int:
     required_keys = ["per_image_results", "ocr_attempts", "summary"]
     for key in required_keys:
         if not paths_legacy[key].exists():
-            print(f"Error: Required file {paths_legacy[key].name} is missing in legacy profile.")
+            print(f"Error: Required file {paths_legacy[key].name} is missing in base profile '{base}'.")
             return 1
         if not paths_optimized[key].exists():
-            print(f"Error: Required file {paths_optimized[key].name} is missing in optimized profile.")
+            print(f"Error: Required file {paths_optimized[key].name} is missing in candidate profile '{candidate}'.")
             return 1
 
     try:
@@ -198,32 +198,35 @@ def run_comparison() -> int:
         )
     reg_table = "\n".join(reg_rows) if reg_rows else "| *None* | | | |"
 
+    base_label = base.capitalize()
+    cand_label = candidate.capitalize()
+
     # Recommendation formulation based on data
     if regressions:
-        recommendation = "Mengingat adanya regresi fungsional (paspor yang gagal dibaca pada pipeline optimized tetapi sukses di legacy), **TIDAK DIREKOMENDASIKAN** untuk melakukan aktivasi profil optimized ke produksi sebelum penyebab kegagalan dianalisis dan diperbaiki."
+        recommendation = f"Mengingat adanya regresi fungsional (paspor yang gagal dibaca pada pipeline {candidate} tetapi sukses di {base}), **TIDAK DIREKOMENDASIKAN** untuk melakukan aktivasi profil {candidate} ke produksi sebelum penyebab kegagalan dianalisis dan diperbaiki."
     else:
-        recommendation = f"Profil `optimized` menunjukkan penghematan runtime yang signifikan sebesar **{runtime_saved_percent:.2f}%** ({runtime_saved_ms/1000.0:.2f} detik) dan pengurangan OCR runs sebesar **{-runs_diff}** tanpa adanya regresi akurasi (0 regresi dari {len(leg_results)} paspor). Profil optimized saat ini telah dipromosikan menjadi default produksi. Mode legacy dipertahankan sebagai compatibility mode dan dapat diaktifkan secara eksplisit via variabel lingkungan `PASSPORT_OCR_PROFILE=legacy` jika sewaktu-waktu diperlukan rollback atau investigasi."
+        recommendation = f"Profil `{candidate}` menunjukkan penghematan runtime yang signifikan sebesar **{runtime_saved_percent:.2f}%** ({runtime_saved_ms/1000.0:.2f} detik) dan pengurangan OCR runs sebesar **{-runs_diff}** tanpa adanya regresi akurasi (0 regresi dari {len(leg_results)} paspor). Profil {candidate} saat ini telah dipromosikan menjadi default produksi. Mode {base} dipertahankan sebagai compatibility mode dan dapat diaktifkan secara eksplisit via variabel lingkungan `PASSPORT_OCR_PROFILE={base}` jika sewaktu-waktu diperlukan rollback atau investigasi."
 
     markdown_content = f"""# Benchmark Profile Comparison Report
 
-Laporan ini membandingkan kinerja dan akurasi antara pipeline **Legacy** (Baseline) dan pipeline **Optimized** (Hasil Optimasi).
+Laporan ini membandingkan kinerja dan akurasi antara pipeline **{base_label}** (Baseline) dan pipeline **{cand_label}** (Hasil Perbandingan).
 
 ---
 
 ## 1. Executive Summary
 
-* **Legacy Runtime (Total)**: {total_legacy_runtime_ms / 1000.0:.2f} s
-* **Optimized Runtime (Total)**: {total_optimized_runtime_ms / 1000.0:.2f} s
+* **{base_label} Runtime (Total)**: {total_legacy_runtime_ms / 1000.0:.2f} s
+* **{cand_label} Runtime (Total)**: {total_optimized_runtime_ms / 1000.0:.2f} s
 * **Runtime Saving**: **{runtime_saved_ms / 1000.0:.2f} s ({runtime_saved_percent:.2f}%)**
-* **Akurasi Legacy**: {accuracy_legacy:.2f}% ({success_legacy}/{len(leg_results)})
-* **Akurasi Optimized**: {accuracy_optimized:.2f}% ({success_optimized}/{len(opt_results)})
+* **Akurasi {base_label}**: {accuracy_legacy:.2f}% ({success_legacy}/{len(leg_results)})
+* **Akurasi {cand_label}**: {accuracy_optimized:.2f}% ({success_optimized}/{len(opt_results)})
 * **Status Regresi**: **{reg_status}**
 
 ---
 
 ## 2. Performance Comparison
 
-| Metric | Legacy | Optimized | Difference | Change (%) |
+| Metric | {base_label} | {cand_label} | Difference | Change (%) |
 | :--- | :---: | :---: | :---: | :---: |
 | **Total Runtime** | {total_legacy_runtime_ms:.1f} ms | {total_optimized_runtime_ms:.1f} ms | {-runtime_saved_ms:.1f} ms | {-runtime_saved_percent:.2f}% |
 | **Average Runtime** | {avg_legacy_runtime:.1f} ms | {avg_optimized_runtime:.1f} ms | {avg_optimized_runtime - avg_legacy_runtime:.1f} ms | {((avg_optimized_runtime - avg_legacy_runtime)/avg_legacy_runtime * 100):.2f}% |
@@ -234,7 +237,7 @@ Laporan ini membandingkan kinerja dan akurasi antara pipeline **Legacy** (Baseli
 
 ## 3. Accuracy & Fallback Comparison
 
-| Metric | Legacy | Optimized | Difference |
+| Metric | {base_label} | {cand_label} | Difference |
 | :--- | :---: | :---: | :---: |
 | **Success Rate (Accuracy)** | {accuracy_legacy:.2f}% | {accuracy_optimized:.2f}% | {accuracy_optimized - accuracy_legacy:.2f}% |
 | **Fallback Triggered** | {fallback_legacy} | {fallback_optimized} | {fallback_optimized - fallback_legacy} |
@@ -244,9 +247,9 @@ Laporan ini membandingkan kinerja dan akurasi antara pipeline **Legacy** (Baseli
 
 ## 4. Regression Analysis
 
-Berikut adalah paspor yang berhasil pada Legacy tetapi gagal pada Optimized:
+Berikut adalah paspor yang berhasil pada {base_label} tetapi gagal pada {cand_label}:
 
-| Passport ID | Legacy Status | Optimized Status | Reason |
+| Passport ID | {base_label} Status | {cand_label} Status | Reason |
 | :--- | :---: | :---: | :--- |
 {reg_table}
 
@@ -256,7 +259,7 @@ Berikut adalah paspor yang berhasil pada Legacy tetapi gagal pada Optimized:
 
 Berikut adalah paspor yang sukses pada kedua profil tetapi menggunakan kandidat variant, width, atau orientation yang berbeda:
 
-| Passport ID | Legacy Candidate | Optimized Candidate | Reason / Difference |
+| Passport ID | {base_label} Candidate | {cand_label} Candidate | Reason / Difference |
 | :--- | :--- | :--- | :--- |
 {changed_table}
 
@@ -280,4 +283,9 @@ Berikut adalah paspor yang sukses pada kedua profil tetapi menggunakan kandidat 
 
 
 if __name__ == "__main__":
-    sys.exit(run_comparison())
+    import argparse
+    parser = argparse.ArgumentParser(description="Compare two benchmark profiles.")
+    parser.add_argument("--base", default="legacy", choices=["legacy", "optimized", "speed", "balanced", "heavy"], help="Base profile for comparison.")
+    parser.add_argument("--candidate", default="optimized", choices=["legacy", "optimized", "speed", "balanced", "heavy"], help="Candidate profile for comparison.")
+    args = parser.parse_args()
+    sys.exit(run_comparison(args.base, args.candidate))

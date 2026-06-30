@@ -143,6 +143,54 @@ def list_passport_files(passports_dir: str) -> list[str]:
     return files
 
 
+def execute_safe_stage(stage_func: Callable[[ScanContext], None], ctx: ScanContext) -> None:
+    from services.scan_context import StageResult
+    stage_started = time.perf_counter()
+    pre_metadata = dict(ctx.field_metadata)
+    pre_rejections = dict(ctx.field_metadata.get("rejections", {}))
+    
+    try:
+        stage_func(ctx)
+        elapsed_ms = int((time.perf_counter() - stage_started) * 1000)
+        
+        # Track changed fields
+        changed = []
+        for k, v in ctx.field_metadata.items():
+            if k == "rejections":
+                continue
+            if k not in pre_metadata or pre_metadata[k].get("value") != v.get("value"):
+                changed.append(k)
+                
+        # Track rejected fields
+        rejected = []
+        for k, v in ctx.field_metadata.get("rejections", {}).items():
+            if k not in pre_rejections or pre_rejections[k].get("value") != v.get("value"):
+                rejected.append(k)
+                
+        result = StageResult(
+            stage_name=stage_func.__name__.lstrip("_stage_"),
+            duration_ms=elapsed_ms,
+            fields_changed=changed,
+            fields_rejected=rejected,
+            warnings=[]
+        )
+        ctx.stage_reports.append(result)
+        
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - stage_started) * 1000)
+        logger.error(f"Stage {stage_func.__name__} crashed: {exc}", exc_info=True)
+        
+        result = StageResult(
+            stage_name=stage_func.__name__.lstrip("_stage_"),
+            duration_ms=elapsed_ms,
+            fields_changed=[],
+            fields_rejected=[],
+            warnings=[f"Stage execution crashed: {str(exc)}"],
+            exception=str(exc)
+        )
+        ctx.stage_reports.append(result)
+
+
 def process_passport(file_path: str, step_callback: StepCallback | None = None) -> dict[str, object]:
     file_name = os.path.basename(file_path)
     started_at = time.perf_counter()
@@ -175,15 +223,15 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         )
         ctx.started_at = started_at
         
-        _stage_mrz(ctx)
-        _stage_initial_panel(ctx)
-        _stage_visual_fields(ctx)
-        _stage_speed_panel(ctx)
-        _stage_recovery_panel(ctx)
-        _stage_visual_recovery(ctx)
-        _stage_fallback_panel(ctx)
-        _stage_dates_recovery(ctx)
-        _stage_names_recovery(ctx)
+        execute_safe_stage(_stage_mrz, ctx)
+        execute_safe_stage(_stage_initial_panel, ctx)
+        execute_safe_stage(_stage_visual_fields, ctx)
+        execute_safe_stage(_stage_speed_panel, ctx)
+        execute_safe_stage(_stage_recovery_panel, ctx)
+        execute_safe_stage(_stage_visual_recovery, ctx)
+        execute_safe_stage(_stage_fallback_panel, ctx)
+        execute_safe_stage(_stage_dates_recovery, ctx)
+        execute_safe_stage(_stage_names_recovery, ctx)
         
         return _stage_validation_and_metrics(ctx)
     except Exception as exc:  # noqa: BLE001

@@ -454,6 +454,6 @@ Matriks tingkat risiko optimasi jika fitur dieliminasi dari pipeline:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Analyze MRZ benchmark evidence.")
-    parser.add_argument("--profile", default=os.environ.get("PASSPORT_OCR_PROFILE", "legacy"), choices=["legacy", "optimized"], help="Profile to analyze.")
+    parser.add_argument("--profile", default=os.environ.get("PASSPORT_OCR_PROFILE", "legacy"), choices=["legacy", "optimized", "speed", "balanced", "heavy"], help="Profile to analyze.")
     args = parser.parse_args()
     sys.exit(run_analysis(args.profile))

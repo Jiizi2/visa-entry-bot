@@ -2,8 +2,11 @@
 
 from typing import Any, Callable, Dict, List, Tuple, Optional
 import time
+from dataclasses import dataclass, field
 
 from services.log import logger
+from services.models import ParsedPassportData
+
 
 class ScanContext:
     """Holds all mutable state for one passport OCR scan.
@@ -47,7 +50,7 @@ class ScanContext:
 
         # --- MRZ Results ---
         self.extraction: Dict[str, Any] = {"data": {}, "confidence": 0.0, "notes": ""}
-        self.parsed: Dict[str, str] = {}
+        self.parsed: ParsedPassportData = ParsedPassportData()
         self.mrz_error: str = ""
 
         # --- Page & Rotation ---
@@ -75,6 +78,10 @@ class ScanContext:
         self.name_notes: str = ""
         self.validation_notes: str = ""
         self.speed_scan_notes: str = ""
+
+        # --- Metadata & Auditing ---
+        self.field_metadata: Dict[str, Any] = {}
+        self.stage_reports: List[Any] = []
 
         # --- Stage Timing Config ---
         self.stage_min_remaining_ms: Dict[str, int] = {
@@ -134,3 +141,15 @@ class ScanContext:
         logger.info(console_message)
         if self.step_callback is not None:
             self.step_callback(code, label, progress)
+
+
+@dataclass
+class StageResult:
+    """Represents the execution result of a single pipeline stage."""
+    stage_name: str
+    duration_ms: float = 0.0
+    fields_changed: List[str] = field(default_factory=list)
+    fields_rejected: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    exception: str = ""
+

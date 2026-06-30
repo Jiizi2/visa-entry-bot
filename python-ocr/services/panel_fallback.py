@@ -11,6 +11,7 @@ from services.issue_date_extractor import infer_issue_date, pick_issue_date
 from services.layout_profiles import load_indonesia_panel_modes
 from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.models import ExtractionEvidence, ParsedPassportData
+from services.scan_context import ScanContext
 from services.name_support import repair_given_tokens, salvage_family_hints, score_name_fields, token_matches_simple
 from services.panel_name_support import normalize_name_candidate, pick_best_name_candidate, score_full_name
 from services.passport_page import collect_ocr_lines, crop_relative
@@ -110,7 +111,7 @@ def extract_document_panel_fields(
         date_fields = _extract_date_fields(
             panel,
             mode,
-            fields.dob or current_dob,
+            fields.get("dob") or current_dob,
             requested_fields=date_field_names,
             current_issue_date=current_issue_date,
             current_expiry_date=current_expiry_date,
@@ -119,33 +120,45 @@ def extract_document_panel_fields(
     return {key: value for key, value in fields.items() if value}
 
 
-def fuse_panel_fields(parsed: ParsedPassportData, extraction: ExtractionEvidence | None, panel_fields: dict[str, str]) -> tuple[ParsedPassportData, str]:
+def fuse_panel_fields(ctx: ScanContext, panel_fields: dict[str, str]) -> str:
+    from services.decision_rules import DecisionRules
+    from services.indonesia_field_ocr import _is_iso_date
     if not panel_fields:
-        return parsed, ""
-    updated = ParsedPassportData(**parsed)
+        return ""
     notes: list[str] = []
-    current_passport = str(updated.get("passportNumber", "") or "")
-    repaired_passport = _repair_passport_number(current_passport, extraction, panel_fields.get("passportNumber", ""))
+    current_passport = str(ctx.parsed.get("passportNumber", "") or "")
+    repaired_passport = _repair_passport_number(current_passport, ctx.extraction, panel_fields.get("passportNumber", ""))
     if repaired_passport and repaired_passport != current_passport:
-        updated["passportNumber"] = repaired_passport
-        notes.append("PASSPORT NUMBER RECOVERED FROM DOCUMENT PANEL")
+        if DecisionRules.evaluate_and_update(ctx, "passportNumber", repaired_passport, source="PANEL", confidence=0.70, tentative=True):
+            notes.append("PASSPORT NUMBER RECOVERED FROM DOCUMENT PANEL")
     full_name = panel_fields.get("fullName", "")
     if full_name:
         candidate = _split_full_name(full_name)
-        if (
-            _panel_name_matches_existing_hints(full_name, updated)
-            and score_name_fields(candidate["firstName"], candidate["familyName"]) > score_name_fields(updated.get("firstName", ""), updated.get("familyName", ""))
-        ):
-            updated.update(candidate)
-            notes.append("NAME RECOVERED FROM DOCUMENT PANEL")
-    if panel_fields.get("nationality") == "INDONESIA" and updated.get("nationality", "") != "INDONESIA":
-        updated["nationality"] = "INDONESIA"
-        notes.append("NATIONALITY RECOVERED FROM DOCUMENT PANEL")
+        if _panel_name_matches_existing_hints(full_name, ctx.parsed):
+            curr_score = score_name_fields(ctx.parsed.get("firstName", ""), ctx.parsed.get("familyName", ""))
+            cand_score = score_name_fields(candidate["firstName"], candidate["familyName"])
+            if cand_score > curr_score:
+                first_changed = DecisionRules.evaluate_and_update(ctx, "firstName", candidate["firstName"], source="PANEL", confidence=0.70, tentative=True)
+                family_changed = DecisionRules.evaluate_and_update(ctx, "familyName", candidate["familyName"], source="PANEL", confidence=0.70, tentative=True)
+                if first_changed or family_changed:
+                    notes.append("NAME RECOVERED FROM DOCUMENT PANEL")
+    if panel_fields.get("nationality") == "INDONESIA" and ctx.parsed.get("nationality", "") != "INDONESIA":
+        if DecisionRules.evaluate_and_update(ctx, "nationality", "INDONESIA", source="PANEL", confidence=0.70, tentative=False, validated=True):
+            notes.append("NATIONALITY RECOVERED FROM DOCUMENT PANEL")
     for field_name in ("dob", "gender", "issueDate", "expiryDate"):
-        if _prefer_panel_value(getattr(updated, field_name, ""), panel_fields.get(field_name, "")):
-            setattr(updated, field_name, panel_fields[field_name])
-            notes.append(f"{field_name.upper()} RECOVERED FROM DOCUMENT PANEL")
-    return updated, "; ".join(notes)
+        val = panel_fields.get(field_name, "")
+        if val:
+            is_valid = _is_iso_date(val) if field_name in ("dob", "issueDate", "expiryDate") else (val in ("MALE", "FEMALE"))
+            if DecisionRules.evaluate_and_update(ctx, field_name, val, source="PANEL", confidence=0.70, tentative=True, validated=is_valid):
+                notes.append(f"{field_name.upper()} RECOVERED FROM DOCUMENT PANEL")
+    for field_name in ("placeOfBirth", "issuingOffice"):
+        val = panel_fields.get(field_name, "")
+        if val:
+            from services.location_normalizer import is_known_location_value
+            is_valid = is_known_location_value(field_name, val)
+            if DecisionRules.evaluate_and_update(ctx, field_name, val, source="PANEL", confidence=0.70, tentative=True, validated=is_valid):
+                notes.append(f"{field_name.upper()} RECOVERED FROM DOCUMENT PANEL")
+    return "; ".join(notes)
 
 
 def _build_panel(file_path: str) -> tuple[object | None, str]:

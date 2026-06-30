@@ -205,11 +205,15 @@ class PanelFallbackTests(unittest.TestCase):
         self.assertEqual(_pick_strong_name_candidate([(111, "AAALAIAD AHTI DAATIADAA")], ["RANI"]), "")
 
     def test_panel_name_does_not_replace_unmatched_mrz_family_hint(self) -> None:
-        parsed = {"firstName": "RASYDDIQ", "familyName": "MAULIDDHAN"}
+        from services.scan_context import ScanContext
+        from services.models import ParsedPassportData
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", "balanced", 30000)
+        ctx.parsed = ParsedPassportData(firstName="RASYDDIQ", familyName="MAULIDDHAN")
 
-        updated, notes = fuse_panel_fields(parsed, None, {"fullName": "RENBITIP SLSERRE SRAPEBNOM"})
+        notes = fuse_panel_fields(ctx, {"fullName": "RENBITIP SLSERRE SRAPEBNOM"})
 
-        self.assertEqual(updated, parsed)
+        self.assertEqual(ctx.parsed["firstName"], "RASYDDIQ")
+        self.assertEqual(ctx.parsed["familyName"], "MAULIDDHAN")
         self.assertEqual(notes, "")
 
     def test_panel_name_splits_compact_names_with_family_hint(self) -> None:
