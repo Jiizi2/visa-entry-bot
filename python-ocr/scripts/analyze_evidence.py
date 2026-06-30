@@ -23,10 +23,26 @@ OPTIMIZATION_MATRIX_PATH = BENCHMARK_DIR / "optimization_matrix.json"
 REPORT_PATH = BENCHMARK_DIR / "report.md"
 
 
-def run_analysis() -> int:
+def run_analysis(profile: str = "legacy") -> int:
+    global RESULT_PATH, SUMMARY_PATH, METADATA_PATH, STAGE_BREAKDOWN_PATH, OCR_ATTEMPTS_PATH
+    global DECISION_TREE_PATH, DEPENDENCY_ANALYSIS_PATH, IMPACT_SIMULATION_PATH, OPTIMIZATION_MATRIX_PATH, REPORT_PATH
+    
+    profile_dir = BENCHMARK_DIR / profile
+    RESULT_PATH = profile_dir / "per_image_results.json"
+    SUMMARY_PATH = profile_dir / "summary.json"
+    METADATA_PATH = profile_dir / "metadata.json"
+    STAGE_BREAKDOWN_PATH = profile_dir / "stage_breakdown.json"
+    OCR_ATTEMPTS_PATH = profile_dir / "ocr_attempts.json"
+    
+    DECISION_TREE_PATH = profile_dir / "decision_tree.json"
+    DEPENDENCY_ANALYSIS_PATH = profile_dir / "dependency_analysis.json"
+    IMPACT_SIMULATION_PATH = profile_dir / "impact_simulation.json"
+    OPTIMIZATION_MATRIX_PATH = profile_dir / "optimization_matrix.json"
+    REPORT_PATH = profile_dir / "report.md"
+
     # 1. Read existing benchmark artifacts
     if not RESULT_PATH.exists() or not OCR_ATTEMPTS_PATH.exists():
-        print("Error: benchmark files not found. Run benchmark first.")
+        print(f"Error: benchmark files not found for profile '{profile}'. Run benchmark first.")
         return 1
 
     try:
@@ -445,4 +461,8 @@ Matriks tingkat risiko optimasi jika fitur dieliminasi dari pipeline:
 
 
 if __name__ == "__main__":
-    sys.exit(run_analysis())
+    import argparse
+    parser = argparse.ArgumentParser(description="Analyze MRZ benchmark evidence.")
+    parser.add_argument("--profile", default=os.environ.get("PASSPORT_OCR_PROFILE", "legacy"), choices=["legacy", "optimized"], help="Profile to analyze.")
+    args = parser.parse_args()
+    sys.exit(run_analysis(args.profile))

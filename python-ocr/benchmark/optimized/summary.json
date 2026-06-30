@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "profile": "optimized",
+  "created_at": "2026-06-30 14:40:24",
+  "total_passports": 115,
+  "successful_passports": 115,
+  "failed_passports": 0,
+  "elapsed_ms": {
+    "avg": 2879.7,
+    "median": 1558.0,
+    "p95": 6979.0,
+    "p99": 11227.0,
+    "min": 687,
+    "max": 19040
+  },
+  "ocr_runs": {
+    "avg": 2.71,
+    "median": 1.0,
+    "p95": 7.0,
+    "max": 18
+  },
+  "fallback_frequency": 0.1565,
+  "candidate_lifecycle": {
+    "candidate_found": 129,
+    "candidate_repaired": 130,
+    "candidate_checksum_ok": 120,
+    "candidate_selected": 115
+  },
+  "stages_summary": {
+    "load_image": {
+      "total_ms": 694.9,
+      "count": 134,
+      "average_ms": 6.0,
+      "min_ms": 0.6,
+      "max_ms": 43.8
+    },
+    "document_detection": {
+      "total_ms": 1621.4,
+      "count": 116,
+      "average_ms": 14.1,
+      "min_ms": 1.1,
+      "max_ms": 82.8
+    },
+    "resize": {
+      "total_ms": 80.0,
+      "count": 293,
+      "average_ms": 0.7,
+      "min_ms": 0.0,
+      "max_ms": 5.0
+    },
+    "rotation": {
+      "total_ms": 0,
+      "count": 0,
+      "average_ms": 0.0,
+      "min_ms": 0.0,
+      "max_ms": 0.0
+    },
+    "crop": {
+      "total_ms": 0.0,
+      "count": 158,
+      "average_ms": 0.0,
+      "min_ms": 0.0,
+      "max_ms": 0.0
+    },
+    "variant_generation": {
+      "total_ms": 36327.3,
+      "count": 177,
+      "average_ms": 315.9,
+      "min_ms": 90.4,
+      "max_ms": 705.7
+    },
+    "ocr": {
+      "total_ms": 287537.9,
+      "count": 312,
+      "average_ms": 2500.3,
+      "min_ms": 199.2,
+      "max_ms": 3815.9
+    },
+    "candidate_selection": {
+      "total_ms": 3.4,
+      "count": 369,
+      "average_ms": 0.0,
+      "min_ms": 0.0,
+      "max_ms": 0.1
+    },
+    "repair": {
+      "total_ms": 23.5,
+      "count": 372,
+      "average_ms": 0.2,
+      "min_ms": 0.0,
+      "max_ms": 0.2
+    },
+    "validation": {
+      "total_ms": 0.0,
+      "count": 115,
+      "average_ms": 0.0,
+      "min_ms": 0.0,
+      "max_ms": 0.0
+    },
+    "serialization": {
+      "total_ms": 0.1,
+      "count": 230,
+      "average_ms": 0.0,
+      "min_ms": 0.0,
+      "max_ms": 0.1
+    }
+  },
+  "rotation_effectiveness": {
+    "0": {
+      "attempts": 312,
+      "success": 115,
+      "runtime_total_ms": 287542.3
+    },
+    "90": {
+      "attempts": 0,
+      "success": 0,
+      "runtime_total_ms": 0
+    },
+    "180": {
+      "attempts": 0,
+      "success": 0,
+      "runtime_total_ms": 0
+    },
+    "270": {
+      "attempts": 0,
+      "success": 0,
+      "runtime_total_ms": 0
+    }
+  },
+  "variant_effectiveness": {
+    "gray": {
+      "attempts": 177,
+      "success": 108,
+      "runtime_total_ms": 185870.2
+    },
+    "clahe": {
+      "attempts": 70,
+      "success": 5,
+      "runtime_total_ms": 54040.1
+    },
+    "otsu": {
+      "attempts": 65,
+      "success": 2,
+      "runtime_total_ms": 47632.1
+    },
+    "adaptive": {
+      "attempts": 0,
+      "success": 0,
+      "runtime_total_ms": 0
+    }
+  },
+  "width_effectiveness": {
+    "1600": {
+      "attempts": 312,
+      "success": 115,
+      "runtime_total_ms": 287542.3
+    }
+  },
+  "fallback_analysis": {
+    "triggered": 18,
+    "success_after_fallback": 18,
+    "additional_ocr_runs": 0,
+    "additional_runtime_ms": 0
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "summary": {
+    "runtime_legacy_ms": 879365,
+    "runtime_optimized_ms": 331161,
+    "runtime_diff_ms": -548204,
+    "runtime_diff_percent": -62.34,
+    "avg_runtime_legacy_ms": 7646.7,
+    "avg_runtime_optimized_ms": 2879.7,
+    "ocr_runs_legacy": 1152,
+    "ocr_runs_optimized": 312,
+    "ocr_runs_diff": -840,
+    "accuracy_legacy": 100.0,
+    "accuracy_optimized": 100.0,
+    "accuracy_diff": 0.0,
+    "fallback_legacy": 19,
+    "fallback_optimized": 18,
+    "fallback_diff": -1,
+    "candidates_found_legacy": 148,
+    "candidates_found_optimized": 129,
+    "candidates_found_diff": -19
+  },
+  "changed_passports": [
+    {
+      "passport_id": "45 PAX_SUTRIS 1",
+      "before": {
+        "width": 2000,
+        "variant": "gray",
+        "orientation": 0
+      },
+      "after": {
+        "width": 1600,
+        "variant": "gray",
+        "orientation": 0
+      },
+      "reason": "Width changed from 2000px to 1600px"
+    }
+  ],
+  "regressions": [],
+  "improved_passports": []
+}

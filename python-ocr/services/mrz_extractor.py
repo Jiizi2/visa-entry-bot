@@ -103,8 +103,13 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
     return result_dict
 
 
+def _is_optimized_pipeline() -> bool:
+    val = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower()
+    return val in ("optimized", "speed")
+
+
 def _get_speed_profile() -> bool:
-    return os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower() == "speed"
+    return _is_optimized_pipeline()
 
 
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
@@ -227,6 +232,8 @@ def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | 
 
 def _direct_mrz_orientation_candidates(document: Any):
     yield document, 0
+    if _is_optimized_pipeline():
+        return
     if not _should_try_direct_mrz_rotations(document):
         return
     with time_stage("rotation"):
@@ -403,7 +410,8 @@ def _extract_direct_mrz_from_region(region: Any) -> DirectMrzResult | None:
     best_candidate: DirectMrzResult | None = None
     collector = get_mrz_collector()
     
-    for target_width in (1600, 2000):
+    widths = (1600,) if _is_optimized_pipeline() else (1600, 2000)
+    for target_width in widths:
         if _is_high_confidence_indonesian_direct_mrz(best_candidate):
             return best_candidate
             
@@ -422,6 +430,8 @@ def _build_direct_mrz_variants(gray: Any) -> list[Any]:
         sharpened = cv2.addWeighted(clahe, 1.6, cv2.GaussianBlur(clahe, (0, 0), 1.6), -0.6, 0)
         denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
         _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        if _is_optimized_pipeline():
+            return [gray, clahe, otsu]
         adaptive = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
         return [gray, clahe, otsu, adaptive]
 

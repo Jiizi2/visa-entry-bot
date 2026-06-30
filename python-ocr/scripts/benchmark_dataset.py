@@ -211,11 +211,21 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run MRZ extraction benchmark on dataset.")
     parser.add_argument("--resume", action="store_true", default=None, help="Resume benchmark from checkpoint.")
     parser.add_argument("--no-resume", action="store_true", help="Start fresh and ignore checkpoint.")
+    parser.add_argument("--profile", default="legacy", choices=["legacy", "optimized"], help="OCR pipeline profile to run.")
     args = parser.parse_args()
     
-    if "PASSPORT_OCR_PROFILE" not in os.environ:
-        os.environ["PASSPORT_OCR_PROFILE"] = "balanced"
-    profile = os.environ["PASSPORT_OCR_PROFILE"]
+    profile = args.profile
+    os.environ["PASSPORT_OCR_PROFILE"] = profile
+    
+    global BENCHMARK_DIR, RESULT_PATH, SUMMARY_PATH, REPORT_PATH, CHECKPOINT_PATH, METADATA_PATH, STAGE_BREAKDOWN_PATH, OCR_ATTEMPTS_PATH
+    BENCHMARK_DIR = PYTHON_OCR_DIR / "benchmark" / profile
+    RESULT_PATH = BENCHMARK_DIR / "per_image_results.json"
+    SUMMARY_PATH = BENCHMARK_DIR / "summary.json"
+    REPORT_PATH = BENCHMARK_DIR / "report.md"
+    CHECKPOINT_PATH = BENCHMARK_DIR / "checkpoint.json"
+    METADATA_PATH = BENCHMARK_DIR / "metadata.json"
+    STAGE_BREAKDOWN_PATH = BENCHMARK_DIR / "stage_breakdown.json"
+    OCR_ATTEMPTS_PATH = BENCHMARK_DIR / "ocr_attempts.json"
     
     if not DATASET_PATH.exists():
         print(f"Error: manifest file {DATASET_PATH} not found. Run build_passport_dataset.py first.")
@@ -983,9 +993,20 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
     # Automatically execute evidence analysis
     try:
         from scripts.analyze_evidence import run_analysis
-        run_analysis()
+        run_analysis(profile)
     except Exception as e:
         print(f"Warning: Failed to automatically run analyze_evidence.py: {e}")
+        
+    # Check if both profiles exist to automatically run comparison
+    legacy_results = PYTHON_OCR_DIR / "benchmark" / "legacy" / "per_image_results.json"
+    optimized_results = PYTHON_OCR_DIR / "benchmark" / "optimized" / "per_image_results.json"
+    if legacy_results.exists() and optimized_results.exists():
+        try:
+            print("Detected both legacy and optimized results. Running profile comparison...")
+            from scripts.compare_profiles import run_comparison
+            run_comparison()
+        except Exception as e:
+            print(f"Warning: Failed to automatically run compare_profiles.py: {e}")
         
     return 0
 
