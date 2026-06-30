@@ -1,0 +1,9 @@
+{
+  "accuracy_percent": 100.0,
+  "total_passports": 115,
+  "ocr_attempts": 312,
+  "fallback_count": 18,
+  "average_runtime_ms": 2716.6,
+  "p95_runtime_ms": 6575.0,
+  "median_runtime_ms": 1462.0
+}

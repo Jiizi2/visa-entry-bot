@@ -1274,6 +1274,55 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(note, "variant")
         self.assertEqual(read_mrz.call_count, 1)
 
+    def test_optimized_profile_invariants(self) -> None:
+        # 1. Rotation: optimized should only yield 0°
+        from services.mrz_extractor import _direct_mrz_orientation_candidates, _build_direct_mrz_variants, _extract_direct_mrz_from_region
+        import numpy as np
+        
+        image = np.zeros((100, 200), dtype=np.uint8)
+        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "optimized"}):
+            candidates = list(_direct_mrz_orientation_candidates(image))
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(candidates[0][1], 0)
+            
+            # 2. Variant: optimized should return 3 elements (gray, clahe, otsu)
+            with patch("services.mrz_extractor.time_stage"):
+                variants = _build_direct_mrz_variants(image)
+                self.assertEqual(len(variants), 3)
+
+            # 3. Width: optimized should only attempt target width 1600
+            with patch("services.mrz_extractor._scale_gray_image", return_value=image) as scale_mock, \
+                 patch("services.mrz_extractor._process_variants_for_width", return_value=None):
+                _extract_direct_mrz_from_region(image)
+                # Verify we called scaling only with width 1600
+                scale_mock.assert_called_once()
+                self.assertEqual(scale_mock.call_args[0][1], 1600)
+
+    def test_legacy_profile_invariants(self) -> None:
+        # 1. Rotation: legacy should yield rotations (since _should_try_direct_mrz_rotations returns True)
+        from services.mrz_extractor import _direct_mrz_orientation_candidates, _build_direct_mrz_variants, _extract_direct_mrz_from_region
+        import numpy as np
+        
+        image = np.zeros((100, 200), dtype=np.uint8)
+        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}):
+            candidates = list(_direct_mrz_orientation_candidates(image))
+            # Should have rotations (0, 180, 90, 270)
+            self.assertEqual(len(candidates), 4)
+            self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
+            
+            # 2. Variant: legacy should return 4 elements (gray, clahe, otsu, adaptive)
+            with patch("services.mrz_extractor.time_stage"):
+                variants = _build_direct_mrz_variants(image)
+                self.assertEqual(len(variants), 4)
+
+            # 3. Width: legacy should attempt both 1600 and 2000
+            with patch("services.mrz_extractor._scale_gray_image", return_value=image) as scale_mock, \
+                 patch("services.mrz_extractor._process_variants_for_width", return_value=None):
+                _extract_direct_mrz_from_region(image)
+                self.assertEqual(scale_mock.call_count, 2)
+                called_widths = [call[0][1] for call in scale_mock.call_args_list]
+                self.assertEqual(called_widths, [1600, 2000])
+
 
 class _EmptyVariants:
     def __enter__(self) -> list[tuple[str, str]]:

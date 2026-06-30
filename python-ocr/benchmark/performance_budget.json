@@ -1,0 +1,5 @@
+{
+  "max_ocr_attempts": 320,
+  "max_fallback_count": 20,
+  "min_accuracy_percent": 100.0
+}
