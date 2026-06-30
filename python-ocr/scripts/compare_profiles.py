@@ -22,14 +22,13 @@ def run_comparison() -> int:
     leg_summary_path = paths_legacy["summary"]
     opt_summary_path = paths_optimized["summary"]
 
-    required_files = [
-        leg_results_path, opt_results_path,
-        leg_attempts_path, opt_attempts_path,
-        leg_summary_path, opt_summary_path
-    ]
-    for f in required_files:
-        if not f.exists():
-            print(f"Error: Required file {f.name} is missing.")
+    required_keys = ["per_image_results", "ocr_attempts", "summary"]
+    for key in required_keys:
+        if not paths_legacy[key].exists():
+            print(f"Error: Required file {paths_legacy[key].name} is missing in legacy profile.")
+            return 1
+        if not paths_optimized[key].exists():
+            print(f"Error: Required file {paths_optimized[key].name} is missing in optimized profile.")
             return 1
 
     try:

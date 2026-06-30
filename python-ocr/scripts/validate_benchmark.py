@@ -108,27 +108,43 @@ def validate_benchmark(profile: str = "optimized") -> int:
         actual_total_passports = len(per_image_results)
         if sum_total_passports != actual_total_passports:
             consistency_status = "FAIL"
-            reasons.append(f"Consistency violation: summary.total_passports ({sum_total_passports}) != results count ({actual_total_passports})")
+            reasons.append(
+                f"Consistency violation: summary.total_passports != results count. "
+                f"Expected (summary): {sum_total_passports}, Actual (results): {actual_total_passports}, "
+                f"Difference: {actual_total_passports - sum_total_passports}"
+            )
 
         # C2: Success count consistency
         sum_successful_passports = summary.get("successful_passports", 0)
         actual_successful_passports = sum(1 for r in per_image_results if r.get("success"))
         if sum_successful_passports != actual_successful_passports:
             consistency_status = "FAIL"
-            reasons.append(f"Consistency violation: summary.successful_passports ({sum_successful_passports}) != actual success count ({actual_successful_passports})")
+            reasons.append(
+                f"Consistency violation: summary.successful_passports != actual success count. "
+                f"Expected (summary): {sum_successful_passports}, Actual (results): {actual_successful_passports}, "
+                f"Difference: {actual_successful_passports - sum_successful_passports}"
+            )
 
         # C3: Attempts count consistency (sum of runs vs actual ocr_attempts)
         sum_ocr_runs_by_results = sum(r.get("ocr_runs", 0) for r in per_image_results)
         actual_ocr_attempts = len(ocr_attempts)
         if sum_ocr_runs_by_results != actual_ocr_attempts:
             consistency_status = "FAIL"
-            reasons.append(f"Consistency violation: sum of ocr_runs in results ({sum_ocr_runs_by_results}) != total ocr_attempts count ({actual_ocr_attempts})")
+            reasons.append(
+                f"Consistency violation: sum of ocr_runs in results != total ocr_attempts count. "
+                f"Expected (results sum): {sum_ocr_runs_by_results}, Actual (ocr_attempts): {actual_ocr_attempts}, "
+                f"Difference: {actual_ocr_attempts - sum_ocr_runs_by_results}"
+            )
 
         # C4: Metadata passports vs summary passports count
         meta_total_images = metadata.get("dataset", {}).get("total_images", 0)
         if meta_total_images != sum_total_passports:
             consistency_status = "FAIL"
-            reasons.append(f"Consistency violation: metadata.dataset.total_images ({meta_total_images}) != summary.total_passports ({sum_total_passports})")
+            reasons.append(
+                f"Consistency violation: metadata.dataset.total_images != summary.total_passports. "
+                f"Expected (metadata): {meta_total_images}, Actual (summary): {sum_total_passports}, "
+                f"Difference: {sum_total_passports - meta_total_images}"
+            )
 
         # C5: Individual passport attempts mapping consistency
         for r in per_image_results:
@@ -137,7 +153,11 @@ def validate_benchmark(profile: str = "optimized") -> int:
             actual_runs = sum(1 for att in ocr_attempts if att.get("passport_id") == p_id)
             if expected_runs != actual_runs:
                 consistency_status = "FAIL"
-                reasons.append(f"Consistency violation: Passport '{p_id}' has ocr_runs = {expected_runs} in results, but {actual_runs} attempts in ocr_attempts")
+                reasons.append(
+                    f"Consistency violation: Passport '{p_id}' has mismatch in ocr_runs. "
+                    f"Expected (results): {expected_runs}, Actual (ocr_attempts): {actual_runs}, "
+                    f"Difference: {actual_runs - expected_runs}"
+                )
 
     except Exception as exc:
         consistency_status = "FAIL"
