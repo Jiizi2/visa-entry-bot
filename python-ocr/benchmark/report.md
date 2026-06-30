@@ -457,7 +457,7 @@ Perbandingan biaya runtime terhadap nilai kontribusi fitur:
 | **adaptive** | 162193.4 ms | 257 | 0 | 0 | 20.22% |
 | **width_1600** | 485287.1 ms | 639 | 114 | 111 | 60.5% |
 | **width_2000** | 316835.1 ms | 513 | 1 | 0 | 39.5% |
-| **fallback** | 235967.6 ms | 350 | 19 | 19 | 29.42% |
+| **fallback** | 67941.4 ms | 46 | 19 | 19 | 8.47% |
 
 ---
 
@@ -476,7 +476,7 @@ Matriks tingkat risiko optimasi jika fitur dieliminasi dari pipeline:
 | **adaptive** | 0 | **LOW** | 20.22% |
 | **width_1600** | 111 | **VERY_HIGH** | 60.5% |
 | **width_2000** | 0 | **LOW** | 39.5% |
-| **fallback** | 19 | **VERY_HIGH** | 29.42% |
+| **fallback** | 19 | **VERY_HIGH** | 8.47% |
 
 ---
 
@@ -485,4 +485,4 @@ Matriks tingkat risiko optimasi jika fitur dieliminasi dari pipeline:
 * **Rotation (90°/180°/270°)**: Total 528 attempts, 0 success count, 0 saved passports. Risk level is **LOW**.
 * **Adaptive Variant**: Total 257 attempts, 0 success count, 0 saved passports. Risk level is **LOW**.
 * **Width 2000px**: Total 513 attempts, 1 success count, 0 saved passports. Risk level is **LOW**.
-* **Fallback Stage**: Total 350 attempts, 19 success count, 19 saved passports. Risk level is **VERY_HIGH**.
+* **Fallback Stage**: Total 46 attempts, 19 success count, 19 saved passports. Risk level is **VERY_HIGH**.

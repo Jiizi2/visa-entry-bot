@@ -72,11 +72,11 @@
     "risk_level": "LOW"
   },
   "fallback": {
-    "runtime_cost_ms": 235967.6,
-    "attempt_count": 350,
+    "runtime_cost_ms": 67941.4,
+    "attempt_count": 46,
     "success_count": 19,
     "saved_passports": 19,
-    "runtime_percentage": 29.42,
+    "runtime_percentage": 8.47,
     "risk_level": "VERY_HIGH"
   }
 }

@@ -233,10 +233,13 @@ def run_analysis() -> int:
     for f_name, criteria in feature_mappings.items():
         # attempts selection
         if f_name == "fallback":
-            # attempts where fallback occurred
-            # For fallback, it corresponds to the attempts where the passport executed fallback
             fallback_p_ids = [r["id"] for r in per_image_results if r.get("fallback")]
-            atts = [att for att in ocr_attempts if att["passport_id"] in fallback_p_ids and att["orientation"] == 0]
+            atts = []
+            for p_id in fallback_p_ids:
+                p_atts = attempts_by_passport.get(p_id, [])
+                has_rotations = any(att["orientation"] in (90, 180, 270) for att in p_atts)
+                direct_limit = 64 if has_rotations else 16
+                atts.extend(p_atts[direct_limit:])
         elif "orientation" in criteria:
             atts = [att for att in ocr_attempts if att["orientation"] == criteria["orientation"]]
         elif "variant" in criteria:
