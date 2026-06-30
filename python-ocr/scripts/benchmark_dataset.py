@@ -980,6 +980,13 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
     print("OCR Attempts JSON   : " + os.path.relpath(OCR_ATTEMPTS_PATH, REPO_ROOT))
     print("Per-image JSON      : " + os.path.relpath(RESULT_PATH, REPO_ROOT))
     
+    # Automatically execute evidence analysis
+    try:
+        from scripts.analyze_evidence import run_analysis
+        run_analysis()
+    except Exception as e:
+        print(f"Warning: Failed to automatically run analyze_evidence.py: {e}")
+        
     return 0
 
 

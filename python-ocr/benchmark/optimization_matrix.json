@@ -1,0 +1,82 @@
+{
+  "rotation_90": {
+    "runtime_cost_ms": 108693.1,
+    "attempt_count": 176,
+    "success_count": 0,
+    "saved_passports": 0,
+    "runtime_percentage": 13.55,
+    "risk_level": "LOW"
+  },
+  "rotation_180": {
+    "runtime_cost_ms": 74664.8,
+    "attempt_count": 176,
+    "success_count": 0,
+    "saved_passports": 0,
+    "runtime_percentage": 9.31,
+    "risk_level": "LOW"
+  },
+  "rotation_270": {
+    "runtime_cost_ms": 102149.8,
+    "attempt_count": 176,
+    "success_count": 0,
+    "saved_passports": 0,
+    "runtime_percentage": 12.73,
+    "risk_level": "LOW"
+  },
+  "gray": {
+    "runtime_cost_ms": 306332.5,
+    "attempt_count": 372,
+    "success_count": 108,
+    "saved_passports": 104,
+    "runtime_percentage": 38.19,
+    "risk_level": "VERY_HIGH"
+  },
+  "clahe": {
+    "runtime_cost_ms": 169223.2,
+    "attempt_count": 264,
+    "success_count": 5,
+    "saved_passports": 5,
+    "runtime_percentage": 21.1,
+    "risk_level": "HIGH"
+  },
+  "otsu": {
+    "runtime_cost_ms": 164373.1,
+    "attempt_count": 259,
+    "success_count": 2,
+    "saved_passports": 2,
+    "runtime_percentage": 20.49,
+    "risk_level": "MEDIUM"
+  },
+  "adaptive": {
+    "runtime_cost_ms": 162193.4,
+    "attempt_count": 257,
+    "success_count": 0,
+    "saved_passports": 0,
+    "runtime_percentage": 20.22,
+    "risk_level": "LOW"
+  },
+  "width_1600": {
+    "runtime_cost_ms": 485287.1,
+    "attempt_count": 639,
+    "success_count": 114,
+    "saved_passports": 111,
+    "runtime_percentage": 60.5,
+    "risk_level": "VERY_HIGH"
+  },
+  "width_2000": {
+    "runtime_cost_ms": 316835.1,
+    "attempt_count": 513,
+    "success_count": 1,
+    "saved_passports": 0,
+    "runtime_percentage": 39.5,
+    "risk_level": "LOW"
+  },
+  "fallback": {
+    "runtime_cost_ms": 235967.6,
+    "attempt_count": 350,
+    "success_count": 19,
+    "saved_passports": 19,
+    "runtime_percentage": 29.42,
+    "risk_level": "VERY_HIGH"
+  }
+}

@@ -1,0 +1,579 @@
+{
+  "companionTest_ABDULLAH": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "companionTest_WhatsApp Image 2026-06-14 at 23.03.49 (3)": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "entrmate2.0_Screenshot 2026-06-15 000854": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (2)": {
+    "depends_on": [
+      "clahe",
+      "fallback"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (3)": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (4)": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (5)": {
+    "depends_on": [
+      "fallback",
+      "otsu"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (1)": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (2)": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (3)": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.00": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.01": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.02": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "batch3_WhatsApp Image 2026-06-15 at 00.33.35": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "batch3_WhatsApp Image 2026-06-15 at 00.33.36": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "finalTets_prep-0001-Copy-of-Muhammad-Fauzi-Azka-Fradilah-1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "finalTets_prep-0002-Salinan_01_FEBRIYANTO_PASPOR_page_001": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_AHMAD": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_ARIFIN": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_DESY": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_ETTY": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_FENDY": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_HALIMAH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_KAMILA": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_M HAMDI 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_MAULANA": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_MUH DAKRUN": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_MUH DARIAN": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_NORDAM": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_NUR": {
+    "depends_on": [
+      "clahe"
+    ]
+  },
+  "FirstTest_NURHIDAYAH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_PATHUL": {
+    "depends_on": [
+      "clahe"
+    ]
+  },
+  "FirstTest_RATNA 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_RONY": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_SAKDILLAH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_SITI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "FirstTest_SUDARWATI 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "PASSPOR_ADEN BUSTOMI": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "PASSPOR_EVY ENDAHRIYAH NOOR": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "PASSPOR_GITA MARNIKASARI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "PASSPOR_HANI HANIFAH": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "PASSPOR_NANAG RIDWAN IYUN": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "PASSPOR_OMOD HASBIANSYAH KAMALUDIN": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "PASSPOR_SRI SETIAWATI DOENGALI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "PASSPOR_YAMAN NURYAMAN FAOZI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_ABDULLAH": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_ACHMAD": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_ADIBAH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_AISYAH": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_ARIF": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_DJUMADI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_FAITH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_HERLINES 1": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_IHSAN 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_ISMINI 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_JARIAH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_JUMARNI 1": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_KAHARRUDDIN 1": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_KARIM": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MAISARAH 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MARGONO 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MASKURDI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MAWAR": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MEYSI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH DZAKI 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH FADIL": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_MUH FAUZI": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH HANIF": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH IHSAN": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH MUGNI 1": {
+    "depends_on": [
+      "clahe"
+    ]
+  },
+  "45 PAX_MUH NUR": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH TSABIT 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_MUH YUSUP": {
+    "depends_on": [
+      "otsu"
+    ]
+  },
+  "45 PAX_NORSIYAH 1": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_NUR": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_PUJI": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_PURWANTO 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_RASID 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_RASYDDIQ 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_RAYHAN 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_RIKA": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "45 PAX_ROBIYANTO": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_SITI 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_SUPARDIN 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_SUTRIS 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_SUWARTO 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_TAUFIK": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_TRI": {
+    "depends_on": [
+      "clahe"
+    ]
+  },
+  "45 PAX_YUNITA": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "45 PAX_YUSUP": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "testApp_Copy of Muhammad Fauzi Azka Fradilah 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "testApp_Copy of Rasyddiq Mauliddhan1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "nusuk-crops": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "thirdTest_ABDULLAH": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "thirdTest_HERLINES 1": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "trainingData_Copy of Arif Maulana": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Djumadi Yusuf": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Faith Ghaisan 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of IMG_4530": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of IMG_4531": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Jumarni Cagga 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Karim Alfarizi Ramadan": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Margono1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Mawar Nurani La Rani": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Meysi Salsahbilla": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Muhammad Dzaki 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Muhammad Fauzi Azka Fradilah 1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Muhammad Ihsan": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Muhammad Mugni zar Gifari1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Nur Fitriana Ibrahim": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_Copy of Rasyddiq Mauliddhan1": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "trainingData_IMG_4532": {
+    "depends_on": [
+      "independent"
+    ]
+  },
+  "nusuk-crops_Copy-of-Arif-Maulana-2fd7173f-crop": {
+    "depends_on": [
+      "fallback"
+    ]
+  },
+  "nusuk-crops_Copy-of-Djumadi-Yusuf-9d1ff022-crop": {
+    "depends_on": [
+      "independent"
+    ]
+  }
+}

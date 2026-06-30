@@ -388,11 +388,101 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 ---
 
-## 10. Key Findings
+## Decision Tree Analysis
 
-* **Rotation 90° / 180° / 270°**: Memiliki total 528 attempts dan menghasilkan **0 sukses**.
-* **Adaptive Variant**: Memiliki total 257 attempts dan menghasilkan **0 sukses**.
-* **OCR Stage Duration**: Mengonsumsi **91.2%** dari total seluruh waktu eksekusi pipeline (802.1 detik dari 879.5 detik).
-* **Average OCR Runs per image**: Rata-rata **10.02 runs** per paspor.
-* **Candidate Lifecycle Efficiency**: Dari 148 kandidat yang ditemukan, 148 (100.0%) masuk tahapan repair, 128 (86.5%) lolos checksum, dan 115 terpilih sebagai output final.
-* **Fallback Efficiency**: Fallback terpicu 19 kali dan berhasil menyelamatkan 19 gambar paspor.
+Pohon keputusan pipeline MRZ direkonstruksi untuk menganalisis jalur eksekusi:
+* **Direct Path (0° / gray)**: 69 paspor sukses langsung pada upaya pertama.
+* **Rotation Path (90° / 180° / 270°)**: Rotasi diuji ketika direct path gagal.
+* **Fallback Path**: Fallback terpicu jika seluruh kombinasi direct scan tidak menghasilkan MRZ yang valid.
+
+---
+
+## Dependency Analysis
+
+Analisis dependensi eksklusif paspor terhadap fitur tertentu (15 paspor pertama ditampilkan):
+
+| Passport ID | Depends On |
+| :--- | :--- |
+| **45 PAX_ABDULLAH** | independent |
+| **45 PAX_ACHMAD** | independent |
+| **45 PAX_ADIBAH 1** | independent |
+| **45 PAX_AISYAH** | fallback |
+| **45 PAX_ARIF** | independent |
+| **45 PAX_DJUMADI** | independent |
+| **45 PAX_FAITH 1** | independent |
+| **45 PAX_HERLINES 1** | fallback |
+| **45 PAX_IHSAN 1** | independent |
+| **45 PAX_ISMINI 1** | independent |
+| **45 PAX_JARIAH 1** | independent |
+| **45 PAX_JUMARNI 1** | fallback |
+| **45 PAX_KAHARRUDDIN 1** | fallback |
+| **45 PAX_KARIM** | independent |
+| **45 PAX_MAISARAH 1** | independent |
+*Seluruh dependensi detail tercatat lengkap di [dependency_analysis.json](file:///C:\visa-entry-bot\python-ocr\benchmark\dependency_analysis.json).*
+
+---
+
+## Impact Simulation
+
+Simulasi matematis dampak terhadap hasil ekstraksi jika fitur dihapus:
+
+| Scenario | Passport Changed | Passport Failed | Passport Unaffected |
+| :--- | :---: | :---: | :---: |
+| **disable_rotation_90** | 0 | 0 | 115 |
+| **disable_rotation_180** | 0 | 0 | 115 |
+| **disable_rotation_270** | 0 | 0 | 115 |
+| **disable_all_rotations** | 0 | 0 | 115 |
+| **disable_adaptive** | 0 | 0 | 115 |
+| **disable_otsu** | 0 | 2 | 113 |
+| **disable_clahe** | 0 | 5 | 110 |
+| **gray_only** | 0 | 7 | 108 |
+| **disable_width_2000** | 1 | 0 | 114 |
+| **width_1600_only** | 1 | 0 | 114 |
+| **disable_fallback** | 0 | 19 | 96 |
+
+---
+
+## Cost vs Value
+
+Perbandingan biaya runtime terhadap nilai kontribusi fitur:
+
+| Feature | Runtime Cost (ms) | Attempt Count | Success Count | Saved Passports | Runtime Percentage |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **rotation_90** | 108693.1 ms | 176 | 0 | 0 | 13.55% |
+| **rotation_180** | 74664.8 ms | 176 | 0 | 0 | 9.31% |
+| **rotation_270** | 102149.8 ms | 176 | 0 | 0 | 12.73% |
+| **gray** | 306332.5 ms | 372 | 108 | 104 | 38.19% |
+| **clahe** | 169223.2 ms | 264 | 5 | 5 | 21.1% |
+| **otsu** | 164373.1 ms | 259 | 2 | 2 | 20.49% |
+| **adaptive** | 162193.4 ms | 257 | 0 | 0 | 20.22% |
+| **width_1600** | 485287.1 ms | 639 | 114 | 111 | 60.5% |
+| **width_2000** | 316835.1 ms | 513 | 1 | 0 | 39.5% |
+| **fallback** | 235967.6 ms | 350 | 19 | 19 | 29.42% |
+
+---
+
+## Risk Matrix
+
+Matriks tingkat risiko optimasi jika fitur dieliminasi dari pipeline:
+
+| Feature | Saved Passports | Risk Level | Runtime Cost (%) |
+| :--- | :---: | :---: | :---: |
+| **rotation_90** | 0 | **LOW** | 13.55% |
+| **rotation_180** | 0 | **LOW** | 9.31% |
+| **rotation_270** | 0 | **LOW** | 12.73% |
+| **gray** | 104 | **VERY_HIGH** | 38.19% |
+| **clahe** | 5 | **HIGH** | 21.1% |
+| **otsu** | 2 | **MEDIUM** | 20.49% |
+| **adaptive** | 0 | **LOW** | 20.22% |
+| **width_1600** | 111 | **VERY_HIGH** | 60.5% |
+| **width_2000** | 0 | **LOW** | 39.5% |
+| **fallback** | 19 | **VERY_HIGH** | 29.42% |
+
+---
+
+## Key Findings
+
+* **Rotation (90°/180°/270°)**: Total 528 attempts, 0 success count, 0 saved passports. Risk level is **LOW**.
+* **Adaptive Variant**: Total 257 attempts, 0 success count, 0 saved passports. Risk level is **LOW**.
+* **Width 2000px**: Total 513 attempts, 1 success count, 0 saved passports. Risk level is **LOW**.
+* **Fallback Stage**: Total 350 attempts, 19 success count, 19 saved passports. Risk level is **VERY_HIGH**.
