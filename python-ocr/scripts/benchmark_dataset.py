@@ -19,16 +19,18 @@ sys.path.insert(0, str(PYTHON_OCR_DIR))
 
 from services.mrz_extractor import extract_mrz_data
 from services.mrz_metrics import mrz_metrics_context
+from scripts.benchmark_utils import load_json, save_json, resolve_profile_paths, format_time
 
 DATASET_PATH = PYTHON_OCR_DIR / "datasets" / "passport_dataset.json"
-BENCHMARK_DIR = PYTHON_OCR_DIR / "benchmark"
-RESULT_PATH = BENCHMARK_DIR / "per_image_results.json"
-SUMMARY_PATH = BENCHMARK_DIR / "summary.json"
-REPORT_PATH = BENCHMARK_DIR / "report.md"
-CHECKPOINT_PATH = BENCHMARK_DIR / "checkpoint.json"
-METADATA_PATH = BENCHMARK_DIR / "metadata.json"
-STAGE_BREAKDOWN_PATH = BENCHMARK_DIR / "stage_breakdown.json"
-OCR_ATTEMPTS_PATH = BENCHMARK_DIR / "ocr_attempts.json"
+# Defaults will be resolved in main()
+BENCHMARK_DIR = Path()
+RESULT_PATH = Path()
+SUMMARY_PATH = Path()
+REPORT_PATH = Path()
+CHECKPOINT_PATH = Path()
+METADATA_PATH = Path()
+STAGE_BREAKDOWN_PATH = Path()
+OCR_ATTEMPTS_PATH = Path()
 
 
 def get_percentile(data: list[float], percentile: float) -> float:
@@ -38,13 +40,6 @@ def get_percentile(data: list[float], percentile: float) -> float:
     idx = int(len(sorted_data) * percentile)
     idx = max(0, min(len(sorted_data) - 1, idx))
     return sorted_data[idx]
-
-
-def format_time(seconds: float) -> str:
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    return f"{h:02d}:{m:02d}:{s:02d}"
 
 
 def get_git_commit() -> str:
@@ -98,9 +93,7 @@ def save_checkpoint(
         "stages_by_passport": stages_by_passport
     }
     try:
-        BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
-        with open(CHECKPOINT_PATH, "w", encoding="utf-8") as f:
-            json.dump(checkpoint_data, f, indent=2, ensure_ascii=False)
+        save_json(CHECKPOINT_PATH, checkpoint_data)
     except Exception:
         pass
 
@@ -218,21 +211,21 @@ def main() -> int:
     os.environ["PASSPORT_OCR_PROFILE"] = profile
     
     global BENCHMARK_DIR, RESULT_PATH, SUMMARY_PATH, REPORT_PATH, CHECKPOINT_PATH, METADATA_PATH, STAGE_BREAKDOWN_PATH, OCR_ATTEMPTS_PATH
-    BENCHMARK_DIR = PYTHON_OCR_DIR / "benchmark" / profile
-    RESULT_PATH = BENCHMARK_DIR / "per_image_results.json"
-    SUMMARY_PATH = BENCHMARK_DIR / "summary.json"
-    REPORT_PATH = BENCHMARK_DIR / "report.md"
-    CHECKPOINT_PATH = BENCHMARK_DIR / "checkpoint.json"
-    METADATA_PATH = BENCHMARK_DIR / "metadata.json"
-    STAGE_BREAKDOWN_PATH = BENCHMARK_DIR / "stage_breakdown.json"
-    OCR_ATTEMPTS_PATH = BENCHMARK_DIR / "ocr_attempts.json"
+    paths = resolve_profile_paths(profile)
+    BENCHMARK_DIR = paths["profile_dir"]
+    RESULT_PATH = paths["per_image_results"]
+    SUMMARY_PATH = paths["summary"]
+    REPORT_PATH = paths["report"]
+    CHECKPOINT_PATH = paths["checkpoint"]
+    METADATA_PATH = paths["metadata"]
+    STAGE_BREAKDOWN_PATH = paths["stage_breakdown"]
+    OCR_ATTEMPTS_PATH = paths["ocr_attempts"]
     
     if not DATASET_PATH.exists():
         print(f"Error: manifest file {DATASET_PATH} not found. Run build_passport_dataset.py first.")
         return 1
         
-    with open(DATASET_PATH, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
+    manifest = load_json(DATASET_PATH)
     items = manifest.get("items", [])
     if not items:
         print("Error: Dataset manifest contains no items.")
@@ -260,8 +253,7 @@ def main() -> int:
                 
         if should_resume and CHECKPOINT_PATH.exists():
             try:
-                with open(CHECKPOINT_PATH, "r", encoding="utf-8") as f:
-                    ckpt = json.load(f)
+                ckpt = load_json(CHECKPOINT_PATH)
                 if ckpt.get("profile") == profile:
                     raw_records = ckpt.get("raw_records", [])
                     ocr_attempts = ckpt.get("ocr_attempts", [])
@@ -670,10 +662,8 @@ def main() -> int:
         }
     }
     
-    BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
-    with open(METADATA_PATH, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=2, ensure_ascii=False)
-        
+    save_json(METADATA_PATH, metadata)
+    
     # Calculate global stages summary
     # map stages to compute average, min, max
     stages_summary = {}
@@ -743,8 +733,7 @@ def main() -> int:
             "additional_runtime_ms": round(additional_runtime_ms, 1)
         }
     }
-    with open(SUMMARY_PATH, "w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2, ensure_ascii=False)
+    save_json(SUMMARY_PATH, summary)
         
     # 3. Write per_image_results.json
     final_raw_output = []
@@ -758,16 +747,13 @@ def main() -> int:
             "variant": r["variant"],
             "success": r["success"]
         })
-    with open(RESULT_PATH, "w", encoding="utf-8") as f:
-        json.dump(final_raw_output, f, indent=2, ensure_ascii=False)
+    save_json(RESULT_PATH, final_raw_output, inject_metadata=False)
         
     # 4. Write stage_breakdown.json
-    with open(STAGE_BREAKDOWN_PATH, "w", encoding="utf-8") as f:
-        json.dump(stages_by_passport, f, indent=2, ensure_ascii=False)
+    save_json(STAGE_BREAKDOWN_PATH, stages_by_passport)
         
     # 5. Write ocr_attempts.json
-    with open(OCR_ATTEMPTS_PATH, "w", encoding="utf-8") as f:
-        json.dump(ocr_attempts, f, indent=2, ensure_ascii=False)
+    save_json(OCR_ATTEMPTS_PATH, ocr_attempts, inject_metadata=False)
         
     # 6. Write report.md
     histogram_str = build_histogram(runtimes)

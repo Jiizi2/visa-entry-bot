@@ -1333,5 +1333,8 @@
       "trainingData_Copy of Rasyddiq Mauliddhan1",
       "trainingData_IMG_4532"
     ]
-  }
+  },
+  "benchmark_version": "1.0.0",
+  "schema_version": "1.0",
+  "generator_version": "1.0.0"
 }

@@ -1,82 +1,85 @@
 {
   "rotation_90": {
-    "runtime_cost_ms": 106889.1,
+    "runtime_cost_ms": 97826.5,
     "attempt_count": 176,
     "success_count": 0,
     "saved_passports": 0,
-    "runtime_percentage": 13.65,
+    "runtime_percentage": 13.45,
     "risk_level": "LOW"
   },
   "rotation_180": {
-    "runtime_cost_ms": 70571.1,
+    "runtime_cost_ms": 67970.4,
     "attempt_count": 176,
     "success_count": 0,
     "saved_passports": 0,
-    "runtime_percentage": 9.01,
+    "runtime_percentage": 9.35,
     "risk_level": "LOW"
   },
   "rotation_270": {
-    "runtime_cost_ms": 99841.4,
+    "runtime_cost_ms": 93091.4,
     "attempt_count": 176,
     "success_count": 0,
     "saved_passports": 0,
-    "runtime_percentage": 12.75,
+    "runtime_percentage": 12.8,
     "risk_level": "LOW"
   },
   "gray": {
-    "runtime_cost_ms": 298539.7,
+    "runtime_cost_ms": 273902.9,
     "attempt_count": 372,
     "success_count": 108,
     "saved_passports": 104,
-    "runtime_percentage": 38.13,
+    "runtime_percentage": 37.66,
     "risk_level": "VERY_HIGH"
   },
   "clahe": {
-    "runtime_cost_ms": 165607.7,
+    "runtime_cost_ms": 154787.4,
     "attempt_count": 264,
     "success_count": 5,
     "saved_passports": 5,
-    "runtime_percentage": 21.15,
+    "runtime_percentage": 21.28,
     "risk_level": "HIGH"
   },
   "otsu": {
-    "runtime_cost_ms": 160626.4,
+    "runtime_cost_ms": 150173.0,
     "attempt_count": 259,
     "success_count": 2,
     "saved_passports": 2,
-    "runtime_percentage": 20.51,
+    "runtime_percentage": 20.65,
     "risk_level": "MEDIUM"
   },
   "adaptive": {
-    "runtime_cost_ms": 158208.5,
+    "runtime_cost_ms": 148406.7,
     "attempt_count": 257,
     "success_count": 0,
     "saved_passports": 0,
-    "runtime_percentage": 20.21,
+    "runtime_percentage": 20.41,
     "risk_level": "LOW"
   },
   "width_1600": {
-    "runtime_cost_ms": 474711.1,
+    "runtime_cost_ms": 437656.2,
     "attempt_count": 639,
     "success_count": 114,
     "saved_passports": 111,
-    "runtime_percentage": 60.63,
+    "runtime_percentage": 60.18,
     "risk_level": "VERY_HIGH"
   },
   "width_2000": {
-    "runtime_cost_ms": 308271.2,
+    "runtime_cost_ms": 289613.8,
     "attempt_count": 513,
     "success_count": 1,
     "saved_passports": 0,
-    "runtime_percentage": 39.37,
+    "runtime_percentage": 39.82,
     "risk_level": "LOW"
   },
   "fallback": {
-    "runtime_cost_ms": 67535.5,
+    "runtime_cost_ms": 60277.2,
     "attempt_count": 46,
     "success_count": 19,
     "saved_passports": 19,
-    "runtime_percentage": 8.63,
+    "runtime_percentage": 8.29,
     "risk_level": "VERY_HIGH"
-  }
+  },
+  "benchmark_version": "1.0.0",
+  "schema_version": "1.0",
+  "generator_version": "1.0.0"
 }

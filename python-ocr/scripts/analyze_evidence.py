@@ -1,44 +1,44 @@
-from __future__ import annotations
-
 import os
-import json
 import sys
 from pathlib import Path
 
+# Setup sys.path to find packages correctly
 SCRIPTS_DIR = Path(__file__).resolve().parent
 PYTHON_OCR_DIR = SCRIPTS_DIR.parent
-BENCHMARK_DIR = PYTHON_OCR_DIR / "benchmark"
-REPO_ROOT = PYTHON_OCR_DIR.parent
+if str(PYTHON_OCR_DIR) not in sys.path:
+    sys.path.insert(0, str(PYTHON_OCR_DIR))
 
-RESULT_PATH = BENCHMARK_DIR / "per_image_results.json"
-SUMMARY_PATH = BENCHMARK_DIR / "summary.json"
-METADATA_PATH = BENCHMARK_DIR / "metadata.json"
-STAGE_BREAKDOWN_PATH = BENCHMARK_DIR / "stage_breakdown.json"
-OCR_ATTEMPTS_PATH = BENCHMARK_DIR / "ocr_attempts.json"
+from scripts.benchmark_utils import load_json, save_json, resolve_profile_paths, REPO_ROOT
 
-DECISION_TREE_PATH = BENCHMARK_DIR / "decision_tree.json"
-DEPENDENCY_ANALYSIS_PATH = BENCHMARK_DIR / "dependency_analysis.json"
-IMPACT_SIMULATION_PATH = BENCHMARK_DIR / "impact_simulation.json"
-OPTIMIZATION_MATRIX_PATH = BENCHMARK_DIR / "optimization_matrix.json"
-REPORT_PATH = BENCHMARK_DIR / "report.md"
+# Defaults will be resolved in run_analysis()
+RESULT_PATH = Path()
+SUMMARY_PATH = Path()
+METADATA_PATH = Path()
+STAGE_BREAKDOWN_PATH = Path()
+OCR_ATTEMPTS_PATH = Path()
+DECISION_TREE_PATH = Path()
+DEPENDENCY_ANALYSIS_PATH = Path()
+IMPACT_SIMULATION_PATH = Path()
+OPTIMIZATION_MATRIX_PATH = Path()
+REPORT_PATH = Path()
 
 
 def run_analysis(profile: str = "legacy") -> int:
     global RESULT_PATH, SUMMARY_PATH, METADATA_PATH, STAGE_BREAKDOWN_PATH, OCR_ATTEMPTS_PATH
     global DECISION_TREE_PATH, DEPENDENCY_ANALYSIS_PATH, IMPACT_SIMULATION_PATH, OPTIMIZATION_MATRIX_PATH, REPORT_PATH
     
-    profile_dir = BENCHMARK_DIR / profile
-    RESULT_PATH = profile_dir / "per_image_results.json"
-    SUMMARY_PATH = profile_dir / "summary.json"
-    METADATA_PATH = profile_dir / "metadata.json"
-    STAGE_BREAKDOWN_PATH = profile_dir / "stage_breakdown.json"
-    OCR_ATTEMPTS_PATH = profile_dir / "ocr_attempts.json"
+    paths = resolve_profile_paths(profile)
+    RESULT_PATH = paths["per_image_results"]
+    SUMMARY_PATH = paths["summary"]
+    METADATA_PATH = paths["metadata"]
+    STAGE_BREAKDOWN_PATH = paths["stage_breakdown"]
+    OCR_ATTEMPTS_PATH = paths["ocr_attempts"]
     
-    DECISION_TREE_PATH = profile_dir / "decision_tree.json"
-    DEPENDENCY_ANALYSIS_PATH = profile_dir / "dependency_analysis.json"
-    IMPACT_SIMULATION_PATH = profile_dir / "impact_simulation.json"
-    OPTIMIZATION_MATRIX_PATH = profile_dir / "optimization_matrix.json"
-    REPORT_PATH = profile_dir / "report.md"
+    DECISION_TREE_PATH = paths["decision_tree"]
+    DEPENDENCY_ANALYSIS_PATH = paths["dependency_analysis"]
+    IMPACT_SIMULATION_PATH = paths["impact_simulation"]
+    OPTIMIZATION_MATRIX_PATH = paths["optimization_matrix"]
+    REPORT_PATH = paths["report"]
 
     # 1. Read existing benchmark artifacts
     if not RESULT_PATH.exists() or not OCR_ATTEMPTS_PATH.exists():
@@ -46,16 +46,11 @@ def run_analysis(profile: str = "legacy") -> int:
         return 1
 
     try:
-        with open(RESULT_PATH, "r", encoding="utf-8") as f:
-            per_image_results = json.load(f)
-        with open(OCR_ATTEMPTS_PATH, "r", encoding="utf-8") as f:
-            ocr_attempts = json.load(f)
-        with open(STAGE_BREAKDOWN_PATH, "r", encoding="utf-8") as f:
-            stage_breakdowns = json.load(f)
-        with open(SUMMARY_PATH, "r", encoding="utf-8") as f:
-            summary_data = json.load(f)
-        with open(METADATA_PATH, "r", encoding="utf-8") as f:
-            metadata_data = json.load(f)
+        per_image_results = load_json(RESULT_PATH)
+        ocr_attempts = load_json(OCR_ATTEMPTS_PATH)
+        stage_breakdowns = load_json(STAGE_BREAKDOWN_PATH)
+        summary_data = load_json(SUMMARY_PATH)
+        metadata_data = load_json(METADATA_PATH)
     except Exception as exc:
         print(f"Error reading benchmark files: {exc}")
         return 1
@@ -83,8 +78,7 @@ def run_analysis(profile: str = "legacy") -> int:
             "selected_attempt": selected_att
         }
 
-    with open(DECISION_TREE_PATH, "w", encoding="utf-8") as f:
-        json.dump(decision_tree, f, indent=2, ensure_ascii=False)
+    save_json(DECISION_TREE_PATH, decision_tree)
 
     # Helper function for Impact Simulation
     def simulate_scenario(scenario_name: str) -> dict:
@@ -183,8 +177,7 @@ def run_analysis(profile: str = "legacy") -> int:
     for sc in scenarios:
         impact_simulation[sc] = simulate_scenario(sc)
 
-    with open(IMPACT_SIMULATION_PATH, "w", encoding="utf-8") as f:
-        json.dump(impact_simulation, f, indent=2, ensure_ascii=False)
+    save_json(IMPACT_SIMULATION_PATH, impact_simulation)
 
     # 4. Dependency Analysis
     dependency_analysis = {}
@@ -214,8 +207,7 @@ def run_analysis(profile: str = "legacy") -> int:
             "depends_on": sorted(deps)
         }
 
-    with open(DEPENDENCY_ANALYSIS_PATH, "w", encoding="utf-8") as f:
-        json.dump(dependency_analysis, f, indent=2, ensure_ascii=False)
+    save_json(DEPENDENCY_ANALYSIS_PATH, dependency_analysis)
 
     # 5. Optimization & Risk Matrix
     # Features details mapping
@@ -321,8 +313,7 @@ def run_analysis(profile: str = "legacy") -> int:
             "risk_level": get_risk_level(saved_count)
         }
 
-    with open(OPTIMIZATION_MATRIX_PATH, "w", encoding="utf-8") as f:
-        json.dump(optimization_matrix, f, indent=2, ensure_ascii=False)
+    save_json(OPTIMIZATION_MATRIX_PATH, optimization_matrix)
 
     # 6. Read and Extend report.md
     if REPORT_PATH.exists():

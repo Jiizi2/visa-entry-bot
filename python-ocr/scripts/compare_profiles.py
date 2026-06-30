@@ -1,31 +1,26 @@
-from __future__ import annotations
-
-import json
 import os
 import sys
 from pathlib import Path
 
+# Setup sys.path to find packages correctly
 SCRIPTS_DIR = Path(__file__).resolve().parent
 PYTHON_OCR_DIR = SCRIPTS_DIR.parent
-BENCHMARK_DIR = PYTHON_OCR_DIR / "benchmark"
-LEGACY_DIR = BENCHMARK_DIR / "legacy"
-OPTIMIZED_DIR = BENCHMARK_DIR / "optimized"
+if str(PYTHON_OCR_DIR) not in sys.path:
+    sys.path.insert(0, str(PYTHON_OCR_DIR))
 
-COMPARISON_JSON_PATH = BENCHMARK_DIR / "comparison.json"
-COMPARISON_MD_PATH = BENCHMARK_DIR / "comparison.md"
+from scripts.benchmark_utils import load_json, save_json, resolve_profile_paths, COMPARISON_PATH, COMPARISON_MD_PATH, PYTHON_OCR_DIR
 
 
 def run_comparison() -> int:
-    if not LEGACY_DIR.exists() or not OPTIMIZED_DIR.exists():
-        print("Error: legacy or optimized benchmark directory does not exist. Run both benchmarks first.")
-        return 1
+    paths_legacy = resolve_profile_paths("legacy")
+    paths_optimized = resolve_profile_paths("optimized")
 
-    leg_results_path = LEGACY_DIR / "per_image_results.json"
-    opt_results_path = OPTIMIZED_DIR / "per_image_results.json"
-    leg_attempts_path = LEGACY_DIR / "ocr_attempts.json"
-    opt_attempts_path = OPTIMIZED_DIR / "ocr_attempts.json"
-    leg_summary_path = LEGACY_DIR / "summary.json"
-    opt_summary_path = OPTIMIZED_DIR / "summary.json"
+    leg_results_path = paths_legacy["per_image_results"]
+    opt_results_path = paths_optimized["per_image_results"]
+    leg_attempts_path = paths_legacy["ocr_attempts"]
+    opt_attempts_path = paths_optimized["ocr_attempts"]
+    leg_summary_path = paths_legacy["summary"]
+    opt_summary_path = paths_optimized["summary"]
 
     required_files = [
         leg_results_path, opt_results_path,
@@ -38,18 +33,12 @@ def run_comparison() -> int:
             return 1
 
     try:
-        with open(leg_results_path, "r", encoding="utf-8") as f:
-            leg_results = json.load(f)
-        with open(opt_results_path, "r", encoding="utf-8") as f:
-            opt_results = json.load(f)
-        with open(leg_attempts_path, "r", encoding="utf-8") as f:
-            leg_attempts = json.load(f)
-        with open(opt_attempts_path, "r", encoding="utf-8") as f:
-            opt_attempts = json.load(f)
-        with open(leg_summary_path, "r", encoding="utf-8") as f:
-            leg_summary = json.load(f)
-        with open(opt_summary_path, "r", encoding="utf-8") as f:
-            opt_summary = json.load(f)
+        leg_results = load_json(leg_results_path)
+        opt_results = load_json(opt_results_path)
+        leg_attempts = load_json(leg_attempts_path)
+        opt_attempts = load_json(opt_attempts_path)
+        leg_summary = load_json(leg_summary_path)
+        opt_summary = load_json(opt_summary_path)
     except Exception as exc:
         print(f"Error reading benchmark files: {exc}")
         return 1
@@ -188,8 +177,7 @@ def run_comparison() -> int:
         "improved_passports": improved
     }
 
-    with open(COMPARISON_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(comparison_data, f, indent=2, ensure_ascii=False)
+    save_json(COMPARISON_PATH, comparison_data)
 
     # Render Markdown Comparison Report
     reg_status = "PASSED" if not regressions else f"FAILED ({len(regressions)} regressions detected)"
@@ -286,7 +274,7 @@ Berikut adalah paspor yang sukses pada kedua profil tetapi menggunakan kandidat 
     print("========================================================")
     print("Profile Comparison Completed Successfully")
     print("========================================================")
-    print("Comparison JSON : " + os.path.relpath(COMPARISON_JSON_PATH, PYTHON_OCR_DIR.parent))
+    print("Comparison JSON : " + os.path.relpath(COMPARISON_PATH, PYTHON_OCR_DIR.parent))
     print("Comparison MD   : " + os.path.relpath(COMPARISON_MD_PATH, PYTHON_OCR_DIR.parent))
     
     return 0

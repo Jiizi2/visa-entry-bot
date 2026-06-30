@@ -1,6 +1,6 @@
 {
-  "date": "2026-06-30 14:59:40",
-  "git_commit": "62f5865fa666f3034c7e4fa15f2f1fb691f9db25",
+  "date": "2026-06-30 16:25:58",
+  "git_commit": "f05d12b8d4765e574414a3b24f8a06b229a5d660",
   "speed_profile": "legacy",
   "python_version": "3.12.4",
   "opencv_version": "4.13.0",
@@ -9,9 +9,9 @@
   "processor": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
   "logical_cpu": 12,
   "ram": "31.6 GB",
-  "benchmark_started": "2026-06-30T14:45:10.574996",
-  "benchmark_finished": "2026-06-30T14:59:40.636869",
-  "benchmark_duration_sec": 869.56,
+  "benchmark_started": "2026-06-30T16:12:36.845288",
+  "benchmark_finished": "2026-06-30T16:25:58.679210",
+  "benchmark_duration_sec": 801.34,
   "dataset": {
     "total_images": 115,
     "total_folders": 6,
@@ -114,5 +114,8 @@
       "976x1390": 1,
       "994x729": 1
     }
-  }
+  },
+  "benchmark_version": "1.0.0",
+  "schema_version": "1.0",
+  "generator_version": "1.0.0"
 }

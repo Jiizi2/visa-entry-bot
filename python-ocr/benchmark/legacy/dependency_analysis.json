@@ -575,5 +575,8 @@
     "depends_on": [
       "independent"
     ]
-  }
+  },
+  "benchmark_version": "1.0.0",
+  "schema_version": "1.0",
+  "generator_version": "1.0.0"
 }

@@ -1,11 +1,11 @@
 {
   "summary": {
-    "runtime_legacy_ms": 867755,
-    "runtime_optimized_ms": 312412,
-    "runtime_diff_ms": -555343,
-    "runtime_diff_percent": -64.0,
-    "avg_runtime_legacy_ms": 7545.7,
-    "avg_runtime_optimized_ms": 2716.6,
+    "runtime_legacy_ms": 799746,
+    "runtime_optimized_ms": 305617,
+    "runtime_diff_ms": -494129,
+    "runtime_diff_percent": -61.79,
+    "avg_runtime_legacy_ms": 6954.3,
+    "avg_runtime_optimized_ms": 2657.5,
     "ocr_runs_legacy": 1152,
     "ocr_runs_optimized": 312,
     "ocr_runs_diff": -840,
@@ -36,5 +36,8 @@
     }
   ],
   "regressions": [],
-  "improved_passports": []
+  "improved_passports": [],
+  "benchmark_version": "1.0.0",
+  "schema_version": "1.0",
+  "generator_version": "1.0.0"
 }

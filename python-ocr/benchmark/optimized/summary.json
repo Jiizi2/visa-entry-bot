@@ -1,17 +1,17 @@
 {
   "version": 1,
   "profile": "optimized",
-  "created_at": "2026-06-30 15:06:07",
+  "created_at": "2026-06-30 16:33:12",
   "total_passports": 115,
   "successful_passports": 115,
   "failed_passports": 0,
   "elapsed_ms": {
-    "avg": 2716.6,
-    "median": 1462.0,
-    "p95": 6575.0,
-    "p99": 10173.0,
-    "min": 623,
-    "max": 17101
+    "avg": 2657.5,
+    "median": 1424.0,
+    "p95": 6989.0,
+    "p99": 9141.0,
+    "min": 745,
+    "max": 16962
   },
   "ocr_runs": {
     "avg": 2.71,
@@ -28,25 +28,25 @@
   },
   "stages_summary": {
     "load_image": {
-      "total_ms": 632.1,
+      "total_ms": 614.8,
       "count": 134,
-      "average_ms": 5.5,
+      "average_ms": 5.3,
       "min_ms": 0.6,
-      "max_ms": 12.4
+      "max_ms": 13.3
     },
     "document_detection": {
-      "total_ms": 1538.2,
+      "total_ms": 1475.9,
       "count": 116,
-      "average_ms": 13.4,
+      "average_ms": 12.8,
       "min_ms": 1.0,
-      "max_ms": 81.4
+      "max_ms": 82.3
     },
     "resize": {
-      "total_ms": 82.3,
+      "total_ms": 77.8,
       "count": 293,
       "average_ms": 0.7,
       "min_ms": 0.0,
-      "max_ms": 5.5
+      "max_ms": 4.3
     },
     "rotation": {
       "total_ms": 0,
@@ -63,39 +63,39 @@
       "max_ms": 0.0
     },
     "variant_generation": {
-      "total_ms": 35406.3,
+      "total_ms": 34379.6,
       "count": 177,
-      "average_ms": 307.9,
-      "min_ms": 101.4,
-      "max_ms": 642.4
+      "average_ms": 299.0,
+      "min_ms": 89.9,
+      "max_ms": 751.6
     },
     "ocr": {
-      "total_ms": 270099.6,
+      "total_ms": 264458.0,
       "count": 312,
-      "average_ms": 2348.7,
-      "min_ms": 189.9,
-      "max_ms": 3469.2
+      "average_ms": 2299.6,
+      "min_ms": 210.7,
+      "max_ms": 3021.1
     },
     "candidate_selection": {
-      "total_ms": 3.4,
+      "total_ms": 3.6,
       "count": 369,
       "average_ms": 0.0,
       "min_ms": 0.0,
       "max_ms": 0.1
     },
     "repair": {
-      "total_ms": 23.4,
+      "total_ms": 23.3,
       "count": 372,
       "average_ms": 0.2,
       "min_ms": 0.0,
       "max_ms": 0.2
     },
     "validation": {
-      "total_ms": 0.0,
+      "total_ms": 0.1,
       "count": 115,
       "average_ms": 0.0,
       "min_ms": 0.0,
-      "max_ms": 0.0
+      "max_ms": 0.1
     },
     "serialization": {
       "total_ms": 0.0,
@@ -109,7 +109,7 @@
     "0": {
       "attempts": 312,
       "success": 115,
-      "runtime_total_ms": 270103.8
+      "runtime_total_ms": 264462.3
     },
     "90": {
       "attempts": 0,
@@ -131,17 +131,17 @@
     "gray": {
       "attempts": 177,
       "success": 108,
-      "runtime_total_ms": 174862.7
+      "runtime_total_ms": 168019.1
     },
     "clahe": {
       "attempts": 70,
       "success": 5,
-      "runtime_total_ms": 50652.0
+      "runtime_total_ms": 51237.3
     },
     "otsu": {
       "attempts": 65,
       "success": 2,
-      "runtime_total_ms": 44589.1
+      "runtime_total_ms": 45205.9
     },
     "adaptive": {
       "attempts": 0,
@@ -153,7 +153,7 @@
     "1600": {
       "attempts": 312,
       "success": 115,
-      "runtime_total_ms": 270103.8
+      "runtime_total_ms": 264462.3
     }
   },
   "fallback_analysis": {
@@ -161,5 +161,8 @@
     "success_after_fallback": 18,
     "additional_ocr_runs": 0,
     "additional_runtime_ms": 0
-  }
+  },
+  "benchmark_version": "1.0.0",
+  "schema_version": "1.0",
+  "generator_version": "1.0.0"
 }

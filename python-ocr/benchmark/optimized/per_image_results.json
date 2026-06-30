@@ -1,7 +1,7 @@
 [
   {
     "id": "companionTest_ABDULLAH",
-    "runtime_ms": 5261,
+    "runtime_ms": 5076,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -10,7 +10,7 @@
   },
   {
     "id": "companionTest_WhatsApp Image 2026-06-14 at 23.03.49 (3)",
-    "runtime_ms": 1654,
+    "runtime_ms": 1510,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -19,7 +19,7 @@
   },
   {
     "id": "entrmate2.0_Screenshot 2026-06-15 000854",
-    "runtime_ms": 1679,
+    "runtime_ms": 1643,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -28,7 +28,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (2)",
-    "runtime_ms": 6575,
+    "runtime_ms": 6640,
     "ocr_runs": 8,
     "fallback": true,
     "orientation": 0,
@@ -37,7 +37,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (3)",
-    "runtime_ms": 816,
+    "runtime_ms": 855,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -46,7 +46,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (4)",
-    "runtime_ms": 1142,
+    "runtime_ms": 1111,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -55,7 +55,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (5)",
-    "runtime_ms": 17101,
+    "runtime_ms": 16962,
     "ocr_runs": 18,
     "fallback": true,
     "orientation": 0,
@@ -64,7 +64,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49",
-    "runtime_ms": 852,
+    "runtime_ms": 823,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -73,7 +73,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (1)",
-    "runtime_ms": 4514,
+    "runtime_ms": 4260,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -82,7 +82,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (2)",
-    "runtime_ms": 4478,
+    "runtime_ms": 4355,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -91,7 +91,7 @@
   },
   {
     "id": "entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (3)",
-    "runtime_ms": 806,
+    "runtime_ms": 746,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -100,7 +100,7 @@
   },
   {
     "id": "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.00",
-    "runtime_ms": 5820,
+    "runtime_ms": 5859,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -109,7 +109,7 @@
   },
   {
     "id": "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.01",
-    "runtime_ms": 849,
+    "runtime_ms": 1000,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -118,7 +118,7 @@
   },
   {
     "id": "BATCH 2_WhatsApp Image 2026-06-15 at 00.19.02",
-    "runtime_ms": 3787,
+    "runtime_ms": 4028,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -127,7 +127,7 @@
   },
   {
     "id": "batch3_WhatsApp Image 2026-06-15 at 00.33.35",
-    "runtime_ms": 6324,
+    "runtime_ms": 6989,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -136,7 +136,7 @@
   },
   {
     "id": "batch3_WhatsApp Image 2026-06-15 at 00.33.36",
-    "runtime_ms": 6250,
+    "runtime_ms": 6282,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -145,7 +145,7 @@
   },
   {
     "id": "finalTets_prep-0001-Copy-of-Muhammad-Fauzi-Azka-Fradilah-1",
-    "runtime_ms": 1462,
+    "runtime_ms": 1463,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -154,7 +154,7 @@
   },
   {
     "id": "finalTets_prep-0002-Salinan_01_FEBRIYANTO_PASPOR_page_001",
-    "runtime_ms": 1547,
+    "runtime_ms": 1424,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -163,7 +163,7 @@
   },
   {
     "id": "FirstTest_AHMAD",
-    "runtime_ms": 887,
+    "runtime_ms": 1020,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -172,7 +172,7 @@
   },
   {
     "id": "FirstTest_ARIFIN",
-    "runtime_ms": 1004,
+    "runtime_ms": 1112,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -181,7 +181,7 @@
   },
   {
     "id": "FirstTest_DESY",
-    "runtime_ms": 950,
+    "runtime_ms": 1116,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -190,618 +190,6 @@
   },
   {
     "id": "FirstTest_ETTY",
-    "runtime_ms": 927,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_FENDY",
-    "runtime_ms": 935,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_HALIMAH 1",
-    "runtime_ms": 974,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_KAMILA",
-    "runtime_ms": 935,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_M HAMDI 1",
-    "runtime_ms": 972,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_MAULANA",
-    "runtime_ms": 944,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_MUH DAKRUN",
-    "runtime_ms": 1361,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_MUH DARIAN",
-    "runtime_ms": 881,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_NORDAM",
-    "runtime_ms": 1759,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_NUR",
-    "runtime_ms": 2863,
-    "ocr_runs": 2,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "clahe",
-    "success": true
-  },
-  {
-    "id": "FirstTest_NURHIDAYAH 1",
-    "runtime_ms": 623,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_PATHUL",
-    "runtime_ms": 2929,
-    "ocr_runs": 2,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "clahe",
-    "success": true
-  },
-  {
-    "id": "FirstTest_RATNA 1",
-    "runtime_ms": 3458,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_RONY",
-    "runtime_ms": 969,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_SAKDILLAH 1",
-    "runtime_ms": 3035,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_SITI",
-    "runtime_ms": 971,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "FirstTest_SUDARWATI 1",
-    "runtime_ms": 657,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_ADEN BUSTOMI",
-    "runtime_ms": 7128,
-    "ocr_runs": 6,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_EVY ENDAHRIYAH NOOR",
-    "runtime_ms": 4203,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_GITA MARNIKASARI",
-    "runtime_ms": 1211,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_HANI HANIFAH",
-    "runtime_ms": 913,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_NANAG RIDWAN IYUN",
-    "runtime_ms": 6915,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_OMOD HASBIANSYAH KAMALUDIN",
-    "runtime_ms": 1460,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_SRI SETIAWATI DOENGALI",
-    "runtime_ms": 5287,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "PASSPOR_YAMAN NURYAMAN FAOZI",
-    "runtime_ms": 3655,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_ABDULLAH",
-    "runtime_ms": 3498,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_ACHMAD",
-    "runtime_ms": 968,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_ADIBAH 1",
-    "runtime_ms": 864,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_AISYAH",
-    "runtime_ms": 5957,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_ARIF",
-    "runtime_ms": 860,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_DJUMADI",
-    "runtime_ms": 5245,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_FAITH 1",
-    "runtime_ms": 1029,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_HERLINES 1",
-    "runtime_ms": 4699,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_IHSAN 1",
-    "runtime_ms": 6027,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_ISMINI 1",
-    "runtime_ms": 881,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_JARIAH 1",
-    "runtime_ms": 4637,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_JUMARNI 1",
-    "runtime_ms": 4637,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_KAHARRUDDIN 1",
-    "runtime_ms": 6395,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_KARIM",
-    "runtime_ms": 5635,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MAISARAH 1",
-    "runtime_ms": 899,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MARGONO 1",
-    "runtime_ms": 1314,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MASKURDI",
-    "runtime_ms": 931,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MAWAR",
-    "runtime_ms": 982,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MEYSI",
-    "runtime_ms": 1048,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH DZAKI 1",
-    "runtime_ms": 946,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH FADIL",
-    "runtime_ms": 5998,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH FAUZI",
-    "runtime_ms": 954,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH HANIF",
-    "runtime_ms": 873,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH IHSAN",
-    "runtime_ms": 1479,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH MUGNI 1",
-    "runtime_ms": 1988,
-    "ocr_runs": 2,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "clahe",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH NUR",
-    "runtime_ms": 1050,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH TSABIT 1",
-    "runtime_ms": 990,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_MUH YUSUP",
-    "runtime_ms": 2466,
-    "ocr_runs": 3,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "otsu",
-    "success": true
-  },
-  {
-    "id": "45 PAX_NORSIYAH 1",
-    "runtime_ms": 4831,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_NUR",
-    "runtime_ms": 1792,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_PUJI",
-    "runtime_ms": 4431,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_PURWANTO 1",
-    "runtime_ms": 4788,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_RASID 1",
-    "runtime_ms": 979,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_RASYDDIQ 1",
-    "runtime_ms": 3918,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_RAYHAN 1",
-    "runtime_ms": 4989,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_RIKA",
-    "runtime_ms": 5445,
-    "ocr_runs": 7,
-    "fallback": true,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_ROBIYANTO",
-    "runtime_ms": 1038,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_SITI 1",
-    "runtime_ms": 955,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_SUPARDIN 1",
-    "runtime_ms": 872,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_SUTRIS 1",
-    "runtime_ms": 3691,
-    "ocr_runs": 4,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_SUWARTO 1",
-    "runtime_ms": 961,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_TAUFIK",
-    "runtime_ms": 954,
-    "ocr_runs": 1,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "gray",
-    "success": true
-  },
-  {
-    "id": "45 PAX_TRI",
-    "runtime_ms": 2673,
-    "ocr_runs": 2,
-    "fallback": false,
-    "orientation": 0,
-    "variant": "clahe",
-    "success": true
-  },
-  {
-    "id": "45 PAX_YUNITA",
     "runtime_ms": 908,
     "ocr_runs": 1,
     "fallback": false,
@@ -810,8 +198,620 @@
     "success": true
   },
   {
+    "id": "FirstTest_FENDY",
+    "runtime_ms": 929,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_HALIMAH 1",
+    "runtime_ms": 1002,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_KAMILA",
+    "runtime_ms": 974,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_M HAMDI 1",
+    "runtime_ms": 1056,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_MAULANA",
+    "runtime_ms": 1078,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_MUH DAKRUN",
+    "runtime_ms": 1337,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_MUH DARIAN",
+    "runtime_ms": 1095,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_NORDAM",
+    "runtime_ms": 1873,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_NUR",
+    "runtime_ms": 3027,
+    "ocr_runs": 2,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "clahe",
+    "success": true
+  },
+  {
+    "id": "FirstTest_NURHIDAYAH 1",
+    "runtime_ms": 782,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_PATHUL",
+    "runtime_ms": 3134,
+    "ocr_runs": 2,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "clahe",
+    "success": true
+  },
+  {
+    "id": "FirstTest_RATNA 1",
+    "runtime_ms": 3666,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_RONY",
+    "runtime_ms": 986,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_SAKDILLAH 1",
+    "runtime_ms": 3298,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_SITI",
+    "runtime_ms": 1005,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "FirstTest_SUDARWATI 1",
+    "runtime_ms": 745,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_ADEN BUSTOMI",
+    "runtime_ms": 7553,
+    "ocr_runs": 6,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_EVY ENDAHRIYAH NOOR",
+    "runtime_ms": 4592,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_GITA MARNIKASARI",
+    "runtime_ms": 1241,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_HANI HANIFAH",
+    "runtime_ms": 909,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_NANAG RIDWAN IYUN",
+    "runtime_ms": 7535,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_OMOD HASBIANSYAH KAMALUDIN",
+    "runtime_ms": 1449,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_SRI SETIAWATI DOENGALI",
+    "runtime_ms": 5719,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "PASSPOR_YAMAN NURYAMAN FAOZI",
+    "runtime_ms": 3540,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_ABDULLAH",
+    "runtime_ms": 3610,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_ACHMAD",
+    "runtime_ms": 1031,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_ADIBAH 1",
+    "runtime_ms": 952,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_AISYAH",
+    "runtime_ms": 5945,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_ARIF",
+    "runtime_ms": 949,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_DJUMADI",
+    "runtime_ms": 5222,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_FAITH 1",
+    "runtime_ms": 1079,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_HERLINES 1",
+    "runtime_ms": 4952,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_IHSAN 1",
+    "runtime_ms": 6289,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_ISMINI 1",
+    "runtime_ms": 848,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_JARIAH 1",
+    "runtime_ms": 4642,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_JUMARNI 1",
+    "runtime_ms": 4465,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_KAHARRUDDIN 1",
+    "runtime_ms": 5920,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_KARIM",
+    "runtime_ms": 5334,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MAISARAH 1",
+    "runtime_ms": 828,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MARGONO 1",
+    "runtime_ms": 1294,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MASKURDI",
+    "runtime_ms": 844,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MAWAR",
+    "runtime_ms": 900,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MEYSI",
+    "runtime_ms": 995,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH DZAKI 1",
+    "runtime_ms": 887,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH FADIL",
+    "runtime_ms": 5754,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH FAUZI",
+    "runtime_ms": 920,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH HANIF",
+    "runtime_ms": 830,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH IHSAN",
+    "runtime_ms": 1498,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH MUGNI 1",
+    "runtime_ms": 1741,
+    "ocr_runs": 2,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "clahe",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH NUR",
+    "runtime_ms": 927,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH TSABIT 1",
+    "runtime_ms": 885,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_MUH YUSUP",
+    "runtime_ms": 2189,
+    "ocr_runs": 3,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "otsu",
+    "success": true
+  },
+  {
+    "id": "45 PAX_NORSIYAH 1",
+    "runtime_ms": 4360,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_NUR",
+    "runtime_ms": 1641,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_PUJI",
+    "runtime_ms": 4187,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_PURWANTO 1",
+    "runtime_ms": 4476,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_RASID 1",
+    "runtime_ms": 872,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_RASYDDIQ 1",
+    "runtime_ms": 3495,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_RAYHAN 1",
+    "runtime_ms": 4754,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_RIKA",
+    "runtime_ms": 4945,
+    "ocr_runs": 7,
+    "fallback": true,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_ROBIYANTO",
+    "runtime_ms": 963,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_SITI 1",
+    "runtime_ms": 868,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_SUPARDIN 1",
+    "runtime_ms": 884,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_SUTRIS 1",
+    "runtime_ms": 3406,
+    "ocr_runs": 4,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_SUWARTO 1",
+    "runtime_ms": 1031,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_TAUFIK",
+    "runtime_ms": 956,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
+    "id": "45 PAX_TRI",
+    "runtime_ms": 2552,
+    "ocr_runs": 2,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "clahe",
+    "success": true
+  },
+  {
+    "id": "45 PAX_YUNITA",
+    "runtime_ms": 784,
+    "ocr_runs": 1,
+    "fallback": false,
+    "orientation": 0,
+    "variant": "gray",
+    "success": true
+  },
+  {
     "id": "45 PAX_YUSUP",
-    "runtime_ms": 859,
+    "runtime_ms": 747,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -820,7 +820,7 @@
   },
   {
     "id": "testApp_Copy of Muhammad Fauzi Azka Fradilah 1",
-    "runtime_ms": 955,
+    "runtime_ms": 864,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -829,7 +829,7 @@
   },
   {
     "id": "testApp_Copy of Rasyddiq Mauliddhan1",
-    "runtime_ms": 1831,
+    "runtime_ms": 1649,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -838,7 +838,7 @@
   },
   {
     "id": "nusuk-crops",
-    "runtime_ms": 10173,
+    "runtime_ms": 9141,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -847,7 +847,7 @@
   },
   {
     "id": "thirdTest_ABDULLAH",
-    "runtime_ms": 3490,
+    "runtime_ms": 3297,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -856,7 +856,7 @@
   },
   {
     "id": "thirdTest_HERLINES 1",
-    "runtime_ms": 3242,
+    "runtime_ms": 2944,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -865,7 +865,7 @@
   },
   {
     "id": "trainingData_Copy of Arif Maulana",
-    "runtime_ms": 1497,
+    "runtime_ms": 1315,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -874,7 +874,7 @@
   },
   {
     "id": "trainingData_Copy of Djumadi Yusuf",
-    "runtime_ms": 1748,
+    "runtime_ms": 1522,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -883,7 +883,7 @@
   },
   {
     "id": "trainingData_Copy of Faith Ghaisan 1",
-    "runtime_ms": 1371,
+    "runtime_ms": 1229,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -892,7 +892,7 @@
   },
   {
     "id": "trainingData_Copy of IMG_4530",
-    "runtime_ms": 4251,
+    "runtime_ms": 3882,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -901,7 +901,7 @@
   },
   {
     "id": "trainingData_Copy of IMG_4531",
-    "runtime_ms": 3827,
+    "runtime_ms": 3511,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -910,7 +910,7 @@
   },
   {
     "id": "trainingData_Copy of Jumarni Cagga 1",
-    "runtime_ms": 1759,
+    "runtime_ms": 1483,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -919,7 +919,7 @@
   },
   {
     "id": "trainingData_Copy of Karim Alfarizi Ramadan",
-    "runtime_ms": 1387,
+    "runtime_ms": 1221,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -928,7 +928,7 @@
   },
   {
     "id": "trainingData_Copy of Margono1",
-    "runtime_ms": 1414,
+    "runtime_ms": 1296,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -937,7 +937,7 @@
   },
   {
     "id": "trainingData_Copy of Mawar Nurani La Rani",
-    "runtime_ms": 1383,
+    "runtime_ms": 1279,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -946,7 +946,7 @@
   },
   {
     "id": "trainingData_Copy of Meysi Salsahbilla",
-    "runtime_ms": 1414,
+    "runtime_ms": 1247,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -955,7 +955,7 @@
   },
   {
     "id": "trainingData_Copy of Muhammad Dzaki 1",
-    "runtime_ms": 1411,
+    "runtime_ms": 1218,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -964,7 +964,7 @@
   },
   {
     "id": "trainingData_Copy of Muhammad Fauzi Azka Fradilah 1",
-    "runtime_ms": 940,
+    "runtime_ms": 906,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -973,7 +973,7 @@
   },
   {
     "id": "trainingData_Copy of Muhammad Ihsan",
-    "runtime_ms": 1392,
+    "runtime_ms": 1268,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -982,7 +982,7 @@
   },
   {
     "id": "trainingData_Copy of Muhammad Mugni zar Gifari1",
-    "runtime_ms": 1421,
+    "runtime_ms": 1262,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -991,7 +991,7 @@
   },
   {
     "id": "trainingData_Copy of Nur Fitriana Ibrahim",
-    "runtime_ms": 993,
+    "runtime_ms": 945,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -1000,7 +1000,7 @@
   },
   {
     "id": "trainingData_Copy of Rasyddiq Mauliddhan1",
-    "runtime_ms": 1708,
+    "runtime_ms": 1572,
     "ocr_runs": 1,
     "fallback": false,
     "orientation": 0,
@@ -1009,7 +1009,7 @@
   },
   {
     "id": "trainingData_IMG_4532",
-    "runtime_ms": 4083,
+    "runtime_ms": 3812,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
@@ -1018,7 +1018,7 @@
   },
   {
     "id": "nusuk-crops_Copy-of-Arif-Maulana-2fd7173f-crop",
-    "runtime_ms": 9237,
+    "runtime_ms": 8251,
     "ocr_runs": 7,
     "fallback": true,
     "orientation": 0,
@@ -1027,7 +1027,7 @@
   },
   {
     "id": "nusuk-crops_Copy-of-Djumadi-Yusuf-9d1ff022-crop",
-    "runtime_ms": 4428,
+    "runtime_ms": 4145,
     "ocr_runs": 4,
     "fallback": false,
     "orientation": 0,
