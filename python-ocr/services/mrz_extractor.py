@@ -25,7 +25,7 @@ from services.image_preprocessor import (
 )
 from services.mrz_validation import MrzValidationResult, validate_td3_line2
 from services.ocr_runner import build_ocr_config, run_rapid_ocr
-from services.mrz_metrics import get_mrz_collector
+from services.mrz_metrics import get_mrz_collector, time_stage
 
 try:
     import cv2
@@ -62,26 +62,45 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
 
     collector = get_mrz_collector()
     t0 = time.perf_counter()
-    data = _repair_extracted_mrz_data(_to_dictionary(mrz))
-    t_rep = time.perf_counter() - t0
-    if collector is not None:
-        collector.t_repair += t_rep
-
+    with time_stage("serialization"):
+        raw_dict = _to_dictionary(mrz)
+    
+    data = _repair_extracted_mrz_data(raw_dict)
+    
     if not data:
         logger.warning("PassportEye returned empty MRZ data for %s", file_path)
         raise ValueError("PassportEye returned empty MRZ data.")
-    mrz_validation = _build_mrz_validation(data)
+        
+    with time_stage("validation"):
+        mrz_validation = _build_mrz_validation(data)
 
     confidence = _calculate_confidence(mrz, data, quality_penalty)
     if confidence < 0.5:
         logger.debug("Low MRZ confidence (%.2f) for %s", confidence, file_path)
 
-    return {
-        "data": data,
-        "confidence": confidence,
-        "notes": _merge_notes(_build_notes(mrz), source_note, quality_notes, _build_validation_note(mrz_validation)),
-        "mrzValidation": mrz_validation.to_dict(),
-    }
+    # Post-selection: update selection status of winning attempt
+    if collector is not None and mrz is not None:
+        winning_orient = getattr(mrz, "rotation_degrees", 0)
+        winning_variant = getattr(mrz, "successful_variant", None)
+        winning_width = getattr(mrz, "successful_width", None)
+        
+        # Search backward to find the successful attempt
+        for attempt in reversed(collector.ocr_attempts):
+            if (attempt["orientation"] == winning_orient and
+                attempt["variant"] == winning_variant and
+                attempt["width"] == winning_width):
+                attempt["selected"] = True
+                attempt["reason"] = "success"
+                break
+
+    with time_stage("serialization"):
+        result_dict = {
+            "data": data,
+            "confidence": confidence,
+            "notes": _merge_notes(_build_notes(mrz), source_note, quality_notes, _build_validation_note(mrz_validation)),
+            "mrzValidation": mrz_validation.to_dict(),
+        }
+    return result_dict
 
 
 def _get_speed_profile() -> bool:
@@ -96,6 +115,7 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             collector.direct_success = True
             collector.successful_orientation = direct_mrz.successful_orientation
             collector.successful_variant = direct_mrz.successful_variant
+            collector.successful_width = direct_mrz.successful_width
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
     is_speed = _get_speed_profile()
@@ -104,6 +124,7 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             collector.direct_success = True
             collector.successful_orientation = direct_mrz.successful_orientation
             collector.successful_variant = direct_mrz.successful_variant
+            collector.successful_width = direct_mrz.successful_width
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
     best_mrz = direct_mrz
@@ -129,6 +150,7 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
                     collector.fallback_success = True
                     collector.successful_orientation = mrz.successful_orientation
                     collector.successful_variant = mrz.successful_variant
+                    collector.successful_width = mrz.successful_width
                 return mrz, note
 
     if collector is not None and best_mrz is not None:
@@ -136,10 +158,12 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             collector.direct_success = True
             collector.successful_orientation = direct_mrz.successful_orientation
             collector.successful_variant = direct_mrz.successful_variant
+            collector.successful_width = direct_mrz.successful_width
         else:
             collector.fallback_success = True
             collector.successful_orientation = best_mrz.successful_orientation
             collector.successful_variant = best_mrz.successful_variant
+            collector.successful_width = best_mrz.successful_width
 
     return best_mrz, best_note
 
@@ -147,7 +171,8 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
 def _read_image(file_path: str) -> Any:
     if cv2 is None:
         return None
-    return cv2.imread(file_path)
+    with time_stage("load_image"):
+        return cv2.imread(file_path)
 
 
 def _read_mrz(file_path: str) -> Any:
@@ -173,10 +198,13 @@ def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | 
         if result and result.valid:
             return result
 
-    document = detect_passport_data_page_crop(image)
+    with time_stage("document_detection"):
+        document = detect_passport_data_page_crop(image)
     if document is None:
         document = image
-    document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
+        
+    with time_stage("resize"):
+        document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
 
     best_result: DirectMrzResult | None = None
     for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
@@ -184,7 +212,8 @@ def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | 
             collector.current_orientation = rotation_degrees
         for start_ratio in (0.82, 0.75):
             height = candidate_document.shape[0]
-            region = candidate_document[int(height * start_ratio) :, :]
+            with time_stage("crop"):
+                region = candidate_document[int(height * start_ratio) :, :]
             result = _extract_direct_mrz_from_region(region)
             if result is None:
                 continue
@@ -200,9 +229,15 @@ def _direct_mrz_orientation_candidates(document: Any):
     yield document, 0
     if not _should_try_direct_mrz_rotations(document):
         return
-    yield _rotate_image_180(document), 180
-    yield _rotate_image_90(document), 90
-    yield _rotate_image_270(document), 270
+    with time_stage("rotation"):
+        r180 = _rotate_image_180(document)
+    yield r180, 180
+    with time_stage("rotation"):
+        r90 = _rotate_image_90(document)
+    yield r90, 90
+    with time_stage("rotation"):
+        r270 = _rotate_image_270(document)
+    yield r270, 270
 
 
 def _should_try_direct_mrz_rotations(document: Any) -> bool:
@@ -257,22 +292,44 @@ def _scale_gray_image(gray: Any, target_width: int) -> Any:
         return gray
     scale = target_width / max(gray.shape[1], 1)
     interp = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
-    return cv2.resize(gray, None, fx=scale, fy=scale, interpolation=interp)
+    with time_stage("resize"):
+        return cv2.resize(gray, None, fx=scale, fy=scale, interpolation=interp)
 
 
 def _run_ocr_on_variant(variant: Any) -> str:
     config = build_ocr_config(whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", dpi=300)
     collector = get_mrz_collector()
+    
+    ocr_runtime_ms = 0
+    t0 = time.perf_counter()
+    with time_stage("ocr"):
+        res = run_rapid_ocr(variant, config)
+    ocr_runtime_ms = (time.perf_counter() - t0) * 1000.0
+    
     if collector is not None:
         collector.rapidocr_runs += 1
         collector.variant_attempts += 1
         collector.orientation_attempts[collector.current_orientation] = (
             collector.orientation_attempts.get(collector.current_orientation, 0) + 1
         )
-    t0 = time.perf_counter()
-    res = run_rapid_ocr(variant, config)
-    if collector is not None:
-        collector.t_ocr += (time.perf_counter() - t0)
+        
+        attempt_id = f"{collector.passport_id}_{len(collector.ocr_attempts) + 1}"
+        attempt = {
+            "attempt_id": attempt_id,
+            "passport_id": collector.passport_id,
+            "orientation": collector.current_orientation,
+            "width": collector.current_width,
+            "variant": collector.current_variant,
+            "runtime_ms": round(ocr_runtime_ms, 2),
+            "candidate_found": False,
+            "candidate_repaired": False,
+            "checksum_passed": False,
+            "selected": False,
+            "reason": "no_text"
+        }
+        collector.ocr_attempts.append(attempt)
+        collector.current_attempt_index = len(collector.ocr_attempts) - 1
+        
     return res
 
 
@@ -283,22 +340,47 @@ def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResul
     for idx, variant in enumerate(_build_direct_mrz_variants(scaled_gray)):
         if collector is not None:
             collector.current_variant = variant_names[idx]
+            
+        attempt_index = len(collector.ocr_attempts) if collector else None
         text = _run_ocr_on_variant(variant)
         if not text:
             continue
+            
+        if collector is not None and attempt_index is not None and attempt_index < len(collector.ocr_attempts):
+            collector.ocr_attempts[attempt_index]["reason"] = "invalid_candidate"
+            
         lines = _clean_direct_mrz_lines(text)
         
-        t0 = time.perf_counter()
+        # Check raw line 1 pattern candidate existence
+        has_raw_candidate = any(
+            len(line) >= 10 and line[0] == "P" and (line[1] == "<" or line.count("<") >= 2 or "IDN" in line[1:8] or line.startswith(("P1", "PI")))
+            for line in lines
+        )
+        if has_raw_candidate and collector is not None and attempt_index is not None and attempt_index < len(collector.ocr_attempts):
+            attempt = collector.ocr_attempts[attempt_index]
+            attempt["candidate_found"] = True
+            attempt["reason"] = "checksum_failed"
+
         cands = _direct_mrz_candidates_from_lines(lines)
-        t_rep = time.perf_counter() - t0
-        if collector is not None:
-            collector.t_repair += t_rep
+        
+        if len(cands) > 0 and collector is not None and attempt_index is not None and attempt_index < len(collector.ocr_attempts):
+            attempt = collector.ocr_attempts[attempt_index]
+            # Check if any candidates passed checksum
+            has_checksum_passed = any(_score_direct_line2(c.line2) >= 2 for c in cands)
+            if has_checksum_passed:
+                attempt["checksum_passed"] = True
+                attempt["reason"] = "low_confidence"
+                
+            for cand in cands:
+                if cand.valid_score >= 70:
+                    attempt["reason"] = "rejected_by_selector"
 
         for cand in cands:
             cand = replace(
                 cand,
                 successful_variant=collector.current_variant if collector else None,
-                successful_orientation=collector.current_orientation if collector else 0
+                successful_orientation=collector.current_orientation if collector else 0,
+                successful_width=collector.current_width if collector else 0
             )
             candidates.append(cand)
             
@@ -310,6 +392,7 @@ def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResul
                 if collector is not None:
                     collector.successful_variant = current_best.successful_variant
                     collector.successful_orientation = current_best.successful_orientation
+                    collector.successful_width = current_best.successful_width
                     collector.early_exit_triggered = True
                 return current_best
     return best_candidate
@@ -318,10 +401,14 @@ def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResul
 def _extract_direct_mrz_from_region(region: Any) -> DirectMrzResult | None:
     gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
     best_candidate: DirectMrzResult | None = None
+    collector = get_mrz_collector()
     
     for target_width in (1600, 2000):
         if _is_high_confidence_indonesian_direct_mrz(best_candidate):
             return best_candidate
+            
+        if collector is not None:
+            collector.current_width = target_width
             
         scaled_gray = _scale_gray_image(gray, target_width)
         best_candidate = _process_variants_for_width(scaled_gray, best_candidate)
@@ -330,12 +417,13 @@ def _extract_direct_mrz_from_region(region: Any) -> DirectMrzResult | None:
 
 
 def _build_direct_mrz_variants(gray: Any) -> list[Any]:
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-    sharpened = cv2.addWeighted(clahe, 1.6, cv2.GaussianBlur(clahe, (0, 0), 1.6), -0.6, 0)
-    denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
-    _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    adaptive = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
-    return [gray, clahe, otsu, adaptive]
+    with time_stage("variant_generation"):
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
+        sharpened = cv2.addWeighted(clahe, 1.6, cv2.GaussianBlur(clahe, (0, 0), 1.6), -0.6, 0)
+        denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
+        _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        adaptive = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
+        return [gray, clahe, otsu, adaptive]
 
 
 def _repair_extracted_mrz_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -431,4 +519,5 @@ def _has_value(value: Any) -> bool:
     if isinstance(value, (date, datetime)):
         return True
     return str(value).strip() != ""
+
 

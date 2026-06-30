@@ -8,6 +8,8 @@ from services.mrz_validation import calculate_mrz_check_digit as _mrz_check_digi
 from services.mrz_validation import validate_td3_line2
 
 
+from services.mrz_metrics import time_stage, get_mrz_collector
+
 @dataclass(frozen=True)
 class DirectMrzResult:
     line1: str
@@ -17,6 +19,7 @@ class DirectMrzResult:
     rotation_degrees: int = 0
     successful_variant: str | None = None
     successful_orientation: int | None = None
+    successful_width: int | None = None
 
     @property
     def raw_text(self) -> str:
@@ -42,12 +45,13 @@ class DirectMrzResult:
 
 
 def _clean_direct_mrz_lines(text: str) -> list[str]:
-    lines: list[str] = []
-    for raw_line in str(text or "").splitlines():
-        cleaned = re.sub(r"[^A-Z0-9<]", "", raw_line.upper())
-        if len(cleaned.replace("<", "")) >= 8:
-            lines.append(cleaned)
-    return lines
+    with time_stage("candidate_selection"):
+        lines: list[str] = []
+        for raw_line in str(text or "").splitlines():
+            cleaned = re.sub(r"[^A-Z0-9<]", "", raw_line.upper())
+            if len(cleaned.replace("<", "")) >= 8:
+                lines.append(cleaned)
+        return lines
 
 
 def _direct_mrz_candidates_from_lines(lines: list[str]) -> list[DirectMrzResult]:
@@ -56,20 +60,25 @@ def _direct_mrz_candidates_from_lines(lines: list[str]) -> list[DirectMrzResult]
         if len(line) >= 10 and line[0] == "P" and (line[1] == "<" or line.count("<") >= 2 or "IDN" in line[1:8] or line.startswith(("P1", "PI"))):
             line1 = _repair_direct_line1(line)
             for line2 in _direct_line2_candidates(lines[index + 1 :]):
-                score = _score_direct_mrz(line1, line2)
+                with time_stage("candidate_selection"):
+                    score = _score_direct_mrz(line1, line2)
                 if score >= 70:
                     candidates.append(DirectMrzResult(line1=line1, line2=line2, valid_score=score))
     return candidates
 
 
 def _repair_direct_line1(value: str) -> str:
-    line = value
-    if len(line) >= 5 and line[0] == "P" and line[1] != "<" and not line.startswith(("P1", "PI")):
-        line = "P<" + line[2:]
-    line = line.replace("P1", "P<", 1).replace("PI", "P<", 1)
-    if line.startswith("P<ID") and len(line) >= 5 and line[4] != "N":
-        line = f"P<IDN{line[5:]}"
-    return line[:44].ljust(44, "<")
+    collector = get_mrz_collector()
+    if collector is not None and collector.current_attempt_index >= 0:
+        collector.ocr_attempts[collector.current_attempt_index]["candidate_repaired"] = True
+    with time_stage("repair"):
+        line = value
+        if len(line) >= 5 and line[0] == "P" and line[1] != "<" and not line.startswith(("P1", "PI")):
+            line = "P<" + line[2:]
+        line = line.replace("P1", "P<", 1).replace("PI", "P<", 1)
+        if line.startswith("P<ID") and len(line) >= 5 and line[4] != "N":
+            line = f"P<IDN{line[5:]}"
+        return line[:44].ljust(44, "<")
 
 
 def _pick_direct_line2(lines: list[str]) -> str:
@@ -86,12 +95,16 @@ def _direct_line2_candidates(lines: list[str]) -> list[str]:
 
 
 def _repair_direct_line2(value: str) -> str:
-    line = value[:44].ljust(44, "<")
-    candidates = {line}
-    candidates.update(_direct_line2_alignment_repairs(line))
-    repaired = {_repair_direct_line2_digits(_repair_direct_line2_country(candidate)) for candidate in candidates}
-    repaired.update(_repair_missing_composite_check_digit(candidate) for candidate in list(repaired))
-    return max(repaired, key=_line2_repair_score)
+    collector = get_mrz_collector()
+    if collector is not None and collector.current_attempt_index >= 0:
+        collector.ocr_attempts[collector.current_attempt_index]["candidate_repaired"] = True
+    with time_stage("repair"):
+        line = value[:44].ljust(44, "<")
+        candidates = {line}
+        candidates.update(_direct_line2_alignment_repairs(line))
+        repaired = {_repair_direct_line2_digits(_repair_direct_line2_country(candidate)) for candidate in candidates}
+        repaired.update(_repair_missing_composite_check_digit(candidate) for candidate in list(repaired))
+        return max(repaired, key=_line2_repair_score)
 
 
 def _direct_line2_alignment_repairs(line: str) -> set[str]:
