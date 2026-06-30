@@ -1,17 +1,17 @@
 {
   "version": 1,
   "profile": "legacy",
-  "created_at": "2026-06-30 14:34:01",
+  "created_at": "2026-06-30 14:59:40",
   "total_passports": 115,
   "successful_passports": 115,
   "failed_passports": 0,
   "elapsed_ms": {
-    "avg": 7646.7,
-    "median": 1635.0,
-    "p95": 39021.0,
-    "p99": 40729.0,
-    "min": 649,
-    "max": 45079
+    "avg": 7545.7,
+    "median": 1536.0,
+    "p95": 38423.0,
+    "p99": 40090.0,
+    "min": 650,
+    "max": 43889
   },
   "ocr_runs": {
     "avg": 10.02,
@@ -28,32 +28,32 @@
   },
   "stages_summary": {
     "load_image": {
-      "total_ms": 681.7,
+      "total_ms": 642.0,
       "count": 135,
-      "average_ms": 5.9,
+      "average_ms": 5.6,
       "min_ms": 0.6,
-      "max_ms": 14.3
+      "max_ms": 13.5
     },
     "document_detection": {
-      "total_ms": 1724.9,
+      "total_ms": 1554.4,
       "count": 116,
-      "average_ms": 15.0,
-      "min_ms": 0.9,
-      "max_ms": 95.4
+      "average_ms": 13.5,
+      "min_ms": 1.0,
+      "max_ms": 82.6
     },
     "resize": {
-      "total_ms": 245.7,
+      "total_ms": 244.9,
       "count": 488,
       "average_ms": 2.1,
       "min_ms": 0.0,
-      "max_ms": 4.9
+      "max_ms": 4.8
     },
     "rotation": {
-      "total_ms": 5.1,
+      "total_ms": 3.0,
       "count": 33,
-      "average_ms": 0.5,
+      "average_ms": 0.3,
       "min_ms": 0.0,
-      "max_ms": 2.1
+      "max_ms": 0.2
     },
     "crop": {
       "total_ms": 0.0,
@@ -63,32 +63,32 @@
       "max_ms": 0.0
     },
     "variant_generation": {
-      "total_ms": 75789.4,
+      "total_ms": 77027.3,
       "count": 372,
-      "average_ms": 659.0,
-      "min_ms": 100.1,
-      "max_ms": 694.5
+      "average_ms": 669.8,
+      "min_ms": 91.2,
+      "max_ms": 765.3
     },
     "ocr": {
-      "total_ms": 795263.5,
+      "total_ms": 782967.6,
       "count": 1152,
-      "average_ms": 6915.3,
-      "min_ms": 187.6,
-      "max_ms": 3583.3
+      "average_ms": 6808.4,
+      "min_ms": 201.2,
+      "max_ms": 3863.0
     },
     "candidate_selection": {
-      "total_ms": 8.6,
+      "total_ms": 8.8,
       "count": 837,
       "average_ms": 0.1,
       "min_ms": 0.0,
-      "max_ms": 0.1
+      "max_ms": 0.3
     },
     "repair": {
-      "total_ms": 24.5,
+      "total_ms": 24.8,
       "count": 401,
       "average_ms": 0.2,
       "min_ms": 0.0,
-      "max_ms": 0.2
+      "max_ms": 0.3
     },
     "validation": {
       "total_ms": 0.0,
@@ -109,62 +109,62 @@
     "0": {
       "attempts": 624,
       "success": 115,
-      "runtime_total_ms": 514441.0
+      "runtime_total_ms": 505680.7
     },
     "90": {
       "attempts": 176,
       "success": 0,
-      "runtime_total_ms": 106934.0
+      "runtime_total_ms": 106889.1
     },
     "180": {
       "attempts": 176,
       "success": 0,
-      "runtime_total_ms": 72730.6
+      "runtime_total_ms": 70571.1
     },
     "270": {
       "attempts": 176,
       "success": 0,
-      "runtime_total_ms": 101173.9
+      "runtime_total_ms": 99841.4
     }
   },
   "variant_effectiveness": {
     "gray": {
       "attempts": 372,
       "success": 108,
-      "runtime_total_ms": 305026.3
+      "runtime_total_ms": 298539.7
     },
     "clahe": {
       "attempts": 264,
       "success": 5,
-      "runtime_total_ms": 167806.4
+      "runtime_total_ms": 165607.7
     },
     "otsu": {
       "attempts": 259,
       "success": 2,
-      "runtime_total_ms": 162081.0
+      "runtime_total_ms": 160626.4
     },
     "adaptive": {
       "attempts": 257,
       "success": 0,
-      "runtime_total_ms": 160365.9
+      "runtime_total_ms": 158208.5
     }
   },
   "width_effectiveness": {
     "1600": {
       "attempts": 639,
       "success": 114,
-      "runtime_total_ms": 482780.6
+      "runtime_total_ms": 474711.1
     },
     "2000": {
       "attempts": 513,
       "success": 1,
-      "runtime_total_ms": 312498.8
+      "runtime_total_ms": 308271.2
     }
   },
   "fallback_analysis": {
     "triggered": 19,
     "success_after_fallback": 19,
     "additional_ocr_runs": 228,
-    "additional_runtime_ms": 444017.3
+    "additional_runtime_ms": 426590.1
   }
 }

@@ -215,7 +215,7 @@ def run_comparison() -> int:
     if regressions:
         recommendation = "Mengingat adanya regresi fungsional (paspor yang gagal dibaca pada pipeline optimized tetapi sukses di legacy), **TIDAK DIREKOMENDASIKAN** untuk melakukan aktivasi profil optimized ke produksi sebelum penyebab kegagalan dianalisis dan diperbaiki."
     else:
-        recommendation = f"Profil `optimized` menunjukkan penghematan runtime yang signifikan sebesar **{runtime_saved_percent:.2f}%** ({runtime_saved_ms/1000.0:.2f} detik) dan pengurangan OCR runs sebesar **{-runs_diff}** tanpa adanya regresi akurasi (0 regresi dari {len(leg_results)} paspor). **DIREKOMENDASIKAN** untuk mengaktifkan profil optimized di produksi dengan menyetel variabel lingkungan `PASSPORT_OCR_PROFILE=optimized`."
+        recommendation = f"Profil `optimized` menunjukkan penghematan runtime yang signifikan sebesar **{runtime_saved_percent:.2f}%** ({runtime_saved_ms/1000.0:.2f} detik) dan pengurangan OCR runs sebesar **{-runs_diff}** tanpa adanya regresi akurasi (0 regresi dari {len(leg_results)} paspor). Profil optimized saat ini telah dipromosikan menjadi default produksi. Mode legacy dipertahankan sebagai compatibility mode dan dapat diaktifkan secara eksplisit via variabel lingkungan `PASSPORT_OCR_PROFILE=legacy` jika sewaktu-waktu diperlukan rollback atau investigasi."
 
     markdown_content = f"""# Benchmark Profile Comparison Report
 

@@ -105,7 +105,7 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
 
 def _is_optimized_pipeline() -> bool:
     val = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower()
-    return val in ("optimized", "speed")
+    return val != "legacy"
 
 
 def _get_speed_profile() -> bool:

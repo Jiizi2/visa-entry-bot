@@ -6,9 +6,9 @@ Laporan ini membandingkan kinerja dan akurasi antara pipeline **Legacy** (Baseli
 
 ## 1. Executive Summary
 
-* **Legacy Runtime (Total)**: 879.37 s
-* **Optimized Runtime (Total)**: 331.16 s
-* **Runtime Saving**: **548.20 s (62.34%)**
+* **Legacy Runtime (Total)**: 867.75 s
+* **Optimized Runtime (Total)**: 312.41 s
+* **Runtime Saving**: **555.34 s (64.00%)**
 * **Akurasi Legacy**: 100.00% (115/115)
 * **Akurasi Optimized**: 100.00% (115/115)
 * **Status Regresi**: **PASSED**
@@ -19,8 +19,8 @@ Laporan ini membandingkan kinerja dan akurasi antara pipeline **Legacy** (Baseli
 
 | Metric | Legacy | Optimized | Difference | Change (%) |
 | :--- | :---: | :---: | :---: | :---: |
-| **Total Runtime** | 879365.0 ms | 331161.0 ms | -548204.0 ms | -62.34% |
-| **Average Runtime** | 7646.7 ms | 2879.7 ms | -4767.0 ms | -62.34% |
+| **Total Runtime** | 867755.0 ms | 312412.0 ms | -555343.0 ms | -64.00% |
+| **Average Runtime** | 7545.7 ms | 2716.6 ms | -4829.1 ms | -64.00% |
 | **Total OCR Runs** | 1152 | 312 | -840 | -72.92% |
 | **Average Runs / Image** | 10.02 | 2.71 | -7.30 | |
 
@@ -58,4 +58,4 @@ Berikut adalah paspor yang sukses pada kedua profil tetapi menggunakan kandidat 
 
 ## 6. Conclusion & Recommendation
 
-Profil `optimized` menunjukkan penghematan runtime yang signifikan sebesar **62.34%** (548.20 detik) dan pengurangan OCR runs sebesar **840** tanpa adanya regresi akurasi (0 regresi dari 115 paspor). **DIREKOMENDASIKAN** untuk mengaktifkan profil optimized di produksi dengan menyetel variabel lingkungan `PASSPORT_OCR_PROFILE=optimized`.
+Profil `optimized` menunjukkan penghematan runtime yang signifikan sebesar **64.00%** (555.34 detik) dan pengurangan OCR runs sebesar **840** tanpa adanya regresi akurasi (0 regresi dari 115 paspor). Profil optimized saat ini telah dipromosikan menjadi default produksi. Mode legacy dipertahankan sebagai compatibility mode dan dapat diaktifkan secara eksplisit via variabel lingkungan `PASSPORT_OCR_PROFILE=legacy` jika sewaktu-waktu diperlukan rollback atau investigasi.

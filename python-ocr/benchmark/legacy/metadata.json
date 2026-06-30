@@ -1,6 +1,6 @@
 {
-  "date": "2026-06-30 14:34:01",
-  "git_commit": "8a661bb7e0527bd50f8080ce58a955e5001b83cc",
+  "date": "2026-06-30 14:59:40",
+  "git_commit": "62f5865fa666f3034c7e4fa15f2f1fb691f9db25",
   "speed_profile": "legacy",
   "python_version": "3.12.4",
   "opencv_version": "4.13.0",
@@ -9,9 +9,9 @@
   "processor": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
   "logical_cpu": 12,
   "ram": "31.6 GB",
-  "benchmark_started": "2026-06-30T14:19:20.038153",
-  "benchmark_finished": "2026-06-30T14:34:01.791516",
-  "benchmark_duration_sec": 881.22,
+  "benchmark_started": "2026-06-30T14:45:10.574996",
+  "benchmark_finished": "2026-06-30T14:59:40.636869",
+  "benchmark_duration_sec": 869.56,
   "dataset": {
     "total_images": 115,
     "total_folders": 6,

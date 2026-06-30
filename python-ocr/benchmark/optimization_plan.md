@@ -127,10 +127,10 @@ Jika seluruh kandidat pada **Priority 1** dieliminasi (Width 2000px, Rotasi non-
 
 ---
 
-## Next Commit Scope
+## Production Promotion Status
 
-Pada commit berikutnya (Commit 9), kita akan mulai menerapkan optimasi performa berdasarkan rencana Priority 1 di atas:
-* Membatasi target width pemrosesan hanya pada nilai aktual width 1600px (menghilangkan iterasi width 2000px).
-* Menghilangkan proses rotasi spekulatif 90°, 180°, dan 270° dari candidate generator.
-* Menghilangkan pembuatan varian adaptive thresholding dari variant generator.
-* Menjalankan benchmark penuh untuk memvalidasi bahwa runtime terpangkas drastis dan akurasi tetap 100% identik dengan baseline.
+* **Status**: **PROMOTED TO DEFAULT PRODUCTION** (Mulai Commit 10)
+* **Default Profile**: `optimized` (Aktif secara otomatis jika environment variable tidak disetel).
+* **Compatibility Mode**: `legacy` (Dapat diaktifkan secara eksplisit via `PASSPORT_OCR_PROFILE=legacy`).
+* **Rollback Path**: 100% reversible via variabel lingkungan tanpa modifikasi kode.
+* **Hasil Validasi**: Terbukti memangkas runtime sebesar **62.34%** dan ocr runs sebesar **72.92%** tanpa regresi fungsional (0 regresi pada 115 sampel paspor).

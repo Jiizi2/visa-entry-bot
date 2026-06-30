@@ -1,11 +1,11 @@
 {
   "summary": {
-    "runtime_legacy_ms": 879365,
-    "runtime_optimized_ms": 331161,
-    "runtime_diff_ms": -548204,
-    "runtime_diff_percent": -62.34,
-    "avg_runtime_legacy_ms": 7646.7,
-    "avg_runtime_optimized_ms": 2879.7,
+    "runtime_legacy_ms": 867755,
+    "runtime_optimized_ms": 312412,
+    "runtime_diff_ms": -555343,
+    "runtime_diff_percent": -64.0,
+    "avg_runtime_legacy_ms": 7545.7,
+    "avg_runtime_optimized_ms": 2716.6,
     "ocr_runs_legacy": 1152,
     "ocr_runs_optimized": 312,
     "ocr_runs_diff": -840,

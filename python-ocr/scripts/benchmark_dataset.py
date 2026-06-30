@@ -211,7 +211,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run MRZ extraction benchmark on dataset.")
     parser.add_argument("--resume", action="store_true", default=None, help="Resume benchmark from checkpoint.")
     parser.add_argument("--no-resume", action="store_true", help="Start fresh and ignore checkpoint.")
-    parser.add_argument("--profile", default="legacy", choices=["legacy", "optimized"], help="OCR pipeline profile to run.")
+    parser.add_argument("--profile", default="optimized", choices=["legacy", "optimized"], help="OCR pipeline profile to run.")
     args = parser.parse_args()
     
     profile = args.profile

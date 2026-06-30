@@ -1170,6 +1170,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             valid_score=100,
         )
         with (
+            patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}),
             patch("services.mrz_extractor.cv2.imread", return_value=image),
             patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._rotate_image_180", return_value=rotated),
@@ -1190,6 +1191,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             valid_score=100,
         )
         with (
+            patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}),
             patch("services.mrz_extractor.cv2.imread", return_value=image),
             patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._rotate_image_180", return_value=image),
@@ -1205,6 +1207,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
     def test_direct_mrz_skips_rotations_for_upright_landscape_mrz_band(self) -> None:
         image = np.zeros((100, 200, 3), dtype=np.uint8)
         with (
+            patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}),
             patch("services.mrz_extractor.cv2.imread", return_value=image),
             patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._mrz_band_score", return_value=180.0),

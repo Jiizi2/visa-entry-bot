@@ -2,7 +2,7 @@
 
 Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraksi MRZ menggunakan RapidOCR.
 
-* **Tanggal Pembuatan**: 2026-06-30 14:40:24
+* **Tanggal Pembuatan**: 2026-06-30 15:06:07
 * **Profil OCR**: optimized
 * **Jumlah Paspor**: 115 (Sukses: 115, Gagal: 0)
 
@@ -12,21 +12,21 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 | Parameter | Waktu (ms) |
 | :--- | :---: |
-| **Rata-rata (Average)** | 2879.7 ms |
-| **Median** | 1558.0 ms |
-| **Persentil 95 (P95)** | 6979.0 ms |
-| **Persentil 99 (P99)** | 11227.0 ms |
-| **Minimum** | 687 ms |
-| **Maksimum** | 19040 ms |
+| **Rata-rata (Average)** | 2716.6 ms |
+| **Median** | 1462.0 ms |
+| **Persentil 95 (P95)** | 6575.0 ms |
+| **Persentil 99 (P99)** | 10173.0 ms |
+| **Minimum** | 623 ms |
+| **Maksimum** | 17101 ms |
 
 ### Histogram Distribusi Runtime
 ```text
-0s - 1s : ████████████████████           (28)
-1s - 2s : ██████████████████████████████ (41)
-2s - 3s : ██                             (4)
-3s - 4s : █████                          (7)
-4s - 5s : ██████████                     (14)
-5s+    : ███████████████                (21)
+0s - 1s : ██████████████████████████████ (39)
+1s - 2s : ███████████████████████        (31)
+2s - 3s : ███                            (4)
+3s - 4s : ███████                        (10)
+4s - 5s : ██████████                     (13)
+5s+    : █████████████                  (18)
 ```
 
 ---
@@ -35,17 +35,17 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 | Stage | Call Count | Total Duration (ms) | Average Duration (ms) | Minimum (ms) | Maximum (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **load_image** | 134 | 694.9 | 6.0 | 0.6 | 43.8 |
-| **document_detection** | 116 | 1621.4 | 14.1 | 1.1 | 82.8 |
-| **resize** | 293 | 80.0 | 0.7 | 0.0 | 5.0 |
+| **load_image** | 134 | 632.1 | 5.5 | 0.6 | 12.4 |
+| **document_detection** | 116 | 1538.2 | 13.4 | 1.0 | 81.4 |
+| **resize** | 293 | 82.3 | 0.7 | 0.0 | 5.5 |
 | **rotation** | 0 | 0 | 0.0 | 0.0 | 0.0 |
 | **crop** | 158 | 0.0 | 0.0 | 0.0 | 0.0 |
-| **variant_generation** | 177 | 36327.3 | 315.9 | 90.4 | 705.7 |
-| **ocr** | 312 | 287537.9 | 2500.3 | 199.2 | 3815.9 |
+| **variant_generation** | 177 | 35406.3 | 307.9 | 101.4 | 642.4 |
+| **ocr** | 312 | 270099.6 | 2348.7 | 189.9 | 3469.2 |
 | **candidate_selection** | 369 | 3.4 | 0.0 | 0.0 | 0.1 |
-| **repair** | 372 | 23.5 | 0.2 | 0.0 | 0.2 |
+| **repair** | 372 | 23.4 | 0.2 | 0.0 | 0.2 |
 | **validation** | 115 | 0.0 | 0.0 | 0.0 | 0.0 |
-| **serialization** | 230 | 0.1 | 0.0 | 0.0 | 0.1 |
+| **serialization** | 230 | 0.0 | 0.0 | 0.0 | 0.0 |
 
 ---
 
@@ -53,7 +53,7 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 | Orientation | Total Attempts | Success Count | Total Runtime (ms) |
 | :--- | :---: | :---: | :---: |
-| **0°** | 312 | 115 | 287542.3 ms |
+| **0°** | 312 | 115 | 270103.8 ms |
 | **90°** | 0 | 0 | 0 ms |
 | **180°** | 0 | 0 | 0 ms |
 | **270°** | 0 | 0 | 0 ms |
@@ -64,9 +64,9 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 | Variant | Total Attempts | Success Count | Total Runtime (ms) |
 | :--- | :---: | :---: | :---: |
-| **gray** | 177 | 108 | 185870.2 ms |
-| **clahe** | 70 | 5 | 54040.1 ms |
-| **otsu** | 65 | 2 | 47632.1 ms |
+| **gray** | 177 | 108 | 174862.7 ms |
+| **clahe** | 70 | 5 | 50652.0 ms |
+| **otsu** | 65 | 2 | 44589.1 ms |
 | **adaptive** | 0 | 0 | 0 ms |
 
 ---
@@ -75,7 +75,7 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 | Width | Total Attempts | Success Count | Total Runtime (ms) |
 | :--- | :---: | :---: | :---: |
-| **1600px** | 312 | 115 | 287542.3 ms |
+| **1600px** | 312 | 115 | 270103.8 ms |
 
 ---
 
@@ -101,7 +101,7 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 ### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (5)
 
-* **Total Runtime**: 19.04 s
+* **Total Runtime**: 17.10 s
 * **OCR Runs**: 18
 * **Orientation Attempts**: 0°: 18 atts
 * **Variant Attempts**: gray: 6 atts, clahe: 6 atts, otsu: 6 atts
@@ -110,12 +110,12 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: otsu
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 1.61 s
-  * ocr: 17.36 s
+  * variant_generation: 1.19 s
+  * ocr: 15.84 s
 
 ### Passport: nusuk-crops
 
-* **Total Runtime**: 11.23 s
+* **Total Runtime**: 10.17 s
 * **OCR Runs**: 7
 * **Orientation Attempts**: 0°: 7 atts
 * **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
@@ -124,12 +124,12 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 1.06 s
-  * ocr: 9.68 s
+  * variant_generation: 0.93 s
+  * ocr: 8.78 s
 
 ### Passport: nusuk-crops_Copy-of-Arif-Maulana-2fd7173f-crop
 
-* **Total Runtime**: 9.93 s
+* **Total Runtime**: 9.24 s
 * **OCR Runs**: 7
 * **Orientation Attempts**: 0°: 7 atts
 * **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
@@ -138,12 +138,12 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.99 s
-  * ocr: 8.47 s
+  * variant_generation: 0.98 s
+  * ocr: 7.81 s
 
 ### Passport: PASSPOR_ADEN BUSTOMI
 
-* **Total Runtime**: 7.64 s
+* **Total Runtime**: 7.13 s
 * **OCR Runs**: 6
 * **Orientation Attempts**: 0°: 6 atts
 * **Variant Attempts**: gray: 2 atts, clahe: 2 atts, otsu: 2 atts
@@ -152,12 +152,26 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.31 s
-  * ocr: 7.28 s
+  * variant_generation: 0.28 s
+  * ocr: 6.80 s
+
+### Passport: PASSPOR_NANAG RIDWAN IYUN
+
+* **Total Runtime**: 6.92 s
+* **OCR Runs**: 7
+* **Orientation Attempts**: 0°: 7 atts
+* **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
+* **Repair Count**: 3
+* **Fallback Used**: YES
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.94 s
+  * ocr: 5.51 s
 
 ### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (2)
 
-* **Total Runtime**: 7.30 s
+* **Total Runtime**: 6.58 s
 * **OCR Runs**: 8
 * **Orientation Attempts**: 0°: 8 atts
 * **Variant Attempts**: gray: 3 atts, clahe: 3 atts, otsu: 2 atts
@@ -166,40 +180,12 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: clahe
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.83 s
-  * ocr: 6.39 s
-
-### Passport: batch3_WhatsApp Image 2026-06-15 at 00.33.35
-
-* **Total Runtime**: 6.98 s
-* **OCR Runs**: 7
-* **Orientation Attempts**: 0°: 7 atts
-* **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
-* **Repair Count**: 3
-* **Fallback Used**: YES
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
-  * variant_generation: 0.72 s
-  * ocr: 6.18 s
-
-### Passport: PASSPOR_NANAG RIDWAN IYUN
-
-* **Total Runtime**: 6.77 s
-* **OCR Runs**: 7
-* **Orientation Attempts**: 0°: 7 atts
-* **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
-* **Repair Count**: 3
-* **Fallback Used**: YES
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
-  * variant_generation: 0.80 s
-  * ocr: 5.51 s
+  * variant_generation: 0.69 s
+  * ocr: 5.81 s
 
 ### Passport: 45 PAX_KAHARRUDDIN 1
 
-* **Total Runtime**: 6.65 s
+* **Total Runtime**: 6.40 s
 * **OCR Runs**: 7
 * **Orientation Attempts**: 0°: 7 atts
 * **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
@@ -208,12 +194,12 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.62 s
-  * ocr: 5.96 s
+  * variant_generation: 0.60 s
+  * ocr: 5.73 s
 
-### Passport: batch3_WhatsApp Image 2026-06-15 at 00.33.36
+### Passport: batch3_WhatsApp Image 2026-06-15 at 00.33.35
 
-* **Total Runtime**: 6.64 s
+* **Total Runtime**: 6.32 s
 * **OCR Runs**: 7
 * **Orientation Attempts**: 0°: 7 atts
 * **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
@@ -222,12 +208,26 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.66 s
-  * ocr: 5.90 s
+  * variant_generation: 0.53 s
+  * ocr: 5.74 s
 
-### Passport: BATCH 2_WhatsApp Image 2026-06-15 at 00.19.00
+### Passport: batch3_WhatsApp Image 2026-06-15 at 00.33.36
 
-* **Total Runtime**: 6.33 s
+* **Total Runtime**: 6.25 s
+* **OCR Runs**: 7
+* **Orientation Attempts**: 0°: 7 atts
+* **Variant Attempts**: gray: 3 atts, clahe: 2 atts, otsu: 2 atts
+* **Repair Count**: 3
+* **Fallback Used**: YES
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.68 s
+  * ocr: 5.51 s
+
+### Passport: 45 PAX_IHSAN 1
+
+* **Total Runtime**: 6.03 s
 * **OCR Runs**: 4
 * **Orientation Attempts**: 0°: 4 atts
 * **Variant Attempts**: gray: 2 atts, clahe: 1 atts, otsu: 1 atts
@@ -236,8 +236,8 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.42 s
-  * ocr: 5.90 s
+  * variant_generation: 0.37 s
+  * ocr: 5.65 s
 
 
 ---
@@ -246,7 +246,7 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 
 ### Passport: FirstTest_NURHIDAYAH 1
 
-* **Total Runtime**: 0.69 s
+* **Total Runtime**: 0.62 s
 * **OCR Runs**: 1
 * **Orientation Attempts**: 0°: 1 atts
 * **Variant Attempts**: gray: 1 atts
@@ -255,12 +255,12 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.21 s
-  * ocr: 0.47 s
+  * variant_generation: 0.15 s
+  * ocr: 0.46 s
 
-### Passport: 45 PAX_ARIF
+### Passport: FirstTest_SUDARWATI 1
 
-* **Total Runtime**: 0.79 s
+* **Total Runtime**: 0.66 s
 * **OCR Runs**: 1
 * **Orientation Attempts**: 0°: 1 atts
 * **Variant Attempts**: gray: 1 atts
@@ -269,10 +269,24 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.13 s
+  * variant_generation: 0.18 s
+  * ocr: 0.46 s
+
+### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (3)
+
+* **Total Runtime**: 0.81 s
+* **OCR Runs**: 1
+* **Orientation Attempts**: 0°: 1 atts
+* **Variant Attempts**: gray: 1 atts
+* **Repair Count**: 3
+* **Fallback Used**: NO
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.16 s
   * ocr: 0.64 s
 
-### Passport: PASSPOR_HANI HANIFAH
+### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (3)
 
 * **Total Runtime**: 0.82 s
 * **OCR Runs**: 1
@@ -283,24 +297,10 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.12 s
-  * ocr: 0.66 s
+  * variant_generation: 0.10 s
+  * ocr: 0.71 s
 
-### Passport: 45 PAX_ADIBAH 1
-
-* **Total Runtime**: 0.84 s
-* **OCR Runs**: 1
-* **Orientation Attempts**: 0°: 1 atts
-* **Variant Attempts**: gray: 1 atts
-* **Repair Count**: 3
-* **Fallback Used**: NO
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
-  * variant_generation: 0.13 s
-  * ocr: 0.69 s
-
-### Passport: FirstTest_SUDARWATI 1
+### Passport: BATCH 2_WhatsApp Image 2026-06-15 at 00.19.01
 
 * **Total Runtime**: 0.85 s
 * **OCR Runs**: 1
@@ -311,10 +311,66 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.22 s
-  * ocr: 0.61 s
+  * variant_generation: 0.13 s
+  * ocr: 0.71 s
 
-### Passport: 45 PAX_ISMINI 1
+### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49
+
+* **Total Runtime**: 0.85 s
+* **OCR Runs**: 1
+* **Orientation Attempts**: 0°: 1 atts
+* **Variant Attempts**: gray: 1 atts
+* **Repair Count**: 3
+* **Fallback Used**: NO
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.13 s
+  * ocr: 0.71 s
+
+### Passport: 45 PAX_YUSUP
+
+* **Total Runtime**: 0.86 s
+* **OCR Runs**: 1
+* **Orientation Attempts**: 0°: 1 atts
+* **Variant Attempts**: gray: 1 atts
+* **Repair Count**: 3
+* **Fallback Used**: NO
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.17 s
+  * ocr: 0.68 s
+
+### Passport: 45 PAX_ARIF
+
+* **Total Runtime**: 0.86 s
+* **OCR Runs**: 1
+* **Orientation Attempts**: 0°: 1 atts
+* **Variant Attempts**: gray: 1 atts
+* **Repair Count**: 3
+* **Fallback Used**: NO
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.18 s
+  * ocr: 0.67 s
+
+### Passport: 45 PAX_ADIBAH 1
+
+* **Total Runtime**: 0.86 s
+* **OCR Runs**: 1
+* **Orientation Attempts**: 0°: 1 atts
+* **Variant Attempts**: gray: 1 atts
+* **Repair Count**: 3
+* **Fallback Used**: NO
+* **Selected Variant**: gray
+* **Selected Orientation**: 0°
+* **Stage Timing Breakdown**:
+  * variant_generation: 0.16 s
+  * ocr: 0.69 s
+
+### Passport: 45 PAX_SUPARDIN 1
 
 * **Total Runtime**: 0.87 s
 * **OCR Runs**: 1
@@ -325,64 +381,8 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
 * **Selected Variant**: gray
 * **Selected Orientation**: 0°
 * **Stage Timing Breakdown**:
-  * variant_generation: 0.14 s
-  * ocr: 0.72 s
-
-### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.51 (3)
-
-* **Total Runtime**: 0.88 s
-* **OCR Runs**: 1
-* **Orientation Attempts**: 0°: 1 atts
-* **Variant Attempts**: gray: 1 atts
-* **Repair Count**: 3
-* **Fallback Used**: NO
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
   * variant_generation: 0.16 s
-  * ocr: 0.71 s
-
-### Passport: 45 PAX_ACHMAD
-
-* **Total Runtime**: 0.89 s
-* **OCR Runs**: 1
-* **Orientation Attempts**: 0°: 1 atts
-* **Variant Attempts**: gray: 1 atts
-* **Repair Count**: 3
-* **Fallback Used**: NO
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
-  * variant_generation: 0.14 s
-  * ocr: 0.73 s
-
-### Passport: 45 PAX_MASKURDI
-
-* **Total Runtime**: 0.89 s
-* **OCR Runs**: 1
-* **Orientation Attempts**: 0°: 1 atts
-* **Variant Attempts**: gray: 1 atts
-* **Repair Count**: 3
-* **Fallback Used**: NO
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
-  * variant_generation: 0.19 s
-  * ocr: 0.67 s
-
-### Passport: entrmate2.0_WhatsApp Image 2026-06-14 at 23.03.49 (3)
-
-* **Total Runtime**: 0.92 s
-* **OCR Runs**: 1
-* **Orientation Attempts**: 0°: 1 atts
-* **Variant Attempts**: gray: 1 atts
-* **Repair Count**: 3
-* **Fallback Used**: NO
-* **Selected Variant**: gray
-* **Selected Orientation**: 0°
-* **Stage Timing Breakdown**:
-  * variant_generation: 0.16 s
-  * ocr: 0.75 s
+  * ocr: 0.70 s
 
 
 ---
@@ -450,13 +450,13 @@ Perbandingan biaya runtime terhadap nilai kontribusi fitur:
 | **rotation_90** | 0 ms | 0 | 0 | 0 | 0.0% |
 | **rotation_180** | 0 ms | 0 | 0 | 0 | 0.0% |
 | **rotation_270** | 0 ms | 0 | 0 | 0 | 0.0% |
-| **gray** | 185870.2 ms | 177 | 108 | 105 | 64.64% |
-| **clahe** | 54040.1 ms | 70 | 5 | 5 | 18.79% |
-| **otsu** | 47632.1 ms | 65 | 2 | 2 | 16.57% |
+| **gray** | 174862.7 ms | 177 | 108 | 105 | 64.74% |
+| **clahe** | 50652.0 ms | 70 | 5 | 5 | 18.75% |
+| **otsu** | 44589.1 ms | 65 | 2 | 2 | 16.51% |
 | **adaptive** | 0 ms | 0 | 0 | 0 | 0.0% |
-| **width_1600** | 287542.3 ms | 312 | 115 | 115 | 100.0% |
+| **width_1600** | 270103.8 ms | 312 | 115 | 115 | 100.0% |
 | **width_2000** | 0 ms | 0 | 0 | 0 | 0.0% |
-| **fallback** | 2444.1 ms | 2 | 18 | 18 | 0.85% |
+| **fallback** | 2156.6 ms | 2 | 18 | 18 | 0.8% |
 
 ---
 
@@ -469,13 +469,13 @@ Matriks tingkat risiko optimasi jika fitur dieliminasi dari pipeline:
 | **rotation_90** | 0 | **LOW** | 0.0% |
 | **rotation_180** | 0 | **LOW** | 0.0% |
 | **rotation_270** | 0 | **LOW** | 0.0% |
-| **gray** | 105 | **VERY_HIGH** | 64.64% |
-| **clahe** | 5 | **HIGH** | 18.79% |
-| **otsu** | 2 | **MEDIUM** | 16.57% |
+| **gray** | 105 | **VERY_HIGH** | 64.74% |
+| **clahe** | 5 | **HIGH** | 18.75% |
+| **otsu** | 2 | **MEDIUM** | 16.51% |
 | **adaptive** | 0 | **LOW** | 0.0% |
 | **width_1600** | 115 | **VERY_HIGH** | 100.0% |
 | **width_2000** | 0 | **LOW** | 0.0% |
-| **fallback** | 18 | **VERY_HIGH** | 0.85% |
+| **fallback** | 18 | **VERY_HIGH** | 0.8% |
 
 ---
 
