@@ -88,7 +88,7 @@ jobs:
       - name: Build Standalone OCR Worker (PyInstaller)
         run: |
           cd python-ocr
-          python -m PyInstaller --noconfirm --clean --onedir --name scan_worker --distpath .dist --add-data "services/data;services/data" --collect-submodules passporteye --collect-all rapidocr_onnxruntime --copy-metadata imageio scan_worker.py
+          python -m PyInstaller --noconfirm --clean --onedir --name scan_worker --distpath .dist --add-data "services/data;services/data" --collect-all rapidocr_onnxruntime scan_worker.py
 
       - name: Stage Resources for Tauri Installer
         shell: pwsh
