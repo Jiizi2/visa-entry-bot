@@ -28,15 +28,27 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
         shell: pwsh
         run: |
+          $TagName = "${{ github.ref_name }}"
+          # Check if tag is pre-release (contains hyphen like rc/beta)
+          $IsPreRelease = $TagName -match "-"
+          
           if (-not "${{ secrets.TAURI_PRIVATE_KEY }}") {
-            Write-Error "CRITICAL: TAURI_PRIVATE_KEY secret is missing! Releases cannot be signed. Failing build early."
-            exit 1
+            if ($IsPreRelease) {
+              Write-Warning "TAURI_PRIVATE_KEY secret is missing! Pre-release build will proceed unsigned."
+            } else {
+              Write-Error "CRITICAL: TAURI_PRIVATE_KEY secret is missing! Releases cannot be signed. Failing build early."
+              exit 1
+            }
           }
           if (-not "${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}") {
-            Write-Error "CRITICAL: TAURI_PRIVATE_KEY_PASSWORD secret is missing! Decryption will fail. Failing build early."
-            exit 1
+            if ($IsPreRelease) {
+              Write-Warning "TAURI_PRIVATE_KEY_PASSWORD secret is missing! Pre-release build will proceed unsigned."
+            } else {
+              Write-Error "CRITICAL: TAURI_PRIVATE_KEY_PASSWORD secret is missing! Decryption will fail. Failing build early."
+              exit 1
+            }
           }
-          Write-Host "All required signing secrets are present."
+          Write-Host "Secrets verification complete."
 
       - name: setup node
         uses: actions/setup-node@v4
