@@ -178,8 +178,8 @@ jobs:
         run: |
           Write-Host "Starting Release Artifact Verification Gate..."
           
-          # 1. Verify installer exists (use glob path resolution to avoid target folder mismatch)
-          $InstallerPath = Get-ChildItem -Path "passport-desktop/src-tauri/target/**/release/bundle/nsis/*.exe" -File | Select-Object -First 1
+          # 1. Verify installer exists (use native recursive search as PowerShell doesn't support ** glob natively)
+          $InstallerPath = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.exe" | Where-Object { $_.FullName -match "\\bundle\\nsis\\" } | Select-Object -First 1
           if (-not $InstallerPath) {
             Write-Error "Validation Failed: NSIS Setup Installer (.exe) was not compiled!"
             exit 1
@@ -220,7 +220,7 @@ jobs:
           Write-Host "✓ tauri.local-release.conf.json found."
 
           # 6. Verify updater.json and signature exists (if private key is present)
-          $UpdaterJson = Get-ChildItem -Path "passport-desktop/src-tauri/target/**/release/bundle/updater/*.json" -File | Select-Object -First 1
+          $UpdaterJson = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.json" | Where-Object { $_.FullName -match "\\bundle\\updater\\" } | Select-Object -First 1
           if (-not $UpdaterJson) {
             Write-Warning "Warning: updater.json not found in bundler output."
           } else {
@@ -229,7 +229,7 @@ jobs:
           
           # Only assert signatures on actual release runs (where signing keys are present)
           if ("${{ secrets.TAURI_PRIVATE_KEY }}") {
-            $SigFile = Get-ChildItem -Path "passport-desktop/src-tauri/target/**/release/bundle/nsis/*.sig" -File | Select-Object -First 1
+            $SigFile = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.sig" | Where-Object { $_.FullName -match "\\bundle\\nsis\\" } | Select-Object -First 1
             if (-not $SigFile) {
               Write-Error "Validation Failed: Updater signature file (.sig) is missing! Auto-updates will fail."
               exit 1
