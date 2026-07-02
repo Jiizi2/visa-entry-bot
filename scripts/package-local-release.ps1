@@ -203,6 +203,13 @@ try {
   $DesktopInstallerOutput = Join-Path $ReleaseDir $DesktopInstallerName
   Copy-Item -LiteralPath $Installer.FullName -Destination $DesktopInstallerOutput -Force
 
+  Write-Host "Copying Chrome Extension to release directory..."
+  Copy-DirectoryWithRobocopy `
+    -Source $ExtensionDir `
+    -Destination $ExtensionReleaseDir `
+    -ExcludeDirs @(".git", "node_modules", "test", ".review") `
+    -ExcludeFiles @(".gitignore", "package.json")
+
   if ($IncludePortable) {
     Copy-OptionalPortableDesktop
   }
@@ -221,6 +228,18 @@ Install file ini:
 - $DesktopInstallerName
 
 Installer desktop sudah membawa OCR worker executable (RapidOCR), jadi device target tidak perlu install Python manual.
+
+## Chrome Extension
+
+Folder ekstensi Chrome tersedia di:
+
+- `extension/`
+
+Cara install di Chrome:
+1. Buka browser Google Chrome dan navigasi ke `chrome://extensions/`.
+2. Aktifkan **Developer mode** di pojok kanan atas.
+3. Klik **Load unpacked** (Muat ekstensi yang belum dikemas) di pojok kiri atas.
+4. Pilih folder `extension/` yang ada di dalam rilis ini.
 
 ## Data Lokal
 

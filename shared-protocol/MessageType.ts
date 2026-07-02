@@ -8,6 +8,7 @@ export enum MessageType {
   STOP = 'STOP',
   PING = 'PING',
   HELLO_ACK = 'HELLO_ACK',
+  SESSION_SNAPSHOT = 'SESSION_SNAPSHOT',
 
   // Events (Extension -> Desktop)
   HELLO = 'HELLO',
@@ -19,6 +20,7 @@ export enum MessageType {
   MEMBER_COMPLETED = 'MEMBER_COMPLETED',
   SESSION_COMPLETED = 'SESSION_COMPLETED',
   PONG = 'PONG',
+  FAILURE_UPDATED = 'FAILURE_UPDATED',
 
   // Responses
   ACK = 'ACK',

@@ -45,11 +45,17 @@
 
       const perMemberSteps = buildPerMemberSteps(NEXT_BUTTON_SELECTOR);
       const progressSteps = [...globalSteps, ...perMemberSteps].filter(countsForProgress);
-      state.progressCurrent = 0;
-      state.progressTotal = progressSteps.length * members.length;
+      const manifestMembers = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
+      state.progressTotal = manifestMembers.length > 0 ? manifestMembers.length : members.length;
+      const startMemberIndex = Math.max(0, Number(payload?.startMemberIndex ?? payload?.memberIndex ?? 0));
+      if (members.length > 0) {
+        const completedCount = state.progressTotal - members.length;
+        state.progressCurrent = completedCount + 1;
+      } else {
+        state.progressCurrent = 0;
+      }
       postPanelState();
 
-      const startMemberIndex = Math.max(0, Number(payload?.startMemberIndex ?? payload?.memberIndex ?? 0));
       for (let memberOffset = 0; memberOffset < members.length; memberOffset += 1) {
         const member = members[memberOffset];
         const context = {
@@ -66,6 +72,12 @@
         };
 
         state.selectedMemberId = String(member.id || state.selectedMemberId || "");
+        
+        // Compute progress based on execution offset of members batch
+        const completedCount = state.progressTotal - members.length;
+        state.progressCurrent = completedCount + memberOffset + 1;
+        state.revision = (state.revision || 0) + 1;
+
         if (chrome?.runtime?.sendMessage) {
           chrome.runtime.sendMessage({
             type: "NUSUK_WS_EVENT",
@@ -76,7 +88,12 @@
           });
         }
         appendLog?.("info", `Memproses jamaah ${memberOffset + 1}/${members.length}: ${describeMember(member)}`);
+        await persistState();
         postPanelState();
+        // Post progress update
+        if (typeof postProgress === "function") {
+          postProgress();
+        }
 
         const result = await runMemberWithRetry({
           payload,
@@ -264,6 +281,18 @@
           failedAt: new Date().toISOString(),
         },
       ].slice(-100);
+
+      if (chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({
+          type: "NUSUK_WS_EVENT",
+          payload: {
+            eventType: "FAILURE_UPDATED",
+            memberId: String(failedMember?.id || ""),
+            reason: String(reason || "unknown"),
+            failedAt: new Date().toISOString()
+          }
+        });
+      }
 
       const remainingMembers = members.slice(memberOffset + 1);
       state.currentRunPayload = remainingMembers.length

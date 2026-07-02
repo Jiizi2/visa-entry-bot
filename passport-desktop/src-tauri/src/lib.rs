@@ -20,6 +20,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 use tauri::{AppHandle, Emitter, Manager, State};
+use std::sync::atomic::Ordering;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -2123,11 +2124,17 @@ fn start_websocket_orchestrator(
                 transport::websocket::TransportEvent::Disconnect { client_id } => {
                     cm.unregister_client(client_id);
                     let _ = app_handle.emit("transport-disconnected", serde_json::json!({ "clientId": client_id.to_string() }));
+                    sm.metrics.heartbeats_lost.fetch_add(1, Ordering::SeqCst);
                 }
                 transport::websocket::TransportEvent::Message { client_id, text } => {
                     println!("[Protocol] Menerima pesan mentah: {}", text);
                     match protocol_validator::ProtocolValidator::validate(&text) {
                         Ok(envelope) => {
+                            if !cm.check_incoming_sequence(client_id, envelope.sequence) {
+                                println!("[Protocol] Mengabaikan pesan dengan sequence usang: {}", envelope.sequence);
+                                sm.metrics.sequence_dropped.fetch_add(1, Ordering::SeqCst);
+                                continue;
+                            }
                             match envelope.r#type {
                                 protocol::MessageType::Hello => {
                                     if let Ok(payload) = serde_json::from_value::<protocol::HelloPayload>(envelope.payload.clone()) {
@@ -2155,35 +2162,88 @@ fn start_websocket_orchestrator(
                                     if cm.is_client_ready(client_id) {
                                         if let Ok(payload) = serde_json::from_value::<protocol::ReadyPayload>(envelope.payload.clone()) {
                                             println!("[Protocol] READY diterima dari URL: {}", payload.current_url);
-                                            send_envelope(
-                                                &cm,
-                                                client_id,
-                                                protocol::MessageType::Ack,
-                                                &envelope.correlation_id,
-                                                serde_json::json!({}),
-                                                Some(envelope.message_id.clone()),
-                                            );
-                                            println!("[Protocol] Handshake selesai untuk klien: {}", client_id);
-                                            sm.close_session();
-
-                                            // Picu CREATE_SESSION otomatis untuk pengujian alur Sprint 2
-                                            let test_session_id = uuid::Uuid::new_v4().to_string();
-                                            let test_correlation_id = uuid::Uuid::new_v4().to_string();
-                                            let create_session_env = protocol::Envelope {
-                                                protocol_version: 1,
-                                                r#type: protocol::MessageType::CreateSession,
-                                                message_id: uuid::Uuid::new_v4().to_string(),
-                                                session_id: test_session_id.clone(),
-                                                correlation_id: test_correlation_id.clone(),
-                                                timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-                                                reply_to_message_id: None,
-                                                payload: serde_json::json!({
-                                                    "workspaceId": "test-workspace-path"
-                                                }),
+                                            
+                                            // Validate credentials for recovery
+                                            let is_valid_resume = if let (Some(req_session_id), Some(req_resume_token)) = (&payload.session_id, &payload.resume_token) {
+                                                if let Some(active_session) = sm.get_session() {
+                                                    active_session.session_id == *req_session_id && active_session.resume_token == *req_resume_token
+                                                } else {
+                                                    false
+                                                }
+                                            } else {
+                                                false
                                             };
-                                            if let Ok(text) = serde_json::to_string(&create_session_env) {
-                                                let _ = cm.send_to(client_id, text);
-                                                println!("[Session] Mengirim CREATE_SESSION otomatis. SessionID: {}", test_session_id);
+                                            
+                                            if is_valid_resume {
+                                                let s = sm.get_session().unwrap();
+                                                sm.metrics.snapshots_restored.fetch_add(1, Ordering::SeqCst);
+                                                sm.metrics.resumes_successful.fetch_add(1, Ordering::SeqCst);
+                                                println!("[Session] Sesi aktif terdeteksi & terverifikasi (ID: {}). Mengirim SESSION_SNAPSHOT.", s.session_id);
+                                                
+                                                let snapshot_payload = serde_json::json!({
+                                                    "snapshotVersion": 1,
+                                                    "sessionId": s.session_id,
+                                                    "resumeToken": s.resume_token,
+                                                    "status": s.status,
+                                                    "currentMemberId": s.current_member_id,
+                                                    "progressCurrent": s.progress_current,
+                                                    "progressTotal": s.progress_total,
+                                                    "manifestVersion": s.manifest_version,
+                                                    "manifestHash": s.manifest_hash,
+                                                    "manifestPath": s.manifest_path,
+                                                    "failures": s.failures,
+                                                    "revision": s.revision,
+                                                });
+                                                
+                                                sm.metrics.snapshots_generated.fetch_add(1, Ordering::SeqCst);
+                                                send_envelope(
+                                                    &cm,
+                                                    client_id,
+                                                    protocol::MessageType::SessionSnapshot,
+                                                    &envelope.correlation_id,
+                                                    snapshot_payload,
+                                                    None,
+                                                );
+                                            } else {
+                                                if payload.session_id.is_some() || payload.resume_token.is_some() {
+                                                    sm.metrics.resumes_failed.fetch_add(1, Ordering::SeqCst);
+                                                }
+                                                println!("[Session] Tidak ada sesi valid untuk di-resume atau token salah. Menginisialisasi sesi baru.");
+                                                send_envelope(
+                                                    &cm,
+                                                    client_id,
+                                                    protocol::MessageType::Ack,
+                                                    &envelope.correlation_id,
+                                                    serde_json::json!({}),
+                                                    Some(envelope.message_id.clone()),
+                                                );
+                                                println!("[Protocol] Handshake selesai untuk klien baru: {}", client_id);
+                                                
+                                                sm.close_session();
+
+                                                // Picu CREATE_SESSION otomatis untuk pengujian alur Sprint 2
+                                                let test_session_id = uuid::Uuid::new_v4().to_string();
+                                                let test_correlation_id = uuid::Uuid::new_v4().to_string();
+                                                
+                                                let _ = sm.create_session(test_session_id.clone(), "test-workspace-path".to_string());
+                                                
+                                                let create_session_env = protocol::Envelope {
+                                                    protocol_version: 1,
+                                                    r#type: protocol::MessageType::CreateSession,
+                                                    message_id: uuid::Uuid::new_v4().to_string(),
+                                                    session_id: test_session_id.clone(),
+                                                    correlation_id: test_correlation_id.clone(),
+                                                    timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                                                    sequence: cm.next_outgoing_sequence(client_id),
+                                                    reply_to_message_id: None,
+                                                    payload: serde_json::json!({
+                                                        "workspaceId": "test-workspace-path"
+                                                    }),
+                                                };
+                                                if let Ok(text) = serde_json::to_string(&create_session_env) {
+                                                    let _ = cm.send_to(client_id, text);
+                                                    println!("[Session] Mengirim CREATE_SESSION otomatis. SessionID: {}", test_session_id);
+                                                }
                                             }
                                         } else {
                                             send_error(&cm, client_id, "ERR_INVALID_PAYLOAD", "Payload READY tidak valid.", &envelope);
@@ -2198,7 +2258,7 @@ fn start_websocket_orchestrator(
                                         client_id,
                                         protocol::MessageType::Pong,
                                         &envelope.correlation_id,
-                                        serde_json::json!({}),
+                                        envelope.payload.clone(), // Echo payload (includes timestamp)
                                         Some(envelope.message_id.clone()),
                                     );
                                 }
@@ -2218,6 +2278,7 @@ fn start_websocket_orchestrator(
                                 session_id: "".to_string(),
                                 correlation_id: "".to_string(),
                                 timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                                sequence: cm.next_outgoing_sequence(client_id),
                                 reply_to_message_id: None,
                                 payload: serde_json::to_value(&err_payload).unwrap(),
                             };
@@ -2232,6 +2293,15 @@ fn start_websocket_orchestrator(
     });
 }
 
+fn fnv1a_hash(s: &str) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in s.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{:016x}", hash)
+}
+
 fn send_envelope(
     cm: &server::connection_manager::ConnectionManager,
     client_id: transport::websocket::ClientId,
@@ -2240,6 +2310,7 @@ fn send_envelope(
     payload: serde_json::Value,
     reply_to: Option<String>,
 ) {
+    let sequence = cm.next_outgoing_sequence(client_id);
     let envelope = protocol::Envelope {
         protocol_version: 1,
         r#type: msg_type,
@@ -2247,6 +2318,7 @@ fn send_envelope(
         session_id: "".to_string(),
         correlation_id: correlation_id.to_string(),
         timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        sequence,
         reply_to_message_id: reply_to,
         payload,
     };
@@ -2279,6 +2351,7 @@ fn send_error(
         Some(reply_to_envelope.message_id.clone()),
     );
 }
+
 #[tauri::command]
 fn is_automation_connected(
     connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
@@ -2287,14 +2360,67 @@ fn is_automation_connected(
 }
 
 #[tauri::command]
+fn get_system_health(
+    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
+    session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
+) -> serde_json::Value {
+    let session = session_manager.get_session();
+    let status = session.as_ref().map(|s| format!("{:?}", s.status)).unwrap_or_else(|| "IDLE".to_string());
+    let revision = session.as_ref().map(|s| s.revision).unwrap_or(0);
+    let client_connected = !connection_manager.get_active_client_ids().is_empty();
+    let journal_usage = format!("{}/200", session_manager.get_journal().len());
+    
+    serde_json::json!({
+        "status": status,
+        "revision": revision,
+        "clientConnected": client_connected,
+        "journalUsage": journal_usage,
+        "metrics": {
+            "snapshotsGenerated": session_manager.metrics.snapshots_generated.load(Ordering::SeqCst),
+            "snapshotsRestored": session_manager.metrics.snapshots_restored.load(Ordering::SeqCst),
+            "resumesSuccessful": session_manager.metrics.resumes_successful.load(Ordering::SeqCst),
+            "resumesFailed": session_manager.metrics.resumes_failed.load(Ordering::SeqCst),
+            "heartbeatsLost": session_manager.metrics.heartbeats_lost.load(Ordering::SeqCst),
+            "recoveryTimeouts": session_manager.metrics.recovery_timeouts.load(Ordering::SeqCst),
+            "sequenceDropped": session_manager.metrics.sequence_dropped.load(Ordering::SeqCst),
+            "journalOverflow": session_manager.metrics.journal_overflow.load(Ordering::SeqCst),
+        }
+    })
+}
+
+#[tauri::command]
 fn send_automation_load_batch(
     connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
-    _session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
+    session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
     members: Vec<serde_json::Value>,
     manifest_path: String,
 ) -> Result<(), String> {
+    // Generate version and hash
+    let manifest_version = 1;
+    let manifest_str = serde_json::to_string(&members).unwrap_or_default();
+    let manifest_hash = fnv1a_hash(&manifest_str);
+
+    // Initialize session if none exists
+    let session_exists = session_manager.get_session().is_some();
+    if !session_exists {
+        let new_session_id = uuid::Uuid::new_v4().to_string();
+        let _ = session_manager.create_session(new_session_id, "workspace-path".to_string());
+    }
+
+    // Update session snapshot
+    let _ = session_manager.update_snapshot(|s| {
+        s.manifest_hash = manifest_hash.clone();
+        s.manifest_path = manifest_path.clone();
+        s.manifest_version = manifest_version;
+        s.progress_total = members.len() as u32;
+        s.progress_current = 0;
+        s.failures = Vec::new();
+        s.status = session_manager::SessionState::BatchLoaded;
+    });
+
     let client_ids = connection_manager.get_active_client_ids();
     if let Some(client_id) = client_ids.first().cloned() {
+        let sequence = connection_manager.next_outgoing_sequence(client_id);
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let load_batch_payload = serde_json::json!({
             "members": members,
@@ -2307,6 +2433,7 @@ fn send_automation_load_batch(
             session_id: "".to_string(),
             correlation_id,
             timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            sequence,
             reply_to_message_id: None,
             payload: load_batch_payload,
         };
@@ -2326,6 +2453,7 @@ fn send_automation_start(
 ) -> Result<(), String> {
     let client_ids = connection_manager.get_active_client_ids();
     if let Some(client_id) = client_ids.first().cloned() {
+        let sequence = connection_manager.next_outgoing_sequence(client_id);
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let envelope = protocol::Envelope {
             protocol_version: 1,
@@ -2334,6 +2462,7 @@ fn send_automation_start(
             session_id: "".to_string(),
             correlation_id,
             timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            sequence,
             reply_to_message_id: None,
             payload: serde_json::json!({}),
         };
@@ -2425,7 +2554,8 @@ pub fn run() {
             create_nusuk_batch,
             send_automation_load_batch,
             send_automation_start,
-            is_automation_connected
+            is_automation_connected,
+            get_system_health
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

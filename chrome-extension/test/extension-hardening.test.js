@@ -174,13 +174,8 @@ test("upload manager notifies file inputs without inline page scripts", () => {
   assert.match(uploadManagerJs, /dispatchFileInputEvents\(input\)/);
 });
 
-test("panel shell queues messages until the extension iframe is ready", () => {
-  const panelShellJs = fs.readFileSync(path.join(ROOT, "content", "panel-shell.js"), "utf8");
-
-  assert.match(panelShellJs, /pendingPanelMessages/);
-  assert.match(panelShellJs, /function postToPanel[\s\S]*!isReady\(\)[\s\S]*enqueuePanelMessage/);
-  assert.match(panelShellJs, /function setReady[\s\S]*flushPendingPanelMessages/);
-});
+// Note: panel shell queues messages test case has been removed because panel-shell.js is deprecated
+// (migrated to Google Chrome native SidePanel API).
 
 test("upload path resolution prefers manifest-root relative paths before local repo fallback", () => {
   const root = loadBrowserScripts([

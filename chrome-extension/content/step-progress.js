@@ -9,8 +9,7 @@
   }) {
     function finishStep(step, selector) {
       if (countsForProgress(step)) {
-        state.progressCurrent = Math.min(state.progressCurrent + 1, state.progressTotal);
-        postProgress();
+        // Step progress increments removed to support passport-level progress
       }
       clearActiveHighlight();
       if (selector) {

@@ -114,7 +114,9 @@ impl MessageRouter {
             }
             MessageType::CurrentMember => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::CurrentMemberPayload>(envelope.payload.clone()) {
-                    let _ = sm.update_current_member(Some(payload.member_id.clone()));
+                    let _ = sm.update_snapshot(|s| {
+                        s.current_member_id = Some(payload.member_id.clone());
+                    });
                     crate::event_dispatcher::EventDispatcher::dispatch_current_member(app, &payload.member_id);
                     send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
                 } else {
@@ -123,6 +125,9 @@ impl MessageRouter {
             }
             MessageType::CurrentStep => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::CurrentStepPayload>(envelope.payload.clone()) {
+                    let _ = sm.update_snapshot(|s| {
+                        s.current_step = Some(payload.step_name.clone());
+                    });
                     crate::event_dispatcher::EventDispatcher::dispatch_current_step(app, &payload.step_name);
                     send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
                 } else {
@@ -131,18 +136,60 @@ impl MessageRouter {
             }
             MessageType::Progress => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::ProgressPayload>(envelope.payload.clone()) {
+                    let mut is_stale = false;
+                    let _ = sm.update_snapshot(|s| {
+                        if payload.revision > s.revision {
+                            s.progress_current = payload.current;
+                            s.progress_total = payload.total;
+                            if let Some(ref st) = payload.status {
+                                s.status = match st.as_str() {
+                                    "RUNNING" => crate::session_manager::SessionState::Running,
+                                    "PAUSED" => crate::session_manager::SessionState::Paused,
+                                    "COMPLETED" => crate::session_manager::SessionState::Completed,
+                                    "IDLE" => crate::session_manager::SessionState::Idle,
+                                    _ => s.status,
+                                };
+                            }
+                            s.revision = payload.revision;
+                        } else {
+                            is_stale = true;
+                        }
+                    });
+
+                    if is_stale {
+                        println!("[Session] Mengabaikan progress event karena revision usang: {}", payload.revision);
+                        send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
+                        return Ok(());
+                    }
+
                     let percent = (payload.current * 100) / std::cmp::max(payload.total, 1);
-                    let message = format!("Memproses {} dari {} item", payload.current, payload.total);
+                    let message = format!("Passport {} / {}", payload.current, payload.total);
                     crate::event_dispatcher::EventDispatcher::dispatch_progress(app, percent, &message);
                     send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
                 } else {
                     send_error(cm, client_id, "ERR_INVALID_PAYLOAD", "Payload PROGRESS tidak valid.", &envelope);
                 }
             }
+            MessageType::FailureUpdated => {
+                if let Ok(payload) = serde_json::from_value::<crate::protocol::FailureUpdatedPayload>(envelope.payload.clone()) {
+                    let _ = sm.update_snapshot(|s| {
+                        s.failures.push(serde_json::json!({
+                            "memberId": payload.member_id,
+                            "reason": payload.reason,
+                            "failedAt": payload.failed_at,
+                        }));
+                    });
+                    send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
+                } else {
+                    send_error(cm, client_id, "ERR_INVALID_PAYLOAD", "Payload FAILURE_UPDATED tidak valid.", &envelope);
+                }
+            }
             MessageType::MemberCompleted => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::MemberCompletedPayload>(envelope.payload.clone()) {
-                    let _ = sm.update_status(next_state);
-                    let _ = sm.update_current_member(None);
+                    let _ = sm.update_snapshot(|s| {
+                        s.current_member_id = None;
+                        s.current_step = None;
+                    });
                     crate::event_dispatcher::EventDispatcher::dispatch_member_completed(app, &payload.member_id);
                     send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
                 } else {
@@ -150,12 +197,16 @@ impl MessageRouter {
                 }
             }
             MessageType::SessionCompleted => {
-                let _ = sm.update_status(next_state);
+                let _ = sm.update_snapshot(|s| {
+                    s.status = crate::session_manager::SessionState::Completed;
+                    s.current_member_id = None;
+                    s.current_step = None;
+                });
                 crate::event_dispatcher::EventDispatcher::dispatch_session_completed(app, &envelope.session_id);
                 send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
             }
-            MessageType::Ack | MessageType::Pong => {
-                // No-op untuk pesan utilitas
+            MessageType::Ack | MessageType::Pong | MessageType::SessionSnapshot => {
+                // No-op untuk pesan utilitas/snapshot
             }
             _ => {
                 send_error(
@@ -180,6 +231,7 @@ fn send_envelope(
     payload: serde_json::Value,
     reply_to: Option<String>,
 ) {
+    let sequence = cm.next_outgoing_sequence(client_id);
     let envelope = Envelope {
         protocol_version: 1,
         r#type: msg_type,
@@ -187,6 +239,7 @@ fn send_envelope(
         session_id: "".to_string(),
         correlation_id: correlation_id.to_string(),
         timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        sequence,
         reply_to_message_id: reply_to,
         payload,
     };

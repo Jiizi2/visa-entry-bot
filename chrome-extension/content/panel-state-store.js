@@ -37,7 +37,9 @@
             payload: {
               eventType: "PROGRESS",
               current: state.progressCurrent,
-              total: state.progressTotal
+              total: state.progressTotal,
+              status: state.executionState ? state.executionState.toUpperCase() : "IDLE",
+              revision: state.revision || 0
             }
           });
         }
@@ -64,6 +66,8 @@
         },
         logs: state.logs,
         autofillFailures: state.autofillFailures || [],
+        revision: state.revision || 0,
+        activeSessionId: state.activeSessionId || "",
       });
       if (root.widgetInstance) {
         root.widgetInstance.updateWidgetUI();
@@ -104,6 +108,8 @@
           autofillAttemptFailures: Array.isArray(state.autofillAttemptFailures) ? state.autofillAttemptFailures.slice(-100) : [],
           autofillFailureScreenshots: Array.isArray(state.autofillFailureScreenshots) ? state.autofillFailureScreenshots.slice(-3) : [],
           currentRunPayload: state.currentRunPayload,
+          revision: state.revision || 0,
+          activeSessionId: state.activeSessionId || "",
         },
       });
     }

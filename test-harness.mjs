@@ -15,6 +15,7 @@ function generateUuid() {
 function runHandshake(port) {
   console.log(`[TestHarness] Mencoba menghubungkan ke ws://127.0.0.1:${port}...`);
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+  let sequenceCounter = 0;
   let readyMessageId = null;
   let sessionCreatedMessageId = null;
   let batchLoadedMessageId = null;
@@ -36,13 +37,14 @@ function runHandshake(port) {
       sessionId: "",
       correlationId: correlationId,
       timestamp: new Date().toISOString(),
+      sequence: ++sequenceCounter,
       payload: {
         extensionVersion: "1.0.19",
         browser: "chrome",
         capabilities: {
           supportsDebugger: true,
           supportsScreenshot: false,
-          supportsResume: false
+          supportsResume: true
         }
       }
     };
@@ -54,7 +56,7 @@ function runHandshake(port) {
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
-      console.log(`[TestHarness] Menerima pesan dari server: type=${msg.type}`);
+      console.log(`[TestHarness] Menerima pesan dari server: type=${msg.type} sequence=${msg.sequence}`);
 
       if (msg.type === "HELLO_ACK") {
         console.log(`[TestHarness] HELLO_ACK berhasil diterima! AuthToken: ${msg.payload.authToken}`);
@@ -69,8 +71,11 @@ function runHandshake(port) {
           correlationId: msg.correlationId || generateUuid(),
           timestamp: new Date().toISOString(),
           replyToMessageId: msg.messageId,
+          sequence: ++sequenceCounter,
           payload: {
-            currentUrl: "https://masar.nusuk.sa/en/mutamer/add"
+            currentUrl: "https://masar.nusuk.sa/en/mutamer/add",
+            sessionId: "",
+            resumeToken: ""
           }
         };
 
@@ -89,6 +94,7 @@ function runHandshake(port) {
           correlationId: msg.correlationId || generateUuid(),
           timestamp: new Date().toISOString(),
           replyToMessageId: msg.messageId,
+          sequence: ++sequenceCounter,
           payload: {
             status: "initialized"
           }
@@ -109,6 +115,7 @@ function runHandshake(port) {
           correlationId: msg.correlationId || generateUuid(),
           timestamp: new Date().toISOString(),
           replyToMessageId: msg.messageId,
+          sequence: ++sequenceCounter,
           payload: {}
         };
 
@@ -125,6 +132,7 @@ function runHandshake(port) {
           correlationId: msg.correlationId || generateUuid(),
           timestamp: new Date().toISOString(),
           replyToMessageId: msg.messageId,
+          sequence: ++sequenceCounter,
           payload: {}
         };
         ws.send(JSON.stringify(startAck));
@@ -138,6 +146,7 @@ function runHandshake(port) {
           sessionId: msg.sessionId,
           correlationId: msg.correlationId || generateUuid(),
           timestamp: new Date().toISOString(),
+          sequence: ++sequenceCounter,
           payload: {
             memberId: "member-001"
           }
@@ -161,6 +170,7 @@ function runHandshake(port) {
             sessionId: msg.sessionId || "",
             correlationId: msg.correlationId || "",
             timestamp: new Date().toISOString(),
+            sequence: ++sequenceCounter,
             payload: {
               stepName: "Mengisi Formulir Paspor"
             }
@@ -176,9 +186,12 @@ function runHandshake(port) {
             sessionId: msg.sessionId || "",
             correlationId: msg.correlationId || "",
             timestamp: new Date().toISOString(),
+            sequence: ++sequenceCounter,
             payload: {
               current: 5,
-              total: 10
+              total: 10,
+              status: "RUNNING",
+              revision: 2
             }
           };
           console.log(`[TestHarness] Mengirim pesan PROGRESS...`);
@@ -192,6 +205,7 @@ function runHandshake(port) {
             sessionId: msg.sessionId || "",
             correlationId: msg.correlationId || "",
             timestamp: new Date().toISOString(),
+            sequence: ++sequenceCounter,
             payload: {
               memberId: "member-001"
             }
@@ -207,6 +221,7 @@ function runHandshake(port) {
             sessionId: msg.sessionId || "",
             correlationId: msg.correlationId || "",
             timestamp: new Date().toISOString(),
+            sequence: ++sequenceCounter,
             payload: {}
           };
           console.log(`[TestHarness] Mengirim pesan SESSION_COMPLETED...`);

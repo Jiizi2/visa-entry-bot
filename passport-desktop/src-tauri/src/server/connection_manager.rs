@@ -1,6 +1,8 @@
 use crate::transport::websocket::ClientId;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::sync::mpsc;
 
@@ -13,6 +15,8 @@ pub struct ClientConnection {
     pub handshake_completed: bool,
     pub browser: Option<String>,
     pub extension_version: Option<String>,
+    pub outgoing_sequence: Arc<AtomicU64>,
+    pub incoming_sequence: Arc<AtomicU64>,
 }
 
 pub struct ConnectionManager {
@@ -36,6 +40,8 @@ impl ConnectionManager {
             handshake_completed: false,
             browser: None,
             extension_version: None,
+            outgoing_sequence: Arc::new(AtomicU64::new(0)),
+            incoming_sequence: Arc::new(AtomicU64::new(0)),
         };
         clients.insert(id, connection);
         println!("[Transport] Klien terhubung: {} (Address: {})", id, addr);
@@ -94,5 +100,29 @@ impl ConnectionManager {
     pub fn get_active_client_ids(&self) -> Vec<ClientId> {
         let clients = self.clients.read().unwrap();
         clients.keys().cloned().collect()
+    }
+
+    pub fn next_outgoing_sequence(&self, id: ClientId) -> u64 {
+        let clients = self.clients.read().unwrap();
+        if let Some(conn) = clients.get(&id) {
+            conn.outgoing_sequence.fetch_add(1, Ordering::SeqCst) + 1
+        } else {
+            1
+        }
+    }
+
+    pub fn check_incoming_sequence(&self, id: ClientId, sequence: u64) -> bool {
+        let clients = self.clients.read().unwrap();
+        if let Some(conn) = clients.get(&id) {
+            let current = conn.incoming_sequence.load(Ordering::SeqCst);
+            if sequence > current {
+                conn.incoming_sequence.store(sequence, Ordering::SeqCst);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }

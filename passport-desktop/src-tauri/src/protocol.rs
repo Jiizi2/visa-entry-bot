@@ -6,6 +6,7 @@ pub enum MessageType {
     // Commands (Desktop -> Extension)
     CreateSession,
     LoadBatch,
+    SessionSnapshot,
     Start,
     Next,
     Pause,
@@ -20,6 +21,7 @@ pub enum MessageType {
     CurrentMember,
     CurrentStep,
     Progress,
+    FailureUpdated,
     MemberCompleted,
     SessionCompleted,
     Pong,
@@ -42,6 +44,7 @@ pub struct Envelope {
     pub session_id: String,
     pub correlation_id: String,
     pub timestamp: String, // ISO 8601 UTC
+    pub sequence: u64,     // Connection-specific sequence number
     pub reply_to_message_id: Option<String>,
     pub payload: serde_json::Value,
 }
@@ -107,8 +110,27 @@ pub struct LoadBatchPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SessionSnapshotPayload {
+    pub snapshot_version: u32,
+    pub session_id: String,
+    pub resume_token: String,
+    pub status: String,
+    pub current_member_id: Option<String>,
+    pub progress_current: u32,
+    pub progress_total: u32,
+    pub manifest_version: u32,
+    pub manifest_hash: String,
+    pub manifest_path: String,
+    pub failures: Vec<serde_json::Value>,
+    pub revision: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReadyPayload {
     pub current_url: String,
+    pub session_id: Option<String>,
+    pub resume_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -142,6 +164,16 @@ pub struct CurrentStepPayload {
 pub struct ProgressPayload {
     pub current: u32,
     pub total: u32,
+    pub status: Option<String>,
+    pub revision: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FailureUpdatedPayload {
+    pub member_id: String,
+    pub reason: String,
+    pub failed_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

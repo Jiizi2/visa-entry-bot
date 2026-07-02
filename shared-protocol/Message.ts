@@ -7,6 +7,7 @@ export interface Envelope {
   sessionId: string;
   correlationId: string;
   timestamp: string; // ISO 8601 UTC
+  sequence: number; // Sequence number unique per connection
   replyToMessageId?: string;
   payload: any;
 }
@@ -52,8 +53,25 @@ export interface LoadBatchPayload {
   members: Member[];
 }
 
+export interface SessionSnapshotPayload {
+  snapshotVersion: number;
+  sessionId: string;
+  resumeToken: string;
+  status: string;
+  currentMemberId?: string;
+  progressCurrent: number;
+  progressTotal: number;
+  manifestVersion: number;
+  manifestHash: string;
+  manifestPath: string;
+  failures: any[];
+  revision: number;
+}
+
 export interface ReadyPayload {
   currentUrl: string;
+  sessionId?: string;
+  resumeToken?: string;
 }
 
 export interface RunningPayload {
@@ -75,6 +93,14 @@ export interface CurrentStepPayload {
 export interface ProgressPayload {
   current: number;
   total: number;
+  status?: string;
+  revision: number;
+}
+
+export interface FailureUpdatedPayload {
+  memberId: string;
+  reason: string;
+  failedAt: string;
 }
 
 export interface MemberCompletedPayload {
@@ -99,6 +125,7 @@ export interface MessageMap {
   [MessageType.CREATE_SESSION]: CreateSessionPayload;
   [MessageType.SESSION_CREATED]: SessionCreatedPayload;
   [MessageType.LOAD_BATCH]: LoadBatchPayload;
+  [MessageType.SESSION_SNAPSHOT]: SessionSnapshotPayload;
   [MessageType.BATCH_LOADED]: Record<string, never>;
   [MessageType.START]: Record<string, never>;
   [MessageType.NEXT]: Record<string, never>;
@@ -110,6 +137,7 @@ export interface MessageMap {
   [MessageType.CURRENT_MEMBER]: CurrentMemberPayload;
   [MessageType.CURRENT_STEP]: CurrentStepPayload;
   [MessageType.PROGRESS]: ProgressPayload;
+  [MessageType.FAILURE_UPDATED]: FailureUpdatedPayload;
   [MessageType.MEMBER_COMPLETED]: MemberCompletedPayload;
   [MessageType.SESSION_COMPLETED]: SessionCompletedPayload;
   [MessageType.PONG]: Record<string, never>;

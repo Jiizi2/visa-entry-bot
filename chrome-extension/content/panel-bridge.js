@@ -131,6 +131,66 @@
           return false;
         }
 
+        if (message.type === "NUSUK_WS_SESSION_SNAPSHOT") {
+          console.log("[Bridge] Menerima SESSION_SNAPSHOT dari Side Panel:", message.payload);
+          
+          if (state.revision && message.payload.revision < state.revision) {
+            console.log(`[Bridge] Mengabaikan snapshot usang. Local revision: ${state.revision}, snapshot: ${message.payload.revision}`);
+            sendResponse({ ok: false, error: "Outdated revision" });
+            return false;
+          }
+          
+          state.revision = message.payload.revision;
+          state.activeSessionId = message.payload.sessionId;
+          
+          if (message.payload.status === "RUNNING") {
+            const manifestMembers = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
+            const activeMembers = message.payload.manifestMembers || manifestMembers;
+            
+            if (state.executionState !== "running") {
+              console.log("[Bridge] Menyinkronkan status RUNNING dan memulihkan eksekusi...");
+              state.executionState = "running";
+              
+              const currentId = message.payload.currentMemberId;
+              const currentIdx = activeMembers.findIndex(m => String(m.id) === String(currentId));
+              const startIdx = currentIdx >= 0 ? currentIdx : 0;
+              const remainingMembers = activeMembers.slice(startIdx);
+              
+              if (remainingMembers.length > 0) {
+                state.currentRunPayload = {
+                  manifestPath: message.payload.manifestPath,
+                  members: remainingMembers,
+                  startMemberIndex: startIdx,
+                  totalMembers: activeMembers.length
+                };
+                
+                state.runToken = (state.runToken || 0) + 1;
+                void lockTabForRuntimeRun();
+                runAutomation(state.currentRunPayload, state.runToken)
+                  .catch((err) => console.error("[Bridge] Gagal me-resume otomatisasi setelah reload:", err))
+                  .finally(() => {
+                    void unlockTabAfterRuntimeRun();
+                    if (state.executionState !== "paused") {
+                      state.executionState = "idle";
+                    }
+                    postPanelState();
+                  });
+              }
+            }
+          } else if (message.payload.status === "PAUSED") {
+            state.executionState = "paused";
+          } else if (message.payload.status === "COMPLETED") {
+            state.executionState = "completed";
+          } else if (message.payload.status === "IDLE") {
+            state.executionState = "idle";
+          }
+          
+          void persistState();
+          postPanelState();
+          sendResponse({ ok: true });
+          return false;
+        }
+
         if (message.type === "NUSUK_WS_START") {
           console.log("[Bridge] Menjalankan startAutofillFromPanel dipicu oleh NUSUK_WS_START.");
           void startAutofillFromPanel();

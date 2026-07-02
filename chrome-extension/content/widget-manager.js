@@ -23,39 +23,57 @@
           position: fixed;
           bottom: 24px;
           right: 24px;
-          width: 140px;
-          background: linear-gradient(135deg, #1e293b, #0f172a);
+          width: 150px;
+          background: rgba(15, 23, 42, 0.9);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           color: #f8fafc;
-          border-radius: 10px;
-          padding: 10px 12px;
-          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.5), 0 8px 10px -6px rgba(15, 23, 42, 0.4);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 12px 14px;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.06);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           z-index: 999999;
           cursor: grab;
           user-select: none;
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+          gap: 8px;
+          transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
         }
         .entrymate-widget:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 14px 30px -5px rgba(15, 23, 42, 0.6), 0 0 12px rgba(56, 189, 248, 0.25);
-          border-color: rgba(56, 189, 248, 0.4);
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35), 0 0 16px rgba(37, 99, 235, 0.3);
+          border-color: rgba(255, 255, 255, 0.15);
         }
         .entrymate-widget:active {
           cursor: grabbing;
-          transform: scale(0.97);
+          transform: scale(0.98);
         }
         .entrymate-widget-header {
           display: flex;
           align-items: center;
+          justify-content: space-between;
+          font-size: 10px;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.5);
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .entrymate-widget-brand {
+          display: flex;
+          align-items: center;
           gap: 6px;
-          font-size: 11px;
-          font-weight: 800;
+        }
+        .entrymate-widget-restore-hint {
+          font-size: 9px;
           color: #38bdf8;
-          letter-spacing: 0.03em;
+          font-weight: 600;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        .entrymate-widget:hover .entrymate-widget-restore-hint {
+          opacity: 1;
         }
         .entrymate-widget-body {
           display: flex;
@@ -65,43 +83,62 @@
         .entrymate-widget-progress-row {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           font-size: 13px;
           font-weight: 700;
+          color: #ffffff;
         }
         .entrymate-widget-status-dot {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #94a3b8;
+          background: #64748b;
           display: inline-block;
+          box-shadow: 0 0 4px rgba(0,0,0,0.5);
+          transition: all 0.3s ease;
         }
-        .entrymate-widget-status-dot.running { background: #10b981; animation: entrymate-pulse 1.5s infinite; }
-        .entrymate-widget-status-dot.paused { background: #f59e0b; }
-        .entrymate-widget-status-dot.idle { background: #3b82f6; }
-        .entrymate-widget-status-dot.completed { background: #10b981; }
-        .entrymate-widget-status-dot.error { background: #ef4444; }
+        .entrymate-widget-status-dot.running { 
+          background: #10b981; 
+          box-shadow: 0 0 8px #10b981, 0 0 16px rgba(16, 185, 129, 0.4); 
+          animation: entrymate-pulse 1.8s infinite ease-in-out; 
+        }
+        .entrymate-widget-status-dot.paused { 
+          background: #f59e0b; 
+          box-shadow: 0 0 8px #f59e0b; 
+        }
+        .entrymate-widget-status-dot.idle { 
+          background: #3b82f6; 
+          box-shadow: 0 0 8px #3b82f6; 
+        }
+        .entrymate-widget-status-dot.completed { 
+          background: #10b981; 
+          box-shadow: 0 0 8px #10b981; 
+        }
+        .entrymate-widget-status-dot.error { 
+          background: #ef4444; 
+          box-shadow: 0 0 8px #ef4444; 
+        }
 
         @keyframes entrymate-pulse {
           0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.3); opacity: 0.7; }
+          50% { transform: scale(1.25); opacity: 0.6; }
           100% { transform: scale(1); opacity: 1; }
         }
 
         .entrymate-widget-progress-track {
           width: 100%;
-          height: 6px;
-          background: rgba(255, 255, 255, 0.15);
-          border-radius: 3px;
+          height: 5px;
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 99px;
           overflow: hidden;
           margin-top: 2px;
         }
         .entrymate-widget-progress-bar {
           height: 100%;
-          background: linear-gradient(90deg, #38bdf8, #0ea5e9);
-          box-shadow: 0 0 6px #38bdf8;
+          background: linear-gradient(90deg, #2563eb, #10b981);
+          border-radius: 99px;
           width: 0%;
-          transition: width 0.2s ease;
+          transition: width 0.2s ease-in-out;
         }
       `;
       document.head.append(style);
@@ -132,8 +169,11 @@
 
       widgetEl.innerHTML = `
         <div class="entrymate-widget-header">
-          <span class="entrymate-widget-icon">📄</span>
-          <span class="entrymate-widget-title">EntryMate</span>
+          <div class="entrymate-widget-brand">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8; display: inline-block; vertical-align: middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span style="vertical-align: middle; margin-left: 3px;">EntryMate</span>
+          </div>
+          <span class="entrymate-widget-restore-hint">Buka ↗</span>
         </div>
         <div class="entrymate-widget-body">
           <div class="entrymate-widget-progress-row">

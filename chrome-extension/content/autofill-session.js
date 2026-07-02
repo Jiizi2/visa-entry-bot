@@ -292,6 +292,13 @@
       state.runToken += 1;
       state.currentRunPayload = null;
       state.executionState = "idle";
+      state.manifest = null;
+      state.selectedMemberId = "";
+      state.autofillFailures = [];
+      state.autofillAttemptFailures = [];
+      state.autofillFailureScreenshots = [];
+      state.revision = 0;
+      state.activeSessionId = "";
       await unlockTabAfterBackgroundRun();
       clearActiveHighlight();
       resetProgress();

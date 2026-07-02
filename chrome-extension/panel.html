@@ -6,147 +6,311 @@
     <title>EntryMate By Ghaniya Panel</title>
     <link rel="stylesheet" href="panel.css">
   </head>
-  <body class="compact-mode">
+  <body class="state-idle">
     <div class="panel-shell">
       
       <!-- HEADER -->
       <header class="panel-header">
         <div class="brand">
-          <div id="ws-indicator" class="ws-indicator disconnected"></div>
+          <svg class="brand-logo" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <h1>EntryMate</h1>
         </div>
         <div class="header-actions">
-          <span id="state-pill" class="state-pill idle">Menunggu</span>
-          <button id="mode-toggle-btn" class="ghost-btn panel-window-btn" type="button" title="Buka Detail & Upload">Detail</button>
-          <button id="minimize-btn" class="ghost-btn panel-window-btn" type="button" title="Kecilkan Panel">−</button>
+          <button id="mode-toggle-btn" class="primary-action-btn" type="button" title="Buka Detail & Upload">Detail</button>
+          <button id="minimize-btn" class="icon-btn" type="button" title="Kecilkan Panel">−</button>
         </div>
       </header>
 
-      <!-- COMPACT CONTAINER (Selalu Terlihat) -->
-      <div class="compact-container">
-        <div class="active-mutamer-card">
-          <div class="active-label">Sedang Diproses:</div>
-          <div id="active-mutamer-name" class="active-name">Belum ada proses aktif</div>
-        </div>
-
-        <div class="control-row">
-          <button id="start-btn" class="primary-btn" type="button">Mulai</button>
-          <button id="pause-btn" class="ghost-btn" type="button">Pause</button>
-          <button id="reset-btn" class="ghost-btn danger-btn" type="button">Reset</button>
-        </div>
-
-        <div class="progress-block">
-          <div class="progress-meta">
-            <span id="status-banner" class="status-banner neutral">Siap.</span>
-            <span id="progress-text">0 / 0</span>
-          </div>
-          <div class="progress-track">
-            <div id="progress-bar" class="progress-bar"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- EXPANDED CONTAINER (Hanya Terlihat Di Mode Expanded) -->
-      <div class="expanded-container">
+      <!-- MAIN CONTENT WRAPPER -->
+      <main class="panel-main-content">
         
-        <!-- Connection Card (Detail Notice) -->
-        <section class="panel-card connection-card">
-          <div class="connection-status">
-            <div>
-              <h2 id="ws-status-title">Hubungan Desktop: Terputus</h2>
-              <p id="ws-status-desc">Hubungkan dengan membuka aplikasi desktop EntryMate.</p>
-            </div>
-          </div>
-          <div id="ws-notice-banner" class="ws-notice-banner hidden">
-            <span class="info-icon">i</span>
-            <span>Mode Otomatisasi WebSocket aktif. Klik <strong>Start</strong> langsung pada aplikasi desktop Anda untuk memulai pengisian otomatis secara terintegrasi.</span>
+        <!-- =================== STATE A: IDLE =================== -->
+        <section class="state-view-card" id="idle-state-view" style="padding: 40px 24px;">
+          <div class="state-view-icon" style="font-size: 40px; margin-bottom: 8px;">🤖</div>
+          <div class="state-view-title" style="font-size: 15px; font-weight: 700;">No Active Session</div>
+          <div class="state-view-desc" style="font-size: 11px; color: var(--ink-muted); margin-bottom: 16px;">Load a batch of mutamers from EntryMate Desktop to begin automated data entry.</div>
+          <div class="loader-skeleton" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+            <div style="height: 12px; background: var(--bg-surface-soft); border-radius: 4px; width: 60%; margin: 0 auto; opacity: 0.6;"></div>
+            <div style="height: 8px; background: var(--bg-surface-soft); border-radius: 4px; width: 45%; margin: 0 auto; opacity: 0.4;"></div>
           </div>
         </section>
 
-        <!-- Legacy Manual Controls -->
-        <details class="legacy-controls-details">
-          <summary class="legacy-controls-summary">
-            <span>Legacy Mode (Kontrol Manual)</span>
-            <span class="summary-toggle-icon">▼</span>
-          </summary>
-          <div class="legacy-controls-content">
-            <section class="panel-card">
-              <div class="section-head">
-                <div>
-                  <h2>Manifest</h2>
-                  <p>JSON hasil export desktop.</p>
-                </div>
-                <button id="upload-btn" class="primary-btn" type="button">Upload JSON</button>
-                <input id="json-input" type="file" accept=".json,application/json" hidden>
-              </div>
+        <!-- =================== STATE C: RECOVERING =================== -->
+        <section class="state-view-card" id="recovering-state-view">
+          <div class="state-view-icon animate-pulse">⏳</div>
+          <div class="state-view-title" style="color: var(--warning);">Memulihkan Sesi...</div>
+          <div class="state-view-desc">Sesi terputus. Jangan tutup tab Nusuk atau memuat ulang browser Anda.</div>
+        </section>
 
-              <div class="member-select-wrap">
-                <label for="member-select">Mulai Dari Jamaah</label>
-                <select id="member-select" disabled></select>
-              </div>
-            </section>
-
-            <section class="panel-card">
-              <div class="section-head">
-                <div>
-                  <h2>File Passport</h2>
-                  <p>Sumber file untuk upload.</p>
-                </div>
-                <div class="file-action-row">
-                  <button id="passport-folder-btn" class="primary-btn" type="button">Pilih Folder</button>
-                  <button id="passport-files-btn" class="ghost-btn" type="button">Pilih File</button>
-                </div>
-                <input id="passport-folder-input" type="file" accept="image/*,.pdf" multiple webkitdirectory hidden>
-                <input id="passport-files-input" type="file" accept="image/*,.pdf" multiple hidden>
-              </div>
-              <div id="passport-files-summary" class="file-summary">Belum ada file passport dipilih.</div>
-            </section>
+        <!-- =================== STATE D: COMPLETED =================== -->
+        <section class="state-view-card" id="completed-state-view">
+          <div class="state-view-icon">🎉</div>
+          <div class="state-view-title" style="color: var(--success);">Batch Completed!</div>
+          <div class="state-view-desc" style="max-width: 280px; margin-bottom: 12px;">Semua passport dalam batch telah selesai diproses.</div>
+          
+          <div class="stats-summary-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; margin-bottom: 16px;">
+            <div class="metric-item">
+              <span class="metric-label">Sukses</span>
+              <span class="metric-value" id="stats-success-count">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Gagal</span>
+              <span class="metric-value" id="stats-failed-count">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Waktu Tempuh</span>
+              <span class="metric-value" id="stats-elapsed-time">0s</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Rerata / Pax</span>
+              <span class="metric-value" id="stats-avg-time">0s</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Sambungan Ulang</span>
+              <span class="metric-value" id="stats-reconnects">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Metode Run</span>
+              <span class="metric-value">Otomatis</span>
+            </div>
           </div>
-        </details>
 
-        <!-- Preview Card -->
-        <section class="panel-card">
-          <div class="section-head compact">
-            <div>
+          <button id="report-view-btn" class="btn btn-primary btn-sm" type="button" style="width: 100%;">Buka Log Laporan</button>
+          <button id="completed-reset-btn" class="btn btn-secondary btn-sm" type="button" style="width: 100%; margin-top: 8px;">Reset &amp; Mulai Baru</button>
+        </section>
+
+        <!-- =================== STATE E: ERROR =================== -->
+        <section class="state-view-card" id="error-state-view">
+          <div class="state-view-icon">⚠️</div>
+          <div class="state-view-title" style="color: var(--danger);">Desktop Terputus</div>
+          <div class="state-view-desc">Gagal menyambung ke server desktop setelah 3 kali mencoba. Pastikan aplikasi desktop EntryMate Anda sedang aktif.</div>
+          <button id="retry-connect-btn" class="btn btn-primary btn-sm" type="button" style="margin-top: 8px;">Coba Hubungkan Kembali</button>
+        </section>
+
+        <!-- =================== STATE B: RUNNING / ACTIVE =================== -->
+        <div id="running-state-view" style="width: 100%; display: flex; flex-direction: column; gap: 20px;">
+          <!-- PROGRESS HERO SECTION -->
+          <section class="progress-hero-section">
+            <div class="progress-meta" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+              <span id="progress-text" class="progress-fraction">0 / 0</span>
+            </div>
+            <div class="progress-track" style="margin-bottom: 6px;">
+              <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <div class="status-container" style="display: block; margin-top: 4px;">
+              <h2 id="status-banner" class="status-banner neutral">Siap.</h2>
+            </div>
+            <div id="eta-container" class="eta-container" style="display: none; justify-content: space-between; font-size: 10px; color: var(--ink-muted); font-weight: 500; margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 6px;">
+              <span>Rerata: <span id="eta-avg-time-val">-</span></span>
+              <span>Estimasi Sisa: <span id="eta-remaining-val">-</span></span>
+            </div>
+          </section>
+
+          <!-- CONTROLS ROW -->
+          <div class="control-row">
+            <button id="start-btn" class="btn btn-primary" type="button">Mulai</button>
+            <button id="pause-btn" class="btn btn-secondary" type="button">Pause</button>
+            <button id="reset-btn" class="btn btn-danger" type="button">Reset</button>
+          </div>
+
+          <!-- CURRENT PASSENGER CARD -->
+          <section class="passenger-card">
+            <div class="card-label">Jamaah Sedang Diproses</div>
+            <div class="passenger-body">
+              <div class="passenger-avatar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div class="passenger-info">
+                <h3 id="active-mutamer-name" class="passenger-name">Belum ada proses aktif</h3>
+                <div class="passenger-meta-tags">
+                  <span class="meta-tag" id="meta-passport">-</span>
+                  <span class="meta-tag" id="meta-nationality">-</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- LIVE ACTION FEEDBACK -->
+          <section class="action-feedback-section hidden" id="action-feedback-wrap">
+            <div class="action-spinner"></div>
+            <div class="action-text-wrap">
+              <div class="action-title" id="action-step-title">Mengisi formulir...</div>
+              <div class="action-desc" id="action-step-selector">-</div>
+            </div>
+          </section>
+        </div>
+
+        <!-- EXPANDED CONTAINER (Hanya Terlihat Di Mode Expanded) -->
+        <div class="expanded-container">
+          
+          <!-- Connection Card (Detail Notice) -->
+          <section class="panel-card connection-card">
+            <div class="section-head">
+              <h2>Hubungan Desktop</h2>
+              <p id="ws-status-desc">Hubungkan dengan membuka aplikasi desktop EntryMate.</p>
+            </div>
+            <div id="ws-notice-banner" class="file-summary-box hidden" style="border-style: solid; text-align: left; background-color: var(--primary-soft); color: var(--primary); border-color: rgba(37, 99, 235, 0.1);">
+              Mode Otomatisasi WebSocket aktif. Klik <strong>Start</strong> langsung pada aplikasi desktop Anda untuk memulai pengisian otomatis secara terintegrasi.
+            </div>
+          </section>
+
+          <!-- Telemetry Dashboard Card -->
+          <details class="collapsible-card" id="telemetry-details">
+            <summary class="collapsible-summary">
+              <span>Telemetry & Performance</span>
+              <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="collapsible-content">
+              <div class="telemetry-grid">
+                <div class="metric-item">
+                  <span class="metric-label">Sambungan Ulang</span>
+                  <span class="metric-value" id="telemetry-reconnect-count">0</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Lama Pemulihan</span>
+                  <span class="metric-value" id="telemetry-recovery-time">0ms</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Avg RTT</span>
+                  <span class="metric-value" id="telemetry-avg-rtt">0ms</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Max RTT</span>
+                  <span class="metric-value" id="telemetry-max-rtt">0ms</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Sequence Dropped</span>
+                  <span class="metric-value" id="telemetry-dropped-seq">0</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Duplicate Packets</span>
+                  <span class="metric-value" id="telemetry-duplicate-packets">0</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Heartbeat Timeout</span>
+                  <span class="metric-value" id="telemetry-heartbeat-timeout">0</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Recovery Success</span>
+                  <span class="metric-value" id="telemetry-recovery-success">0</span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- Legacy Manual Controls -->
+          <details class="collapsible-card">
+            <summary class="collapsible-summary">
+              <span>Legacy Mode (Kontrol Manual)</span>
+              <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="collapsible-content">
+              <div class="form-group" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 4px;">
+                <div class="section-head-with-action">
+                  <div>
+                    <h2 style="font-size: var(--text-body);">Manifest</h2>
+                    <p>JSON hasil export desktop.</p>
+                  </div>
+                  <button id="upload-btn" class="btn btn-secondary btn-sm" type="button">Upload JSON</button>
+                  <input id="json-input" type="file" accept=".json,application/json" hidden>
+                </div>
+                <div class="form-group" style="margin-top: 8px;">
+                  <label for="member-select">Mulai Dari Jamaah</label>
+                  <select id="member-select" disabled></select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <div class="section-head-with-action">
+                  <div>
+                    <h2 style="font-size: var(--text-body);">File Passport</h2>
+                    <p>Sumber file untuk upload.</p>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button id="passport-folder-btn" class="btn btn-secondary btn-sm" type="button">Pilih Folder</button>
+                    <button id="passport-files-btn" class="btn btn-outline btn-sm" type="button">Pilih File</button>
+                  </div>
+                  <input id="passport-folder-input" type="file" accept="image/*,.pdf" multiple webkitdirectory hidden>
+                  <input id="passport-files-input" type="file" accept="image/*,.pdf" multiple hidden>
+                </div>
+                <div id="passport-files-summary" class="file-summary-box" style="margin-top: 8px;">Belum ada file passport dipilih.</div>
+              </div>
+            </div>
+          </details>
+
+          <!-- Preview Card -->
+          <section class="panel-card">
+            <div class="section-head">
               <h2>Pratinjau</h2>
               <p>Ringkasan data jamaah.</p>
             </div>
-          </div>
+            <div id="preview-empty" class="empty-state-box">
+              <div class="empty-icon">📂</div>
+              <div>Upload manifest untuk melihat detail jamaah.</div>
+            </div>
+            <div id="preview-grid" class="preview-details-grid hidden">
+              <div class="preview-group">
+                <h3>Identitas</h3>
+                <dl id="preview-identity"></dl>
+              </div>
+              <div class="preview-group">
+                <h3>Passport</h3>
+                <dl id="preview-passport"></dl>
+              </div>
+              <div class="preview-group">
+                <h3>Perjalanan</h3>
+                <dl id="preview-travel"></dl>
+              </div>
+              <div class="preview-group">
+                <h3>Kontak</h3>
+                <dl id="preview-contact"></dl>
+              </div>
+            </div>
+          </section>
 
-          <div id="preview-empty" class="empty-state">Upload manifest untuk melihat detail jamaah.</div>
-          <div id="preview-grid" class="preview-grid hidden">
-            <div class="preview-group">
-              <h3>Identitas</h3>
-              <dl id="preview-identity"></dl>
+          <!-- Failures Card -->
+          <section class="panel-card failures-card" id="failures-card" style="display: none;">
+            <div class="section-head-with-action">
+              <div>
+                <h2>Jamaah Gagal (<span id="failures-count-badge">0</span>)</h2>
+                <p>Daftar gagal entry.</p>
+              </div>
+              <button id="restart-failed-btn" class="btn btn-secondary btn-sm" type="button">Ulangi Gagal</button>
             </div>
-            <div class="preview-group">
-              <h3>Passport</h3>
-              <dl id="preview-passport"></dl>
-            </div>
-            <div class="preview-group">
-              <h3>Perjalanan</h3>
-              <dl id="preview-travel"></dl>
-            </div>
-            <div class="preview-group">
-              <h3>Kontak</h3>
-              <dl id="preview-contact"></dl>
-            </div>
-          </div>
-        </section>
+            <div id="failures-list" class="log-list-container"></div>
+          </section>
 
-        <!-- Failures Card -->
-        <section class="panel-card" id="failures-card" style="display: none;">
-          <div class="section-head compact">
-            <div>
-              <h2>Jamaah Gagal</h2>
-              <p>Daftar gagal entry.</p>
+          <!-- Logs Card -->
+          <details class="collapsible-card" id="logs-details">
+            <summary class="collapsible-summary">
+              <span>Log Aktivitas</span>
+              <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="collapsible-content">
+              <div class="logs-header-actions">
+                <button id="clear-logs-btn" class="btn btn-outline btn-sm" type="button">Hapus</button>
+                <button id="copy-logs-btn" class="btn btn-outline btn-sm" type="button">Salin</button>
+              </div>
+              <div id="log-list" class="log-list-container"></div>
             </div>
-            <button id="restart-failed-btn" class="ghost-btn" type="button">Ulangi Gagal</button>
-          </div>
-          <div id="failures-list" class="log-list" style="max-height: 120px;"></div>
-        </section>
+          </details>
 
-      </div>
+        </div>
+      </main>
+
+      <!-- STICKY FOOTER -->
+      <footer class="panel-footer-status">
+        <div class="footer-left">
+          <div id="ws-indicator" class="ws-indicator disconnected"></div>
+          <span id="ws-status-title">Desktop: Terputus</span>
+          <span class="latency-pill hidden" id="ws-latency-wrapper">
+            <span id="ws-latency-value">0</span> ms
+          </span>
+        </div>
+        <div class="footer-right">
+          <span id="state-pill" class="state-pill-badge idle">Menunggu</span>
+        </div>
+      </footer>
 
     </div>
 
