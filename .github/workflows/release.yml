@@ -75,7 +75,7 @@ jobs:
           }
 
       - name: setup rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
 
@@ -177,6 +177,8 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Starting Release Artifact Verification Gate..."
+          $TagName = "${{ github.ref_name }}"
+          $IsPreRelease = ($TagName -match "-") -or ("${{ github.event.inputs.dry_run }}" -eq "true")
           
           # 1. Verify installer exists (use native recursive search as PowerShell doesn't support ** glob natively)
           $InstallerPath = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.exe" | Where-Object { $_.FullName -match "\\bundle\\nsis\\" } | Select-Object -First 1
@@ -219,10 +221,15 @@ jobs:
           }
           Write-Host "✓ tauri.local-release.conf.json found."
 
-          # 6. Verify updater.json and signature exists (if private key is present)
+          # 6. Verify updater.json and signature exists
           $UpdaterJson = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.json" | Where-Object { $_.FullName -match "\\bundle\\updater\\" } | Select-Object -First 1
           if (-not $UpdaterJson) {
-            Write-Warning "Warning: updater.json not found in bundler output."
+            if ($IsPreRelease) {
+              Write-Warning "Warning: updater.json not found in bundler output. Proceeding unsigned."
+            } else {
+              Write-Error "Validation Failed: updater.json was not generated!"
+              exit 1
+            }
           } else {
             Write-Host "✓ updater.json found: $($UpdaterJson.FullName)"
           }
@@ -231,10 +238,15 @@ jobs:
           if ("${{ secrets.TAURI_PRIVATE_KEY }}") {
             $SigFile = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.sig" | Where-Object { $_.FullName -match "\\bundle\\nsis\\" } | Select-Object -First 1
             if (-not $SigFile) {
-              Write-Error "Validation Failed: Updater signature file (.sig) is missing! Auto-updates will fail."
-              exit 1
+              if ($IsPreRelease) {
+                Write-Warning "Updater signature file (.sig) is missing! Pre-release build will proceed unsigned."
+              } else {
+                Write-Error "Validation Failed: Updater signature file (.sig) is missing! Auto-updates will fail."
+                exit 1
+              }
+            } else {
+              Write-Host "✓ Signature file found: $($SigFile.FullName)"
             }
-            Write-Host "✓ Signature file found: $($SigFile.FullName)"
           } else {
             Write-Host "! Skipping signature file check (build is unsigned)."
           }
