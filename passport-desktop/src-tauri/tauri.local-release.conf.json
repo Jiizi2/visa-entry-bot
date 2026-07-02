@@ -1,0 +1,7 @@
+﻿{
+  "bundle": {
+    "resources": {
+      "release-resources/python-ocr-dist": "python-ocr-dist"
+    }
+  }
+}
