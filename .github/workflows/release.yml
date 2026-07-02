@@ -325,6 +325,6 @@ jobs:
           name: "EntryMate ${{ github.ref_name }}"
           body: "Lihat perubahan terbaru pada rilis ini."
           token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: "all-artifacts/**/*,updater.json"
+          artifacts: "all-artifacts/**/*.exe,all-artifacts/**/*.sig,updater.json"
           artifactErrorsFailBuild: true
           replacesArtifacts: true
