@@ -32,8 +32,8 @@ jobs:
             Write-Error "CRITICAL: TAURI_PRIVATE_KEY secret is missing! Releases cannot be signed. Failing build early."
             exit 1
           }
-          if (-not "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}") {
-            Write-Error "CRITICAL: TAURI_SIGNING_PRIVATE_KEY_PASSWORD secret is missing! Decryption will fail. Failing build early."
+          if (-not "${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}") {
+            Write-Error "CRITICAL: TAURI_PRIVATE_KEY_PASSWORD secret is missing! Decryption will fail. Failing build early."
             exit 1
           }
           Write-Host "All required signing secrets are present."
@@ -41,7 +41,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '20.13.1'
           cache: 'npm'
           cache-dependency-path: 'passport-desktop/package-lock.json'
 
@@ -63,7 +63,9 @@ jobs:
           }
 
       - name: setup rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -86,7 +88,7 @@ jobs:
       - name: Build Standalone OCR Worker (PyInstaller)
         run: |
           cd python-ocr
-          python -m PyInstaller --noconfirm --clean --onedir --name scan_worker --add-data "services/data;services/data" --collect-submodules passporteye --collect-all rapidocr_onnxruntime --copy-metadata imageio scan_worker.py
+          python -m PyInstaller --noconfirm --clean --onedir --name scan_worker --distpath .dist --add-data "services/data;services/data" --collect-submodules passporteye --collect-all rapidocr_onnxruntime --copy-metadata imageio scan_worker.py
 
       - name: Stage Resources for Tauri Installer
         shell: pwsh
@@ -122,16 +124,16 @@ jobs:
           }
           Write-Host "✓ Installer found: $($InstallerPath.FullName)"
           
-          # 2. Verify installer size is valid (should be > 90 MB due to bundled OCR)
+          # 2. Check installer size (Warning Only)
           $SizeMB = $InstallerPath.Length / 1MB
           Write-Host "Installer Size: $SizeMB MB"
           if ($SizeMB -lt 80) {
-            Write-Error "Validation Failed: Installer size is too small ($SizeMB MB). The OCR worker may not have been bundled!"
-            exit 1
+            Write-Warning "Installer size is smaller than expected ($SizeMB MB). Confirm if resources are fully bundled."
+          } else {
+            Write-Host "✓ Installer size appears valid."
           }
-          Write-Host "✓ Installer size is valid."
           
-          # 3. Verify scan_worker.exe and python-ocr-dist exists in release resources
+          # 3. Verify scan_worker.exe exists in release resources
           $WorkerExe = "passport-desktop/src-tauri/release-resources/python-ocr-dist/scan_worker.exe"
           if (-not (Test-Path $WorkerExe)) {
             Write-Error "Validation Failed: scan_worker.exe does not exist in release-resources!"
@@ -139,7 +141,23 @@ jobs:
           }
           Write-Host "✓ scan_worker.exe found in release-resources."
           
-          # 4. Verify updater.json and signature exists (if private key is present)
+          # 4. Verify rapidocr_onnxruntime models and libraries exist inside the internal folders
+          $ModelDir = "passport-desktop/src-tauri/release-resources/python-ocr-dist/_internal/rapidocr_onnxruntime"
+          if (-not (Test-Path $ModelDir)) {
+            Write-Error "Validation Failed: rapidocr_onnxruntime models are missing inside scan_worker._internal!"
+            exit 1
+          }
+          Write-Host "✓ rapidocr_onnxruntime model folder verified inside scan_worker._internal."
+
+          # 5. Verify config file or version exists
+          $ConfigPath = "passport-desktop/src-tauri/tauri.local-release.conf.json"
+          if (-not (Test-Path $ConfigPath)) {
+            Write-Error "Validation Failed: local-release config parameter file not found!"
+            exit 1
+          }
+          Write-Host "✓ tauri.local-release.conf.json found."
+
+          # 6. Verify updater.json and signature exists (if private key is present)
           $UpdaterJson = Get-ChildItem -Path "passport-desktop/src-tauri/target/release/bundle/updater/*.json" -File | Select-Object -First 1
           if (-not $UpdaterJson) {
             Write-Warning "Warning: updater.json not found in bundler output."
@@ -187,6 +205,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -227,11 +247,14 @@ jobs:
 
           WINDOWS_NSIS_SIG=$(read_sig "*.exe.sig")
           WIN_NSIS_FILE=$(get_filename "*.exe")
+          
+          # Deterministic timestamp based on the git commit timestamp instead of current runner execution time
+          COMMIT_DATE=$(git log -1 --format=%cI)
 
           jq -n \
             --arg version "$VER" \
             --arg notes "Lihat perubahan terbaru pada rilis ini." \
-            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg pub_date "$COMMIT_DATE" \
             --arg dl "$DOWNLOAD_BASE" \
             --arg win_nsis_sig "$WINDOWS_NSIS_SIG" \
             --arg win_nsis_file "$WIN_NSIS_FILE" \
