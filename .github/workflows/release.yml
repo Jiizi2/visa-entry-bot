@@ -163,6 +163,16 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --config src-tauri/tauri.local-release.conf.json
 
+      - name: Debug Build Output
+        shell: pwsh
+        run: |
+          Write-Host "===== Target Tree ====="
+          if (Test-Path "passport-desktop/src-tauri/target") {
+            Get-ChildItem "passport-desktop/src-tauri/target" -Recurse
+          } else {
+            Write-Host "Target directory does not exist."
+          }
+
       - name: Verify Release Artifact Integrity (Verification Gate)
         shell: pwsh
         run: |
