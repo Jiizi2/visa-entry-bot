@@ -118,7 +118,7 @@ jobs:
         working-directory: ./passport-desktop
         run: npm ci
 
-      - name: Disable updater plugin without signing key
+      - name: Prepare Signing Key and Config
         shell: pwsh
         run: |
           if (-not "${{ secrets.TAURI_PRIVATE_KEY }}") {
@@ -133,7 +133,9 @@ jobs:
               Write-Host "Updater plugin was not active."
             }
           } else {
-            Write-Host "Signing key is configured; keeping updater active."
+            Write-Host "Signing key is configured. Sanitizing and writing to environment..."
+            $cleanKey = "${{ secrets.TAURI_PRIVATE_KEY }}".Replace("`n", "").Replace("`r", "").Replace(" ", "").Trim()
+            echo "TAURI_SIGNING_PRIVATE_KEY=$cleanKey" >> $env:GITHUB_ENV
           }
 
       - name: Debug Tauri Config Resolution
@@ -159,7 +161,7 @@ jobs:
       - name: Build the app
         working-directory: ./passport-desktop
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --config src-tauri/tauri.local-release.conf.json
 
