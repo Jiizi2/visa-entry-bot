@@ -4,6 +4,10 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     permissions:
@@ -19,7 +23,7 @@ jobs:
           - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-2022'
-            args: ''
+            args: '--config src-tauri/tauri.local-release.conf.json'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -35,6 +39,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'passport-desktop/package-lock.json'
 
       - name: Fix Windows MSVC and Git Linker paths
         if: runner.os == 'Windows'
@@ -59,9 +65,43 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./passport-desktop/src-tauri -> target"
+
+      - name: Setup Python
+        if: matrix.platform == 'windows-2022'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: 'python-ocr/requirements.txt'
+
+      - name: Install Python dependencies
+        if: matrix.platform == 'windows-2022'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r python-ocr/requirements.txt
+          pip install -r python-ocr/requirements-dev.txt
+
+      - name: Build Standalone OCR Worker (PyInstaller)
+        if: matrix.platform == 'windows-2022'
+        run: |
+          cd python-ocr
+          python -m PyInstaller --noconfirm --clean --onedir --name scan_worker --add-data "services/data;services/data" --collect-submodules passporteye --collect-all rapidocr_onnxruntime --copy-metadata imageio scan_worker.py
+
+      - name: Stage Resources for Tauri Installer
+        if: matrix.platform == 'windows-2022'
+        shell: pwsh
+        run: |
+          $TargetDir = "passport-desktop/src-tauri/release-resources/python-ocr-dist"
+          New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+          Copy-Item -Path "python-ocr/.dist/scan_worker/*" -Destination $TargetDir -Recurse -Force
+
       - name: install frontend dependencies
         working-directory: ./passport-desktop
-        run: npm install
+        run: npm ci
 
       - name: Build the app
         working-directory: ./passport-desktop
