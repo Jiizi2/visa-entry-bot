@@ -122,41 +122,20 @@ jobs:
         shell: pwsh
         run: |
           if (-not "${{ secrets.TAURI_PRIVATE_KEY }}") {
-            Write-Host "No signing key configured. Disabling updater plugin to allow unsigned build..."
+            Write-Host "No signing key configured. Disabling updater plugin and createUpdaterArtifacts to allow unsigned build..."
             $configPath = "passport-desktop/src-tauri/tauri.conf.json"
             $config = Get-Content -Raw $configPath | ConvertFrom-Json
             if ($config.plugins.updater) {
               $config.plugins.PSObject.Properties.Remove("updater")
-              $config | ConvertTo-Json -Depth 32 | Set-Content -Path $configPath -Encoding UTF8
-              Write-Host "✓ Updater plugin disabled successfully in tauri.conf.json."
-            } else {
-              Write-Host "Updater plugin was not active."
             }
+            $config.bundle.createUpdaterArtifacts = $false
+            $config | ConvertTo-Json -Depth 32 | Set-Content -Path $configPath -Encoding UTF8
+            Write-Host "✓ Updater plugin and createUpdaterArtifacts disabled in tauri.conf.json."
           } else {
             Write-Host "Signing key is configured. Sanitizing and writing to environment..."
-            $cleanKey = "${{ secrets.TAURI_PRIVATE_KEY }}".Replace("`n", "").Replace("`r", "").Replace(" ", "").Trim()
+            $cleanKey = ("${{ secrets.TAURI_PRIVATE_KEY }}" -replace '\s+', '').Trim()
             echo "TAURI_SIGNING_PRIVATE_KEY=$cleanKey" >> $env:GITHUB_ENV
           }
-
-      - name: Debug Tauri Config Resolution
-        working-directory: ./passport-desktop
-        shell: pwsh
-        run: |
-          Write-Host "PWD:"
-          Get-Location
-
-          Write-Host ""
-          Write-Host "Root:"
-          Get-ChildItem
-
-          Write-Host ""
-          Write-Host "src-tauri:"
-          Get-ChildItem src-tauri
-
-          Write-Host ""
-          Write-Host "Config exists?"
-          Test-Path tauri.local-release.conf.json
-          Test-Path src-tauri/tauri.local-release.conf.json
 
       - name: Build the app
         working-directory: ./passport-desktop
@@ -164,16 +143,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --config src-tauri/tauri.local-release.conf.json
-
-      - name: Debug Build Output
-        shell: pwsh
-        run: |
-          Write-Host "===== Target Tree ====="
-          if (Test-Path "passport-desktop/src-tauri/target") {
-            Get-ChildItem "passport-desktop/src-tauri/target" -Recurse
-          } else {
-            Write-Host "Target directory does not exist."
-          }
 
       - name: Verify Release Artifact Integrity (Verification Gate)
         shell: pwsh
