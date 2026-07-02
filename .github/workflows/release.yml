@@ -118,12 +118,30 @@ jobs:
         working-directory: ./passport-desktop
         run: npm ci
 
+      - name: Disable updater plugin without signing key
+        shell: pwsh
+        run: |
+          if (-not "${{ secrets.TAURI_PRIVATE_KEY }}") {
+            Write-Host "No signing key configured. Disabling updater plugin to allow unsigned build..."
+            $configPath = "passport-desktop/src-tauri/tauri.conf.json"
+            $config = Get-Content -Raw $configPath | ConvertFrom-Json
+            if ($config.plugins.updater) {
+              $config.plugins.PSObject.Properties.Remove("updater")
+              $config | ConvertTo-Json -Depth 32 | Set-Content -Path $configPath -Encoding UTF8
+              Write-Host "✓ Updater plugin disabled successfully in tauri.conf.json."
+            } else {
+              Write-Host "Updater plugin was not active."
+            }
+          } else {
+            Write-Host "Signing key is configured; keeping updater active."
+          }
+
       - name: Build the app
         working-directory: ./passport-desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
-        run: npm run tauri build -- --config src-tauri/tauri.local-release.conf.json
+        run: npm run tauri build -- --config tauri.local-release.conf.json
 
       - name: Verify Release Artifact Integrity (Verification Gate)
         shell: pwsh
