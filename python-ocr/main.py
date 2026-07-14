@@ -251,7 +251,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "budgetExceeded": _budget_exceeded(started_at, _ocr_budget_ms()),
             "skippedStages": list(skipped_ocr_stages),
             "ocrCache": get_ocr_result_cache_stats(),
-            "tesseract": get_ocr_stats(),
+            "rapidocr": get_ocr_stats(),
             "imagePreprocessor": get_image_preprocessor_stats(),
             "ocrMode": "DEEP",
             "ocrModeReasons": ["PROCESSING_EXCEPTION"],

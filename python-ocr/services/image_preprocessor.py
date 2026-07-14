@@ -170,6 +170,8 @@ def resize_to_max_edge(image: object | None, *, max_edge: int) -> object | None:
 
 def detect_passport_data_page_crop(image: object) -> object | None:
     document = detect_document_crop(image)
+    if document is not None and not _is_plausible_passport_crop(document):
+        document = None
     if cv2 is None or image is None or not _should_try_stacked_passport_crop(image):
         return document
 
