@@ -192,19 +192,7 @@ jobs:
           }
           Write-Host "✓ tauri.local-release.conf.json found."
 
-          # 6. Verify updater.json and signature exists
-          $UpdaterJson = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.json" | Where-Object { $_.FullName -match "\\bundle\\updater\\" } | Select-Object -First 1
-          if (-not $UpdaterJson) {
-            if ($IsPreRelease) {
-              Write-Warning "Warning: updater.json not found in bundler output. Proceeding unsigned."
-            } else {
-              Write-Error "Validation Failed: updater.json was not generated!"
-              exit 1
-            }
-          } else {
-            Write-Host "✓ updater.json found: $($UpdaterJson.FullName)"
-          }
-          
+
           # Only assert signatures on actual release runs (where signing keys are present)
           if ("${{ secrets.TAURI_PRIVATE_KEY }}") {
             $SigFile = Get-ChildItem -Path "passport-desktop/src-tauri/target" -Recurse -File -Filter "*.sig" | Where-Object { $_.FullName -match "\\bundle\\nsis\\" } | Select-Object -First 1
@@ -262,7 +250,7 @@ jobs:
 
       - name: Build updater.json from signatures
         env:
-          VERSION: ${{ github.ref_name || 'v1.0.19' }}
+          VERSION: ${{ github.ref_name || 'v1.0.20' }}
           REPO: ${{ github.repository }}
         run: |
           DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
