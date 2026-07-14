@@ -89,7 +89,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
   }, [isOpen]);
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 100 }}>
+    <div className="modal-overlay" style={{ zIndex: 99999 }}>
       <div className="modal-card">
         {/* Header */}
         <div className="modal-header">
