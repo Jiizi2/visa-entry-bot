@@ -13,9 +13,6 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
   const [errorMsg, setErrorMsg] = useState('');
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [updaterContext, setUpdaterContext] = useState<any>(null);
-
-  if (!isOpen) return null;
-
   const handleCheckUpdate = async () => {
     setStatus('checking');
     try {
@@ -32,7 +29,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
       }
     } catch (e: any) {
       console.error(e);
-      setErrorMsg(e.toString());
+      setErrorMsg(e ? String(e) : 'Gagal memeriksa pembaruan.');
       setStatus('error');
     }
   };
@@ -61,7 +58,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
       setStatus('ready');
     } catch (e: any) {
       console.error(e);
-      setErrorMsg(e.toString());
+      setErrorMsg(e ? String(e) : 'Gagal mengunduh pembaruan.');
       setStatus('error');
     }
   };
@@ -87,6 +84,8 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
       }, 300);
     }
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" style={{ zIndex: 99999 }}>

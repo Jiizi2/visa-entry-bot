@@ -66,11 +66,9 @@ export default function App() {
   const updateState = useStore((state) => state.updateState);
 
   useEffect(() => {
-    try {
-      getCurrentWindow().show();
-    } catch (e) {
-      console.warn('Bukan context Tauri', e);
-    }
+    getCurrentWindow().show().catch((e) => {
+      console.warn('Gagal menampilkan window:', e);
+    });
 
     // Tauri Watchdog Heartbeat
     // Memastikan backend tahu bahwa React UI masih hidup dan tidak hang
