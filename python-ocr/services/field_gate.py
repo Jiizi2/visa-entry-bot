@@ -19,7 +19,7 @@ def should_skip_field_recovery(
         return (
             mrz_validation_valid
             and mrz_confidence >= 80.0
-            and bool(re.fullmatch(r"[EX]\d{7}", current_value))
+            and bool(re.fullmatch(r"[EXY]\d{7}", current_value))
         )
     
     if field_name in {"dob", "expiryDate"}:

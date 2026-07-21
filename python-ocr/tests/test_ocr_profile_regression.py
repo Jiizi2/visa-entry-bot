@@ -9,12 +9,113 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.scan_context import ScanContext
-from services.pipeline_stages import _stage_dates_recovery, _stage_names_recovery, _stage_validation_and_metrics
+from services.pipeline_stages import _stage_dates_recovery, _stage_initial_panel, _stage_names_recovery, _stage_speed_adaptive_recovery, _stage_validation_and_metrics
 from services.mrz_extractor import _is_optimized_pipeline, _direct_mrz_orientation_candidates
 from services.models import OcrProfile, ParsedPassportData
 
 
 class OcrProfileRegressionTests(unittest.TestCase):
+    def test_speed_profile_latches_fast_path_and_restores_short_budget_for_healthy_mrz(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 20_000)
+        ctx.parsed = ParsedPassportData(
+            firstName="KARIM ALFARIZI",
+            familyName="RAMADAN",
+            passportNumber="E8710852",
+            nationality="INDONESIA",
+            dob="2019-06-01",
+            expiryDate="2030-01-08",
+            gender="MALE",
+        )
+        ctx.extraction = {"confidence": 0.95, "mrzValidation": {"valid": True}}
+
+        with patch("services.pipeline_stages.extract_document_panel_fields") as panel_scan:
+            _stage_initial_panel(ctx)
+            _stage_speed_adaptive_recovery(ctx)
+
+        panel_scan.assert_not_called()
+        self.assertTrue(ctx.speed_fast_path)
+        self.assertFalse(ctx.speed_recovery_required)
+        self.assertEqual(ctx.ocr_budget_ms, 15_000)
+
+        with patch("services.pipeline_stages.validate_member", return_value=("VALID", "")):
+            metrics = _stage_validation_and_metrics(ctx)["processingMetrics"]
+        self.assertTrue(metrics["speedFastPath"])
+        self.assertFalse(metrics["adaptiveRecoveryUsed"])
+
+    def test_speed_profile_rescues_empty_mrz_with_panel_even_after_budget(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 0)
+        ctx.parsed = ParsedPassportData()
+        ctx.extraction = {"data": {}, "confidence": 0.0, "notes": ""}
+        panel_fields = {
+            "fullName": "BUDI SANTOSO",
+            "passportNumber": "E1234567",
+            "nationality": "INDONESIA",
+            "dob": "1990-01-02",
+            "gender": "MALE",
+            "placeOfBirth": "JAKARTA",
+            "issueDate": "2025-01-01",
+            "expiryDate": "2035-01-01",
+            "issuingOffice": "JAKARTA",
+        }
+
+        with patch("services.pipeline_stages.extract_document_panel_fields", return_value=panel_fields) as panel_scan:
+            _stage_initial_panel(ctx)
+            panel_scan.assert_not_called()
+            self.assertTrue(ctx.speed_fast_path)
+            _stage_speed_adaptive_recovery(ctx)
+
+        panel_scan.assert_called_once()
+        self.assertNotIn("placeOfBirth", panel_scan.call_args.kwargs["field_names"])
+        self.assertNotIn("issuingOffice", panel_scan.call_args.kwargs["field_names"])
+        self.assertTrue(ctx.speed_recovery_required)
+        self.assertFalse(ctx.speed_fast_path)
+        self.assertEqual(ctx.ocr_budget_ms, 0)
+        self.assertEqual(ctx.parsed.get("passportNumber"), "E1234567")
+        self.assertEqual(ctx.parsed.get("firstName"), "BUDI")
+        self.assertEqual(ctx.parsed.get("familyName"), "SANTOSO")
+        self.assertEqual(ctx.parsed.get("dob"), "1990-01-02")
+
+    def test_complete_speed_identity_does_not_run_panel_for_low_confidence_mrz(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 20_000)
+        ctx.parsed = ParsedPassportData(
+            firstName="BUDI",
+            familyName="SANTOSO",
+            passportNumber="E1234567",
+            nationality="INDONESIA",
+            dob="1990-01-02",
+            expiryDate="2035-01-01",
+            gender="MALE",
+        )
+        ctx.extraction = {"data": {}, "confidence": 0.2, "mrzValidation": {"valid": False}}
+        _stage_initial_panel(ctx)
+
+        with patch("services.pipeline_stages.extract_document_panel_fields") as panel_scan:
+            _stage_speed_adaptive_recovery(ctx)
+
+        panel_scan.assert_not_called()
+        self.assertTrue(ctx.speed_fast_path)
+        self.assertFalse(ctx.speed_recovery_required)
+
+    def test_speed_profile_uses_visual_recovery_when_mrz_and_panel_are_empty(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 20_000)
+        ctx.parsed = ParsedPassportData()
+        ctx.extraction = {"data": {}, "confidence": 0.0, "notes": ""}
+        _stage_initial_panel(ctx)
+
+        with (
+            patch("services.pipeline_stages.extract_document_panel_fields", return_value={}),
+            patch("services.pipeline_stages.extract_aligned_passport_page", return_value=MagicMock()),
+            patch(
+                "services.pipeline_stages.extract_visual_fields",
+                return_value={"fullName": "BUDI SANTOSO", "nationality": "INDONESIA"},
+            ) as visual_scan,
+        ):
+            _stage_speed_adaptive_recovery(ctx)
+
+        visual_scan.assert_called_once()
+        self.assertTrue(ctx.visual_ocr_used)
+        self.assertEqual(ctx.visual_fields.get("fullName"), "BUDI SANTOSO")
+
     def test_telemetry_recovery_state_shadowing(self) -> None:
         """Verify that ctx.needs_date_scan and ctx.needs_name_scan are updated
         when dates/names recovery is triggered, and telemetry captures them.

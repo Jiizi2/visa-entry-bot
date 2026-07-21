@@ -30,12 +30,18 @@ Engine ini dipecah ke dalam beberapa modul terpisah dengan pola desain *Declarat
 ## 2. Siklus Eksekusi Utama (`automation-runner.js`)
 
 Orkestrator loop berada di fungsi `runAutomation`. Siklus kerjanya:
-1. Menerima payload batch jamaah (dari `nusuk-entry-batch.json`).
+1. Menerima payload batch jamaah dari WebSocket desktop (mode utama) atau upload `nusuk-entry-batch.json` (Legacy Mode).
 2. Melakukan iterasi per jamaah (`for member of members`).
 3. Menjalankan fungsi **`runMemberWithRetry`** untuk setiap jamaah.
 4. Jika gagal (timeout, page freeze, session expired), runner akan melakukan *retry* dengan *exponential backoff delay*. Maksimal retry default adalah 3x per jamaah.
 5. Jika error yang terjadi adalah "Session Expired", automation akan menunggu user login ulang secara manual tanpa menggagalkan queue (antrean) jamaah lainnya.
 6. Menyimpan *checkpoint* secara berkala agar jika halaman di-refresh, proses bisa *resume* tepat dari step terakhir.
+
+### Sumber Command dan Data
+
+- **Mode utama:** panel extension terhubung ke WebSocket desktop pada `ws://127.0.0.1:9001-9005`. Desktop mengirim `LOAD_BATCH` dan `START`; extension mengirim progress dan status sesi kembali.
+- **Legacy Mode:** user mengupload `nusuk-entry-batch.json`, memilih file passport, lalu memulai automation dari panel extension.
+- Kedua mode masuk ke runner dan kontrak manifest yang sama; perbedaannya hanya pada transport dan cara memperoleh file passport.
 
 ---
 

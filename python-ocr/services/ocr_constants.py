@@ -9,10 +9,11 @@ OCR_PROFILE_ALIASES = {OcrProfile.ACCURACY: OcrProfile.HEAVY}
 OCR_PROFILE_ALIASES = {OcrProfile.ACCURACY: OcrProfile.HEAVY}
 OCR_PROFILES = {OcrProfile.SPEED, OcrProfile.BALANCED, OcrProfile.HEAVY}
 OCR_PROFILE_BUDGET_MS = {
-    OcrProfile.SPEED: 15_000,
+    OcrProfile.SPEED: 20_000,
     OcrProfile.BALANCED: 30_000,
     OcrProfile.HEAVY: 90_000,
 }
+OCR_SPEED_FAST_PATH_BUDGET_MS = 15_000
 OCR_BALANCED_PANEL_RECOVERY_FIELDS = ("placeOfBirth", "issuingOffice", "issueDate")
 OCR_FULL_PANEL_FIELD_SCOPE = (
     "fullName",
@@ -37,6 +38,7 @@ OCR_FULL_VISUAL_FIELD_SCOPE = (
 )
 OCR_STAGE_MIN_REMAINING_MS = {
     "visual": 1_000,
+    "speed_visual": 3_000,
     "panel": 3_000,
     "speed_panel": 2_500,
     "visual_recovery": 5_000,

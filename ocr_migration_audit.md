@@ -1,6 +1,8 @@
 # OCR Migration Audit: Tesseract to RapidOCR
 
-Laporan audit ini mendokumentasikan kondisi aktual migrasi engine OCR dari **Tesseract** ke **RapidOCR (ONNX Runtime)** pada project `visa-entry-bot`. Audit ini mencakup analisis dependency, source code, aliran OCR, konfigurasi, peluang optimasi, dan review performa.
+> **Status dokumen:** Arsip audit migrasi. Temuan yang menyebut PassportEye/Tesseract sebagai dependency aktif menggambarkan kondisi saat audit dibuat dan sudah tidak berlaku pada runtime terkini. `requirements.txt` dan `services/mrz_extractor.py` saat ini menggunakan RapidOCR tanpa PassportEye/Tesseract.
+
+Laporan ini mendokumentasikan kondisi pada saat migrasi engine OCR dari **Tesseract** ke **RapidOCR (ONNX Runtime)**. Audit ini dipertahankan untuk riwayat keputusan dan tidak lagi menjadi sumber kebenaran runtime.
 
 ---
 
@@ -130,17 +132,17 @@ Berikut adalah beberapa pendekatan yang diusulkan untuk meningkatkan kecepatan (
 
 ---
 
-## 8. Recommended Updates
+## 8. Rekomendasi pada Saat Audit (Historis)
 
-Rekomendasi tindakan disusun berdasarkan dampak dan tingkat kesulitan (effort):
+Daftar berikut adalah rekomendasi ketika audit dibuat. Sebagian atau seluruh item dapat sudah selesai dan harus diverifikasi terhadap kode terkini sebelum dijadikan pekerjaan baru.
 
 | Prioritas | Deskripsi Peningkatan | Dampak | Tingkat Kesulitan (Effort) | Lokasi File |
 | :--- | :--- | :--- | :--- | :--- |
-| **Critical** | Hapus loop redundant `for psm in (6, 7, 13)` pada direct MRZ extraction. | **Sangat Tinggi** (Mempercepat runtime direct MRZ scan hingga 3x lipat). | **Sangat Rendah** (Hanya menghapus satu baris indentasi loop). | [mrz_extractor.py](file:///c:/visa-entry-bot/python-ocr/services/mrz_extractor.py#L249) |
-| **High** | Ubah pengecekan Tesseract di `extract_mrz_data` menjadi kondisional. | **Tinggi** (Mencegah scan skipped/crash saat Tesseract tidak terpasang di target machine). | **Rendah** (Bungkus validasi awal dengan pengecekan profile/fallback). | [mrz_extractor.py](file:///c:/visa-entry-bot/python-ocr/services/mrz_extractor.py#L80) |
-| **High** | Turunkan scale factor ke 2.0x dan hilangkan varian CLAHE untuk Speed Mode. | **Tinggi** (Mengurangi beban CPU/RAM dan mempercepat visual field scan hingga 70% di Speed mode). | **Rendah** (Modifikasi logic kondisional profile di visual scanner). | [visual_region_scanner.py](file:///c:/visa-entry-bot/python-ocr/services/visual_region_scanner.py#L75) |
-| **High** | Lewati fallback Tesseract/PassportEye secara kondisional jika profile disetel ke `speed`. | **Tinggi** (Menghilangkan bottleneck runtime & dependency Tesseract di Speed mode). | **Rendah** (Pemeriksaan environment variable di MRZ extractor). | [mrz_extractor.py](file:///c:/visa-entry-bot/python-ocr/services/mrz_extractor.py#L127) |
-| **High** | Hapus dead import dan fungsi pembantu Tesseract yang tidak digunakan. | **Sedang** (Merapikan kode & menghilangkan kebingungan dependency). | **Rendah** (Pembersihan baris import dan kode mati). | [pdf_image_converter.py](file:///c:/visa-entry-bot/python-ocr/services/pdf_image_converter.py#L11-L14)<br>[issue_date_extractor.py](file:///c:/visa-entry-bot/python-ocr/services/issue_date_extractor.py#L12)<br>[expiry_date_extractor.py](file:///c:/visa-entry-bot/python-ocr/services/expiry_date_extractor.py#L12) |
-| **Medium** | Dukung opsi konfigurasi dinamis `PASSPORT_OCR_MAX_THREADS` via env variable. | **Sedang** (Mengizinkan limitasi thread pada VPS murah tanpa memperlambat laptop client). | **Rendah** (Konfigurasi session options RapidOCR opsional). | [ocr_runner.py](file:///c:/visa-entry-bot/python-ocr/services/ocr_runner.py) |
-| **Medium** | Ubah nama key metrik dari `"tesseract"` menjadi `"rapidocr"` secara end-to-end. | **Rendah** (Klarifikasi data metrik pada dashboard monitoring). | **Sedang** (Memerlukan penyelarasan skema JSON antara Python worker dan parser Rust/TypeScript di Tauri). | [main.py](file:///c:/visa-entry-bot/python-ocr/main.py#L206)<br>[pipeline_stages.py](file:///c:/visa-entry-bot/python-ocr/services/pipeline_stages.py#L456)<br>[lib.rs](file:///c:/visa-entry-bot/passport-desktop/src-tauri/src/lib.rs) |
-| **Low** | Hapus parsing whitelist bergaya Tesseract di `ocr_runner.py` dan ganti dengan parameter langsung. | **Rendah** (Keterbacaan dan kesederhanaan kode). | **Rendah** (Refactor minor tanda tangan fungsi). | [ocr_runner.py](file:///c:/visa-entry-bot/python-ocr/services/ocr_runner.py#L45) |
+| **Critical** | Hapus loop redundant `for psm in (6, 7, 13)` pada direct MRZ extraction. | **Sangat Tinggi** (Mempercepat runtime direct MRZ scan hingga 3x lipat). | **Sangat Rendah** (Hanya menghapus satu baris indentasi loop). | [`mrz_extractor.py`](python-ocr/services/mrz_extractor.py) |
+| **High** | Ubah pengecekan Tesseract di `extract_mrz_data` menjadi kondisional. | **Tinggi** (Mencegah scan skipped/crash saat Tesseract tidak terpasang di target machine). | **Rendah** (Bungkus validasi awal dengan pengecekan profile/fallback). | [`mrz_extractor.py`](python-ocr/services/mrz_extractor.py) |
+| **High** | Turunkan scale factor ke 2.0x dan hilangkan varian CLAHE untuk Speed Mode. | **Tinggi** (Mengurangi beban CPU/RAM dan mempercepat visual field scan hingga 70% di Speed mode). | **Rendah** (Modifikasi logic kondisional profile di visual scanner). | [`visual_region_scanner.py`](python-ocr/services/visual_region_scanner.py) |
+| **High** | Lewati fallback Tesseract/PassportEye secara kondisional jika profile disetel ke `speed`. | **Tinggi** (Menghilangkan bottleneck runtime & dependency Tesseract di Speed mode). | **Rendah** (Pemeriksaan environment variable di MRZ extractor). | [`mrz_extractor.py`](python-ocr/services/mrz_extractor.py) |
+| **High** | Hapus dead import dan fungsi pembantu Tesseract yang tidak digunakan. | **Sedang** (Merapikan kode & menghilangkan kebingungan dependency). | **Rendah** (Pembersihan baris import dan kode mati). | [`pdf_image_converter.py`](python-ocr/services/pdf_image_converter.py)<br>[`issue_date_extractor.py`](python-ocr/services/issue_date_extractor.py)<br>[`expiry_date_extractor.py`](python-ocr/services/expiry_date_extractor.py) |
+| **Medium** | Dukung opsi konfigurasi dinamis `PASSPORT_OCR_MAX_THREADS` via env variable. | **Sedang** (Mengizinkan limitasi thread pada VPS murah tanpa memperlambat laptop client). | **Rendah** (Konfigurasi session options RapidOCR opsional). | [`ocr_runner.py`](python-ocr/services/ocr_runner.py) |
+| **Medium** | Ubah nama key metrik dari `"tesseract"` menjadi `"rapidocr"` secara end-to-end. | **Rendah** (Klarifikasi data metrik pada dashboard monitoring). | **Sedang** (Memerlukan penyelarasan skema JSON antara Python worker dan parser Rust/TypeScript di Tauri). | [`main.py`](python-ocr/main.py)<br>[`pipeline_stages.py`](python-ocr/services/pipeline_stages.py)<br>[`lib.rs`](passport-desktop/src-tauri/src/lib.rs) |
+| **Low** | Hapus parsing whitelist bergaya Tesseract di `ocr_runner.py` dan ganti dengan parameter langsung. | **Rendah** (Keterbacaan dan kesederhanaan kode). | **Rendah** (Refactor minor tanda tangan fungsi). | [`ocr_runner.py`](python-ocr/services/ocr_runner.py) |

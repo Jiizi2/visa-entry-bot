@@ -34,6 +34,7 @@ from services.ocr_runner import get_ocr_stats
 from services.validator import calculate_confidence, validate_member
 from services.visual_name_extractor import refine_names_from_scan
 from services.scan_context import ScanContext
+from services.ocr_constants import OCR_SPEED_FAST_PATH_BUDGET_MS
 from services.decision_rules import DecisionRules
 from services.scan_budget import _build_budget_notes, _classify_ocr_mode, _ocr_mode_reasons
 from services.passport_logic import (
@@ -44,7 +45,6 @@ from services.passport_logic import (
     _select_speed_visual_field_names,
     _select_heavy_visual_field_names,
     _missing_profile_visual_panel_fields,
-    _missing_speed_location_panel_fields,
     _should_try_speed_location_ocr,
     _should_try_recovery_location_ocr,
     _visual_fields_need_aligned_page,
@@ -57,6 +57,7 @@ from services.passport_logic import (
     _pick_preferred_full_name,
     _build_given_name_hint,
     _select_profile_panel_field_names,
+    _speed_identity_field_count,
     _should_run_initial_panel_scan,
     _needs_name_refinement,
 )
@@ -84,7 +85,16 @@ def _stage_mrz(ctx: ScanContext) -> None:
 
 def _stage_initial_panel(ctx: ScanContext) -> None:
     logger.debug("[%s] Stage: initial_panel", ctx.file_name)
-    if _should_run_initial_panel_scan(ctx.ocr_profile, ctx.extraction):
+    if ctx.is_speed_scan:
+        # Always finish the lightweight 4db9c71-style pass before deciding
+        # whether panel/deep recovery is necessary.
+        ctx.speed_recovery_required = False
+        ctx.speed_fast_path = True
+        ctx.speed_recovery_budget_ms = ctx.ocr_budget_ms
+        ctx.ocr_budget_ms = min(ctx.ocr_budget_ms, OCR_SPEED_FAST_PATH_BUDGET_MS)
+        ctx.panel_field_names = ()
+        return
+    if _should_run_initial_panel_scan(ctx.ocr_profile, ctx.extraction, ctx.parsed):
         panel_field_names = _select_profile_panel_field_names(ctx.ocr_profile, ctx.parsed, ctx.extraction)
         if _should_skip_panel_for_direct_location_only(ctx.parsed, ctx.extraction, panel_field_names):
             ctx.skipped_panel_field_names = panel_field_names
@@ -141,7 +151,8 @@ def _stage_visual_fields(ctx: ScanContext) -> None:
         ctx.report_step("visual", "Membaca field visual", 0.46, "  - reading visual fields")
         stage_started = time.perf_counter()
         if ctx.visual_field_names != ():
-            if ctx.can_spend_ocr_time("visual"):
+            visual_budget_stage = "speed_visual" if speed_first_scan else "visual"
+            if ctx.can_spend_ocr_time(visual_budget_stage):
                 ctx.visual_ocr_used = True
                 if speed_first_scan:
                     ctx.visual_fields = extract_fast_location_fields(
@@ -176,32 +187,110 @@ def _stage_visual_fields(ctx: ScanContext) -> None:
     else:
         ctx.visual_field_names = ()
 
-def _stage_speed_panel(ctx: ScanContext) -> None:
-    logger.debug("[%s] Stage: speed_panel", ctx.file_name)
-    speed_first_scan = ctx.is_speed_scan
-    if speed_first_scan:
-        missing_speed_panel_fields = _missing_speed_location_panel_fields(ctx.visual_field_names, ctx.visual_fields)
-        if missing_speed_panel_fields:
-            if ctx.can_spend_ocr_time("speed_panel"):
-                ctx.panel_fallback_used = True
-                ctx.report_step("panel", "Membaca panel lokasi", 0.50, "  - reading document panel")
-                stage_started = time.perf_counter()
-                speed_panel_fields = extract_document_panel_fields(
-                    ctx.file_path,
-                    family_hint=ctx.parsed.get("familyName", ""),
-                    given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
-                    field_names=missing_speed_panel_fields,
-                    current_dob=ctx.parsed.get("dob", ""),
-                    current_issue_date=ctx.parsed.get("issueDate", ""),
-                    current_expiry_date=ctx.parsed.get("expiryDate", ""),
-                )
-                ctx.panel_fields.update({key: value for key, value in speed_panel_fields.items() if value and not ctx.panel_fields.get(key)})
-                speed_panel_notes = fuse_panel_fields(ctx, speed_panel_fields)
-                ctx.panel_notes = join_notes(ctx.panel_notes, speed_panel_notes)
-                ctx.record_stage_duration("panel", stage_started)
-                logger.debug("[%s] Stage speed_panel done in %dms", ctx.file_name, ctx.stage_durations_ms.get("panel", 0))
-            else:
-                ctx.skip_stage("speed_panel")
+def _merge_speed_pass_results(ctx: ScanContext) -> None:
+    """Merge speed-pass sources before deciding whether recovery is needed."""
+    ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
+    pre_parsed = dict(ctx.parsed)
+    merge_visual_fields(ctx, ctx.merged_visual_fields)
+    ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
+    ctx.parsed, ctx.fast_mrz_notes = _apply_fast_mrz_repairs(ctx.parsed, ctx.extraction)
+    ctx.visual_notes = build_visual_notes(ctx.merged_visual_fields)
+    ctx.parsed, ctx.fast_date_notes = _apply_fast_date_repairs(ctx.parsed)
+    for field_name in ("passportNumber", "dob", "expiryDate", "firstName", "familyName", "nationality", "gender", "issueDate"):
+        curr_val = ctx.parsed.get(field_name, "")
+        if curr_val != pre_parsed.get(field_name, ""):
+            DecisionRules.evaluate_and_update(
+                ctx,
+                field_name,
+                curr_val,
+                source="INFERENCE",
+                confidence=0.90,
+                tentative=False,
+                validated=True,
+            )
+    ctx.speed_first_pass_merged = True
+
+
+def _stage_speed_adaptive_recovery(ctx: ScanContext) -> None:
+    """Run a second OCR pass only when the completed speed pass is insufficient."""
+    if not ctx.is_speed_scan:
+        return
+
+    _merge_speed_pass_results(ctx)
+    # A complete identity is usable even when the source MRZ has low confidence;
+    # review flags retain that warning without forcing an expensive panel scan.
+    ctx.speed_recovery_required = _speed_identity_field_count(ctx.parsed) < 7
+    ctx.speed_fast_path = not ctx.speed_recovery_required
+    if not ctx.speed_recovery_required:
+        return
+
+    ctx.ocr_budget_ms = max(ctx.ocr_budget_ms, ctx.speed_recovery_budget_ms)
+    panel_field_names = tuple(
+        field_name
+        for field_name in _select_profile_panel_field_names(ctx.ocr_profile, ctx.parsed, ctx.extraction)
+        if field_name not in {"placeOfBirth", "issuingOffice"}
+    )
+    ctx.panel_field_names = panel_field_names
+    if panel_field_names:
+        ctx.panel_fallback_used = True
+        ctx.report_step("panel", "Memulihkan field wajib", 0.56, "  - recovering required document fields")
+        stage_started = time.perf_counter()
+        recovery_panel_fields = extract_document_panel_fields(
+            ctx.file_path,
+            family_hint=ctx.parsed.get("familyName", ""),
+            given_hint=_build_given_name_hint(ctx.file_name, ctx.extraction, ctx.parsed.get("familyName", "")),
+            field_names=panel_field_names,
+            current_dob=ctx.parsed.get("dob", ""),
+            current_issue_date=ctx.parsed.get("issueDate", ""),
+            current_expiry_date=ctx.parsed.get("expiryDate", ""),
+        )
+        ctx.panel_fields.update({key: value for key, value in recovery_panel_fields.items() if value})
+        recovery_notes = fuse_panel_fields(ctx, recovery_panel_fields)
+        ctx.panel_notes = join_notes(ctx.panel_notes, recovery_notes)
+        ctx.record_stage_duration("panel", stage_started)
+
+    if _speed_identity_field_count(ctx.parsed) < 7:
+        recovery_fields = _select_balanced_visual_field_names(
+            ctx.parsed,
+            ctx.extraction,
+            ctx.panel_fallback_used,
+            ctx.panel_fields,
+        )
+        if recovery_fields:
+            ctx.visual_field_names = recovery_fields
+            ctx.report_step("visual", "Memperkuat field wajib", 0.62, "  - reinforcing required visual fields")
+            stage_started = time.perf_counter()
+            if _visual_fields_need_aligned_page(recovery_fields) and ctx.page is None:
+                ctx.page = extract_aligned_passport_page(ctx.file_path)
+            recovered_visual_fields = extract_visual_fields(
+                ctx.file_path,
+                page=ctx.page,
+                field_names=recovery_fields,
+                allow_aligned_fallback=ctx.page is not None,
+                rotation_degrees=ctx.ocr_rotation_degrees,
+            )
+            ctx.visual_fields.update({key: value for key, value in recovered_visual_fields.items() if value})
+            ctx.visual_ocr_used = True
+            ctx.record_stage_duration("visual_recovery", stage_started)
+
+    if _speed_identity_field_count(ctx.parsed) >= 7 and _should_try_speed_location_ocr(ctx.parsed, ctx.extraction):
+        missing_location_fields = tuple(
+            field_name
+            for field_name in ("placeOfBirth", "issuingOffice")
+            if not ctx.visual_fields.get(field_name) and not ctx.panel_fields.get(field_name)
+        )
+        if missing_location_fields:
+            stage_started = time.perf_counter()
+            recovered_locations = extract_fast_location_fields(
+                ctx.file_path,
+                field_names=missing_location_fields,
+                rotation_degrees=ctx.ocr_rotation_degrees,
+            )
+            ctx.visual_fields.update({key: value for key, value in recovered_locations.items() if value})
+            ctx.visual_ocr_used = True
+            ctx.record_stage_duration("visual_recovery", stage_started)
+
+    _merge_speed_pass_results(ctx)
 
 def _stage_recovery_panel(ctx: ScanContext) -> None:
     logger.debug("[%s] Stage: recovery_panel", ctx.file_name)
@@ -329,17 +418,17 @@ def _stage_fallback_panel(ctx: ScanContext) -> None:
 def _stage_dates_recovery(ctx: ScanContext) -> None:
     logger.debug("[%s] Stage: dates_recovery", ctx.file_name)
     speed_first_scan = ctx.is_speed_scan
-    ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
-    
-    # Track pre-repair state
-    pre_parsed = dict(ctx.parsed)
-    
-    merge_visual_fields(ctx, ctx.merged_visual_fields)
-    ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
-    ctx.parsed, ctx.fast_mrz_notes = _apply_fast_mrz_repairs(ctx.parsed, ctx.extraction) if speed_first_scan else (ctx.parsed, "")
-    ctx.visual_notes = build_visual_notes(ctx.merged_visual_fields)
+    if speed_first_scan and ctx.speed_first_pass_merged:
+        pre_parsed = dict(ctx.parsed)
+    else:
+        ctx.merged_visual_fields = _merge_visual_sources(ctx.visual_fields, ctx.panel_fields)
+        pre_parsed = dict(ctx.parsed)
+        merge_visual_fields(ctx, ctx.merged_visual_fields)
+        ctx.parsed = _apply_indonesian_visual_repairs(ctx.parsed, ctx.extraction, ctx.merged_visual_fields)
+        ctx.parsed, ctx.fast_mrz_notes = _apply_fast_mrz_repairs(ctx.parsed, ctx.extraction) if speed_first_scan else (ctx.parsed, "")
+        ctx.visual_notes = build_visual_notes(ctx.merged_visual_fields)
+        ctx.parsed, ctx.fast_date_notes = _apply_fast_date_repairs(ctx.parsed) if speed_first_scan else (ctx.parsed, "")
     preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
-    ctx.parsed, ctx.fast_date_notes = _apply_fast_date_repairs(ctx.parsed) if speed_first_scan else (ctx.parsed, "")
     
     # Register repair modifications as INFERENCE
     for field_name in ("passportNumber", "dob", "expiryDate", "firstName", "familyName", "nationality", "gender", "issueDate"):
@@ -347,8 +436,18 @@ def _stage_dates_recovery(ctx: ScanContext) -> None:
         if curr_val != pre_parsed.get(field_name, ""):
             DecisionRules.evaluate_and_update(ctx, field_name, curr_val, source="INFERENCE", confidence=0.90, tentative=False, validated=True)
     
-    ctx.needs_date_scan = False if speed_first_scan else _should_extract_dates(ctx.parsed)
-    ctx.needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
+    allow_speed_recovery = not speed_first_scan or ctx.speed_recovery_required
+    ctx.needs_date_scan = allow_speed_recovery and _should_extract_dates(ctx.parsed)
+    ctx.needs_name_scan = (
+        _needs_name_refinement(ctx.parsed)
+        if speed_first_scan and ctx.speed_recovery_required
+        else allow_speed_recovery and _should_refine_names(
+            ctx.parsed,
+            ctx.extraction,
+            ctx.panel_fallback_used,
+            preferred_full_name,
+        )
+    )
     needs_page_for_dates = ctx.needs_date_scan and not _can_infer_missing_issue_date(ctx.parsed)
 
     if ctx.page is None and (needs_page_for_dates or (ctx.needs_name_scan and not preferred_full_name)):
@@ -394,7 +493,17 @@ def _stage_names_recovery(ctx: ScanContext) -> None:
     logger.debug("[%s] Stage: names_recovery", ctx.file_name)
     speed_first_scan = ctx.is_speed_scan
     preferred_full_name = _pick_preferred_full_name(ctx.parsed, ctx.merged_visual_fields, ctx.panel_fields, ctx.file_name)
-    ctx.needs_name_scan = False if speed_first_scan else _should_refine_names(ctx.parsed, ctx.extraction, ctx.panel_fallback_used, preferred_full_name)
+    allow_speed_recovery = not speed_first_scan or ctx.speed_recovery_required
+    ctx.needs_name_scan = (
+        _needs_name_refinement(ctx.parsed)
+        if speed_first_scan and ctx.speed_recovery_required
+        else allow_speed_recovery and _should_refine_names(
+            ctx.parsed,
+            ctx.extraction,
+            ctx.panel_fallback_used,
+            preferred_full_name,
+        )
+    )
     
     ctx.report_step("names", "Merapikan nama", 0.88, "  - refining names")
     stage_started = time.perf_counter()
@@ -449,7 +558,13 @@ def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
     logger.debug("[%s] Stage validation_and_metrics done in %dms", ctx.file_name, ctx.stage_durations_ms.get("validate", 0))
     
     speed_first_scan = ctx.is_speed_scan
-    speed_scan_notes = "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED" if speed_first_scan else ""
+    speed_scan_notes = ""
+    if speed_first_scan:
+        speed_scan_notes = (
+            "FAST SCAN REVIEW REQUIRED; ADAPTIVE RECOVERY APPLIED"
+            if ctx.speed_recovery_required
+            else "FAST SCAN REVIEW REQUIRED; DEEP VISUAL OCR SKIPPED"
+        )
     
     notes = join_notes(
         ctx.mrz_error,
@@ -502,6 +617,8 @@ def _stage_validation_and_metrics(ctx: ScanContext) -> dict[str, object]:
         "mrzFallbackUsed": bool(ctx.mrz_error),
         "ocrProfile": ctx.ocr_profile,
         "budgetMs": ctx.ocr_budget_ms,
+        "speedFastPath": ctx.speed_fast_path,
+        "adaptiveRecoveryUsed": ctx.speed_recovery_required,
         "elapsedMs": ctx.elapsed_ms(),
         "budgetExceeded": ctx.budget_exceeded(),
         "skippedStages": list(ctx.skipped_ocr_stages),

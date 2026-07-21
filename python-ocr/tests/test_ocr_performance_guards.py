@@ -25,7 +25,7 @@ from services.ocr_result_cache import clear_ocr_result_cache
 from services.passport_page import clear_passport_page_cache, collect_ocr_lines, extract_aligned_passport_page
 from services.visual_region_scanner import scan_region_texts
 from services.data_repairs import _apply_final_name_repairs, _apply_fast_date_repairs, _apply_fast_mrz_repairs, _apply_indonesian_visual_repairs, _apply_verified_mrz_name_repairs, _apply_verified_single_word_name, _repair_impossible_expiry_date
-from services.passport_logic import _can_infer_missing_issue_date, _missing_profile_visual_panel_fields, _missing_speed_location_panel_fields, _ocr_rotation_degrees, _pick_preferred_full_name, _select_balanced_visual_field_names, _select_heavy_visual_field_names, _select_panel_field_names, _select_profile_panel_field_names, _select_speed_visual_field_names, _select_visual_field_names, _should_run_initial_panel_scan, _should_refine_names, _should_skip_panel_for_direct_location_only, _should_try_recovery_location_ocr, _should_try_speed_location_ocr, _visual_fields_need_aligned_page
+from services.passport_logic import _can_infer_missing_issue_date, _missing_profile_visual_panel_fields, _missing_speed_location_panel_fields, _ocr_rotation_degrees, _pick_preferred_full_name, _select_balanced_visual_field_names, _select_heavy_visual_field_names, _select_panel_field_names, _select_profile_panel_field_names, _select_speed_visual_field_names, _select_visual_field_names, _should_run_initial_panel_scan, _should_refine_names, _should_skip_panel_for_direct_location_only, _should_try_recovery_location_ocr, _should_try_speed_location_ocr, _speed_identity_recovery_required, _visual_fields_need_aligned_page
 from services.scan_budget import _build_budget_notes, _has_ocr_budget_for_elapsed, _is_balanced_scan, _is_heavy_scan, _is_speed_first_scan, _ocr_budget_ms, _ocr_profile
 
 
@@ -257,6 +257,63 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(stats["cropAttempts"], 2)
         self.assertEqual(stats["scanCalls"], 2)
         self.assertEqual(stats["debugSamples"], [])
+
+    def test_fast_location_keeps_full_passport_when_detected_crop_is_too_small(self) -> None:
+        image = np.zeros((100, 140, 3), dtype=np.uint8)
+        bad_crop = np.zeros((60, 70, 3), dtype=np.uint8)
+        captured_images = []
+
+        def extract_from_image(image_arg: object, field_name: str) -> str:
+            captured_images.append(image_arg)
+            return "KOTABUMI"
+
+        with (
+            patch("services.indonesia_field_ocr._load_image", return_value=image),
+            patch("services.indonesia_field_ocr.detect_passport_data_page_crop", return_value=bad_crop),
+            patch("services.indonesia_field_ocr._extract_fast_location_from_image", side_effect=extract_from_image),
+        ):
+            result = extract_fast_location_fields("file.png", field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "KOTABUMI"})
+        self.assertIs(captured_images[0], image)
+
+    def test_fast_location_uses_detected_crop_when_it_preserves_most_of_page(self) -> None:
+        image = np.zeros((100, 140, 3), dtype=np.uint8)
+        good_crop = np.zeros((90, 130, 3), dtype=np.uint8)
+        captured_images = []
+
+        def extract_from_image(image_arg: object, field_name: str) -> str:
+            captured_images.append(image_arg)
+            return "KOTABUMI"
+
+        with (
+            patch("services.indonesia_field_ocr._load_image", return_value=image),
+            patch("services.indonesia_field_ocr.detect_passport_data_page_crop", return_value=good_crop),
+            patch("services.indonesia_field_ocr._extract_fast_location_from_image", side_effect=extract_from_image),
+        ):
+            result = extract_fast_location_fields("file.png", field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "KOTABUMI"})
+        self.assertIs(captured_images[0], good_crop)
+
+    def test_fast_location_keeps_full_passport_when_crop_distorts_page_aspect(self) -> None:
+        image = np.zeros((100, 140, 3), dtype=np.uint8)
+        distorted_crop = np.zeros((75, 130, 3), dtype=np.uint8)
+        captured_images = []
+
+        def extract_from_image(image_arg: object, field_name: str) -> str:
+            captured_images.append(image_arg)
+            return "DADI MULYO"
+
+        with (
+            patch("services.indonesia_field_ocr._load_image", return_value=image),
+            patch("services.indonesia_field_ocr.detect_passport_data_page_crop", return_value=distorted_crop),
+            patch("services.indonesia_field_ocr._extract_fast_location_from_image", side_effect=extract_from_image),
+        ):
+            result = extract_fast_location_fields("file.png", field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "DADI MULYO"})
+        self.assertIs(captured_images[0], image)
 
     def test_fast_location_debug_records_raw_candidates_when_enabled(self) -> None:
         image = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -680,6 +737,32 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             ),
         )
 
+    def test_speed_profile_uses_panel_when_mrz_identity_is_incomplete(self) -> None:
+        weak_parsed = {
+            "firstName": "",
+            "familyName": "",
+            "passportNumber": "",
+            "nationality": "",
+            "dob": "",
+            "expiryDate": "",
+            "gender": "",
+        }
+        healthy_parsed = {
+            "firstName": "KARIM ALFARIZI",
+            "familyName": "RAMADAN",
+            "passportNumber": "E8710852",
+            "nationality": "INDONESIA",
+            "dob": "2019-06-01",
+            "expiryDate": "2030-01-08",
+            "gender": "MALE",
+        }
+        healthy_extraction = {"confidence": 0.95, "mrzValidation": {"valid": True}}
+
+        self.assertTrue(_speed_identity_recovery_required(weak_parsed, {}))
+        self.assertTrue(_should_run_initial_panel_scan("speed", {}, weak_parsed))
+        self.assertFalse(_speed_identity_recovery_required(healthy_parsed, healthy_extraction))
+        self.assertFalse(_should_run_initial_panel_scan("speed", healthy_extraction, healthy_parsed))
+
     def test_direct_mrz_location_only_panel_scope_can_use_visual_path(self) -> None:
         parsed = {
             "firstName": "KARIM ALFARIZI",
@@ -1009,7 +1092,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         with patch.dict("os.environ", {}, clear=True):
             self.assertTrue(_is_speed_first_scan())
             self.assertFalse(_is_balanced_scan())
-            self.assertEqual(_ocr_budget_ms(), 15_000)
+            self.assertEqual(_ocr_budget_ms(), 20_000)
 
         parsed, note = _apply_fast_date_repairs(
             {"dob": "1984-07-16", "issueDate": "", "expiryDate": "2033-03-20"}
@@ -1034,8 +1117,10 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             self.assertEqual(_ocr_budget_ms(), 30_000)
 
     def test_ocr_budget_gates_optional_stages_by_remaining_time(self) -> None:
-        self.assertTrue(_has_ocr_budget_for_elapsed(10_000, 15_000, "speed_panel"))
-        self.assertFalse(_has_ocr_budget_for_elapsed(13_000, 15_000, "speed_panel"))
+        self.assertTrue(_has_ocr_budget_for_elapsed(15_000, 20_000, "speed_panel"))
+        self.assertFalse(_has_ocr_budget_for_elapsed(18_000, 20_000, "speed_panel"))
+        self.assertTrue(_has_ocr_budget_for_elapsed(17_000, 20_000, "speed_visual"))
+        self.assertFalse(_has_ocr_budget_for_elapsed(18_000, 20_000, "speed_visual"))
         self.assertTrue(_has_ocr_budget_for_elapsed(82_000, 90_000, "names"))
         self.assertEqual(_build_budget_notes(["panel", "dates"]), "OCR TIME BUDGET SKIPPED: panel, dates")
 
@@ -1237,6 +1322,64 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result.valid_score, 100)
         self.assertEqual(tesseract.call_count, 1)
+
+    def test_left_clipped_indonesian_mrz_uses_partial_identity_without_slow_variants(self) -> None:
+        region = np.zeros((40, 2000), dtype=np.uint8)
+        clipped_text = "\n".join(
+            [
+                "<IDNPUTRA<<ADY<SETYA<<<<<<<<<<<<<<<<<<<<<<<",
+                "0016042<7IDN9306233M31070811871122306000896",
+            ]
+        )
+        with (
+            patch("services.mrz_extractor._build_direct_mrz_variants", return_value=[region]),
+            patch("services.mrz_extractor.run_rapid_ocr", return_value=clipped_text),
+        ):
+            direct = _extract_direct_mrz_from_region(region)
+
+        self.assertIsNotNone(direct)
+        self.assertTrue(direct.line1.startswith("P<IDNPUTRA<<ADY<SETYA"))
+        self.assertTrue(direct.line2.startswith("<0016042<7IDN"))
+        self.assertGreaterEqual(direct.valid_score, 86)
+
+        with (
+            patch("services.mrz_extractor._read_direct_mrz", return_value=direct),
+            patch("services.mrz_extractor._read_mrz") as read_mrz,
+        ):
+            mrz, note = _read_best_mrz("file.png")
+
+        self.assertIs(mrz, direct)
+        self.assertIn("left edge is clipped", note)
+        read_mrz.assert_not_called()
+
+        from services.parser import parse_mrz_data
+
+        parsed = parse_mrz_data(direct.to_dict())
+        self.assertEqual(parsed.passportNumber, "")
+        self.assertEqual(parsed.dob, "1993-06-23")
+        self.assertEqual(parsed.expiryDate, "2031-07-08")
+
+    def test_processed_fallback_prefers_otsu_without_removing_other_variants(self) -> None:
+        region = np.zeros((40, 2000), dtype=np.uint8)
+        gray = np.full((40, 2000), 1, dtype=np.uint8)
+        clahe = np.full((40, 2000), 2, dtype=np.uint8)
+        otsu = np.full((40, 2000), 3, dtype=np.uint8)
+        text = "\n".join(
+            [
+                "P<IDNRAMADAN<<KARIM<ALFARIZI<<<<<<<<<<<<<<<<",
+                "E8710852<5IDN1906017M30010866403050106000214",
+            ]
+        )
+        with (
+            patch("services.mrz_extractor._build_direct_mrz_variants", return_value=[gray, clahe, otsu]),
+            patch("services.mrz_extractor.run_rapid_ocr", return_value=text) as rapid_ocr,
+        ):
+            result = _extract_direct_mrz_from_region(region, prefer_otsu=True)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.valid_score, 100)
+        self.assertIs(rapid_ocr.call_args_list[0].args[0], otsu)
+        self.assertEqual(rapid_ocr.call_count, 1)
 
     def test_weak_indonesian_direct_mrz_does_not_short_circuit_variant(self) -> None:
         direct = DirectMrzResult(

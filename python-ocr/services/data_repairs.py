@@ -39,7 +39,7 @@ def _apply_fast_mrz_repairs(parsed: ParsedPassportData, extraction: ExtractionEv
         if _looks_like_noisy_indonesia_code(updated.get("nationality", "")):
             updated["nationality"] = "INDONESIA"
             notes.append("NATIONALITY REPAIRED FROM MRZ HINT IN FAST SCAN")
-        if not re.fullmatch(r"[EX]\d{7}", updated.get("passportNumber", "") or ""):
+        if not re.fullmatch(r"[EXY]\d{7}", updated.get("passportNumber", "") or ""):
             passport_number = _recover_passport_number_from_mrz(extraction)
             if passport_number:
                 updated["passportNumber"] = passport_number
@@ -62,7 +62,7 @@ def _apply_fast_mrz_repairs(parsed: ParsedPassportData, extraction: ExtractionEv
 def _recover_passport_number_from_mrz(extraction: ExtractionEvidence) -> str:
     for value in _mrz_text_values(extraction):
         cleaned = re.sub(r"[^A-Z0-9<]", "", value.upper())
-        match = re.search(r"\b([EX]\d{7})<", cleaned)
+        match = re.search(r"\b([EXY]\d{7})<", cleaned)
         if match:
             return match.group(1)
     return ""

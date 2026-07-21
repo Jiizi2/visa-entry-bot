@@ -120,6 +120,7 @@ def _get_speed_profile() -> bool:
 
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     collector = get_mrz_collector()
+    is_speed = _get_speed_profile()
     direct_mrz = _read_direct_mrz(file_path)
     if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
         if collector is not None and direct_mrz is not None:
@@ -129,7 +130,17 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             collector.successful_width = direct_mrz.successful_width
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
-    is_speed = _get_speed_profile()
+    if is_speed and is_left_clipped_indonesian_direct_mrz(direct_mrz):
+        if collector is not None and direct_mrz is not None:
+            collector.direct_success = True
+            collector.successful_orientation = direct_mrz.successful_orientation
+            collector.successful_variant = direct_mrz.successful_variant
+            collector.successful_width = direct_mrz.successful_width
+        return direct_mrz, _merge_notes(
+            _direct_mrz_note(direct_mrz),
+            "MRZ left edge is clipped; missing document number will use visual recovery.",
+        )
+
     if is_speed and direct_mrz is not None and getattr(direct_mrz, "valid_score", 0) >= 98:
         if collector is not None:
             collector.direct_success = True
@@ -145,10 +156,13 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     with temporary_mrz_variants(file_path) as variants:
         if collector is not None:
             collector.fallback_used = True
-        for variant_path, note in variants:
+        for variant_index, (variant_path, note) in enumerate(variants):
             mrz = None
             try:
-                mrz = _read_mrz(variant_path)
+                mrz = _read_mrz(
+                    variant_path,
+                    prefer_otsu=bool(is_speed and variant_index > 0),
+                )
             except RuntimeError:
                 mrz = None
             score = getattr(mrz, "valid_score", -1) if mrz is not None else -1
@@ -186,11 +200,11 @@ def _read_image(file_path: str) -> Any:
         return cv2.imread(file_path)
 
 
-def _read_mrz(file_path: str) -> Any:
+def _read_mrz(file_path: str, *, prefer_otsu: bool = False) -> Any:
     image = _read_image(file_path)
     if image is None:
         return None
-    return _scan_document(image, try_full_image_first=True)
+    return _scan_document(image, try_full_image_first=True, prefer_otsu=prefer_otsu)
 
 
 def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
@@ -200,12 +214,17 @@ def _read_direct_mrz(file_path: str) -> DirectMrzResult | None:
     return _scan_document(image, try_full_image_first=False)
 
 
-def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | None:
+def _scan_document(
+    image: Any,
+    try_full_image_first: bool,
+    *,
+    prefer_otsu: bool = False,
+) -> DirectMrzResult | None:
     collector = get_mrz_collector()
     if try_full_image_first:
         if collector is not None:
             collector.current_orientation = 0
-        result = _extract_direct_mrz_from_region(image)
+        result = _extract_direct_mrz_from_region(image, prefer_otsu=prefer_otsu)
         if result and result.valid:
             return result
 
@@ -225,7 +244,7 @@ def _scan_document(image: Any, try_full_image_first: bool) -> DirectMrzResult | 
             height = candidate_document.shape[0]
             with time_stage("crop"):
                 region = candidate_document[int(height * start_ratio) :, :]
-            result = _extract_direct_mrz_from_region(region)
+            result = _extract_direct_mrz_from_region(region, prefer_otsu=prefer_otsu)
             if result is None:
                 continue
             result = replace(result, rotation_degrees=rotation_degrees)
@@ -293,6 +312,16 @@ def _is_high_confidence_indonesian_direct_mrz(mrz: DirectMrzResult | None) -> bo
     return bool(mrz and mrz.line1.startswith("P<IDN") and mrz.valid_score >= 98 and _score_direct_line2(mrz.line2) == 3)
 
 
+def is_left_clipped_indonesian_direct_mrz(mrz: DirectMrzResult | None) -> bool:
+    return bool(
+        mrz
+        and mrz.line1.startswith("P<IDN")
+        and mrz.line2.startswith("<")
+        and mrz.valid_score >= 86
+        and _score_direct_line2(mrz.line2) >= 2
+    )
+
+
 def _direct_mrz_note(mrz: DirectMrzResult | None) -> str:
     rotation_degrees = int(getattr(mrz, "rotation_degrees", 0) or 0) % 360
     if rotation_degrees:
@@ -346,11 +375,21 @@ def _run_ocr_on_variant(variant: Any) -> str:
     return res
 
 
-def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResult | None) -> DirectMrzResult | None:
+def _process_variants_for_width(
+    scaled_gray: Any,
+    best_candidate: DirectMrzResult | None,
+    *,
+    prefer_otsu: bool = False,
+) -> DirectMrzResult | None:
     candidates: list[DirectMrzResult] = []
     variant_names = ["gray", "clahe", "otsu", "adaptive"]
     collector = get_mrz_collector()
-    for idx, variant in enumerate(_build_direct_mrz_variants(scaled_gray)):
+    variants = _build_direct_mrz_variants(scaled_gray)
+    variant_indices = list(range(len(variants)))
+    if prefer_otsu and len(variants) >= 3:
+        variant_indices = [2, 0, 1, *variant_indices[3:]]
+    for idx in variant_indices:
+        variant = variants[idx]
         if collector is not None:
             collector.current_variant = variant_names[idx]
             
@@ -378,6 +417,9 @@ def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResul
         
         if len(cands) > 0 and collector is not None and attempt_index is not None and attempt_index < len(collector.ocr_attempts):
             attempt = collector.ocr_attempts[attempt_index]
+            attempt["best_valid_score"] = max(cand.valid_score for cand in cands)
+            attempt["best_line2_check_count"] = max(_score_direct_line2(cand.line2) for cand in cands)
+            attempt["indonesian_prefix"] = any(cand.line1.startswith("P<IDN") for cand in cands)
             # Check if any candidates passed checksum
             has_checksum_passed = any(_score_direct_line2(c.line2) >= 2 for c in cands)
             if has_checksum_passed:
@@ -411,7 +453,7 @@ def _process_variants_for_width(scaled_gray: Any, best_candidate: DirectMrzResul
     return best_candidate
 
 
-def _extract_direct_mrz_from_region(region: Any) -> DirectMrzResult | None:
+def _extract_direct_mrz_from_region(region: Any, *, prefer_otsu: bool = False) -> DirectMrzResult | None:
     gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
     best_candidate: DirectMrzResult | None = None
     collector = get_mrz_collector()
@@ -425,7 +467,11 @@ def _extract_direct_mrz_from_region(region: Any) -> DirectMrzResult | None:
             collector.current_width = target_width
             
         scaled_gray = _scale_gray_image(gray, target_width)
-        best_candidate = _process_variants_for_width(scaled_gray, best_candidate)
+        best_candidate = _process_variants_for_width(
+            scaled_gray,
+            best_candidate,
+            prefer_otsu=prefer_otsu,
+        )
         
     return best_candidate
 

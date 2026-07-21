@@ -1,5 +1,7 @@
 # OCR Baseline Report
 
+> **Status dokumen:** Snapshot benchmark historis saat migrasi RapidOCR masih mempertahankan fallback PassportEye/Tesseract. Runtime saat ini sudah menggunakan RapidOCR untuk MRZ dan tidak lagi membawa dependency PassportEye/Tesseract. Angka benchmark di bawah tetap dipertahankan sebagai baseline historis, bukan deskripsi dependency produksi terkini.
+
 Generated from the current Indonesian passport golden fixture.
 
 Command:
@@ -11,7 +13,7 @@ Command:
 ## Baseline Summary (RapidOCR Engine)
 
 - **Primary OCR Engine**: RapidOCR (ONNX Runtime)
-- **MRZ Fallback Engine**: Tesseract OCR (via passporteye library)
+- **MRZ fallback pada snapshot ini**: Tesseract OCR via PassportEye (sudah tidak aktif pada runtime terkini)
 - Dataset: `data/example-group/passports/trainingData`
 - Golden fixture: `tests/fixtures/ocr_training_golden.json`
 - Files with expected values: 17
@@ -100,7 +102,7 @@ Validate golden fixtures before benchmark:
 
 ## Phase 9 RapidOCR Baseline Snapshot
 
-After migration to RapidOCR (ONNX Runtime) as the primary OCR engine and retaining Tesseract OCR only as MRZ fallback:
+Pada saat snapshot ini dibuat, migrasi memakai RapidOCR sebagai engine utama dan masih mempertahankan Tesseract sebagai fallback MRZ. Fallback tersebut kemudian dihapus dari runtime:
 
 - Valid records: 17
 - Error records: 0

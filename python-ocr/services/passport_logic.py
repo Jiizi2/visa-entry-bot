@@ -29,9 +29,44 @@ from services.data_repairs import (
     _parse_iso_date,
 )
 
-def _should_run_initial_panel_scan(ocr_profile: str, extraction: ExtractionEvidence) -> bool:
+def _speed_identity_field_count(parsed: ParsedPassportData) -> int:
+    return sum(
+        1
+        for field_name in (
+            "passportNumber",
+            "firstName",
+            "familyName",
+            "nationality",
+            "dob",
+            "expiryDate",
+            "gender",
+        )
+        if str(parsed.get(field_name, "") or "").strip()
+    )
+
+
+def _speed_identity_recovery_required(
+    parsed: ParsedPassportData,
+    extraction: ExtractionEvidence,
+) -> bool:
+    """Return True when speed mode must leave the fast path to avoid an empty record."""
+    if not _has_reliable_mrz_for_fast_path(parsed, extraction, panel_fallback_used=False):
+        return True
+    return any(
+        not str(parsed.get(field_name, "") or "").strip()
+        for field_name in ("firstName", "familyName")
+    )
+
+
+def _should_run_initial_panel_scan(
+    ocr_profile: str,
+    extraction: ExtractionEvidence,
+    parsed: ParsedPassportData | None = None,
+) -> bool:
     if ocr_profile == OcrProfile.SPEED:
-        return False
+        if parsed is not None:
+            return _speed_identity_recovery_required(parsed, extraction)
+        return should_use_panel_fallback(extraction)
     if ocr_profile == OcrProfile.HEAVY:
         return True
     return ocr_profile == OcrProfile.BALANCED and should_use_panel_fallback(extraction)
@@ -178,7 +213,7 @@ def _should_try_speed_location_ocr(parsed: ParsedPassportData, extraction: Extra
     if _has_clear_non_indonesian_mrz_hint(parsed, extraction):
         return False
     passport_number = str(parsed.get("passportNumber", "") or "").upper()
-    if re.fullmatch(r"[EX]\d{7}", passport_number):
+    if re.fullmatch(r"[EXY]\d{7}", passport_number):
         return True
     nationality = str(parsed.get("nationality", "") or "")
     return _looks_like_noisy_indonesia_code(nationality)
@@ -189,7 +224,7 @@ def _should_try_recovery_location_ocr(parsed: ParsedPassportData, extraction: Ex
     if _has_clear_non_indonesian_mrz_hint(parsed, extraction):
         return False
     passport_number = str(parsed.get("passportNumber", "") or "").upper()
-    if re.fullmatch(r"[EX]\d{7}", passport_number):
+    if re.fullmatch(r"[EXY]\d{7}", passport_number):
         return True
     nationality = str(parsed.get("nationality", "") or "")
     return bool(nationality and _looks_like_noisy_indonesia_code(nationality))

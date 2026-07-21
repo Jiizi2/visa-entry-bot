@@ -10,6 +10,15 @@ from services.location_normalizer import is_known_location_value, normalize_loca
 
 
 class LocationNormalizerTests(unittest.TestCase):
+    def test_accepts_lampung_birth_places_printed_on_passports(self) -> None:
+        self.assertEqual(normalize_location_value("placeOfBirth", "DAYAMURNI"), "DAYAMURNI")
+        self.assertEqual(normalize_location_value("placeOfBirth", "SRIBHAWANO"), "SRIBHAWANO")
+        self.assertEqual(normalize_location_value("placeOfBirth", "WANGI-WANGI SELATAN"), "WANGI-WANGI SELATAN")
+        self.assertEqual(normalize_location_value("issuingOffice", "TANJUNG PERAK"), "TANJUNG PERAK")
+        self.assertEqual(normalize_location_value("placeOfBirth", "BANGISRIAGUNG"), "BANGI SRI AGUNG")
+        self.assertEqual(normalize_location_value("placeOfBirth", "DADI MULYO"), "DADI MULYO")
+        self.assertEqual(normalize_location_value("placeOfBirth", "SAKAL"), "SAKAL")
+
     def test_parepare_uses_single_canonical_form(self) -> None:
         self.assertEqual(normalize_location_value("placeOfBirth", "PARE PARE"), "PAREPARE")
         self.assertEqual(pick_best_location_value("placeOfBirth", ["PARE PARE", "PAREPARE"]), "PAREPARE")

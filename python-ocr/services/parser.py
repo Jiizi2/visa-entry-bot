@@ -197,7 +197,7 @@ def _parse_line_fields(data: dict[str, Any]) -> ParsedPassportData:
     surname, names = _split_name_section(line1[5:44])
     empty["firstName"] = clean_name(names)
     empty["familyName"] = clean_name(surname)
-    empty["passportNumber"] = clean_document(line2[0:9])
+    empty["passportNumber"] = "" if line2.startswith("<") else clean_document(line2[0:9])
     empty["nationality"] = clean_country(line2[10:13])
     empty["dob"] = format_date(line2[13:19], "birth")
     empty["gender"] = clean_gender(line2[20])

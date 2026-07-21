@@ -57,8 +57,9 @@ def _clean_direct_mrz_lines(text: str) -> list[str]:
 def _direct_mrz_candidates_from_lines(lines: list[str]) -> list[DirectMrzResult]:
     candidates: list[DirectMrzResult] = []
     for index, line in enumerate(lines):
-        if len(line) >= 10 and line[0] == "P" and (line[1] == "<" or line.count("<") >= 2 or "IDN" in line[1:8] or line.startswith(("P1", "PI"))):
-            line1 = _repair_direct_line1(line)
+        left_clipped_indonesian = line.startswith("<IDN")
+        if len(line) >= 10 and (left_clipped_indonesian or (line[0] == "P" and (line[1] == "<" or line.count("<") >= 2 or "IDN" in line[1:8] or line.startswith(("P1", "PI"))))):
+            line1 = _repair_direct_line1(f"P{line}" if left_clipped_indonesian else line)
             for line2 in _direct_line2_candidates(lines[index + 1 :]):
                 with time_stage("candidate_selection"):
                     score = _score_direct_mrz(line1, line2)
@@ -88,9 +89,13 @@ def _pick_direct_line2(lines: list[str]) -> str:
 def _direct_line2_candidates(lines: list[str]) -> list[str]:
     candidates: list[str] = []
     for line in lines[:4]:
-        candidate = _repair_direct_line2(line)
-        if _score_direct_line2(candidate) >= 2:
-            candidates.append(candidate)
+        raw_candidates = [line]
+        if len(line) == 43 and re.match(r"^\d{7}<\d[A-Z0-9]{3}", line):
+            raw_candidates.append(f"<{line}")
+        for raw_candidate in raw_candidates:
+            candidate = _repair_direct_line2(raw_candidate)
+            if _score_direct_line2(candidate) >= 2:
+                candidates.append(candidate)
     return sorted(set(candidates), key=_score_direct_line2, reverse=True)
 
 
@@ -113,7 +118,7 @@ def _direct_line2_alignment_repairs(line: str) -> set[str]:
         return repairs
     if line[0] in {"1", "7", "I", "L"} and line[1:8].isdigit() and line[8] == "<":
         repairs.add("E" + line[1:])
-    if re.match(r"^[A-Z0-9][EX]\d{7}<", line):
+    if re.match(r"^[A-Z0-9][EXY]\d{7}<", line):
         repairs.add((line[1:] + "<")[:44].ljust(44, "<"))
     return repairs
 

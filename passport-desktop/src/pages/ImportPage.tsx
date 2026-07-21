@@ -179,7 +179,7 @@ export default function ImportPage() {
                   const isActive = state.ocrMode === mode;
                   let icon = 'balance';
                   let speedText = '20-30S / FILE';
-                  if (mode === 'speed') { icon = 'bolt'; speedText = '10-15S / FILE'; }
+                  if (mode === 'speed') { icon = 'bolt'; speedText = '15-20S / FILE'; }
                   if (mode === 'heavy') { icon = 'psychology'; speedText = '60S+ / FILE'; }
 
                   return (

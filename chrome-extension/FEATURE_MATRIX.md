@@ -8,14 +8,17 @@ Setiap update fitur extension harus menjaga fitur-fitur di bawah ini tetap berja
 - Upload file Nusuk membutuhkan `chrome.debugger`.
 - Permission `debugger` di `manifest.json` adalah dependency aktif, bukan legacy.
 - Jangan hapus flow `NUSUK_DEBUGGER_SET_FILE` kecuali ada mekanisme upload baru yang sudah terbukti di halaman Nusuk asli.
-- Desktop app dan Python OCR berada di luar scope dokumen ini.
+- Implementasi desktop dan Python OCR berada di luar scope dokumen ini, tetapi kontrak transport WebSocket desktop-extension termasuk fitur extension yang wajib dijaga.
 
 ## Fitur Aktif
 
 | Area | Fitur | File Utama | Risiko Regresi |
 | --- | --- | --- | --- |
+| Transport | WebSocket loopback ke desktop pada port 9001-9005 | `panel.js`, `content/panel-bridge.js` | Critical |
+| Transport | Handshake, sequence, ACK, retry, dan session snapshot | `panel.js`, `content/panel-state-store.js`, `content/panel-bridge.js` | Critical |
+| Transport | Terima Load Batch/Start dan kirim progress ke desktop | `panel.js`, `content/panel-bridge.js`, `content/automation-runner.js` | Critical |
 | Panel | Buka panel dari extension action | `background.js`, `content/panel-bridge.js`, `content/panel-shell.js` | Medium |
-| Panel | Upload JSON manifest | `panel.js`, `content/panel-bridge.js` | High |
+| Panel | Upload JSON manifest untuk Legacy Mode | `panel.js`, `content/panel-bridge.js` | High |
 | Panel | Pilih jamaah awal | `panel.js`, `content/panel-bridge.js` | Medium |
 | Panel | Preview data jamaah | `panel.js`, `panel.html` | Low |
 | Panel | Pilih folder/file passport | `panel.js`, `panel.html`, `content/upload-file-store.js` | High |
@@ -63,13 +66,20 @@ File berikut tidak boleh diubah tanpa menjalankan checklist manual:
 - `content/upload-file-store.js`
 - `content/upload-inputs.js`
 - `content/upload-manager.js`
+- `panel.js` (transport WebSocket dan session protocol)
 
 ## Checklist Manual Sebelum Merge
 
 Jalankan checklist ini setiap ada update di `chrome-extension`.
 
+- Desktop dan extension dapat handshake pada salah satu port `9001-9005`.
+- Indikator koneksi desktop berubah menjadi Terhubung.
+- Load Batch dari desktop memuat member yang benar di extension.
+- Start dari desktop memulai automation.
+- Progress dan completion extension tampil kembali di desktop.
+- Reconnect/reload tidak membuat session atau batch ganda.
 - Panel bisa dibuka di halaman Nusuk.
-- JSON manifest bisa diupload.
+- JSON manifest tetap bisa diupload pada Legacy Mode.
 - Daftar jamaah muncul.
 - Preview data jamaah tampil.
 - Folder/file passport bisa dipilih.

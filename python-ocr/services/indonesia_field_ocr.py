@@ -65,8 +65,8 @@ RAW_LOCATION_PRIMARY_VARIANT_MODE = "fast"
 RAW_LOCATION_VARIANT_MODE = "default"
 SPEED_LOCATION_WINDOWS = {
     "placeOfBirth": (
-        (0.50, 0.62, 0.72, 0.99),
-        (0.48, 0.64, 0.68, 0.99),
+        (0.42, 0.56, 0.70, 0.99),
+        (0.42, 0.62, 0.58, 0.99),
         (0.50, 0.63, 0.72, 0.99),
         (0.46, 0.66, 0.62, 0.99),
         (0.48, 0.67, 0.56, 1.00),
@@ -82,6 +82,7 @@ SPEED_LOCATION_WINDOWS = {
 SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD = 2
 SPEED_LOCATION_OCR_MAX_EDGE = 1800
 SPEED_LOCATION_DEBUG_SAMPLE_LIMIT = 16
+SPEED_LOCATION_MIN_CROP_AREA_RATIO = 0.75
 LABEL_FRAGMENTS = ("BERLA", "BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "MENGELUAR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
 LABEL_NOISE_TOKENS = {"ARKAN", "ELUARKAN", "MENGELUARKAN"}
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
@@ -168,8 +169,7 @@ def extract_fast_location_fields(
     try:
         image = _orient_image(_load_image(file_path), rotation_degrees)
         data_page = detect_passport_data_page_crop(image)
-        if data_page is not None:
-            image = data_page
+        image = _select_fast_location_image(image, data_page)
         image = resize_to_max_edge(image, max_edge=SPEED_LOCATION_OCR_MAX_EDGE)
         missing_fields = list(requested_fields)
         if image is not None:
@@ -318,6 +318,33 @@ def _same_image_shape(left: object | None, right: object | None) -> bool:
     if left is None or right is None:
         return False
     return getattr(left, "shape", None) == getattr(right, "shape", None)
+
+
+def _select_fast_location_image(original: object | None, detected_crop: object | None) -> object | None:
+    """Keep a full passport frame when page detection found only an internal panel."""
+    if original is None or detected_crop is None:
+        return original if detected_crop is None else detected_crop
+
+    original_shape = getattr(original, "shape", ())
+    crop_shape = getattr(detected_crop, "shape", ())
+    if len(original_shape) < 2 or len(crop_shape) < 2:
+        return detected_crop
+
+    original_height, original_width = original_shape[:2]
+    crop_height, crop_width = crop_shape[:2]
+    if min(original_height, original_width, crop_height, crop_width) <= 0:
+        return detected_crop
+
+    original_aspect = original_width / original_height
+    crop_aspect = crop_width / crop_height
+    crop_area_ratio = (crop_width * crop_height) / (original_width * original_height)
+    original_looks_like_passport_page = 1.20 <= original_aspect <= 1.75
+    crop_distorts_page_aspect = abs(crop_aspect - original_aspect) > 0.20
+    if original_looks_like_passport_page and (
+        crop_area_ratio < SPEED_LOCATION_MIN_CROP_AREA_RATIO or crop_distorts_page_aspect
+    ):
+        return original
+    return detected_crop
 
 
 def _orient_image(image: object | None, rotation_degrees: int = 0) -> object | None:

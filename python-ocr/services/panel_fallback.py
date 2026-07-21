@@ -201,13 +201,13 @@ def _extract_passport_number(panel: object, windows: tuple[tuple[float, float, f
         )
         candidates.extend(_extract_passport_candidates_from_lines(lines))
         best_candidate = _best_passport_candidate(candidates)
-        if re.fullmatch(r"[EX]\d{7}", best_candidate):
+        if re.fullmatch(r"[EXY]\d{7}", best_candidate):
             return best_candidate
     return _best_passport_candidate(candidates)
 
 
 def _has_strong_passport_candidate(lines: list[str]) -> bool:
-    return bool(re.fullmatch(r"[EX]\d{7}", _best_passport_candidate(_extract_passport_candidates_from_lines(lines))))
+    return bool(re.fullmatch(r"[EXY]\d{7}", _best_passport_candidate(_extract_passport_candidates_from_lines(lines))))
 
 
 def _extract_passport_candidates_from_lines(lines: list[str]) -> list[str]:
@@ -218,7 +218,7 @@ def _extract_passport_candidates_from_lines(lines: list[str]) -> list[str]:
             candidates.extend(_expand_passport_candidates(token))
             if re.fullmatch(r"\d{7}", token):
                 candidates.extend(_neighbor_prefixed_passports(cleaned_lines, index, token))
-            if re.fullmatch(r"\d{7}[EX]", token):
+            if re.fullmatch(r"\d{7}[EXY]", token):
                 candidates.append(token[-1] + token[:7])
     return candidates
 
@@ -537,7 +537,7 @@ def _repair_passport_number(current: str, extraction: ExtractionEvidence | None,
         candidates.extend(_expand_passport_candidates(line2[:9]))
     scored = []
     for candidate in candidates:
-        if not re.fullmatch(r"[EX]\d{7}", candidate):
+        if not re.fullmatch(r"[EXY]\d{7}", candidate):
             continue
         score = 50 + (candidate == visual) * 15 + (candidate == current) * 10
         if check_digit and _mrz_check_digit(candidate + "<") == check_digit:
@@ -565,9 +565,9 @@ def _expand_passport_candidates(value: str) -> list[str]:
         variants.update(prefix + cleaned for prefix in ("E", "X"))
     normalized: set[str] = set()
     for variant in variants:
-        if len(variant) > 8 and re.search(r"[EX]\d{7}", variant):
-            normalized.add(re.search(r"[EX]\d{7}", variant).group(0))
-        if len(variant) == 8 and variant[0] in {"E", "X"}:
+        if len(variant) > 8 and re.search(r"[EXY]\d{7}", variant):
+            normalized.add(re.search(r"[EXY]\d{7}", variant).group(0))
+        if len(variant) == 8 and variant[0] in {"E", "X", "Y"}:
             for digits in _expand_ambiguous_digits(variant[1:]):
                 normalized.add(variant[0] + digits)
         if len(variant) == 7 and variant.isdigit():
@@ -587,9 +587,9 @@ def _expand_ambiguous_digits(value: str) -> list[str]:
 
 def _best_passport_candidate(candidates: list[str]) -> str:
     scored = [
-        ((20 if re.fullmatch(r"[EX]\d{7}", candidate) else 10) + min(candidates.count(candidate), 5), candidate)
+        ((20 if re.fullmatch(r"[EXY]\d{7}", candidate) else 10) + min(candidates.count(candidate), 5), candidate)
         for candidate in candidates
-        if re.fullmatch(r"[EX]?\d{7,8}", candidate)
+        if re.fullmatch(r"[EXY]?\d{7,8}", candidate)
     ]
     return max(scored, default=(0, ""), key=lambda item: item[0])[1]
 
@@ -607,7 +607,7 @@ def _extract_line2(extraction: ExtractionEvidence | None) -> str:
 
 
 def _has_trustworthy_line2(line2: str) -> bool:
-    return bool(line2) and len(line2) >= 10 and line2[0] in {"E", "X"} and line2[1:8].isdigit()
+    return bool(line2) and len(line2) >= 10 and line2[0] in {"E", "X", "Y"} and line2[1:8].isdigit()
 
 
 

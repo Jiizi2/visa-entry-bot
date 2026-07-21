@@ -47,6 +47,10 @@ class ScanContext:
         self.visual_ocr_used: bool = False
         self.needs_date_scan: bool = False
         self.needs_name_scan: bool = False
+        self.speed_recovery_required: bool = False
+        self.speed_fast_path: bool = False
+        self.speed_recovery_budget_ms: int = ocr_budget_ms
+        self.speed_first_pass_merged: bool = False
 
         # --- MRZ Results ---
         self.extraction: Dict[str, Any] = {"data": {}, "confidence": 0.0, "notes": ""}
@@ -86,6 +90,7 @@ class ScanContext:
         # --- Stage Timing Config ---
         self.stage_min_remaining_ms: Dict[str, int] = {
             "visual": 1_000,
+            "speed_visual": 3_000,
             "panel": 3_000,
             "speed_panel": 2_500,
             "visual_recovery": 5_000,

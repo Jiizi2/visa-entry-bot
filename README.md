@@ -1,8 +1,8 @@
 # EntryMate By Ghaniya
 
-> Versi: **1.0.19** | Windows · macOS · Linux
+> Versi desktop: **1.0.21** | Extension manifest: **1.0.19** | Windows · macOS · Linux
 
-Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari tiga komponen yang beroperasi secara mandiri dan berkomunikasi lewat file JSON.
+Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari aplikasi desktop, worker OCR lokal, dan browser extension. Desktop dan extension terhubung melalui WebSocket lokal; ekspor/upload file JSON tetap tersedia sebagai mode legacy.
 
 > **OCR Engine**: RapidOCR (ONNX Runtime) — ringan, cepat, dan tidak membutuhkan instalasi Tesseract di device target.
 
@@ -16,15 +16,17 @@ Folder Passport (foto .jpg / .png / .pdf)
 [1] Desktop App (Tauri + Rust + React)
     → Scan OCR via Python worker
     → Review & edit data
-    → Export nusuk-entry-batch.json
-  ↓  (manual: user ambil JSON, upload ke extension)
+    → Kirim batch melalui WebSocket lokal
+  ↓  (ws://127.0.0.1:9001-9005)
 [2] Chrome Extension (MV3)
-    → Upload JSON manifest
-    → Pilih folder/file passport
+    → Terima batch dan perintah Start dari desktop
     → Autofill form Nusuk otomatis
+
+Jalur fallback:
+Desktop → Export nusuk-entry-batch.json → upload manual ke extension (Legacy Mode)
 ```
 
-Desktop app dan extension **tidak berkomunikasi secara langsung**. JSON adalah satu-satunya kontrak.
+WebSocket hanya dibuka pada loopback `127.0.0.1`, bukan pada jaringan eksternal. Payload yang dikirim tetap mengikuti kontrak data member yang sama dengan batch JSON. Extension juga membutuhkan akses ke file passport: melalui path lokal yang dikirim desktop saat mode WebSocket, atau melalui pilihan folder/file user pada mode JSON manual.
 
 ---
 
@@ -33,7 +35,7 @@ Desktop app dan extension **tidak berkomunikasi secara langsung**. JSON adalah s
 | Komponen | Lokasi | Teknologi |
 |---|---|---|
 | Desktop App | `passport-desktop/` | Tauri 2 · Rust · React 19 · TypeScript · TailwindCSS 4 |
-| OCR Worker | `python-ocr/` | Python 3.12 · RapidOCR (ONNX Runtime) · OpenCV · passporteye |
+| OCR Worker | `python-ocr/` | Python 3.12 · RapidOCR (ONNX Runtime) · OpenCV |
 | Browser Extension | `chrome-extension/` | Chrome MV3 · Vanilla JS |
 | Packaging | `scripts/` | PowerShell |
 
@@ -48,17 +50,27 @@ Desktop app dan extension **tidak berkomunikasi secara langsung**. JSON adalah s
 3. Halaman **Siapkan Foto** (opsional) → preview, crop, dan rotasi foto sebelum scan.
 4. Halaman **Scan Berjalan** → OCR otomatis berjalan, progress tampil real-time.
 5. Halaman **Review Data** → cek dan edit data tiap anggota.
-6. Halaman **Export JSON** → konfirmasi dan klik **Export to JSON**.
-7. File `nusuk-entry-batch.json` tersimpan di folder hasil scan.
+6. Halaman **Otomatisasi Entry Nusuk** → kirim batch melalui WebSocket dan jalankan automation.
+7. Bila WebSocket tidak digunakan, aktifkan **Legacy Mode** lalu export `nusuk-entry-batch.json`.
 
-### 2. Autofill Nusuk (Browser Extension)
+### 2. Autofill Nusuk via WebSocket (Mode Utama)
 
 1. Buka Nusuk di browser, login seperti biasa.
 2. Klik ikon extension **EntryMate By Ghaniya**.
-3. Upload `nusuk-entry-batch.json`.
-4. Pilih folder/file passport agar extension bisa mapping file gambar.
-5. Pilih jamaah awal, klik **Mulai**.
-6. Extension mengisi form Nusuk secara otomatis.
+3. Pastikan indikator extension pada halaman **Otomatisasi Entry Nusuk** di desktop berubah menjadi **Terhubung**.
+4. Klik **Load Batch** di desktop untuk mengirim jamaah yang sudah direview.
+5. Klik **Start** di desktop.
+6. Extension mengisi form Nusuk dan mengirim progress kembali ke desktop.
+
+Desktop menjalankan WebSocket lokal pada port pertama yang tersedia di rentang `9001-9005`. Panel extension mencoba rentang port yang sama dan melakukan handshake protokol sebelum menerima batch.
+
+### 3. Autofill Nusuk via JSON (Legacy Mode)
+
+1. Pada halaman terakhir desktop, aktifkan **Legacy Mode (JSON Manual)**.
+2. Klik **Export to JSON** untuk membuat `nusuk-entry-batch.json`.
+3. Upload file tersebut melalui panel extension.
+4. Pilih folder/file passport agar extension dapat memetakan gambar berdasarkan `fileName` atau `passportImagePath`.
+5. Pilih jamaah awal lalu mulai automation dari panel extension.
 
 ---
 
@@ -138,7 +150,7 @@ Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang be
 
 | Mode | Budget | Cocok Untuk |
 |---|---|---|
-| `speed` | 15 detik/foto | Batch besar, kualitas foto bagus |
+| `speed` | target 15-20 detik/foto | First pass ringan; panel lokasi mahal dilewati, second pass hanya memulihkan field identitas yang belum lengkap |
 | `balanced` | 30 detik/foto | Penggunaan sehari-hari |
 | `heavy` | 90 detik/foto | Foto buram, pencahayaan buruk |
 
@@ -148,7 +160,9 @@ Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang be
 
 - **Data lokal**: Passport, manifest, dan review artifact **tidak diupload ke GitHub**. Simpan di device masing-masing.
 - **`chrome.debugger`**: Permission ini adalah dependency aktif extension, bukan legacy. Dibutuhkan sebagai fallback upload file passport di form Nusuk.
-- **Tidak ada browser automation**: Desktop app tidak membuka browser, tidak menjalankan Playwright, dan tidak mengirim command ke extension.
+- **Automation berada di extension**: Desktop tidak memakai Playwright atau memanipulasi DOM Nusuk. Desktop hanya membuka URL Nusuk bila diminta user, mengirim command/batch melalui WebSocket lokal, dan menerima event progress.
+- **Dua mode transport**: WebSocket lokal adalah mode utama; export/upload JSON manual dipertahankan sebagai Legacy Mode.
+- **Loopback saja**: server WebSocket bind ke `127.0.0.1` pada port `9001-9005`.
 
 ---
 
@@ -163,8 +177,10 @@ visa-entry-bot/
 │   │   ├── store.ts         # Zustand global state
 │   │   └── utils/           # export, fields, helpers, members, transliterator
 │   └── src-tauri/           # Rust backend
-│       └── src/lib.rs       # Semua Tauri commands (1941 baris)
-├── python-ocr/              # OCR worker (RapidOCR + passporteye)
+│       ├── src/lib.rs       # Tauri commands, OCR process, WebSocket orchestration
+│       ├── src/transport/   # WebSocket loopback transport
+│       └── src/protocol.rs  # Envelope dan tipe pesan automation
+├── python-ocr/              # OCR worker (RapidOCR + OpenCV)
 │   ├── scan_worker.py       # Entry point (dipanggil Rust)
 │   ├── scan_session.py      # Session management
 │   ├── main.py              # Pipeline OCR per file
@@ -178,9 +194,10 @@ visa-entry-bot/
 │   └── popup.html/js        # Popup UI
 ├── scripts/
 │   └── package-local-release.ps1  # Packaging script
+├── shared-protocol/         # Kontrak pesan WebSocket desktop-extension
 ├── data/                    # Folder data lokal (tidak di-git kecuali fixture)
 ├── .local-release/          # Output release lokal (tidak di-git)
-└── PROJECT_PLAN.md          # Rencana implementasi
+└── PROJECT_PLAN.md          # Status arsitektur dan prioritas lanjutan
 ```
 
 ---
@@ -190,5 +207,5 @@ visa-entry-bot/
 - [`passport-desktop/README.md`](passport-desktop/README.md) — Detail desktop app
 - [`chrome-extension/FEATURE_MATRIX.md`](chrome-extension/FEATURE_MATRIX.md) — Feature matrix dan checklist manual extension
 - [`python-ocr/OCR_BASELINE.md`](python-ocr/OCR_BASELINE.md) — Baseline akurasi OCR
-- [`python-ocr/PARTIAL_REFACTOR_PLAN.md`](python-ocr/PARTIAL_REFACTOR_PLAN.md) — Roadmap peningkatan OCR
-- [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — Rencana arsitektur dan fase implementasi
+- [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — Status arsitektur aktif dan prioritas lanjutan
+- [`shared-protocol/`](shared-protocol/) — Registry pesan, state machine, sequence, dan retry WebSocket

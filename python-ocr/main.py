@@ -34,7 +34,7 @@ from services.pipeline_stages import (
     _stage_mrz,
     _stage_initial_panel,
     _stage_visual_fields,
-    _stage_speed_panel,
+    _stage_speed_adaptive_recovery,
     _stage_recovery_panel,
     _stage_visual_recovery,
     _stage_fallback_panel,
@@ -226,7 +226,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         execute_safe_stage(_stage_mrz, ctx)
         execute_safe_stage(_stage_initial_panel, ctx)
         execute_safe_stage(_stage_visual_fields, ctx)
-        execute_safe_stage(_stage_speed_panel, ctx)
+        execute_safe_stage(_stage_speed_adaptive_recovery, ctx)
         execute_safe_stage(_stage_recovery_panel, ctx)
         execute_safe_stage(_stage_visual_recovery, ctx)
         execute_safe_stage(_stage_fallback_panel, ctx)

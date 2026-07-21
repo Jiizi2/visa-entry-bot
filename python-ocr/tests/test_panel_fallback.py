@@ -82,6 +82,11 @@ class PanelFallbackTests(unittest.TestCase):
 
         self.assertEqual(_best_passport_candidate(candidates), "X6725064")
 
+    def test_passport_candidate_accepts_y_prefix(self) -> None:
+        candidates = _extract_passport_candidates_from_lines(["Y0016042"])
+
+        self.assertEqual(_best_passport_candidate(candidates), "Y0016042")
+
     def test_panel_passport_number_uses_strong_candidate_early_stop(self) -> None:
         with (
             patch("services.panel_fallback.crop_relative", return_value=object()),
