@@ -14,8 +14,6 @@ try:
 except ImportError:  # pragma: no cover - depends on local environment
     cv2 = None
 
-from services.passport_page import collect_ocr_lines
-
 MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
 ENGINE_MODULES = {
     "paddle": "paddleocr",
@@ -176,13 +174,13 @@ def _run_tesseract_full_image(file_path: str) -> str:
     image = cv2.imread(file_path)
     if image is None:
         raise RuntimeError(f"Cannot read image: {file_path}")
-    lines = collect_ocr_lines(
-        image,
-        whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789< /-",
-        variant_mode="fast",
-        max_lines=120,
+    pytesseract = importlib.import_module("pytesseract")
+    return str(
+        pytesseract.image_to_string(
+            image,
+            config="--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<-/",
+        )
     )
-    return "\n".join(lines)
 
 
 def _run_paddle_full_image(file_path: str) -> str:

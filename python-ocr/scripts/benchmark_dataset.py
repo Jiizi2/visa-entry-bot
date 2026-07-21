@@ -205,6 +205,7 @@ def main() -> int:
     parser.add_argument("--resume", action="store_true", default=None, help="Resume benchmark from checkpoint.")
     parser.add_argument("--no-resume", action="store_true", help="Start fresh and ignore checkpoint.")
     parser.add_argument("--profile", default="optimized", choices=["legacy", "optimized", "speed", "balanced", "heavy"], help="OCR pipeline profile to run.")
+    parser.add_argument("--output-dir", type=Path, help="Write artifacts outside the tracked benchmark snapshot directory.")
     args = parser.parse_args()
     
     profile = args.profile
@@ -212,6 +213,18 @@ def main() -> int:
     
     global BENCHMARK_DIR, RESULT_PATH, SUMMARY_PATH, REPORT_PATH, CHECKPOINT_PATH, METADATA_PATH, STAGE_BREAKDOWN_PATH, OCR_ATTEMPTS_PATH
     paths = resolve_profile_paths(profile)
+    if args.output_dir:
+        profile_dir = args.output_dir.resolve()
+        paths = {
+            "profile_dir": profile_dir,
+            "per_image_results": profile_dir / "per_image_results.json",
+            "summary": profile_dir / "summary.json",
+            "report": profile_dir / "report.md",
+            "checkpoint": profile_dir / "checkpoint.json",
+            "metadata": profile_dir / "metadata.json",
+            "stage_breakdown": profile_dir / "stage_breakdown.json",
+            "ocr_attempts": profile_dir / "ocr_attempts.json",
+        }
     BENCHMARK_DIR = paths["profile_dir"]
     RESULT_PATH = paths["per_image_results"]
     SUMMARY_PATH = paths["summary"]
@@ -976,23 +989,24 @@ Laporan ini menyajikan hasil evaluasi kinerja baseline terperinci untuk ekstraks
     print("OCR Attempts JSON   : " + os.path.relpath(OCR_ATTEMPTS_PATH, REPO_ROOT))
     print("Per-image JSON      : " + os.path.relpath(RESULT_PATH, REPO_ROOT))
     
-    # Automatically execute evidence analysis
-    try:
-        from scripts.analyze_evidence import run_analysis
-        run_analysis(profile)
-    except Exception as e:
-        print(f"Warning: Failed to automatically run analyze_evidence.py: {e}")
-        
-    # Check if both profiles exist to automatically run comparison
-    legacy_results = PYTHON_OCR_DIR / "benchmark" / "legacy" / "per_image_results.json"
-    optimized_results = PYTHON_OCR_DIR / "benchmark" / "optimized" / "per_image_results.json"
-    if legacy_results.exists() and optimized_results.exists():
+    # Evidence analysis and profile comparison use the tracked profile registry.
+    # Keep isolated runs isolated instead of rewriting historical snapshots.
+    if not args.output_dir:
         try:
-            print("Detected both legacy and optimized results. Running profile comparison...")
-            from scripts.compare_profiles import run_comparison
-            run_comparison()
+            from scripts.analyze_evidence import run_analysis
+            run_analysis(profile)
         except Exception as e:
-            print(f"Warning: Failed to automatically run compare_profiles.py: {e}")
+            print(f"Warning: Failed to automatically run analyze_evidence.py: {e}")
+
+        legacy_results = PYTHON_OCR_DIR / "benchmark" / "legacy" / "per_image_results.json"
+        optimized_results = PYTHON_OCR_DIR / "benchmark" / "optimized" / "per_image_results.json"
+        if legacy_results.exists() and optimized_results.exists():
+            try:
+                print("Detected both legacy and optimized results. Running profile comparison...")
+                from scripts.compare_profiles import run_comparison
+                run_comparison()
+            except Exception as e:
+                print(f"Warning: Failed to automatically run compare_profiles.py: {e}")
         
     return 0
 

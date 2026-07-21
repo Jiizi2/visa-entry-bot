@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -63,6 +63,19 @@ class ModernOcrEvaluationTests(unittest.TestCase):
         self.assertEqual(result["module"], "pytesseract")
         self.assertTrue(result["available"])
         self.assertEqual(result["version"], "1.2.3")
+
+    def test_tesseract_evaluation_calls_pytesseract_not_production_rapidocr(self) -> None:
+        pytesseract = Mock()
+        pytesseract.image_to_string.return_value = "PASSPORT"
+        with (
+            patch("services.modern_ocr_evaluation.cv2.imread", return_value=object()),
+            patch("services.modern_ocr_evaluation.importlib.import_module", return_value=pytesseract),
+        ):
+            result = evaluate_modern_ocr_engine("file.png", "tesseract")
+
+        self.assertEqual(result.status, "OK")
+        self.assertEqual(result.text, "PASSPORT")
+        pytesseract.image_to_string.assert_called_once()
 
     def test_extracts_nested_paddle_text(self) -> None:
         result = _extract_paddle_text_items([[[0, 0], [1, 1]], ("PASSPORT", 0.98), [[0, 0], [1, 1]], ("PASSPORT", 0.98)])

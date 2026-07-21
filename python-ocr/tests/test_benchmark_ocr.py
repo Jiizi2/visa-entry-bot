@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from benchmark_ocr import (  # type: ignore # noqa: E402
+    _build_benchmark_metadata,
     _evaluate_targets,
     _golden_from_fixture,
     _load_validated_golden,
@@ -20,6 +21,25 @@ from benchmark_ocr import (  # type: ignore # noqa: E402
 
 
 class BenchmarkOcrTests(unittest.TestCase):
+    def test_benchmark_metadata_fingerprints_inputs_and_runtime(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            image = root / "sample.png"
+            golden = root / "golden.json"
+            image.write_bytes(b"image")
+            golden.write_text("[]", encoding="utf-8")
+            args = Namespace(golden=golden, targets=None)
+
+            result = _build_benchmark_metadata(args, [str(image)])
+
+        self.assertEqual(result["dataset"]["fileCount"], 1)
+        self.assertEqual(len(result["dataset"]["nameSizeSha256"]), 64)
+        self.assertEqual(len(result["goldenSha256"]), 64)
+        self.assertIn("rapidocr-onnxruntime", result["packageVersions"])
+        self.assertIn(result["locationStrategy"], {"legacy", "spatial", "spatial_shadow"})
+
     def test_golden_from_fixture_loads_expected_fields(self) -> None:
         result = _golden_from_fixture(
             [

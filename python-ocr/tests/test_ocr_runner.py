@@ -11,6 +11,7 @@ from services.ocr_runner import (  # noqa: E402
     get_ocr_stats,
     reset_ocr_stats,
     run_rapid_ocr,
+    run_rapid_ocr_detailed,
     timed_rapid_ocr,
 )
 
@@ -28,6 +29,36 @@ class RapidOcrRunnerTests(unittest.TestCase):
             result = run_rapid_ocr(object(), "", timeout_seconds=1.5)
 
         self.assertEqual(result, "TEXT")
+
+    def test_detailed_result_preserves_box_confidence_and_normalized_coordinates(self) -> None:
+        image = MagicMock()
+        image.shape = (100, 200, 3)
+        with patch("services.ocr_runner.RAPID_OCR_INSTANCE") as mock_rapid:
+            mock_rapid.return_value = (
+                [([[20, 10], [120, 10], [120, 30], [20, 30]], "TANJUNG RÉDEB", 0.95)],
+                None,
+            )
+            result = run_rapid_ocr_detailed(image, whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ ")
+
+        self.assertEqual(result.text, "TANJUNG REDEB")
+        self.assertEqual(len(result.observations), 1)
+        observation = result.observations[0]
+        self.assertEqual(observation.text, "TANJUNG RÉDEB")
+        self.assertEqual(observation.normalized_text, "TANJUNG REDEB")
+        self.assertAlmostEqual(observation.confidence, 0.95)
+        self.assertAlmostEqual(observation.center_x, 0.35)
+        self.assertAlmostEqual(observation.center_y, 0.20)
+
+    def test_detailed_result_supports_recognition_only_shape(self) -> None:
+        image = MagicMock()
+        image.shape = (30, 120)
+        with patch("services.ocr_runner.RAPID_OCR_INSTANCE") as mock_rapid:
+            mock_rapid.return_value = ([('BERAU', 0.91)], None)
+            result = run_rapid_ocr_detailed(image, use_det=False, use_cls=False, source="rec_only")
+
+        self.assertEqual(result.text, "BERAU")
+        self.assertFalse(result.detector_used)
+        self.assertEqual(get_ocr_stats()["callTypes"]["recOnly"], 1)
 
     def test_build_ocr_config_includes_common_options(self) -> None:
         result = build_ocr_config(

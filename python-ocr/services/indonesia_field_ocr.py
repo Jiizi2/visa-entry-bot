@@ -17,6 +17,14 @@ from services.passport_page import collect_ocr_lines, crop_relative, extract_ali
 from services.visual_region_scanner import scan_region_texts
 from services.models import ParsedPassportData
 from services.scan_context import ScanContext
+from services.ocr_result_cache import (
+    build_region_cache_key,
+    get_cached_detailed_result,
+    store_cached_detailed_result,
+)
+from services.ocr_runner import run_rapid_ocr_detailed
+from services.passport_ocr_index import PassportOcrIndex
+from services.spatial_field_resolver import location_recovery_windows, resolve_location_fields
 
 from services.ocr_runner import _user_words_path
 
@@ -101,6 +109,15 @@ _FAST_LOCATION_OCR_STATS = {
     "preprocessFallbackUsed": False,
     "debugEnabled": False,
     "debugSamples": [],
+    "strategy": "legacy",
+    "fullPageOcrUsed": False,
+    "fullPageOcrMs": 0,
+    "fullPageObservationCount": 0,
+    "fullPageCacheHit": False,
+    "spatialFoundFields": [],
+    "spatialReasonCodes": {},
+    "recognitionOnlyCalls": 0,
+    "legacyFallbackUsed": False,
 }
 
 
@@ -125,8 +142,18 @@ def extract_visual_fields(
         else tuple(field_name for field_name in field_names if field_name in FIELD_CONFIG)
     )
 
+    location_fields = tuple(field_name for field_name in requested_fields if field_name in RAW_LOCATION_WINDOWS)
+    if location_fields and _location_strategy() in {"spatial", "spatial_shadow"}:
+        extracted.update(
+            extract_fast_location_fields(
+                file_path,
+                field_names=location_fields,
+                rotation_degrees=rotation_degrees,
+            )
+        )
+
     for field_name in requested_fields:
-        if field_name in RAW_LOCATION_WINDOWS:
+        if field_name in RAW_LOCATION_WINDOWS and not extracted.get(field_name):
             value = _extract_raw_location_field(file_path, field_name, rotation_degrees=rotation_degrees)
             if value:
                 extracted[field_name] = value
@@ -162,6 +189,8 @@ def extract_fast_location_fields(
     _FAST_LOCATION_OCR_STATS["rotationDegrees"] = int(rotation_degrees or 0) % 360
     requested_fields = tuple(field_name for field_name in field_names if field_name in SPEED_LOCATION_WINDOWS)
     _FAST_LOCATION_OCR_STATS["requestedFields"] = list(requested_fields)
+    strategy = _location_strategy()
+    _FAST_LOCATION_OCR_STATS["strategy"] = strategy
     if not requested_fields:
         return {}
 
@@ -171,6 +200,25 @@ def extract_fast_location_fields(
         data_page = detect_passport_data_page_crop(image)
         image = _select_fast_location_image(image, data_page)
         image = resize_to_max_edge(image, max_edge=SPEED_LOCATION_OCR_MAX_EDGE)
+        spatial_values: dict[str, str] = {}
+        spatial_index: PassportOcrIndex | None = None
+        if image is not None and strategy in {"spatial", "spatial_shadow"}:
+            spatial_values, spatial_index = _extract_spatial_location_from_image(image, requested_fields)
+            if strategy == "spatial":
+                extracted.update(spatial_values)
+                missing_fields = tuple(field_name for field_name in requested_fields if not extracted.get(field_name))
+                if missing_fields and spatial_index is not None:
+                    extracted.update(_recover_spatial_locations_rec_only(image, spatial_index, missing_fields))
+                missing_fields = tuple(field_name for field_name in requested_fields if not extracted.get(field_name))
+                if not missing_fields:
+                    return extracted
+                _FAST_LOCATION_OCR_STATS["legacyFallbackUsed"] = True
+                for field_name in missing_fields:
+                    value = _extract_fast_location_from_image(image, field_name)
+                    if value:
+                        extracted[field_name] = value
+                return extracted
+
         missing_fields = list(requested_fields)
         if image is not None:
             missing_fields = []
@@ -216,6 +264,15 @@ def reset_fast_location_ocr_stats() -> None:
             "preprocessFallbackUsed": False,
             "debugEnabled": _fast_location_debug_enabled(),
             "debugSamples": [],
+            "strategy": _location_strategy(),
+            "fullPageOcrUsed": False,
+            "fullPageOcrMs": 0,
+            "fullPageObservationCount": 0,
+            "fullPageCacheHit": False,
+            "spatialFoundFields": [],
+            "spatialReasonCodes": {},
+            "recognitionOnlyCalls": 0,
+            "legacyFallbackUsed": False,
         }
     )
 
@@ -298,6 +355,79 @@ def _extract_raw_location_field(file_path: str, field_name: str, rotation_degree
 def _fast_location_preprocess_enabled() -> bool:
     value = os.environ.get("PASSPORT_FAST_LOCATION_PREPROCESS", "").strip().lower()
     return value in {"1", "true", "yes", "on", "fallback"}
+
+
+def _location_strategy() -> str:
+    value = os.environ.get("PASSPORT_OCR_LOCATION_STRATEGY", "spatial").strip().lower()
+    return value if value in {"legacy", "spatial_shadow", "spatial"} else "spatial"
+
+
+def _extract_spatial_location_from_image(
+    image: object,
+    requested_fields: tuple[str, ...],
+) -> tuple[dict[str, str], PassportOcrIndex]:
+    whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /-"
+    cache_key = build_region_cache_key("spatial-full-page", image, whitelist, "det-rec-v1")
+    detailed = get_cached_detailed_result(cache_key)
+    cache_hit = detailed is not None
+    if detailed is None:
+        detailed = run_rapid_ocr_detailed(
+            image,
+            whitelist=whitelist,
+            use_det=True,
+            use_cls=False,
+            use_rec=True,
+            source="spatial_full_page",
+        )
+        store_cached_detailed_result(cache_key, detailed)
+    index = PassportOcrIndex.from_result(detailed)
+    resolutions = resolve_location_fields(index, requested_fields)
+    values = {field_name: result.value for field_name, result in resolutions.items() if result.value}
+    _FAST_LOCATION_OCR_STATS["fullPageOcrUsed"] = True
+    _FAST_LOCATION_OCR_STATS["fullPageOcrMs"] = int(detailed.elapsed_ms)
+    _FAST_LOCATION_OCR_STATS["fullPageObservationCount"] = len(detailed.observations)
+    _FAST_LOCATION_OCR_STATS["fullPageCacheHit"] = cache_hit
+    _FAST_LOCATION_OCR_STATS["spatialFoundFields"] = sorted(values)
+    _FAST_LOCATION_OCR_STATS["spatialReasonCodes"] = {
+        field_name: result.reason for field_name, result in resolutions.items()
+    }
+    return values, index
+
+
+def _recover_spatial_locations_rec_only(
+    image: object,
+    index: PassportOcrIndex,
+    field_names: tuple[str, ...],
+) -> dict[str, str]:
+    recovered: dict[str, str] = {}
+    for field_name in field_names:
+        for window in location_recovery_windows(index, field_name):
+            region = crop_relative(image, *window)
+            if region is None:
+                continue
+            _FAST_LOCATION_OCR_STATS["recognitionOnlyCalls"] = int(
+                _FAST_LOCATION_OCR_STATS["recognitionOnlyCalls"]
+            ) + 1
+            result = run_rapid_ocr_detailed(
+                region,
+                whitelist=FIELD_CONFIG[field_name]["whitelist"],
+                use_det=False,
+                use_cls=False,
+                use_rec=True,
+                source=f"rec_only_{field_name}",
+            )
+            candidate = _pick_best_field_value(
+                field_name,
+                [
+                    value
+                    for text in result.lines
+                    if (value := _clean_value(field_name, text, FIELD_CONFIG[field_name]["kind"]))
+                ],
+            )
+            if candidate and is_known_location_value(field_name, candidate):
+                recovered[field_name] = candidate
+                break
+    return recovered
 
 
 

@@ -12,10 +12,13 @@ from services.ocr_result_cache import (  # noqa: E402
     build_region_cache_key,
     end_ocr_result_cache_session,
     get_cached_lines,
+    get_cached_detailed_result,
     get_ocr_result_cache_stats,
     start_ocr_result_cache_session,
     store_cached_lines,
+    store_cached_detailed_result,
 )
+from services.ocr_observation import OcrDetailedResult  # noqa: E402
 
 
 class OcrResultCacheTests(unittest.TestCase):
@@ -52,6 +55,19 @@ class OcrResultCacheTests(unittest.TestCase):
         self.assertEqual(stats["storeCount"], 1)
         self.assertEqual(stats["entryCount"], 1)
         self.assertEqual(stats["scopeId"], "passport-a")
+
+    def test_detailed_results_are_cached_inside_scan_scope(self) -> None:
+        region = np.zeros((8, 8), dtype=np.uint8)
+        start_ocr_result_cache_session("passport-a")
+        key = build_region_cache_key("detailed", region, "det_rec")
+        result = OcrDetailedResult((), 12, True, True, "full_page")
+
+        self.assertIsNone(get_cached_detailed_result(key))
+        store_cached_detailed_result(key, result)
+
+        self.assertIs(get_cached_detailed_result(key), result)
+        stats = get_ocr_result_cache_stats()
+        self.assertEqual(stats["detailedEntryCount"], 1)
 
 
 if __name__ == "__main__":

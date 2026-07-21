@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
+import importlib.metadata
 import io
 import json
+import os
+import platform
 import statistics
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +51,7 @@ def main() -> int:
         summary["assumedHardware"] = _project_latency(summary, latency_assumption)
 
     report = {
+        "metadata": _build_benchmark_metadata(args, passport_files),
         "groupId": target.group_id,
         "passportsDir": target.passports_dir,
         "totalFiles": len(records),
@@ -159,6 +166,68 @@ def _golden_from_fixture(payload: list[dict[str, Any]]) -> dict[str, dict[str, s
 def _load_targets(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return payload if isinstance(payload, dict) else {}
+
+
+def _build_benchmark_metadata(args: argparse.Namespace, passport_files: list[str]) -> dict[str, Any]:
+    dataset_digest = hashlib.sha256()
+    for raw_path in sorted(passport_files, key=lambda value: Path(value).name.lower()):
+        path = Path(raw_path)
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = -1
+        dataset_digest.update(f"{path.name}\0{size}\n".encode("utf-8"))
+
+    return {
+        "createdAtUtc": datetime.now(timezone.utc).isoformat(),
+        "gitCommit": _git_commit(),
+        "pythonVersion": platform.python_version(),
+        "platform": platform.platform(),
+        "processor": platform.processor(),
+        "ocrProfile": os.environ.get("PASSPORT_OCR_PROFILE", "speed").strip().lower() or "speed",
+        "locationStrategy": os.environ.get("PASSPORT_OCR_LOCATION_STRATEGY", "spatial").strip().lower() or "spatial",
+        "packageVersions": {
+            name: _package_version(name)
+            for name in ("rapidocr-onnxruntime", "onnxruntime", "opencv-python-headless", "numpy")
+        },
+        "dataset": {
+            "fileCount": len(passport_files),
+            "nameSizeSha256": dataset_digest.hexdigest(),
+        },
+        "goldenSha256": _file_sha256(getattr(args, "golden", None)),
+        "targetsSha256": _file_sha256(getattr(args, "targets", None)),
+    }
+
+
+def _package_version(name: str) -> str:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return ""
+
+
+def _file_sha256(path: object) -> str:
+    if not path:
+        return ""
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
+def _git_commit() -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return completed.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
 
 
 def _summarize_record(record: dict[str, Any], expected: dict[str, str]) -> dict[str, Any]:
