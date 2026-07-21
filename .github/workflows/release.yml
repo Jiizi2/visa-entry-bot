@@ -339,4 +339,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: "all-artifacts/**/*.exe,all-artifacts/**/*.sig,updater.json"
           artifactErrorsFailBuild: true
+          removeArtifacts: true
           replacesArtifacts: true
