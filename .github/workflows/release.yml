@@ -280,7 +280,24 @@ jobs:
 
           WINDOWS_NSIS_SIG=$(read_sig "*.exe.sig")
           WIN_NSIS_FILE=$(get_filename "*.exe")
-          
+
+          echo "DEBUG: Found NSIS file: '${WIN_NSIS_FILE}'"
+          echo "DEBUG: Download base: '${DOWNLOAD_BASE}'"
+
+          if [ -z "$WIN_NSIS_FILE" ]; then
+            echo "::error::No NSIS installer (.exe) found in artifacts!"
+            exit 1
+          fi
+
+          # Tauri NSIS replaces spaces in productName with dots in the output filename
+          # (e.g. "EntryMate By Ghaniya" -> "EntryMate.By.Ghaniya_x.y.z_x64-setup.exe")
+          # Ensure the filename used in download URLs matches the actual asset name.
+          if echo "$WIN_NSIS_FILE" | grep -q ' '; then
+            echo "::warning::NSIS filename contains spaces: '${WIN_NSIS_FILE}'. Replacing with dots for URL compatibility."
+            WIN_NSIS_FILE=$(echo "$WIN_NSIS_FILE" | tr ' ' '.')
+            echo "DEBUG: Corrected filename: '${WIN_NSIS_FILE}'"
+          fi
+
           # Deterministic timestamp based on the git commit timestamp instead of current runner execution time
           COMMIT_DATE=$(git log -1 --format=%cI)
 
@@ -305,6 +322,13 @@ jobs:
 
           echo "Generated updater.json:"
           cat updater.json
+
+          # Final validation: ensure download URLs don't contain unencoded spaces
+          if jq -e '.platforms | to_entries[] | select(.value.url | contains(" "))' updater.json > /dev/null 2>&1; then
+            echo "::error::updater.json contains URLs with spaces! This will cause 404 errors."
+            exit 1
+          fi
+          echo "✓ updater.json URL validation passed."
 
       - name: Create or Update GitHub Release
         uses: ncipollo/release-action@v1
