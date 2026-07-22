@@ -1,10 +1,13 @@
-import { useState, useEffect, Suspense, lazy, useRef } from 'react';
+import { useState, useEffect, Suspense, lazy, useRef, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { useStore } from './store';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import PageTransition from './components/PageTransition';
 import ImportPage from './pages/ImportPage';
+import AppStatusBar from './components/AppStatusBar';
+import CompletionOverlay, { CompletionMoment } from './components/CompletionOverlay';
 
 const PreparePage = lazy(() => import('./pages/PreparePage'));
 const ScanPage = lazy(() => import('./pages/ScanPage'));
@@ -13,12 +16,39 @@ const EntryPage = lazy(() => import('./pages/EntryPage'));
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
 
-function FunModalsOverlay() {
+const completionMoments = {
+  welcome: {
+    image: '/welcome.jpeg',
+    title: 'Selamat datang di EntryMate',
+    description: 'Siapkan folder passport untuk memulai workflow.',
+    alt: 'Poster sambutan EntryMate untuk memulai pemindaian passport.',
+  },
+  scan: {
+    image: '/scan_complete.jpeg',
+    title: 'Scan selesai',
+    description: 'Data passport siap diperiksa di tahap Review.',
+    alt: 'Poster EntryMate yang menandakan pemindaian passport selesai.',
+  },
+  review: {
+    image: '/review_complete.jpeg',
+    title: 'Review selesai',
+    description: 'Seluruh passport telah ditinjau dan siap diekspor.',
+    alt: 'Poster EntryMate yang menandakan review seluruh passport selesai.',
+  },
+  export: {
+    image: '/export_complete.jpeg',
+    title: 'Export selesai',
+    description: 'Data EntryMate berhasil diproses untuk tahap akhir.',
+    alt: 'Poster EntryMate yang menandakan export data selesai.',
+  },
+} satisfies Record<string, CompletionMoment>;
+
+function CompletionMoments() {
   const currentPage = useStore(state => state.currentPage);
   const isScanning = useStore(state => state.isScanning);
   const isEntryRunning = useStore(state => state.isEntryRunning);
   
-  const [currentImage, setCurrentImage] = useState<string | null>('/welcome.jpeg');
+  const [currentMoment, setCurrentMoment] = useState<CompletionMoment | null>(completionMoments.welcome);
   
   const prevPage = useRef(currentPage);
   const prevIsScanning = useRef(isScanning);
@@ -27,11 +57,11 @@ function FunModalsOverlay() {
   useEffect(() => {
     // From Scan to Validation = Scan Complete
     if (prevPage.current === 'scan' && currentPage === 'validation') {
-       setCurrentImage('/scan_complete.jpeg');
+       setCurrentMoment(completionMoments.scan);
     }
     // From Validation to Entry = Review Complete
     if (prevPage.current === 'validation' && currentPage === 'entry') {
-       setCurrentImage('/review_complete.jpeg');
+       setCurrentMoment(completionMoments.review);
     }
     prevPage.current = currentPage;
   }, [currentPage]);
@@ -39,26 +69,15 @@ function FunModalsOverlay() {
   useEffect(() => {
     // If entry was running and now finished
     if (prevIsEntryRunning.current && !isEntryRunning && currentPage === 'entry') {
-      setCurrentImage('/export_complete.jpeg');
+      setCurrentMoment(completionMoments.export);
     }
     prevIsEntryRunning.current = isEntryRunning;
   }, [isEntryRunning, currentPage]);
 
-  if (!currentImage) return null;
+  const closeMoment = useCallback(() => setCurrentMoment(null), []);
 
-  return (
-    <div className="modal-overlay" style={{ zIndex: 99999 }}>
-      <div className="flex flex-col items-center max-w-[600px] w-[90%]">
-        <img src={currentImage} className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl" alt="Fun Modal" />
-        <button 
-          onClick={() => setCurrentImage(null)}
-          className="primary-action mt-6 px-10 h-11 text-base"
-        >
-          OK Lanjut
-        </button>
-      </div>
-    </div>
-  );
+  if (!currentMoment) return null;
+  return <CompletionOverlay moment={currentMoment} onClose={closeMoment} />;
 }
 
 export default function App() {
@@ -73,51 +92,43 @@ export default function App() {
     // Tauri Watchdog Heartbeat
     // Memastikan backend tahu bahwa React UI masih hidup dan tidak hang
     let isMounted = true;
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      const sendHeartbeat = async () => {
-        if (!isMounted) return;
-        try {
-          await invoke('renderer_heartbeat');
-        } catch (e) {
-          // Abaikan error jika terjadi pada invoke heartbeat
-        }
-        setTimeout(sendHeartbeat, 10000);
-      };
-      sendHeartbeat();
-    }).catch(console.warn);
+    const sendHeartbeat = async () => {
+      if (!isMounted) return;
+      try {
+        await invoke('renderer_heartbeat');
+      } catch (e) {
+        // Abaikan error jika terjadi pada invoke heartbeat
+      }
+      setTimeout(sendHeartbeat, 10000);
+    };
+    sendHeartbeat();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const pageInfo = {
-    import: { title: 'Pilih Dokumen', subtitle: 'Halaman 1' },
-    prepare: { title: 'Siapkan Foto', subtitle: 'Halaman 2' },
-    scan: { title: 'Scan Berjalan', subtitle: 'Halaman 3' },
-    validation: { title: 'Review Data', subtitle: 'Halaman 4' },
-    entry: { title: 'Export JSON', subtitle: 'Halaman 5' },
-  };
-
   return (
     <>
       <TitleBar />
-      <div className="flex overflow-hidden" style={{ height: 'calc(100vh - var(--window-titlebar-height))' }}>
+      <div className="app-frame">
         <Sidebar currentPage={currentPage} onChangePage={(p: Page) => updateState({ currentPage: p })} />
-        <main className="flex flex-col flex-1 overflow-y-auto min-w-0 items-stretch">
-          
-          <Suspense fallback={<div className="flex flex-1 items-center justify-center text-slate-500 font-sans">Memuat halaman...</div>}>
-            <PageTransition pageKey={currentPage}>
-              {currentPage === 'import' && <ImportPage key="import" />}
-              {currentPage === 'prepare' && <PreparePage key="prepare" />}
-              {currentPage === 'scan' && <ScanPage key="scan" />}
-              {currentPage === 'validation' && <ReviewPage key="validation" />}
-              {currentPage === 'entry' && <EntryPage key="entry" />}
-            </PageTransition>
-          </Suspense>
-        </main>
+        <div className="app-content-frame">
+          <main className="app-workspace">
+            <Suspense fallback={<div className="flex flex-1 items-center justify-center text-slate-500 font-sans">Memuat halaman...</div>}>
+              <PageTransition pageKey={currentPage}>
+                {currentPage === 'import' && <ImportPage key="import" />}
+                {currentPage === 'prepare' && <PreparePage key="prepare" />}
+                {currentPage === 'scan' && <ScanPage key="scan" />}
+                {currentPage === 'validation' && <ReviewPage key="validation" />}
+                {currentPage === 'entry' && <EntryPage key="entry" />}
+              </PageTransition>
+            </Suspense>
+          </main>
+          <AppStatusBar />
+        </div>
       </div>
-      <FunModalsOverlay />
+      <CompletionMoments />
     </>
   );
 }

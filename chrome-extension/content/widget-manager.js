@@ -23,28 +23,28 @@
           position: fixed;
           bottom: 24px;
           right: 24px;
-          width: 150px;
-          background: rgba(15, 23, 42, 0.9);
+          width: 164px;
+          background: rgba(26, 29, 30, 0.94);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          color: #f8fafc;
-          border-radius: 12px;
-          padding: 12px 14px;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          color: #f9f9f9;
+          border-radius: 14px;
+          padding: 13px 14px;
+          box-shadow: 0 14px 34px rgba(26, 29, 30, 0.28), inset 0 1px 0 rgba(247, 216, 131, 0.08);
+          border: 1px solid rgba(247, 216, 131, 0.2);
+          font-family: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
           z-index: 999999;
           cursor: grab;
           user-select: none;
           display: flex;
           flex-direction: column;
-          gap: 8px;
-          transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+          gap: 9px;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         }
         .entrymate-widget:hover {
           transform: translateY(-3px) scale(1.02);
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35), 0 0 16px rgba(37, 99, 235, 0.3);
-          border-color: rgba(255, 255, 255, 0.15);
+          box-shadow: 0 18px 40px rgba(26, 29, 30, 0.36), 0 0 18px rgba(217, 169, 79, 0.18);
+          border-color: rgba(247, 216, 131, 0.38);
         }
         .entrymate-widget:active {
           cursor: grabbing;
@@ -56,7 +56,7 @@
           justify-content: space-between;
           font-size: 10px;
           font-weight: 700;
-          color: rgba(255, 255, 255, 0.5);
+          color: rgba(249, 249, 249, 0.58);
           letter-spacing: 0.08em;
           text-transform: uppercase;
         }
@@ -67,7 +67,7 @@
         }
         .entrymate-widget-restore-hint {
           font-size: 9px;
-          color: #38bdf8;
+          color: #f7d883;
           font-weight: 600;
           opacity: 0;
           transition: opacity 0.2s ease;
@@ -86,37 +86,37 @@
           gap: 8px;
           font-size: 13px;
           font-weight: 700;
-          color: #ffffff;
+          color: #f9f9f9;
         }
         .entrymate-widget-status-dot {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #64748b;
+          background: #707874;
           display: inline-block;
           box-shadow: 0 0 4px rgba(0,0,0,0.5);
           transition: all 0.3s ease;
         }
-        .entrymate-widget-status-dot.running { 
-          background: #10b981; 
-          box-shadow: 0 0 8px #10b981, 0 0 16px rgba(16, 185, 129, 0.4); 
-          animation: entrymate-pulse 1.8s infinite ease-in-out; 
+        .entrymate-widget-status-dot.running {
+          background: #4f9a81;
+          box-shadow: 0 0 8px #4f9a81, 0 0 16px rgba(79, 154, 129, 0.34);
+          animation: entrymate-pulse 1.8s infinite ease-in-out;
         }
-        .entrymate-widget-status-dot.paused { 
-          background: #f59e0b; 
-          box-shadow: 0 0 8px #f59e0b; 
+        .entrymate-widget-status-dot.paused {
+          background: #d9a94f;
+          box-shadow: 0 0 8px rgba(217, 169, 79, 0.68);
         }
-        .entrymate-widget-status-dot.idle { 
-          background: #3b82f6; 
-          box-shadow: 0 0 8px #3b82f6; 
+        .entrymate-widget-status-dot.idle {
+          background: #d9a94f;
+          box-shadow: 0 0 8px rgba(217, 169, 79, 0.68);
         }
-        .entrymate-widget-status-dot.completed { 
-          background: #10b981; 
-          box-shadow: 0 0 8px #10b981; 
+        .entrymate-widget-status-dot.completed {
+          background: #4f9a81;
+          box-shadow: 0 0 8px #4f9a81;
         }
-        .entrymate-widget-status-dot.error { 
-          background: #ef4444; 
-          box-shadow: 0 0 8px #ef4444; 
+        .entrymate-widget-status-dot.error {
+          background: #c45b54;
+          box-shadow: 0 0 8px #c45b54;
         }
 
         @keyframes entrymate-pulse {
@@ -128,14 +128,14 @@
         .entrymate-widget-progress-track {
           width: 100%;
           height: 5px;
-          background: rgba(255, 255, 255, 0.12);
+          background: rgba(249, 249, 249, 0.13);
           border-radius: 99px;
           overflow: hidden;
           margin-top: 2px;
         }
         .entrymate-widget-progress-bar {
           height: 100%;
-          background: linear-gradient(90deg, #2563eb, #10b981);
+          background: linear-gradient(90deg, #d9a94f, #f7d883);
           border-radius: 99px;
           width: 0%;
           transition: width 0.2s ease-in-out;
@@ -170,7 +170,7 @@
       widgetEl.innerHTML = `
         <div class="entrymate-widget-header">
           <div class="entrymate-widget-brand">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8; display: inline-block; vertical-align: middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: #f7d883; display: inline-block; vertical-align: middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <span style="vertical-align: middle; margin-left: 3px;">EntryMate</span>
           </div>
           <span class="entrymate-widget-restore-hint">Buka ↗</span>

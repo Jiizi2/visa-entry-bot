@@ -1,5 +1,6 @@
 import React from 'react';
 import { memberDisplayName, memberPassport, memberReviewStatus, resolvedProfileOf } from '../../utils/members';
+import AppIcon from '../../components/ui/AppIcon';
 
 interface EntryTableProps {
   exportPreview: any;
@@ -9,46 +10,58 @@ interface EntryTableProps {
 export default function EntryTable({ exportPreview, reviewedMemberIds }: EntryTableProps) {
   if (!exportPreview) return null;
 
+  const readyMemberIds = new Set(exportPreview.readyMembers.map((member: any) => String(member.id || '')));
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-6">
-      <table className="w-full border-collapse">
+    <div className="entry-table-wrap workstation-pane">
+      <table className="entry-table">
+        <caption className="sr-only">Daftar passport dalam batch export</caption>
         <thead>
           <tr>
-            <th className="text-left px-6 py-4 text-[12px] font-bold text-slate-500 tracking-[0.05em] border-b border-slate-200 bg-slate-50">APPLICANT DETAILS</th>
-            <th className="text-left px-6 py-4 text-[12px] font-bold text-slate-500 tracking-[0.05em] border-b border-slate-200 bg-slate-50">EXTRACTED METADATA</th>
-            <th className="text-left px-6 py-4 text-[12px] font-bold text-slate-500 tracking-[0.05em] border-b border-slate-200 bg-slate-50">STATUS</th>
+            <th>Passport</th>
+            <th>Data utama</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {exportPreview.members.length === 0 ? (
-            <tr><td colSpan={3} className="text-center p-10 text-slate-500 text-[14px]">Belum ada data untuk dipreview.</td></tr>
+            <tr><td colSpan={3} className="text-center p-10 text-slate-500 type-body">Belum ada data dalam batch ini.</td></tr>
           ) : (
             exportPreview.members.map((member: any) => {
               const profile = resolvedProfileOf(member);
               const isReviewed = member.reviewConfirmed || reviewedMemberIds.has(member.id);
               const status = memberReviewStatus(member);
+              const isReady = readyMemberIds.has(String(member.id || ''));
+              const statusLabel = isReady
+                ? 'Siap dikirim'
+                : status === 'ERROR'
+                  ? 'Perlu diperbaiki'
+                  : isReviewed
+                    ? 'Tidak disertakan'
+                    : 'Belum direview';
+              const statusTone = isReady ? 'ready' : status === 'ERROR' ? 'danger' : isReviewed ? 'neutral' : 'warn';
 
               return (
                 <tr key={member.id}>
-                  <td className="px-6 py-5 border-b border-slate-200 align-top last:border-b-0">
-                    <div className="text-[14px] font-bold text-slate-900 mb-1.5">{memberDisplayName(member)}</div>
-                    <div className="flex items-center gap-1.5 text-[13px] text-slate-500">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  <td>
+                    <div className="entry-member-name">{memberDisplayName(member)}</div>
+                    <div className="entry-member-passport">
+                      <AppIcon name="file" size={13} />
                       {memberPassport(member) || '-'}
                     </div>
                   </td>
-                  <td className="px-6 py-5 border-b border-slate-200 align-top last:border-b-0">
-                    <div className="grid grid-cols-[60px_1fr] gap-y-2 gap-x-3 text-[13px]">
-                      <span className="text-slate-400">DOB</span><span className="text-slate-900 font-medium">{profile.dob || '-'}</span>
-                      <span className="text-slate-400">Nat</span><span className="text-slate-900 font-medium">{profile.nationality || '-'}</span>
-                      <span className="text-slate-400">Gender</span><span className="text-slate-900 font-medium">{profile.gender || '-'}</span>
+                  <td>
+                    <div className="entry-member-data">
+                      <span>{profile.dob || '-'}</span>
+                      <span>{profile.nationality || '-'}</span>
+                      <span>{profile.gender === 'M' ? 'Laki-laki' : profile.gender === 'F' ? 'Perempuan' : profile.gender || '-'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5 border-b border-slate-200 align-top last:border-b-0">
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold ${isReviewed ? 'bg-blue-50 text-blue-700 border border-blue-200' : status === 'ERROR' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                      {isReviewed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                      {isReviewed ? 'Reviewed' : status === 'ERROR' ? 'Error' : 'Pending'}
-                    </div>
+                  <td>
+                    <span className={`status-chip ${statusTone}`}>
+                      <AppIcon name={isReady ? 'check' : status === 'ERROR' ? 'alert' : isReviewed ? 'minus' : 'hourglass'} size={13} />
+                      {statusLabel}
+                    </span>
                   </td>
                 </tr>
               );

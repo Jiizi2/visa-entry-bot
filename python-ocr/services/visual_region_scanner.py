@@ -57,7 +57,7 @@ def scan_region_texts(
     seen: set[str] = set()
     texts: list[str] = []
 
-    for variant in _build_variants(region):
+    for variant in _build_variants(region, variant_mode=variant_mode):
         text_result = run_rapid_ocr(variant, config).strip()
         for raw_line in text_result.splitlines():
             cleaned = re.sub(r"\s+", " ", raw_line).strip()
@@ -72,7 +72,7 @@ def scan_region_texts(
     return store_cached_lines(cache_key, texts)
 
 
-def _build_variants(region: object) -> list[object]:
+def _build_variants(region: object, variant_mode: str = "default") -> list[object]:
     profile = _get_active_profile()
 
     if len(region.shape) == 3 and region.shape[2] == 4:
@@ -91,6 +91,14 @@ def _build_variants(region: object) -> list[object]:
     variants = [scaled]
     clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(scaled)
     variants.append(clahe)
+
+    if variant_mode in {"fast", "hint", "location"}:
+        return variants
+
+    if variant_mode == "numeric":
+        _, thresholded = cv2.threshold(clahe, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        variants.append(thresholded)
+        return variants
     
     sharpened = cv2.addWeighted(clahe, 1.5, cv2.GaussianBlur(clahe, (0, 0), 1.5), -0.5, 0)
     variants.append(sharpened)

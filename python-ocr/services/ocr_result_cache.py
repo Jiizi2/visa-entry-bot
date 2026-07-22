@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from collections import OrderedDict
 
+from services.ocr_observation import OcrDetailedResult
+
 try:
     import numpy as np
 except ImportError:  # pragma: no cover - depends on local environment
@@ -10,6 +12,7 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 _CACHE_LIMIT = 256
 _RESULT_CACHE: OrderedDict[tuple[object, ...], tuple[str, ...]] = OrderedDict()
+_DETAILED_RESULT_CACHE: OrderedDict[tuple[object, ...], OcrDetailedResult] = OrderedDict()
 _ACTIVE_SCOPE_ID = "global"
 _STATS = {
     "hitCount": 0,
@@ -49,8 +52,35 @@ def store_cached_lines(cache_key: tuple[object, ...] | None, lines: list[str]) -
     return list(lines)
 
 
+def get_cached_detailed_result(cache_key: tuple[object, ...] | None) -> OcrDetailedResult | None:
+    if cache_key is None:
+        return None
+    cached = _DETAILED_RESULT_CACHE.get(cache_key)
+    if cached is None:
+        _STATS["missCount"] += 1
+        return None
+    _STATS["hitCount"] += 1
+    _DETAILED_RESULT_CACHE.move_to_end(cache_key)
+    return cached
+
+
+def store_cached_detailed_result(
+    cache_key: tuple[object, ...] | None,
+    result: OcrDetailedResult,
+) -> OcrDetailedResult:
+    if cache_key is None:
+        return result
+    _DETAILED_RESULT_CACHE[cache_key] = result
+    _STATS["storeCount"] += 1
+    _DETAILED_RESULT_CACHE.move_to_end(cache_key)
+    while len(_DETAILED_RESULT_CACHE) > _CACHE_LIMIT:
+        _DETAILED_RESULT_CACHE.popitem(last=False)
+    return result
+
+
 def clear_ocr_result_cache() -> None:
     _RESULT_CACHE.clear()
+    _DETAILED_RESULT_CACHE.clear()
 
 
 def start_ocr_result_cache_session(scope_id: str) -> None:
@@ -69,7 +99,9 @@ def end_ocr_result_cache_session() -> None:
 def get_ocr_result_cache_stats() -> dict[str, int | str]:
     return {
         **_STATS,
-        "entryCount": len(_RESULT_CACHE),
+        "entryCount": len(_RESULT_CACHE) + len(_DETAILED_RESULT_CACHE),
+        "lineEntryCount": len(_RESULT_CACHE),
+        "detailedEntryCount": len(_DETAILED_RESULT_CACHE),
         "scopeId": _ACTIVE_SCOPE_ID,
     }
 

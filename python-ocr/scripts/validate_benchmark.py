@@ -17,9 +17,9 @@ from scripts.benchmark_utils import (
 )
 
 
-def validate_benchmark(profile: str = "optimized") -> int:
+def validate_benchmark(profile: str = "optimized", profile_dir: Path | None = None) -> int:
     paths = resolve_profile_paths(profile)
-    profile_dir = paths["profile_dir"]
+    profile_dir = profile_dir.resolve() if profile_dir else paths["profile_dir"]
 
     # Initialize status values
     artifacts_status = "PASS"
@@ -275,5 +275,6 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Validate MRZ benchmark performance budget and consistency.")
     parser.add_argument("--profile", default="optimized", choices=["legacy", "optimized", "speed", "balanced", "heavy"], help="Benchmark profile directory to validate.")
+    parser.add_argument("--profile-dir", type=Path, help="Validate artifacts from an explicit directory.")
     args = parser.parse_args()
-    sys.exit(validate_benchmark(args.profile))
+    sys.exit(validate_benchmark(args.profile, args.profile_dir))

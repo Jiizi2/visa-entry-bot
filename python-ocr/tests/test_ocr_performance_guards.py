@@ -23,7 +23,7 @@ from services.mrz_extractor import _extract_direct_mrz_from_region, _read_best_m
 from services.mrz_parser import DirectMrzResult, _repair_direct_line2, _score_direct_line2
 from services.ocr_result_cache import clear_ocr_result_cache
 from services.passport_page import clear_passport_page_cache, collect_ocr_lines, extract_aligned_passport_page
-from services.visual_region_scanner import scan_region_texts
+from services.visual_region_scanner import _build_variants, scan_region_texts
 from services.data_repairs import _apply_final_name_repairs, _apply_fast_date_repairs, _apply_fast_mrz_repairs, _apply_indonesian_visual_repairs, _apply_verified_mrz_name_repairs, _apply_verified_single_word_name, _repair_impossible_expiry_date
 from services.passport_logic import _can_infer_missing_issue_date, _missing_profile_visual_panel_fields, _missing_speed_location_panel_fields, _ocr_rotation_degrees, _pick_preferred_full_name, _select_balanced_visual_field_names, _select_heavy_visual_field_names, _select_panel_field_names, _select_profile_panel_field_names, _select_speed_visual_field_names, _select_visual_field_names, _should_run_initial_panel_scan, _should_refine_names, _should_skip_panel_for_direct_location_only, _should_try_recovery_location_ocr, _should_try_speed_location_ocr, _speed_identity_recovery_required, _visual_fields_need_aligned_page
 from services.scan_budget import _build_budget_notes, _has_ocr_budget_for_elapsed, _is_balanced_scan, _is_heavy_scan, _is_speed_first_scan, _ocr_budget_ms, _ocr_profile
@@ -31,12 +31,19 @@ from services.scan_budget import _build_budget_notes, _has_ocr_budget_for_elapse
 
 class OcrPerformanceGuardTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.location_strategy = patch.dict(
+            "os.environ",
+            {"PASSPORT_OCR_LOCATION_STRATEGY": "legacy"},
+            clear=False,
+        )
+        self.location_strategy.start()
         clear_ocr_result_cache()
         clear_passport_page_cache()
 
     def tearDown(self) -> None:
         clear_ocr_result_cache()
         clear_passport_page_cache()
+        self.location_strategy.stop()
 
     def test_scan_region_texts_continues_after_fallback_tesseract_error(self) -> None:
         region = np.zeros((10, 10), dtype=np.uint8)
@@ -48,6 +55,27 @@ class OcrPerformanceGuardTests(unittest.TestCase):
             result = scan_region_texts(region, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
         self.assertEqual(result, ["TEXT"])
+
+    def test_balanced_fast_variants_skip_sharpen_and_denoise(self) -> None:
+        region = np.zeros((12, 20, 3), dtype=np.uint8)
+        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "balanced"}, clear=False):
+            variants = _build_variants(region, variant_mode="fast")
+
+        self.assertEqual(len(variants), 2)
+
+    def test_balanced_numeric_variants_add_threshold_lazily(self) -> None:
+        region = np.zeros((12, 20, 3), dtype=np.uint8)
+        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "balanced"}, clear=False):
+            variants = _build_variants(region, variant_mode="numeric")
+
+        self.assertEqual(len(variants), 3)
+
+    def test_speed_profile_uses_one_variant_for_every_mode(self) -> None:
+        region = np.zeros((12, 20, 3), dtype=np.uint8)
+        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "speed"}, clear=False):
+            variants = _build_variants(region, variant_mode="numeric")
+
+        self.assertEqual(len(variants), 1)
 
     def test_issue_date_skips_raw_scan_when_page_candidates_resolve(self) -> None:
         with (
@@ -229,6 +257,25 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         extractor.assert_not_called()
         self.assertEqual(scanner.call_args.kwargs["variant_mode"], "fast")
         self.assertFalse(scanner.call_args.kwargs["include_psm_fallback"])
+
+    def test_visual_location_uses_spatial_strategy_without_raw_probe(self) -> None:
+        with (
+            patch.dict("os.environ", {"PASSPORT_OCR_LOCATION_STRATEGY": "spatial"}, clear=False),
+            patch(
+                "services.indonesia_field_ocr.extract_fast_location_fields",
+                return_value={"placeOfBirth": "BERAU"},
+            ) as spatial,
+            patch("services.indonesia_field_ocr._extract_raw_location_field") as raw,
+        ):
+            result = extract_visual_fields("file.png", field_names=("placeOfBirth",))
+
+        self.assertEqual(result, {"placeOfBirth": "BERAU"})
+        spatial.assert_called_once_with(
+            "file.png",
+            field_names=("placeOfBirth",),
+            rotation_degrees=0,
+        )
+        raw.assert_not_called()
 
     def test_fast_location_fields_scan_raw_right_side_windows_without_preprocess_by_default(self) -> None:
         image = np.zeros((100, 100, 3), dtype=np.uint8)

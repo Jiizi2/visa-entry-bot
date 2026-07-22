@@ -10,8 +10,9 @@
   min-height: 30px;
   padding: 5px 12px;
   border-radius: var(--radius-md);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--type-caption-size);
+  font-weight: var(--weight-semibold);
+  line-height: var(--type-caption-line);
   border: 0;
 }
 
@@ -21,8 +22,8 @@
 .mini-pill.muted,
 .flag-chip.muted {
   color: var(--muted);
-  background: rgba(98, 104, 117, 0.08);
-  border-color: rgba(98, 104, 117, 0.12);
+  background: rgba(26, 29, 30, 0.07);
+  border-color: rgba(26, 29, 30, 0.12);
 }
 
 .status-chip.ready,
@@ -32,7 +33,7 @@
 .flag-chip.good,
 .level-pill.high {
   color: var(--success);
-  background: rgba(15, 118, 110, 0.12);
+  background: rgba(37, 98, 79, 0.12);
 }
 
 .status-chip.info,
@@ -40,8 +41,8 @@
 .mini-pill.info,
 .flag-chip.info,
 .level-pill.medium {
-  color: var(--primary);
-  background: rgba(0, 93, 181, 0.1);
+  color: var(--accessible-gold);
+  background: rgba(217, 169, 79, 0.18);
 }
 
 .status-chip.warn,
@@ -51,7 +52,7 @@
 .flag-chip.warn,
 .level-pill.low {
   color: var(--warning);
-  background: rgba(180, 83, 9, 0.12);
+  background: rgba(166, 108, 45, 0.14);
 }
 
 .status-chip.danger,
@@ -61,5 +62,5 @@
 .flag-chip.danger,
 .level-pill.none {
   color: var(--danger);
-  background: rgba(186, 26, 26, 0.12);
+  background: rgba(180, 35, 24, 0.12);
 }

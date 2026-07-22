@@ -17,6 +17,7 @@ import {
 import ReviewImageViewer from './review/ReviewImageViewer';
 import ReviewDropdown from './review/ReviewDropdown';
 import ReviewDynamicForm from './review/ReviewDynamicForm';
+import AppIcon from '../components/ui/AppIcon';
 
 export default function ReviewPage() {
   const state = useStore();
@@ -159,7 +160,7 @@ export default function ReviewPage() {
   };
 
   if (!activeMember) {
-    return <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Belum ada data.</div>;
+    return <div className="page-empty-state">Belum ada data passport untuk direview.</div>;
   }
 
   const resolved = resolvedProfileOf(activeMember);
@@ -175,65 +176,58 @@ export default function ReviewPage() {
   const isReviewed = Boolean(activeMember?.reviewConfirmed || state.reviewedMemberIds.has(activeMember?.id));
 
   return (
-    <div className="page-container">
+    <div className="page-container review-page">
       {/* Top Workspace Header */}
       <header className="app-page-header">
         <div className="app-page-header-left">
           <div className="app-page-header-icon">
-            <span className="material-symbols-outlined">fact_check</span>
+            <AppIcon name="review" size={20} />
           </div>
           <div className="app-page-header-info">
-            <span className="app-page-step-label">LANGKAH 4: VALIDASI DATA</span>
-            <h1 className="app-page-title">Data Review</h1>
+            <span className="app-page-step-label">Langkah 4 · Validasi data</span>
+            <h1 className="app-page-title">Review data</h1>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <span className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-200 text-slate-600 border border-slate-300/50">
-            {remaining} Documents Remaining
+          <span className="px-3 py-1 rounded-full type-caption bg-slate-200 text-slate-600 border border-slate-300/50">
+            {remaining} dokumen tersisa
           </span>
         </div>
       </header>
 
-      {/* Main Workspace: Two Columns (Form Dominant) */}
-      <section className="flex-1 flex overflow-hidden gap-4">
-        
-        {/* Left Column: Dropdown and Image */}
-        <div className="flex flex-col min-w-0 flex-[2]">
-          
-          <ReviewDropdown 
-            members={members}
-            activeMember={activeMember}
-            resolved={resolved}
-            onMemberSelect={handleMemberSelect}
-            reviewedMemberIds={state.reviewedMemberIds}
-          />
+      <section className="review-workspace">
+        <ReviewDropdown
+          members={members}
+          activeMember={activeMember}
+          resolved={resolved}
+          onMemberSelect={handleMemberSelect}
+          reviewedMemberIds={state.reviewedMemberIds}
+        />
 
-          <ReviewImageViewer 
-            activeMember={activeMember}
-            manifestPath={state.manifestPath}
-          />
+        <ReviewImageViewer
+          activeMember={activeMember}
+          manifestPath={state.manifestPath}
+        />
 
-        </div>
-
-        {/* Right Column: Streamlined Data Form */}
-        <div className="flex flex-col flex-[3] min-w-0 app-card relative z-10 h-full !p-4">
+        {/* Primary Column: review form */}
+        <div className="review-inspector workstation-pane">
           
           {/* Form Header */}
           <div className="pb-4 border-b border-slate-300/50 shrink-0">
             <div className="flex items-start justify-between mb-2">
-              <h2 className="font-['Inter',sans-serif] text-[24px] font-semibold text-slate-900 m-0 pr-4 leading-8">{memberDisplayName(activeMember)}</h2>
+              <h2 className="type-subtitle text-slate-900 m-0 pr-4">{memberDisplayName(activeMember)}</h2>
             </div>
             <div className="flex items-center gap-3">
               {isReviewed ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-green-50 text-green-700 border border-green-200">
-                  <div className="w-2 h-2 rounded-full shrink-0 bg-green-500"></div> Reviewed
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md type-caption bg-green-50 text-green-700 border border-green-200">
+                  <div className="w-2 h-2 rounded-full shrink-0 bg-green-500"></div> Sudah direview
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                  <div className="w-2 h-2 rounded-full shrink-0 bg-amber-400"></div> Needs Review
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md type-caption bg-amber-50 text-amber-700 border border-amber-200">
+                  <div className="w-2 h-2 rounded-full shrink-0 bg-amber-400"></div> Perlu review
                 </span>
               )}
-              <span className="font-mono text-[14px] text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
+              <span className="font-mono type-body text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
                 {resolved?.passportNumber || '-'}
               </span>
             </div>
@@ -248,34 +242,29 @@ export default function ReviewPage() {
           />
 
           {/* Footer / Action Area */}
-          <div className="border-t border-slate-300/50 bg-white/80 backdrop-blur-sm shrink-0 pt-4 mt-4">
-            <div className="flex items-center justify-between mb-4 text-[14px]">
+          <div className="review-inspector__footer">
+            <div className="flex items-center justify-between mb-3 type-body">
               <span className="text-slate-600">Progress Pengisian:</span>
-              <span className="font-medium text-[12px]" style={{ color: filledCount === allRequiredKeys.length ? '#15803d' : '#d97706' }}>
+              <span className={`type-caption-strong ${filledCount === allRequiredKeys.length ? 'text-emerald-700' : 'text-blue-700'}`}>
                 {progressText}
               </span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="review-inspector__actions">
               <button 
-                className="primary-action"
-                onClick={handleNext}
-                disabled={filledCount < allRequiredKeys.length}
-              >
-                {activeIndex === members.length - 1 ? 'Approve & Finish Review' : 'Approve & Next Document'}
-                <span className="material-symbols-outlined">
-                  {activeIndex === members.length - 1 ? 'done_all' : 'arrow_forward'}
-                </span>
-              </button>
-              <button className="secondary-button">
-                Flag as Error
-              </button>
-              <button 
-                className="primary-action !bg-red-600 hover:!bg-red-700 ml-auto"
+                className="secondary-button review-delete-action"
                 onClick={handleDeleteClick}
                 title="Hapus passport dari manifest"
               >
-                <span className="material-symbols-outlined">delete</span>
-                Hapus Passport
+                <AppIcon name="delete" />
+                Hapus
+              </button>
+              <button
+                className="primary-action ml-auto"
+                onClick={handleNext}
+                disabled={filledCount < allRequiredKeys.length}
+              >
+                {activeIndex === members.length - 1 ? 'Setujui & selesaikan' : 'Setujui & berikutnya'}
+                <AppIcon name={activeIndex === members.length - 1 ? 'done_all' : 'arrow_forward'} />
               </button>
             </div>
           </div>
@@ -285,10 +274,10 @@ export default function ReviewPage() {
 
       {showDeleteConfirm && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="review-delete-title">
             <div className="modal-header">
-              <span className="material-symbols-outlined text-red-600">warning</span>
-              <h3>Konfirmasi Hapus</h3>
+              <AppIcon name="warning" className="text-red-600" />
+              <h3 id="review-delete-title">Konfirmasi hapus</h3>
             </div>
             <div className="modal-body">
               <p>

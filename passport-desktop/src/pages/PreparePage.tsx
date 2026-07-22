@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
 import CropTool, { CropRect } from '../components/CropTool';
 import { getEffectiveImagePath } from '../utils/paths';
+import AppIcon from '../components/ui/AppIcon';
 
 export default function PreparePage() {
   const state = useStore();
@@ -305,26 +306,26 @@ export default function PreparePage() {
   };
 
   return (
-    <section id="page-prepare" className="page-container">
+    <section id="page-prepare" className="page-container prepare-page">
       <header className="app-page-header">
         <div className="app-page-header-left">
           <div className="app-page-header-icon">
-            <span className="material-symbols-outlined">crop</span>
+            <AppIcon name="crop" size={20} />
           </div>
           <div className="app-page-header-info">
-            <span className="app-page-step-label">LANGKAH 2: SIAPKAN FOTO</span>
-            <h1 className="app-page-title">Rapikan Foto Passport</h1>
+            <span className="app-page-step-label">Langkah 2 · Siapkan foto</span>
+            <h1 className="app-page-title">Rapikan foto passport</h1>
             <p className="app-page-subtitle">Putar, potong (crop), atau kompres foto agar teks terbaca jelas oleh OCR.</p>
           </div>
         </div>
       </header>
 
-      <div className="flex w-full max-w-[1200px] mx-auto gap-6 flex-1 min-h-0 p-0">
+      <div className="prepare-workspace">
         
         {/* Left Panel: Photo List */}
-        <aside className="shrink-0 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-300/40 flex flex-col overflow-hidden h-full w-[96px]">
+        <aside className="prepare-queue workstation-pane" aria-label="Daftar foto passport">
           <div className="p-4 border-b border-slate-300/40 bg-slate-50/50 flex justify-center">
-            <span className="material-symbols-outlined text-[24px] text-slate-600">photo_library</span>
+            <AppIcon name="photo_library" size={24} className="text-slate-600" />
           </div>
           
           <div className="grow overflow-y-auto p-3 flex flex-col gap-4 bg-slate-50/50 items-center">
@@ -373,7 +374,7 @@ export default function PreparePage() {
                           : 'bg-white border-slate-300 text-slate-400'
                       }`}>
                         {isSelected ? (
-                          <span className="material-symbols-outlined text-[10px] font-bold">check</span>
+                          <AppIcon name="check" size={10} strokeWidth={3} />
                         ) : (
                           <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
                         )}
@@ -390,38 +391,40 @@ export default function PreparePage() {
               <button 
                 onClick={() => setListPage(p => Math.max(0, p - 1))}
                 disabled={listPage === 0}
+                aria-label="Halaman foto sebelumnya"
                 className={`flex items-center justify-center w-6 h-6 bg-transparent border-none text-blue-700 ${listPage === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded-md'}`}
               >
-                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                <AppIcon name="chevron_left" size={18} />
               </button>
-              <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap min-w-[32px] text-center">
+              <span className="type-caption-strong text-slate-700 whitespace-nowrap min-w-[32px] text-center">
                 {listPage + 1} / {totalPages}
               </span>
               <button 
                 onClick={() => setListPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={listPage === totalPages - 1}
+                aria-label="Halaman foto berikutnya"
                 className={`flex items-center justify-center w-6 h-6 bg-transparent border-none text-blue-700 ${listPage === totalPages - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer hover:bg-blue-50 rounded-md'}`}
               >
-                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                <AppIcon name="chevron_right" size={18} />
               </button>
             </div>
           )}
         </aside>
 
         {/* Right Panel: Main Preview & Actions */}
-        <section className="grow flex flex-col gap-6 h-full overflow-hidden w-full min-h-0">
+        <section className="prepare-stage">
           
           {/* Image Canvas */}
-          <div className="grow bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-300/40 relative overflow-hidden flex flex-col min-h-0">
+          <div className="prepare-viewer workstation-pane">
             
             {/* Preview Area */}
-            <div className="grow bg-slate-200/40 relative flex items-center justify-center overflow-hidden rounded-t-2xl p-6 min-h-0">
+            <div className="prepare-canvas">
               <div className="absolute inset-0 z-0 opacity-[0.07] pointer-events-none bg-[linear-gradient(45deg,#94a3b8_25%,transparent_25%),linear-gradient(-45deg,#94a3b8_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#94a3b8_75%),linear-gradient(-45deg,transparent_75%,#94a3b8_75%)] bg-[size:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px]"></div>
               
               {state.isPreparingImages && (
                 <div className="flex flex-col items-center z-10">
                   <div className="w-12 h-12 border-4 mx-auto mb-2.5 border-slate-200 border-t-blue-700 rounded-full animate-spin"></div>
-                  <h3 className="mt-5 text-slate-900 font-semibold text-lg">Menyiapkan Foto...</h3>
+                  <h3 className="mt-5 text-slate-900 type-body-large-strong">Menyiapkan foto...</h3>
                   <p className="text-slate-700 mt-2">Mohon tunggu, sedang membaca dan memproses dokumen dari folder.</p>
                 </div>
               )}
@@ -442,8 +445,8 @@ export default function PreparePage() {
                   {(() => {
                     const info = getFileSizeInfo(activeImageData.dataUrl);
                     return (
-                      <div className={`absolute bottom-4 right-4 z-20 px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm backdrop-blur-md flex items-center gap-1.5 ${info.isOversize ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white'}`}>
-                        <span className="material-symbols-outlined text-[16px]">{info.isOversize ? 'warning' : 'check_circle'}</span>
+                      <div className={`absolute bottom-4 right-4 z-20 px-3 py-1.5 rounded-lg type-body-strong shadow-sm backdrop-blur-md flex items-center gap-1.5 ${info.isOversize ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white'}`}>
+                        <AppIcon name={info.isOversize ? 'warning' : 'check_circle'} size={16} />
                         {info.formatted} {info.isOversize && '(> 1 MB)'}
                       </div>
                     );
@@ -460,7 +463,7 @@ export default function PreparePage() {
             {/* Image Action Bar */}
             {!state.isPreparingImages && (
               isSelectMode ? (
-                <div className="bg-white/90 backdrop-blur-md border-b border-slate-300/30 absolute top-0 left-0 right-0 rounded-t-2xl p-3 flex flex-wrap items-center justify-center gap-2 z-20">
+                <div className="prepare-action-bar workstation-toolbar" aria-label="Aksi pilihan foto">
                   <button 
                     className="secondary-button"
                     type="button"
@@ -469,10 +472,10 @@ export default function PreparePage() {
                       setSelectedIds([]);
                     }}
                   >
-                    <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                    <AppIcon name="arrow_back" size={18} />
                     Batal
                   </button>
-                  <span className="text-[13px] font-bold text-slate-700 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-100 h-10 flex items-center">
+                  <span className="type-body-strong text-slate-700 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-100 h-10 flex items-center">
                     {selectedIds.length} terpilih
                   </span>
 
@@ -483,7 +486,7 @@ export default function PreparePage() {
                     type="button"
                     onClick={() => setSelectedIds(items.map((i: any) => String(i.id)))}
                   >
-                    <span className="material-symbols-outlined text-[18px]">select_all</span>
+                    <AppIcon name="select_all" size={18} />
                     Semua
                   </button>
                   <button 
@@ -492,7 +495,7 @@ export default function PreparePage() {
                     disabled={selectedIds.length === 0}
                     onClick={() => setSelectedIds([])}
                   >
-                    <span className="material-symbols-outlined text-[18px]">deselect</span>
+                    <AppIcon name="deselect" size={18} />
                     Bersihkan
                   </button>
 
@@ -504,7 +507,7 @@ export default function PreparePage() {
                     disabled={selectedIds.length === 0}
                     onClick={() => setShowBatchEndorseConfirm(true)}
                   >
-                    <span className="material-symbols-outlined text-[18px]">folder_special</span>
+                    <AppIcon name="folder_special" size={18} />
                     Endorsement ({selectedIds.length})
                   </button>
                   <button 
@@ -513,51 +516,51 @@ export default function PreparePage() {
                     disabled={selectedIds.length === 0}
                     onClick={() => setShowBatchDeleteConfirm(true)}
                   >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <AppIcon name="delete" size={18} />
                     Hapus ({selectedIds.length})
                   </button>
                 </div>
               ) : (
                 activeItem && (
-                  <div className="bg-white/80 backdrop-blur-md border-b border-slate-300/30 absolute top-0 left-0 right-0 rounded-t-2xl p-3 flex flex-wrap items-center justify-center gap-2 z-20">
+                  <div className="prepare-action-bar workstation-toolbar" aria-label="Alat foto">
                     <button className="secondary-button !text-blue-700 !bg-blue-50 hover:!bg-blue-100" type="button" onClick={() => {
                       setIsSelectMode(true);
                       setSelectedIds([]);
                     }}>
-                      <span className="material-symbols-outlined text-[18px]">checklist</span>
+                      <AppIcon name="checklist" size={18} />
                       Pilih Banyak
                     </button>
                     <div className="h-5 w-px bg-slate-300/60 mx-1"></div>
                     
                     <button className="secondary-button" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
-                      <span className="material-symbols-outlined text-[18px]">crop</span>
+                      <AppIcon name="crop" size={18} />
                       Crop
                     </button>
 
                     {/* Rotation Group */}
                     <div className="flex border border-slate-300/60 rounded-lg overflow-hidden shadow-sm bg-white h-10">
                       <button className="flex items-center justify-center w-9 h-full text-slate-700 hover:bg-slate-100 hover:text-blue-700 active:scale-95 cursor-pointer border-none border-r border-slate-200 disabled:opacity-40" onClick={() => handleRotate(-90)} disabled={!activeImageData.dataUrl} title="Putar Kiri">
-                        <span className="material-symbols-outlined text-[18px]">rotate_left</span>
+                        <AppIcon name="rotate_left" size={18} />
                       </button>
                       <button className="flex items-center justify-center w-9 h-full text-slate-700 hover:bg-slate-100 hover:text-blue-700 active:scale-95 cursor-pointer border-none disabled:opacity-40" onClick={() => handleRotate(90)} disabled={!activeImageData.dataUrl} title="Putar Kanan">
-                        <span className="material-symbols-outlined text-[18px]">rotate_right</span>
+                        <AppIcon name="rotate_right" size={18} />
                       </button>
                     </div>
 
                     <button className="secondary-button" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
-                      <span className="material-symbols-outlined text-[18px]">folder_special</span>
+                      <AppIcon name="folder_special" size={18} />
                       Endorsement
                     </button>
 
                     {activeImageData.dataUrl && getFileSizeInfo(activeImageData.dataUrl).isOversize && (
                       <button className="secondary-button !text-amber-700 !bg-amber-50 hover:!bg-amber-100" onClick={handleCompress}>
-                        <span className="material-symbols-outlined text-[18px]">compress</span>
+                        <AppIcon name="compress" size={18} />
                         Kompres
                       </button>
                     )}
 
                     <button className="secondary-button !text-red-700 !bg-red-50 hover:!bg-red-100" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                      <AppIcon name="delete" size={18} />
                       Hapus
                     </button>
                     
@@ -575,7 +578,7 @@ export default function PreparePage() {
                           }}
                         >
                           Berikutnya
-                          <span className="material-symbols-outlined text-[18px]">navigate_next</span>
+                          <AppIcon name="navigate_next" size={18} />
                         </button>
                       );
                     })()}
@@ -586,19 +589,19 @@ export default function PreparePage() {
           </div>
 
           {/* Footer Actions */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-300/40 px-6 py-3 flex justify-between items-center shrink-0">
-            <p className="font-medium text-[14px] text-slate-700 flex items-center gap-3 m-0">
-              <span className="material-symbols-outlined text-blue-700/60 text-[20px]">info</span>
+          <div className="prepare-footer">
+            <p className="type-body text-slate-700 flex items-center gap-3 m-0">
+              <AppIcon name="info" size={20} className="text-blue-700/60" />
               Pastikan semua foto sudah terbaca jelas sebelum OCR dimulai.
             </p>
-            {error && <div className="text-red-600 font-bold m-0 mb-2.5 text-sm p-2.5 bg-red-600/10 rounded-md border border-red-600/30">{error}</div>}
+            {error && <div className="text-red-600 type-body-strong m-0 mb-2.5 p-2.5 bg-red-600/10 rounded-md border border-red-600/30">{error}</div>}
             <div className="flex gap-4">
               <button className="secondary-button" type="button" onClick={() => updateState({ currentPage: 'import' })}>
                 Kembali Folder
               </button>
               <button className="primary-action" type="button" onClick={handleStartScan} disabled={state.isScanning || state.isPreparingImages}>
                 Start Scan
-                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                <AppIcon name="arrow_forward" size={20} />
               </button>
             </div>
           </div>
@@ -607,21 +610,19 @@ export default function PreparePage() {
       </div>
 
       {isCropping && activeImageData.dataUrl && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', padding: '40px' }}>
-           <CropTool 
-             imageSrc={activeImageData.dataUrl}
-             onSave={handleSaveCrop}
-             onCancel={() => setIsCropping(false)}
-           />
-        </div>
+        <CropTool
+          imageSrc={activeImageData.dataUrl}
+          onSave={handleSaveCrop}
+          onCancel={() => setIsCropping(false)}
+        />
       )}
 
       {showDeleteConfirm && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="prepare-delete-title">
             <div className="modal-header">
-              <span className="material-symbols-outlined text-red-600">warning</span>
-              <h3>Konfirmasi Hapus</h3>
+              <AppIcon name="warning" className="text-red-600" />
+              <h3 id="prepare-delete-title">Konfirmasi hapus</h3>
             </div>
             <div className="modal-body">
               <p>Apakah Anda yakin ingin menghapus foto ini? Tindakan ini tidak dapat dibatalkan.</p>
@@ -641,14 +642,14 @@ export default function PreparePage() {
       {/* Modal Endorsement Confirm */}
       {showEndorseConfirm && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="prepare-endorse-title">
             <div className="modal-header">
-              <span className="material-symbols-outlined text-amber-600">folder_special</span>
-              <h3>Konfirmasi Endorsement</h3>
+              <AppIcon name="folder_special" className="text-amber-600" />
+              <h3 id="prepare-endorse-title">Konfirmasi endorsement</h3>
             </div>
             <div className="modal-body">
               <p>
-                Apakah Anda yakin ingin menjadikan foto ini sebagai Endorsement? Foto ini tidak akan discan, tapi akan disimpan di folder terpisah (<code className="bg-slate-100 px-1 py-0.5 rounded text-[13px]">endorsement-images</code>) sehingga bisa Anda lihat kembali.
+                Apakah Anda yakin ingin menjadikan foto ini sebagai Endorsement? Foto ini tidak akan discan, tapi akan disimpan di folder terpisah (<code className="bg-slate-100 px-1 py-0.5 rounded font-mono type-caption">endorsement-images</code>) sehingga bisa Anda lihat kembali.
               </p>
             </div>
             <div className="modal-footer">
@@ -666,14 +667,14 @@ export default function PreparePage() {
       {/* Modal Batch Endorsement Confirm */}
       {showBatchEndorseConfirm && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="prepare-batch-endorse-title">
             <div className="modal-header">
-              <span className="material-symbols-outlined text-amber-600">folder_special</span>
-              <h3>Konfirmasi Endorsement Masal</h3>
+              <AppIcon name="folder_special" className="text-amber-600" />
+              <h3 id="prepare-batch-endorse-title">Konfirmasi endorsement massal</h3>
             </div>
             <div className="modal-body">
               <p>
-                Apakah Anda yakin ingin menjadikan <strong>{selectedIds.length} foto</strong> terpilih sebagai Endorsement? Foto-foto ini tidak akan discan, tapi akan disimpan di folder terpisah (<code className="bg-slate-100 px-1 py-0.5 rounded text-[13px]">endorsement-images</code>) sehingga bisa Anda lihat kembali.
+                Apakah Anda yakin ingin menjadikan <strong>{selectedIds.length} foto</strong> terpilih sebagai Endorsement? Foto-foto ini tidak akan discan, tapi akan disimpan di folder terpisah (<code className="bg-slate-100 px-1 py-0.5 rounded font-mono type-caption">endorsement-images</code>) sehingga bisa Anda lihat kembali.
               </p>
             </div>
             <div className="modal-footer">
@@ -691,10 +692,10 @@ export default function PreparePage() {
       {/* Modal Batch Delete Confirm */}
       {showBatchDeleteConfirm && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="prepare-batch-delete-title">
             <div className="modal-header">
-              <span className="material-symbols-outlined text-red-600">warning</span>
-              <h3>Konfirmasi Hapus Masal</h3>
+              <AppIcon name="warning" className="text-red-600" />
+              <h3 id="prepare-batch-delete-title">Konfirmasi hapus massal</h3>
             </div>
             <div className="modal-body">
               <p>Apakah Anda yakin ingin menghapus <strong>{selectedIds.length} foto</strong> terpilih? Tindakan ini tidak dapat dibatalkan.</p>
