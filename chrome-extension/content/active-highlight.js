@@ -19,9 +19,9 @@
       style.id = HIGHLIGHT_STYLE_ID;
       style.textContent = `
         .${ACTIVE_HIGHLIGHT_CLASS} {
-          outline: 2px solid #2563eb !important;
+          outline: 2px solid #d9a94f !important;
           outline-offset: 2px !important;
-          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18) !important;
+          box-shadow: 0 0 0 4px rgba(217, 169, 79, 0.22) !important;
           transition: outline 120ms ease, box-shadow 120ms ease !important;
         }
       `;

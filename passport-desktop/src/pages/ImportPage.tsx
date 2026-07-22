@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { formatRecentStamp } from '../utils/helpers';
+import AppIcon from '../components/ui/AppIcon';
 
 export default function ImportPage() {
   const state = useStore();
@@ -121,60 +122,71 @@ export default function ImportPage() {
   };
 
   return (
-    <section id="page-import" className="flex flex-col h-full relative overflow-x-hidden bg-slate-50 font-sans text-slate-900 p-4 sm:p-6">
-      <div className="flex flex-col gap-6 flex-1">
+    <section id="page-import" className="page-container import-page">
+      <header className="app-page-header">
+        <div className="app-page-header-left">
+          <div className="app-page-header-icon">
+            <AppIcon name="folder_open" size={20} />
+          </div>
+          <div className="app-page-header-info">
+            <span className="app-page-step-label">Langkah 1 · Import folder</span>
+            <h1 className="app-page-title">Pilih folder kerja</h1>
+            <p className="app-page-subtitle">Tentukan sumber passport, mode OCR, dan nilai default rombongan.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="primary-action" type="button" onClick={handleNext} disabled={!state.selectedDir}>
+            Lanjut ke Prepare
+            <AppIcon name="arrow_forward" size={16} />
+          </button>
+        </div>
+      </header>
+
+      <div className="import-page__content">
         {/* Pilih Folder Dropzone */}
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-6 relative overflow-hidden flex items-center justify-between gap-6 cursor-pointer transition-shadow duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]" onClick={handleChooseFolder} role="button" tabIndex={0}>
+        <div className="import-folder-bar">
           <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-200 rounded-xl flex items-center justify-center text-blue-700">
-              <span className="material-symbols-outlined text-[28px]">folder_open</span>
+            <div className="import-folder-bar__icon" aria-hidden="true">
+              <AppIcon name="folder_open" size={22} />
             </div>
             <div>
-              <h2 className="text-[20px] font-bold text-slate-900 m-0 tracking-tight">Folder Passport</h2>
-              <p className="text-sm text-slate-500 mt-1 mb-0">Pilih folder berisi foto atau PDF passport untuk diproses.</p>
+              <h2 className="type-body-strong text-slate-900 m-0">Folder passport</h2>
+              <p className="type-caption text-slate-500 mt-1 mb-0">Folder berisi foto atau PDF passport yang akan diproses.</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 w-full" style={{ maxWidth: '600px' }}>
+          <div className="import-folder-bar__picker">
             <div className="relative flex-1">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+              <AppIcon name="search" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
                 readOnly 
                 value={state.selectedDir} 
                 placeholder="Belum ada folder terpilih..." 
-                className="w-full h-10 !pl-10 pr-4 bg-slate-100 border border-transparent rounded-lg text-sm text-slate-700 outline-none"
+                aria-label="Folder passport aktif"
+                className="w-full h-10 !pl-10 pr-4 bg-slate-100 border border-transparent rounded-lg type-body text-slate-700 outline-none"
               />
             </div>
             <button className="primary-action" onClick={(e) => { e.stopPropagation(); handleChooseFolder(); }}>
               {state.selectedDir ? 'Ganti' : 'Pilih Folder'}
             </button>
-            {state.selectedDir && (
-              <button 
-                className="primary-action !bg-emerald-600 hover:!bg-emerald-700" 
-                onClick={(e) => { e.stopPropagation(); handleNext(); }} 
-              >
-                Lanjutkan
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
-            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="import-grid">
           {/* Left Column */}
-          <div className="flex flex-col gap-6 xl:col-span-2">
+          <div className="flex flex-col gap-6">
             
             {/* OCR Settings */}
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-6 relative overflow-hidden">
+            <div className="app-card import-settings-card">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <span className="text-[10px] font-bold tracking-widest text-blue-700 bg-blue-600/10 px-2 py-1 rounded uppercase mb-2 inline-block">LANGKAH 2</span>
-                  <h3 className="text-[20px] font-bold text-slate-900 m-0 tracking-tight flex items-center gap-2">Mode Pemrosesan OCR</h3>
+                  <span className="type-overline text-blue-700 bg-blue-600/10 px-2 py-1 rounded mb-2 inline-block">Langkah 2</span>
+                  <h3 className="type-subtitle text-slate-900 m-0 flex items-center gap-2">Mode pemrosesan OCR</h3>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Mode pemrosesan OCR">
                 {['speed', 'balanced', 'heavy'].map(mode => {
                   const isActive = state.ocrMode === mode;
                   let icon = 'balance';
@@ -183,19 +195,22 @@ export default function ImportPage() {
                   if (mode === 'heavy') { icon = 'psychology'; speedText = '60S+ / FILE'; }
 
                   return (
-                    <div 
+                    <button
                       key={mode} 
                       className={`flex items-center gap-3 p-4 bg-slate-50 border rounded-xl cursor-pointer transition-all hover:bg-white hover:border-blue-400 hover:shadow-md ${isActive ? 'bg-blue-50 border-blue-500 shadow-[0_4px_12px_rgba(59,130,246,0.15)] ring-1 ring-blue-500' : 'border-slate-200'}`}
                       onClick={() => updateState({ ocrMode: mode })}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
                     >
                       <div className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors ${isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500'}`}>
-                        <span className="material-symbols-outlined text-[24px]">{icon}</span>
+                        <AppIcon name={icon} size={24} />
                       </div>
                       <div className="flex flex-col">
-                        <div className="text-[14px] font-bold text-slate-900 leading-snug">{mode.charAt(0).toUpperCase() + mode.slice(1)} Mode</div>
-                        <div className={`text-[11px] font-medium mt-0.5 ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>{speedText}</div>
+                        <div className="type-body-strong text-slate-900">{mode.charAt(0).toUpperCase() + mode.slice(1)} mode</div>
+                        <div className={`type-caption mt-0.5 ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>{speedText}</div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -203,61 +218,61 @@ export default function ImportPage() {
               <div className="mt-5 pt-5 border-t border-slate-200 flex items-center">
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className={`w-6 h-6 rounded flex items-center justify-center border transition-all ${state.pdfBatchMode ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100 border-slate-300 text-transparent group-hover:border-blue-400'}`}>
-                    <span className="material-symbols-outlined text-[16px]">check</span>
+                    <AppIcon name="check" size={16} />
                   </div>
                   <input 
                     type="checkbox" 
-                    className="hidden" 
+                    className="sr-only"
                     checked={state.pdfBatchMode} 
                     onChange={e => updateState({ pdfBatchMode: e.target.checked })} 
                   />
                   <div className="flex flex-col">
-                    <span className="text-[14px] font-bold text-slate-900">Ekstrak Semua Halaman PDF</span>
-                    <span className="text-[11px] text-slate-500">Aktifkan jika 1 file PDF berisi banyak passport. (Proses lebih lambat)</span>
+                    <span className="type-body-strong text-slate-900">Ekstrak semua halaman PDF</span>
+                    <span className="type-caption text-slate-500">Aktifkan jika 1 file PDF berisi banyak passport. (Proses lebih lambat)</span>
                   </div>
                 </label>
               </div>
             </div>
 
             {/* Default Entry */}
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-6 relative overflow-hidden">
+            <div className="app-card import-defaults-card">
               <div className="absolute top-0 right-0 w-[300px] h-full bg-gradient-to-bl from-blue-50 to-transparent -z-10 opacity-60 pointer-events-none"></div>
-              <span className="text-[10px] font-bold tracking-widest text-blue-700 bg-blue-600/10 px-2 py-1 rounded uppercase mb-2 inline-block">DEFAULT ENTRY</span>
-              <h3 className="text-[20px] font-bold text-slate-900 m-0 tracking-tight flex items-center gap-2">Nilai Rombongan <span className="material-symbols-outlined text-[20px] text-slate-400">info</span></h3>
+              <span className="type-overline text-blue-700 bg-blue-600/10 px-2 py-1 rounded mb-2 inline-block">Default entry</span>
+              <h3 className="type-subtitle text-slate-900 m-0 flex items-center gap-2">Nilai rombongan <AppIcon name="info" size={20} className="text-slate-400" /></h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 mt-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] font-bold tracking-wider text-slate-600">PROFESI</label>
+                  <label className="type-caption-strong text-slate-600">Profesi</label>
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">work</span>
+                    <AppIcon name="work" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.profesi} onChange={e => handleDefaultChange('profesi', e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] font-bold tracking-wider text-slate-600">STATUS NIKAH</label>
+                  <label className="type-caption-strong text-slate-600">Status nikah</label>
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">blinds</span>
+                    <AppIcon name="blinds" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.statusNikah} onChange={e => handleDefaultChange('statusNikah', e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] font-bold tracking-wider text-slate-600">TIPE PASSPORT</label>
+                  <label className="type-caption-strong text-slate-600">Tipe passport</label>
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">menu_book</span>
+                    <AppIcon name="menu_book" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.tipePassport} onChange={e => handleDefaultChange('tipePassport', e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] font-bold tracking-wider text-slate-600">EMAIL</label>
+                  <label className="type-caption-strong text-slate-600">Email</label>
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">mail</span>
+                    <AppIcon name="mail" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.email} onChange={e => handleDefaultChange('email', e.target.value)} placeholder="Contoh: husein@gmail.com" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold tracking-wider text-slate-600">NOMOR TELEPON</label>
+                  <label className="type-caption-strong text-slate-600">Nomor telepon</label>
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-pink-500 text-[20px]">call</span>
+                    <AppIcon name="call" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500" />
                     <input type="text" className="w-full h-10 !pl-10 pr-3" value={state.defaultEntry.nomorTelepon} onChange={e => handleDefaultChange('nomorTelepon', e.target.value)} placeholder="Contoh: 62821..." />
                   </div>
                 </div>
@@ -265,9 +280,9 @@ export default function ImportPage() {
 
               <div className="flex items-center justify-between mt-6 pt-5 border-t border-slate-200">
                 <button className="secondary-button" onClick={handleApplyDefault}>
-                  <span className="material-symbols-outlined text-[18px]">done_all</span> Terapkan Default
+                  <AppIcon name="done_all" size={18} /> Terapkan Default
                 </button>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-[12px] font-semibold rounded-full border border-emerald-200">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 type-caption-strong rounded-full border border-emerald-200">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                   <span>Default otomatis aktif</span>
                 </div>
@@ -277,14 +292,14 @@ export default function ImportPage() {
           </div>
 
           {/* Right Column */}
-          <div className="flex flex-col gap-6 xl:col-span-1 h-full">
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-6 relative overflow-hidden flex flex-col h-full max-h-[800px]">
-              <span className="text-[10px] font-bold tracking-widest text-blue-700 bg-blue-600/10 px-2 py-1 rounded uppercase mb-2 inline-block self-start">FOLDER TERAKHIR</span>
-              <h3 className="text-[20px] font-bold text-slate-900 m-0 tracking-tight mb-2">Riwayat Pilihan</h3>
+          <div className="flex flex-col gap-6 h-full">
+            <div className="app-card import-history-card">
+              <span className="type-overline text-blue-700 bg-blue-600/10 px-2 py-1 rounded mb-2 inline-block self-start">Folder terakhir</span>
+              <h3 className="type-subtitle text-slate-900 m-0 mb-2">Riwayat pilihan</h3>
               
               <div className="flex flex-col gap-3 mt-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 {state.recentBatches.length === 0 ? (
-                  <p className="text-slate-500 text-sm italic py-4 text-center">Belum ada riwayat folder.</p>
+                  <p className="text-slate-500 type-body py-4 text-center">Belum ada riwayat folder.</p>
                 ) : (
                   state.recentBatches.map((batch, i) => (
                     <div 
@@ -294,18 +309,18 @@ export default function ImportPage() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 shrink-0">
-                          <span className="material-symbols-outlined text-[24px]">folder</span>
+                          <AppIcon name="folder" size={24} />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[14px] font-semibold text-slate-900 truncate max-w-[140px]" title={batch.name}>{batch.name}</div>
-                          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-                            <span className="material-symbols-outlined text-[14px]">schedule</span>
+                          <div className="type-body-strong text-slate-900 truncate max-w-[140px]" title={batch.name}>{batch.name}</div>
+                          <div className="flex items-center gap-1 type-caption text-slate-500 mt-0.5">
+                            <AppIcon name="schedule" size={14} />
                             {formatRecentStamp(new Date(batch.date))}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-[12px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md">{batch.fileCount} file</div>
+                        <div className="type-caption-strong text-blue-700 bg-blue-50 px-2 py-1 rounded-md">{batch.fileCount} file</div>
                         <button 
                           className="flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                           onClick={(e) => {
@@ -313,8 +328,9 @@ export default function ImportPage() {
                             setBatchToDelete({ path: batch.path, name: batch.name });
                           }}
                           title="Hapus riwayat"
+                          aria-label={`Hapus ${batch.name} dari riwayat`}
                         >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                          <AppIcon name="delete" size={18} />
                         </button>
                       </div>
                     </div>
@@ -328,7 +344,7 @@ export default function ImportPage() {
       </div>
 
       {showToast && (
-        <div style={{
+        <div role="status" aria-live="polite" style={{
           position: 'fixed',
           bottom: '24px',
           right: '24px',
@@ -343,17 +359,17 @@ export default function ImportPage() {
           zIndex: 1000,
           animation: 'slideUp 0.3s ease-out'
         }}>
-          <span className="material-symbols-outlined text-[24px]">check_circle</span>
-          <span style={{ fontWeight: 500 }}>Default otomatis aktif</span>
+          <AppIcon name="check_circle" size={24} />
+          <span className="type-body-strong">Default otomatis aktif</span>
         </div>
       )}
       {/* Modal Hapus Riwayat */}
       {batchToDelete && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-history-title">
             <div className="modal-header">
-              <span className="material-symbols-outlined text-red-600">delete</span>
-              <h3>Konfirmasi Hapus Riwayat</h3>
+              <AppIcon name="delete" className="text-red-600" />
+              <h3 id="delete-history-title">Konfirmasi hapus riwayat</h3>
             </div>
             <div className="modal-body">
               <p>

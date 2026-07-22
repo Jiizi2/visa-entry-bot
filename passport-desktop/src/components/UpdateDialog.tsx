@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import AppIcon from './ui/AppIcon';
 
 interface UpdateDialogProps {
   isOpen: boolean;
@@ -89,28 +90,28 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
 
   return (
     <div className="modal-overlay" style={{ zIndex: 99999 }}>
-      <div className="modal-card">
+      <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="update-dialog-title">
         {/* Header */}
         <div className="modal-header">
-          <span className="material-symbols-outlined text-blue-600">system_update</span>
-          <h3>Pembaruan Aplikasi</h3>
+          <AppIcon name="system_update" className="text-blue-600" />
+          <h3 id="update-dialog-title">Pembaruan aplikasi</h3>
         </div>
 
         {/* Body */}
         <div className="modal-body">
           {status === 'checking' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <span className="material-symbols-outlined text-[32px] text-blue-500 animate-spin">refresh</span>
+              <AppIcon name="refresh" size={32} className="text-blue-500 animate-spin" />
               <p>Sedang memeriksa pembaruan...</p>
             </div>
           )}
 
           {status === 'up-to-date' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <span className="material-symbols-outlined text-[48px] text-emerald-500">check_circle</span>
+              <AppIcon name="check_circle" size={48} className="text-emerald-500" />
               <div>
-                <p className="font-medium text-slate-800 text-base mb-1">Aplikasi sudah versi terbaru</p>
-                <p className="text-slate-500 text-xs">Anda sudah menggunakan versi terbaru EntryMate.</p>
+                <p className="type-body-strong text-slate-800 mb-1">Aplikasi sudah versi terbaru</p>
+                <p className="text-slate-500 type-caption">Anda sudah menggunakan versi terbaru EntryMate.</p>
               </div>
             </div>
           )}
@@ -118,8 +119,8 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
           {status === 'available' && updateInfo && (
             <div className="flex flex-col gap-4">
               <div className="bg-blue-50 text-blue-800 p-4 rounded-xl">
-                <p className="font-bold mb-1 text-base">Versi {updateInfo.version} tersedia!</p>
-                <p className="text-sm opacity-90">{updateInfo.body}</p>
+                <p className="type-body-strong mb-1">Versi {updateInfo.version} tersedia!</p>
+                <p className="type-body opacity-90">{updateInfo.body}</p>
               </div>
               <p>Apakah Anda ingin mengunduh dan menginstal pembaruan ini sekarang?</p>
             </div>
@@ -127,7 +128,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
 
           {status === 'downloading' && (
             <div className="flex flex-col gap-4 py-2">
-              <div className="flex justify-between text-sm font-medium">
+              <div className="flex justify-between type-body">
                 <span className="text-slate-700">Mengunduh pembaruan...</span>
                 <span className="text-blue-600">{downloadProgress}%</span>
               </div>
@@ -137,26 +138,26 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
                   style={{ width: `${downloadProgress}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-slate-400 text-center">Mohon jangan tutup aplikasi saat mengunduh.</p>
+              <p className="type-caption text-slate-500 text-center">Mohon jangan tutup aplikasi saat mengunduh.</p>
             </div>
           )}
 
           {status === 'ready' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <span className="material-symbols-outlined text-[48px] text-emerald-500">rocket_launch</span>
+              <AppIcon name="rocket_launch" size={48} className="text-emerald-500" />
               <div>
-                <p className="font-bold text-slate-800 text-base mb-1">Pembaruan Siap!</p>
-                <p className="text-slate-500 text-xs">Pembaruan telah diunduh dan siap diinstal. Aplikasi perlu dimuat ulang.</p>
+                <p className="type-body-strong text-slate-800 mb-1">Pembaruan siap!</p>
+                <p className="text-slate-500 type-caption">Pembaruan telah diunduh dan siap diinstal. Aplikasi perlu dimuat ulang.</p>
               </div>
             </div>
           )}
 
           {status === 'error' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <span className="material-symbols-outlined text-[48px] text-red-500">error</span>
+              <AppIcon name="error" size={48} className="text-red-500" />
               <div>
-                <p className="font-medium text-red-600 text-base mb-1">Gagal Memeriksa Pembaruan</p>
-                <p className="text-slate-500 text-xs break-all">{errorMsg}</p>
+                <p className="type-body-strong text-red-600 mb-1">Gagal memeriksa pembaruan</p>
+                <p className="text-slate-500 type-caption break-all">{errorMsg}</p>
               </div>
             </div>
           )}

@@ -267,11 +267,11 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8">
       <div className="flex flex-col w-full h-full max-w-6xl max-h-[90vh] bg-[#090f19] rounded-2xl shadow-2xl overflow-hidden border border-slate-700/50">
         <div className="flex justify-between items-center p-4 bg-[#111827] border-b border-slate-800 shrink-0">
-          <h3 className="m-0 text-white font-semibold">Crop Foto Passport</h3>
+          <h3 className="m-0 text-white type-body-large-strong">Crop foto passport</h3>
           <div className="flex items-center gap-4">
             <input type="range" min="0.75" max="2" step="0.05" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} className="w-32 cursor-pointer accent-blue-500" />
-            <button onClick={handleSave} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Simpan Crop</button>
-            <button onClick={onCancel} className="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg transition-colors">Batal</button>
+            <button onClick={handleSave} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white type-body-strong rounded-lg transition-colors">Simpan crop</button>
+            <button onClick={onCancel} className="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white type-body-strong rounded-lg transition-colors">Batal</button>
           </div>
         </div>
         <div ref={containerRef} className="flex-1 w-full min-h-[400px] relative cursor-crosshair">

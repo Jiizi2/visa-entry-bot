@@ -1,4 +1,4 @@
-import React from 'react';
+import AppIcon from '../../components/ui/AppIcon';
 
 interface EntrySummaryCardsProps {
   exportPreview: any;
@@ -6,24 +6,25 @@ interface EntrySummaryCardsProps {
 
 export default function EntrySummaryCards({ exportPreview }: EntrySummaryCardsProps) {
   if (!exportPreview) return null;
-  
+
+  const total = exportPreview.review.total + exportPreview.failedMembers.length;
+  const ready = exportPreview.readyMembers.length;
+  const excluded = exportPreview.failedMembers.length + exportPreview.skippedMembers.length;
+  const completion = total > 0 ? Math.min((ready / total) * 100, 100) : 0;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="bg-white border border-slate-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.02)] rounded-2xl p-6 flex flex-col gap-2">
-        <span className="text-[11px] font-bold text-slate-400 tracking-[0.08em] uppercase">Total Documents</span>
-        <span className="text-[32px] font-extrabold text-slate-950 leading-none">{exportPreview.members.length}</span>
+    <div className="entry-readiness-overview" aria-label={`${ready} dari ${total} passport siap dikirim`}>
+      <div className="entry-readiness-overview__value">
+        <span className="entry-readiness-overview__icon"><AppIcon name="check" size={18} /></span>
+        <strong>{ready}<small>/{total}</small></strong>
+        <span>passport siap</span>
       </div>
-      <div className="bg-white border border-slate-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.02)] rounded-2xl p-6 flex flex-col gap-2">
-        <span className="text-[11px] font-bold text-slate-400 tracking-[0.08em] uppercase">Reviewed</span>
-        <span className="text-[32px] font-extrabold text-slate-950 leading-none">{exportPreview.reviewedMembers.length}</span>
+      <div className="entry-readiness-overview__progress" aria-hidden="true">
+        <span style={{ width: `${completion}%` }} />
       </div>
-      <div className="bg-white border border-slate-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.02)] rounded-2xl p-6 flex flex-col gap-2">
-        <span className="text-[11px] font-bold text-slate-400 tracking-[0.08em] uppercase">In Batch</span>
-        <span className="text-[32px] font-extrabold text-slate-950 leading-none">{exportPreview.readyMembers.length}</span>
-      </div>
-      <div className="bg-white border border-slate-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.02)] rounded-2xl p-6 flex flex-col gap-2">
-        <span className="text-[11px] font-bold text-slate-400 tracking-[0.08em] uppercase">Skipped</span>
-        <span className="text-[32px] font-extrabold text-slate-950 leading-none">{exportPreview.failedMembers.length + exportPreview.skippedMembers.length}</span>
+      <div className="entry-readiness-overview__meta">
+        <span>{exportPreview.review.remaining === 0 ? 'Review selesai' : `${exportPreview.review.remaining} belum direview`}</span>
+        {excluded > 0 && <span>{excluded} tidak disertakan</span>}
       </div>
     </div>
   );

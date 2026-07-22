@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getEffectiveImagePath } from '../../utils/paths';
+import AppIcon from '../../components/ui/AppIcon';
 
 interface ReviewImageViewerProps {
   activeMember: any;
@@ -81,28 +82,27 @@ export default function ReviewImageViewer({ activeMember, manifestPath }: Review
   };
 
   return (
-    <div className="flex-1 overflow-auto flex items-center justify-center relative">
+    <div className="review-source-pane workstation-pane">
       <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] bg-[size:20px_20px]"></div>
-      <div className="relative w-full h-full flex flex-col bg-white border border-slate-300 rounded-lg shadow-sm overflow-hidden">
-        <div className="p-3 px-4 border-b border-slate-300/50 flex items-center justify-between bg-slate-50/50">
-          <h3 className="text-[14px] leading-[20px] font-semibold tracking-wider text-slate-600 flex items-center gap-2 m-0">
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>description</span> Source Document
+      <div className="relative w-full h-full flex flex-col bg-white overflow-hidden">
+        <div className="review-source-pane__header">
+          <h3 className="type-body-strong text-slate-600 flex items-center gap-2 m-0">
+            <AppIcon name="file" size={17} /> Dokumen sumber
           </h3>
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded">Passport Preview</span>
           <div className="flex bg-white rounded shadow-sm border border-slate-300/50 overflow-hidden ml-4" title="Gunakan Ctrl + Scroll untuk Zoom">
             <button className="p-1.5 text-slate-600 bg-transparent cursor-pointer transition-colors flex items-center justify-center hover:bg-slate-100 border-none" title="Zoom Out" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>remove</span>
+              <AppIcon name="minus" size={16} />
             </button>
-            <div className="px-2 py-1 border-x border-slate-300/50 text-[12px] font-medium flex items-center bg-slate-50">
+            <div className="px-2 py-1 border-x border-slate-300/50 type-caption flex items-center bg-slate-50">
               {Math.round(zoom * 100)}%
             </div>
             <button className="p-1.5 text-slate-600 bg-transparent cursor-pointer transition-colors flex items-center justify-center hover:bg-slate-100 border-none" title="Zoom In" onClick={() => setZoom(z => Math.min(5, z + 0.25))}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>add</span>
+              <AppIcon name="plus" size={16} />
             </button>
           </div>
         </div>
         <div 
-          className="flex-1 overflow-auto flex items-center justify-center bg-slate-100/50"
+          className="review-source-pane__canvas"
           ref={imgContainerRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -125,7 +125,7 @@ export default function ReviewImageViewer({ activeMember, manifestPath }: Review
           }}>
             {activeImageData.dataUrl ? (
                 <img 
-                  alt="Scanned passport document view" 
+                  alt="Preview dokumen passport hasil scan"
                   src={activeImageData.dataUrl}
                   draggable={false}
                   style={{ 
@@ -138,7 +138,7 @@ export default function ReviewImageViewer({ activeMember, manifestPath }: Review
                   }} 
                 />
             ) : (
-                <div style={{ padding: '40px', color: '#737686', fontSize: '14px' }}>Tidak ada gambar</div>
+                <div className="type-body text-slate-500" style={{ padding: '40px' }}>Tidak ada gambar</div>
             )}
           </div>
         </div>

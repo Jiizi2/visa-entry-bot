@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import AppIcon from './ui/AppIcon';
 
 interface DatePickerProps {
   value: string; // YYYY-MM-DD
@@ -91,7 +92,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
       <button 
         key={d} 
         onClick={(e) => { e.preventDefault(); handleDayClick(d); }}
-        className={`flex items-center justify-center h-8 border-none rounded-md text-[13px] cursor-pointer transition-colors ${isSelected ? 'bg-[var(--primary)] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
+        className={`flex items-center justify-center h-8 border-none rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-[var(--primary)] text-white type-body-strong' : 'bg-transparent text-slate-900 hover:bg-slate-200 type-body'}`}
       >
         {d}
       </button>
@@ -110,23 +111,26 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
         onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
       />
-      <span 
-        className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[var(--primary)] text-[20px] cursor-pointer pointer-events-auto"
+      <button
+        type="button"
+        className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center border-0 bg-transparent text-[var(--primary)] cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="Buka kalender"
+        aria-expanded={isOpen}
       >
-        calendar_month
-      </span>
+        <AppIcon name="calendar" size={18} />
+      </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+4px)] left-0 z-50 w-[280px] bg-white border border-slate-300 rounded-lg shadow-lg p-4 font-sans">
+        <div className="absolute top-[calc(100%+4px)] left-0 z-50 w-[280px] bg-white border border-slate-300 rounded-lg shadow-lg p-4 font-sans" role="dialog" aria-label="Pilih tanggal">
           <div className="flex items-center justify-between mb-3">
             <button onClick={(e) => { e.preventDefault(); prevNav(); }} className="flex items-center justify-center w-7 h-7 bg-transparent border border-slate-200 rounded-md cursor-pointer text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900">
-              <span className="material-symbols-outlined" style={{fontSize:'20px'}}>chevron_left</span>
+              <AppIcon name="chevron_left" size={20} />
             </button>
             
             {viewMode === 'days' ? (
               <span 
-                className="font-semibold text-sm text-slate-900 flex items-center gap-1 transition-colors hover:text-[var(--primary)] cursor-pointer" 
+                className="type-body-strong text-slate-900 flex items-center gap-1 transition-colors hover:text-[var(--primary)] cursor-pointer"
                 onClick={() => { 
                   setViewMode('years'); 
                   setYearPageStart(currentYear - (currentYear % 12)); 
@@ -136,19 +140,19 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
                 {monthNames[currentMonthIdx]} {currentYear}
               </span>
             ) : (
-              <span className="font-semibold text-sm text-slate-900 flex items-center gap-1">
+              <span className="type-body-strong text-slate-900 flex items-center gap-1">
                 {yearPageStart} - {yearPageStart + 11}
               </span>
             )}
 
             <button onClick={(e) => { e.preventDefault(); nextNav(); }} className="flex items-center justify-center w-7 h-7 bg-transparent border border-slate-200 rounded-md cursor-pointer text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900">
-              <span className="material-symbols-outlined" style={{fontSize:'20px'}}>chevron_right</span>
+              <AppIcon name="chevron_right" size={20} />
             </button>
           </div>
           
           {viewMode === 'days' ? (
             <>
-              <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-semibold text-slate-500">
+              <div className="grid grid-cols-7 gap-1 mb-2 text-center type-caption-strong text-slate-500">
                 <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
               </div>
               <div className="grid grid-cols-7 gap-1">
@@ -160,7 +164,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
               {Array.from({length: 12}, (_, i) => yearPageStart + i).map(y => (
                 <button 
                   key={y}
-                  className={`h-10 border-none rounded-md text-sm cursor-pointer transition-colors ${y === currentYear ? 'bg-[var(--primary)] text-white font-semibold' : 'bg-transparent text-slate-900 hover:bg-slate-200'}`}
+                  className={`h-10 border-none rounded-md cursor-pointer transition-colors ${y === currentYear ? 'bg-[var(--primary)] text-white type-body-strong' : 'bg-transparent text-slate-900 hover:bg-slate-200 type-body'}`}
                   onClick={(e) => {
                     e.preventDefault();
                     setCurrentViewDate(new Date(y, currentMonthIdx, 1));

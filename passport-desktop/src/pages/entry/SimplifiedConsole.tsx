@@ -1,81 +1,81 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import AppIcon from '../../components/ui/AppIcon';
+import { memberDisplayName } from '../../utils/members';
 
 interface SimplifiedConsoleProps {
   members: any[];
   manifestPath: string;
+  batchReady: boolean;
+  readinessTitle: string;
+  readinessDescription: string;
+  readinessActionLabel: string;
+  readinessActionIcon: string;
+  onResolveReadiness: () => void;
+  onOpenNusuk: () => void;
 }
 
-export default function SimplifiedConsole({ members, manifestPath }: SimplifiedConsoleProps) {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [currentMember, setCurrentMember] = useState<string>('');
-  const [currentStep, setCurrentStep] = useState<string>('');
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-  const [progressMsg, setProgressMsg] = useState<string>('');
-  const [sessionCompleted, setSessionCompleted] = useState<boolean>(false);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [errorMsg, setErrorMsg] = useState<string>('');
-
-  const addLog = (msg: string) => {
-    const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 50));
-  };
+export default function SimplifiedConsole({
+  members,
+  manifestPath,
+  batchReady,
+  readinessTitle,
+  readinessDescription,
+  readinessActionLabel,
+  readinessActionIcon,
+  onResolveReadiness,
+  onOpenNusuk,
+}: SimplifiedConsoleProps) {
+  const [isConnected, setIsConnected] = useState(false);
+  const [currentMember, setCurrentMember] = useState('');
+  const [isWorking, setIsWorking] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [sessionCompleted, setSessionCompleted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    addLog("Konsol Otomatisasi diinisialisasi.");
-
-    // Cek status koneksi awal dari Rust backend
     invoke<boolean>('is_automation_connected')
-      .then((connected) => {
-        setIsConnected(connected);
-        if (connected) {
-          addLog("Ekstensi Chrome terdeteksi aktif terhubung.");
-        }
-      })
-      .catch((e) => addLog(`Gagal cek status koneksi awal: ${e}`));
+      .then(setIsConnected)
+      .catch(() => setErrorMessage('Status extension belum dapat diperiksa. Coba buka Nusuk dan aktifkan extension EntryMate.'));
 
-    // Listen to connection events
-    const unlistenConnected = listen<{ clientId: string }>('transport-connected', (event) => {
+    const unlistenConnected = listen<{ clientId: string }>('transport-connected', () => {
       setIsConnected(true);
-      setErrorMsg('');
-      addLog(`Klien terhubung (ID: ${event.payload.clientId.slice(0, 8)}...)`);
+      setErrorMessage('');
     });
 
     const unlistenDisconnected = listen<{ clientId: string }>('transport-disconnected', () => {
       setIsConnected(false);
-      addLog("Klien terputus dari WebSocket.");
+      setIsWorking(false);
     });
 
-    // Listen to automation progress events
     const unlistenCurrentMember = listen<{ memberId: string }>('automation-current-member', (event) => {
       setCurrentMember(event.payload.memberId);
       setSessionCompleted(false);
-      addLog(`Mulai memproses mutamer: ${event.payload.memberId}`);
+      setIsWorking(true);
     });
 
-    const unlistenCurrentStep = listen<{ step: string }>('automation-current-step', (event) => {
-      setCurrentStep(event.payload.step);
-      addLog(`Langkah pengerjaan: ${event.payload.step}`);
+    const unlistenCurrentStep = listen<{ step: string }>('automation-current-step', () => {
+      setIsWorking(true);
     });
 
     const unlistenProgress = listen<{ percent: number; message: string }>('automation-progress', (event) => {
       setProgressPercent(event.payload.percent);
-      setProgressMsg(event.payload.message);
-      addLog(`Progres: ${event.payload.percent}% - ${event.payload.message}`);
+      setProgressMessage('Pengisian sedang berjalan. Pantau perubahan pada halaman Nusuk.');
+      setIsWorking(event.payload.percent < 100);
     });
 
-    const unlistenMemberCompleted = listen<{ memberId: string }>('automation-member-completed', (event) => {
-      addLog(`Mutamer selesai diproses: ${event.payload.memberId}`);
+    const unlistenMemberCompleted = listen<{ memberId: string }>('automation-member-completed', () => {
+      setCurrentMember('');
     });
 
     const unlistenSessionCompleted = listen<{ sessionId: string }>('automation-session-completed', () => {
       setSessionCompleted(true);
+      setIsWorking(false);
       setCurrentMember('');
-      setCurrentStep('');
       setProgressPercent(100);
-      setProgressMsg('Seluruh pengerjaan batch selesai!');
-      addLog("✅ SELURUH BATCH NUSUK SELESAI!");
+      setProgressMessage('Semua data dalam batch berhasil diproses.');
     });
 
     return () => {
@@ -91,145 +91,100 @@ export default function SimplifiedConsole({ members, manifestPath }: SimplifiedC
 
   const handleLoadBatch = async () => {
     try {
-      setErrorMsg('');
-      addLog("Mengirim instruksi LOAD_BATCH ke ekstensi...");
+      setErrorMessage('');
+      setProgressMessage('Mengirim batch ke extension EntryMate...');
       await invoke('send_automation_load_batch', { members, manifestPath });
-      addLog("Pesan LOAD_BATCH terkirim.");
-    } catch (e: any) {
-      setErrorMsg(String(e));
-      addLog(`Gagal LOAD_BATCH: ${String(e)}`);
+      setProgressMessage('Batch sudah dikirim. Anda dapat memulai pengisian.');
+    } catch {
+      setErrorMessage('Batch belum dapat dikirim. Pastikan extension tetap terhubung, lalu coba lagi.');
     }
   };
 
   const handleStartAutomation = async () => {
     try {
-      setErrorMsg('');
-      addLog("Mengirim instruksi START ke ekstensi...");
+      setErrorMessage('');
+      setSessionCompleted(false);
+      setIsWorking(true);
+      setProgressMessage('Memulai pengisian data di Nusuk...');
       await invoke('send_automation_start');
-      addLog("Pesan START terkirim.");
-    } catch (e: any) {
-      setErrorMsg(String(e));
-      addLog(`Gagal START otomatisasi: ${String(e)}`);
+    } catch {
+      setIsWorking(false);
+      setErrorMessage('Pengisian belum dapat dimulai. Periksa halaman Nusuk dan koneksi extension, lalu coba lagi.');
     }
   };
 
+  const activeMember = members.find(member => String(member.id || '') === currentMember);
+  const activeMemberName = activeMember ? memberDisplayName(activeMember) : '';
+  const processTitle = !batchReady
+    ? readinessTitle
+    : sessionCompleted
+    ? 'Semua data selesai diproses'
+    : isWorking
+      ? activeMemberName ? `Mengisi data ${activeMemberName}` : 'Pengisian sedang berjalan'
+      : isConnected
+        ? 'Siap memulai pengisian'
+        : 'Hubungkan extension untuk melanjutkan';
+  const processDescription = !batchReady
+    ? readinessDescription
+    : sessionCompleted
+    ? 'Periksa hasil pengisian di Nusuk sebelum menyelesaikan pekerjaan.'
+    : progressMessage || (isConnected
+      ? `${members.length} passport siap dikirim ke halaman Nusuk.`
+      : 'Buka Nusuk di Chrome, lalu aktifkan extension EntryMate.');
+
   return (
-    <div className="bg-white text-slate-800 rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden">
-      {/* Header */}
-      <div className="p-6 border-b border-slate-200/80 bg-slate-50/50 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-3.5 h-3.5 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)] animate-pulse' : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.4)]'}`} />
-          <div>
-            <h2 className="text-[16px] font-bold tracking-tight text-slate-800 m-0 flex items-center gap-2">
-              Console Otomatisasi
-              <span className="text-[11px] font-semibold text-slate-500 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200/60">WebSocket server</span>
-            </h2>
-            <p className="text-[12px] text-slate-500 m-0 mt-0.5">
-              {isConnected ? 'Ekstensi Chrome terhubung & siap' : 'Menunggu ekstensi Chrome terhubung di port 9001-9005...'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button 
-            onClick={handleLoadBatch}
-            disabled={!isConnected}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold cursor-pointer transition-all hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined text-[16px]">file_upload</span>
-            Load Batch
-          </button>
-          <button 
-            onClick={handleStartAutomation}
-            disabled={!isConnected}
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white border-none rounded-lg text-[13px] font-semibold cursor-pointer transition-all shadow-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined text-[16px]">play_arrow</span>
-            Start
-          </button>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-slate-200/50">
-        {/* Status Panel */}
-        <div className="p-6 lg:col-span-7 bg-white flex flex-col justify-between gap-6">
-          <div className="space-y-4">
-            <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Mutamer Aktif</span>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between min-h-[58px]">
-                {currentMember ? (
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-blue-600">person</span>
-                    <span className="text-[14px] font-semibold text-slate-800">{currentMember}</span>
-                  </div>
-                ) : (
-                  <span className="text-[13px] text-slate-400 italic">Tidak ada pengerjaan aktif</span>
-                )}
-              </div>
+    <section className="entry-automation-card" aria-label="Proses pengisian melalui extension">
+      <div className="entry-automation-card__body">
+        <div className={`entry-process-card ${sessionCompleted ? 'is-complete' : ''} ${!batchReady ? 'is-blocked' : ''}`} aria-live="polite">
+          {batchReady && (
+            <div className="entry-process-card__topline">
+              <span className={`entry-process-connection ${isConnected ? 'is-connected' : ''}`}>
+                <span className="entry-connection-dot" />
+                {isConnected ? 'Extension terhubung' : 'Extension belum terhubung'}
+              </span>
+              {(isWorking || sessionCompleted || progressPercent > 0) && <strong>{progressPercent}%</strong>}
             </div>
-
-            <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Langkah Pengerjaan</span>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between min-h-[58px]">
-                {currentStep ? (
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-amber-500">hourglass_empty</span>
-                    <span className="text-[13px] font-medium text-slate-700">{currentStep}</span>
-                  </div>
-                ) : (
-                  <span className="text-[13px] text-slate-400 italic">Idle</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-[13px] font-semibold text-slate-600">{progressMsg || 'Menunggu pengerjaan...'}</span>
-              <span className="text-[13px] font-bold text-blue-600">{progressPercent}%</span>
-            </div>
-            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/80 flex">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-
-          {errorMsg && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-[13px] font-medium flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
-              <span>{errorMsg}</span>
+          )}
+          <h3>{processTitle}</h3>
+          <p>{processDescription}</p>
+          {batchReady && (
+            <div className="entry-process-progress" role="progressbar" aria-label="Progress pengisian Nusuk" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+              <span style={{ width: `${progressPercent}%` }} />
             </div>
           )}
         </div>
-
-        {/* Real-time Logs Terminal */}
-        <div className="p-6 lg:col-span-5 bg-slate-50/40 flex flex-col min-h-[250px]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Log Aktifitas</span>
-            <button 
-              onClick={() => setLogs([])}
-              className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 bg-none border-none cursor-pointer transition-colors"
-            >
-              Clear Logs
-            </button>
-          </div>
-          <div className="flex-1 p-4 bg-slate-900 border border-slate-800 rounded-xl font-mono text-[11px] leading-relaxed text-slate-200 overflow-y-auto max-h-[240px] flex flex-col-reverse gap-1.5 shadow-inner">
-            {logs.length > 0 ? (
-              logs.map((log, index) => (
-                <div key={index} className="whitespace-pre-wrap break-all hover:text-white transition-colors">
-                  {log}
-                </div>
-              ))
-            ) : (
-              <div className="text-slate-500 italic">Belum ada aktifitas...</div>
-            )}
-          </div>
-        </div>
       </div>
-    </div>
+
+      {errorMessage && (
+        <div className="entry-inline-alert" role="alert">
+          <AppIcon name="alert" size={17} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      <footer className="entry-automation-actions">
+        {!batchReady ? (
+          <button type="button" className="secondary-button" onClick={onResolveReadiness}>
+            <AppIcon name={readinessActionIcon} size={16} />
+            {readinessActionLabel}
+          </button>
+        ) : (
+          <>
+            <button type="button" className="secondary-button" onClick={onOpenNusuk}>
+              <AppIcon name="external_link" size={16} />
+              Buka Nusuk
+            </button>
+            <button type="button" className="secondary-button" onClick={handleLoadBatch} disabled={!isConnected}>
+              <AppIcon name="upload" size={16} />
+              Kirim batch
+            </button>
+            <button type="button" className="primary-action" onClick={handleStartAutomation} disabled={!isConnected || isWorking}>
+              <AppIcon name="play" size={16} />
+              {isWorking ? 'Sedang berjalan...' : 'Mulai pengisian'}
+            </button>
+          </>
+        )}
+      </footer>
+    </section>
   );
 }

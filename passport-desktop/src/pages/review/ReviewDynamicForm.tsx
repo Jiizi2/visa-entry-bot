@@ -1,7 +1,10 @@
 import React from 'react';
 import CustomDatePicker from '../../components/CustomDatePicker';
+import AppIcon from '../../components/ui/AppIcon';
+import CustomSelect from '../../components/ui/CustomSelect';
 import { 
   memberDisplayName,
+  memberPassport,
   rawValueFrom,
   confidenceLevelForMember,
   COMPANION_RELATION_OPTIONS,
@@ -46,12 +49,12 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between mb-1.5">
-        <label className={`text-[12px] font-medium flex items-center gap-2 ${isMissing ? 'text-red-600' : 'text-slate-900'}`}>
+        <label className={`type-caption flex items-center gap-2 ${isMissing ? 'text-red-600' : 'text-slate-900'}`}>
           <div className={`w-2 h-2 rounded-full shrink-0 ${dotTone === 'valid' ? 'bg-green-500' : dotTone === 'warn' ? 'bg-amber-400' : dotTone === 'error' ? 'bg-red-500' : 'bg-slate-500'}`} title={`Confidence: ${confLevel}`}></div>
           {label}
         </label>
         {required && (
-          <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${isMissing ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
+          <span className={`type-caption-strong px-1.5 py-0.5 rounded ${isMissing ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
             Wajib
           </span>
         )}
@@ -74,12 +77,12 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
           />
         )}
       {isMissing && (
-        <p className="text-[11px] text-red-600 mt-1.5 ml-1 font-semibold flex items-center gap-1">
-          <span className="material-symbols-outlined text-[14px]">error</span> Field ini wajib diisi
+        <p className="type-caption-strong text-red-600 mt-1.5 ml-1 flex items-center gap-1">
+          <AppIcon name="error" size={14} /> Field ini wajib diisi
         </p>
       )}
       {warningText && !isMissing && (
-        <p className="text-[11px] text-slate-600 mt-1 ml-4">
+        <p className="type-caption text-slate-600 mt-1 ml-4">
           {warningText}
         </p>
       )}
@@ -97,9 +100,23 @@ interface ReviewDynamicFormProps {
 
 export default function ReviewDynamicForm({ activeMember, members, resolved, extracted, onChange }: ReviewDynamicFormProps) {
   const { isChild } = childInfoForMember(activeMember);
+  const companionOptions = [
+    { value: '', label: 'Tidak ada / Mandiri', description: 'Tidak menggunakan anggota pendamping' },
+    ...members
+      .filter((member: any) => member.id !== activeMember.id)
+      .map((member: any) => ({
+        value: member.id,
+        label: memberDisplayName(member),
+        description: memberPassport(member) || 'Nomor passport belum tersedia',
+      })),
+  ];
+  const relationOptions = [
+    { value: '', label: 'Pilih hubungan' },
+    ...COMPANION_RELATION_OPTIONS.map((relation: string) => ({ value: relation, label: relation })),
+  ];
 
   return (
-    <div className="flex-1 overflow-y-auto flex flex-col gap-6 mt-4 pr-2">
+    <div className="review-form flex-1 overflow-y-auto flex flex-col gap-6 mt-4 pr-2">
       {FIELD_CATEGORY_DEFS.map((category) => {
         const visibleFields = REVIEW_FIELDS.filter(([key]) => category.keys.includes(key));
         if (!visibleFields.length) return null;
@@ -112,10 +129,10 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
 
         return (
           <div key={category.id} className="mb-6">
-            <h3 className="text-[14px] leading-[20px] font-semibold tracking-wider text-slate-600 flex items-center gap-2 border-b border-slate-300/30 pb-2 m-0 mb-4">
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{icon}</span> {category.label}
+            <h3 className="type-body-strong text-slate-600 flex items-center gap-2 border-b border-slate-300/30 pb-2 m-0 mb-4">
+              <AppIcon name={icon} size={20} /> {category.label}
             </h3>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="review-fields-grid">
               {visibleFields.map(([key, label]) => (
                 <DynamicFormField 
                   key={key}
@@ -135,63 +152,65 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
       {/* Bagian Companion / Pendamping */}
       {isChild && (
         <div className="mb-6">
-          <h3 className="text-[14px] leading-[20px] font-semibold tracking-wider text-slate-600 flex items-center gap-2 border-b border-slate-300/30 pb-2 m-0 mb-4">
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>group</span> Pendamping (Companion)
+          <h3 className="type-body-strong text-slate-600 flex items-center gap-2 border-b border-slate-300/30 pb-2 m-0 mb-4">
+            <AppIcon name="group" size={20} /> Pendamping (Companion)
           </h3>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="review-fields-grid">
             <div className="flex flex-col">
               <div className="flex items-center justify-between mb-1.5">
-                <label className={`text-[12px] font-medium flex items-center gap-2 ${!resolved?.companionId ? 'text-red-600' : 'text-slate-900'}`}>
+                <label className={`type-caption flex items-center gap-2 ${!resolved?.companionId ? 'text-red-600' : 'text-slate-900'}`}>
                   <div className={`w-2 h-2 rounded-full shrink-0 ${!resolved?.companionId ? 'bg-red-500' : 'bg-slate-500'}`}></div>
                   Anggota Pendamping
                 </label>
-                <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${!resolved?.companionId ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
+                <span className={`type-caption-strong px-1.5 py-0.5 rounded ${!resolved?.companionId ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
                   Wajib
                 </span>
               </div>
-              <select 
-                className={`w-full appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionId ? 'input-error' : ''}`}
+              <CustomSelect
                 value={resolved?.companionId || ''}
-                onChange={(e) => onChange('companionId', e.target.value)}
-              >
-                <option value="">Tidak ada / Mandiri</option>
-                {members
-                  .filter((m: any) => m.id !== activeMember.id)
-                  .map((m: any) => (
-                  <option key={m.id} value={m.id}>{memberDisplayName(m)}</option>
-                ))}
-              </select>
+                options={companionOptions}
+                onChange={(value) => onChange('companionId', value)}
+                placeholder="Pilih anggota pendamping"
+                ariaLabel="Anggota Pendamping"
+                icon="group"
+                invalid={!resolved?.companionId}
+                searchable
+                searchPlaceholder="Cari nama atau nomor passport…"
+                emptyMessage="Anggota tidak ditemukan"
+              />
               {!resolved?.companionId && (
-                <p className="text-[11px] text-red-600 mt-1.5 ml-1 font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">error</span> Field ini wajib diisi
+                <p className="type-caption-strong text-red-600 mt-1.5 ml-1 flex items-center gap-1">
+                  <AppIcon name="error" size={14} /> Field ini wajib diisi
                 </p>
               )}
             </div>
 
             <div className="flex flex-col">
               <div className="flex items-center justify-between mb-1.5">
-                <label className={`text-[12px] font-medium flex items-center gap-2 ${!resolved?.companionRelation ? 'text-red-600' : 'text-slate-900'}`}>
+                <label className={`type-caption flex items-center gap-2 ${!resolved?.companionRelation ? 'text-red-600' : 'text-slate-900'}`}>
                   <div className={`w-2 h-2 rounded-full shrink-0 ${!resolved?.companionRelation ? 'bg-red-500' : 'bg-slate-500'}`}></div>
                   Hubungan
                 </label>
-                <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${!resolved?.companionRelation ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
+                <span className={`type-caption-strong px-1.5 py-0.5 rounded ${!resolved?.companionRelation ? 'text-red-700 bg-red-600/10' : 'text-blue-700 bg-blue-600/10'}`}>
                   Wajib
                 </span>
               </div>
-              <select 
-                className={`w-full appearance-none bg-[url('data:image/svg+xml,%3csvg_xmlns=\\'http://www.w3.org/2000/svg\\'_fill=\\'none\\'_viewBox=\\'0_0_20_20\\'%3e%3cpath_stroke=\\'%236b7280\\'_stroke-linecap=\\'round\\'_stroke-linejoin=\\'round\\'_stroke-width=\\'1.5\\'_d=\\'M6_8l4_4_4-4\\'/%3e%3c/svg%3e')] bg-no-repeat bg-[position:right_0.5rem_center] bg-[size:1.5em_1.5em] pr-10 ${!resolved?.companionRelation ? 'input-error' : ''}`}
+              <CustomSelect
                 value={resolved?.companionRelation || ''}
-                onChange={(e) => onChange('companionRelation', e.target.value)}
+                options={relationOptions}
+                onChange={(value) => onChange('companionRelation', value)}
+                placeholder={resolved?.companionId ? 'Pilih hubungan' : 'Pilih pendamping terlebih dahulu'}
+                ariaLabel="Hubungan dengan Pendamping"
+                icon="checklist"
+                invalid={!resolved?.companionRelation}
                 disabled={!resolved?.companionId}
-              >
-                <option value="">Pilih Hubungan</option>
-                {COMPANION_RELATION_OPTIONS.map((opt: string) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+                searchable
+                searchPlaceholder="Cari jenis hubungan…"
+                emptyMessage="Hubungan tidak ditemukan"
+              />
               {!resolved?.companionRelation && (
-                <p className="text-[11px] text-red-600 mt-1.5 ml-1 font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">error</span> Field ini wajib diisi
+                <p className="type-caption-strong text-red-600 mt-1.5 ml-1 flex items-center gap-1">
+                  <AppIcon name="error" size={14} /> Field ini wajib diisi
                 </p>
               )}
             </div>
