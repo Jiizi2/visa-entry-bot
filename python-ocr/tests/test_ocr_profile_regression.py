@@ -190,9 +190,12 @@ class OcrProfileRegressionTests(unittest.TestCase):
         """Verify that the benchmark scripts accept the speed, balanced, and heavy profiles as CLI choices."""
         from scripts.benchmark_dataset import main as benchmark_main
         
-        # Test benchmark_dataset parser accepts "speed", "balanced", "heavy"
+        # Test benchmark_dataset parser accepts "speed", "balanced", "heavy".
+        # benchmark_main() writes PASSPORT_OCR_PROFILE into os.environ (benchmark_dataset.py),
+        # so snapshot/restore the environment to avoid leaking "heavy" into later tests.
         for profile in ("speed", "balanced", "heavy"):
-            with patch("sys.argv", ["benchmark_dataset.py", "--profile", profile, "--no-resume"]), \
+            with patch.dict("os.environ", {}), \
+                 patch("sys.argv", ["benchmark_dataset.py", "--profile", profile, "--no-resume"]), \
                  patch("scripts.benchmark_dataset.resolve_profile_paths") as mock_resolve, \
                  patch("scripts.benchmark_dataset.load_json", return_value={"items": []}):
                 mock_resolve.return_value = {
