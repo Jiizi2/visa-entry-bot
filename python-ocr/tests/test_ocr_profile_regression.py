@@ -159,35 +159,32 @@ class OcrProfileRegressionTests(unittest.TestCase):
             self.assertIn("NAME_RECOVERY", metrics.get("ocrModeReasons", []))
 
     def test_heavy_profile_mrz_robustness(self) -> None:
-        """Verify that heavy profile uses a more complete search space for MRZ extraction (with rotations),
-        whereas speed/balanced profiles skip rotations.
+        """MRZ rotation recovery is content-driven (via _should_try_direct_mrz_rotations)
+        for ALL profiles, not gated by profile. Speed/balanced must also try rotations for
+        non-upright photos so tilted passports are not skipped; clean upright passports stay
+        on the single 0deg fast path.
         """
         dummy_doc = MagicMock()
-        
-        # Test speed profile (optimized, skips rotations, returns only 1 candidate)
-        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "speed"}):
-            self.assertTrue(_is_optimized_pipeline())
-            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-            self.assertEqual(len(candidates), 1)
-            
-        # Test balanced profile (optimized, skips rotations, returns only 1 candidate)
-        with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "balanced"}):
-            self.assertTrue(_is_optimized_pipeline())
-            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-            self.assertEqual(len(candidates), 1)
 
-        # Test heavy profile (unoptimized/accuracy, evaluates all rotations/candidates)
-        with (
-            patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "heavy"}),
-            patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True),
-            patch("services.mrz_extractor._rotate_image_180", return_value=dummy_doc),
-            patch("services.mrz_extractor._rotate_image_90", return_value=dummy_doc),
-            patch("services.mrz_extractor._rotate_image_270", return_value=dummy_doc),
-        ):
-            self.assertFalse(_is_optimized_pipeline())
-            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-            # Yields document + 3 rotations = 4 candidates
-            self.assertGreater(len(candidates), 1)
+        for profile in ("speed", "balanced", "heavy"):
+            # Non-upright photo -> every profile evaluates all rotations.
+            with (
+                patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": profile}),
+                patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True),
+                patch("services.mrz_extractor._rotate_image_180", return_value=dummy_doc),
+                patch("services.mrz_extractor._rotate_image_90", return_value=dummy_doc),
+                patch("services.mrz_extractor._rotate_image_270", return_value=dummy_doc),
+            ):
+                candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
+                self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
+
+            # Clean upright passport -> only the 0deg fast path, no rotation cost.
+            with (
+                patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": profile}),
+                patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=False),
+            ):
+                candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
+                self.assertEqual(len(candidates), 1)
 
     def test_benchmark_argument_parsing(self) -> None:
         """Verify that the benchmark scripts accept the speed, balanced, and heavy profiles as CLI choices."""

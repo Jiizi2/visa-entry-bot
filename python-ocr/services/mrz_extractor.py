@@ -257,8 +257,12 @@ def _scan_document(
 
 def _direct_mrz_orientation_candidates(document: Any):
     yield document, 0
-    if _is_optimized_pipeline():
-        return
+    # Rotation recovery must run even in the optimized (speed/balanced) pipeline:
+    # a tilted/portrait/upside-down passport photo has no readable MRZ at 0deg, so
+    # skipping rotations makes the whole passport fail (missing identity fields ->
+    # ERROR -> appears "skipped"). Cost stays low because these branches are only
+    # reached when the 0deg read did not already succeed, and _should_try_direct_mrz_rotations
+    # short-circuits for normal upright passports (landscape with a strong MRZ band).
     if not _should_try_direct_mrz_rotations(document):
         return
     with time_stage("rotation"):

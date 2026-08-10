@@ -1465,16 +1465,26 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(read_mrz.call_count, 1)
 
     def test_optimized_profile_invariants(self) -> None:
-        # 1. Rotation: optimized should only yield 0°
+        # 1. Rotation: content-driven for ALL profiles (including optimized). A
+        #    tilted/portrait/upside-down photo must still get its MRZ recovered via
+        #    rotation in speed/balanced, otherwise the whole passport fails with empty
+        #    identity fields. _should_try_direct_mrz_rotations gates the cost so clean
+        #    upright passports stay on the 0deg fast path.
         from services.mrz_extractor import _direct_mrz_orientation_candidates, _build_direct_mrz_variants, _extract_direct_mrz_from_region
         import numpy as np
-        
+
         image = np.zeros((100, 200), dtype=np.uint8)
         with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "optimized"}):
-            candidates = list(_direct_mrz_orientation_candidates(image))
-            self.assertEqual(len(candidates), 1)
-            self.assertEqual(candidates[0][1], 0)
-            
+            # Clean upright passport (no rotation needed) -> only 0deg fast path.
+            with patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=False):
+                candidates = list(_direct_mrz_orientation_candidates(image))
+                self.assertEqual(len(candidates), 1)
+                self.assertEqual(candidates[0][1], 0)
+            # Non-upright photo -> optimized profile still attempts rotations.
+            with patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True):
+                candidates = list(_direct_mrz_orientation_candidates(image))
+                self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
+
             # 2. Variant: optimized should return 3 elements (gray, clahe, otsu)
             with patch("services.mrz_extractor.time_stage"):
                 variants = _build_direct_mrz_variants(image)
