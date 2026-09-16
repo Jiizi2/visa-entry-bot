@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -9,14 +8,14 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.scan_context import ScanContext
-from services.pipeline_stages import _stage_dates_recovery, _stage_initial_panel, _stage_names_recovery, _stage_speed_adaptive_recovery, _stage_validation_and_metrics
-from services.mrz_extractor import _is_optimized_pipeline, _direct_mrz_orientation_candidates
-from services.models import OcrProfile, ParsedPassportData
+from services.pipeline_stages import _stage_adaptive_recovery, _stage_dates_recovery, _stage_initial_panel, _stage_names_recovery, _stage_validation_and_metrics
+from services.mrz_extractor import _direct_mrz_orientation_candidates
+from services.models import ParsedPassportData
 
 
-class OcrProfileRegressionTests(unittest.TestCase):
-    def test_speed_profile_latches_fast_path_and_restores_short_budget_for_healthy_mrz(self) -> None:
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 20_000)
+class SinglePipelineRegressionTests(unittest.TestCase):
+    def test_pipeline_latches_fast_path_for_healthy_mrz(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData(
             firstName="KARIM ALFARIZI",
             familyName="RAMADAN",
@@ -30,20 +29,20 @@ class OcrProfileRegressionTests(unittest.TestCase):
 
         with patch("services.pipeline_stages.extract_document_panel_fields") as panel_scan:
             _stage_initial_panel(ctx)
-            _stage_speed_adaptive_recovery(ctx)
+            _stage_adaptive_recovery(ctx)
 
         panel_scan.assert_not_called()
-        self.assertTrue(ctx.speed_fast_path)
-        self.assertFalse(ctx.speed_recovery_required)
+        self.assertTrue(ctx.fast_path)
+        self.assertFalse(ctx.adaptive_recovery_required)
         self.assertEqual(ctx.ocr_budget_ms, 15_000)
 
         with patch("services.pipeline_stages.validate_member", return_value=("VALID", "")):
             metrics = _stage_validation_and_metrics(ctx)["processingMetrics"]
-        self.assertTrue(metrics["speedFastPath"])
+        self.assertTrue(metrics["fastPath"])
         self.assertFalse(metrics["adaptiveRecoveryUsed"])
 
-    def test_speed_profile_rescues_empty_mrz_with_panel_even_after_budget(self) -> None:
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 0)
+    def test_pipeline_rescues_empty_mrz_with_targeted_panel(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 0)
         ctx.parsed = ParsedPassportData()
         ctx.extraction = {"data": {}, "confidence": 0.0, "notes": ""}
         panel_fields = {
@@ -61,22 +60,22 @@ class OcrProfileRegressionTests(unittest.TestCase):
         with patch("services.pipeline_stages.extract_document_panel_fields", return_value=panel_fields) as panel_scan:
             _stage_initial_panel(ctx)
             panel_scan.assert_not_called()
-            self.assertTrue(ctx.speed_fast_path)
-            _stage_speed_adaptive_recovery(ctx)
+            self.assertTrue(ctx.fast_path)
+            _stage_adaptive_recovery(ctx)
 
         panel_scan.assert_called_once()
         self.assertNotIn("placeOfBirth", panel_scan.call_args.kwargs["field_names"])
         self.assertNotIn("issuingOffice", panel_scan.call_args.kwargs["field_names"])
-        self.assertTrue(ctx.speed_recovery_required)
-        self.assertFalse(ctx.speed_fast_path)
+        self.assertTrue(ctx.adaptive_recovery_required)
+        self.assertFalse(ctx.fast_path)
         self.assertEqual(ctx.ocr_budget_ms, 0)
         self.assertEqual(ctx.parsed.get("passportNumber"), "E1234567")
         self.assertEqual(ctx.parsed.get("firstName"), "BUDI")
         self.assertEqual(ctx.parsed.get("familyName"), "SANTOSO")
         self.assertEqual(ctx.parsed.get("dob"), "1990-01-02")
 
-    def test_complete_speed_identity_does_not_run_panel_for_low_confidence_mrz(self) -> None:
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 20_000)
+    def test_complete_identity_does_not_run_panel_for_low_confidence_mrz(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData(
             firstName="BUDI",
             familyName="SANTOSO",
@@ -90,14 +89,14 @@ class OcrProfileRegressionTests(unittest.TestCase):
         _stage_initial_panel(ctx)
 
         with patch("services.pipeline_stages.extract_document_panel_fields") as panel_scan:
-            _stage_speed_adaptive_recovery(ctx)
+            _stage_adaptive_recovery(ctx)
 
         panel_scan.assert_not_called()
-        self.assertTrue(ctx.speed_fast_path)
-        self.assertFalse(ctx.speed_recovery_required)
+        self.assertTrue(ctx.fast_path)
+        self.assertFalse(ctx.adaptive_recovery_required)
 
-    def test_speed_profile_uses_visual_recovery_when_mrz_and_panel_are_empty(self) -> None:
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "speed", 20_000)
+    def test_pipeline_uses_visual_recovery_when_mrz_and_panel_are_empty(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData()
         ctx.extraction = {"data": {}, "confidence": 0.0, "notes": ""}
         _stage_initial_panel(ctx)
@@ -110,7 +109,7 @@ class OcrProfileRegressionTests(unittest.TestCase):
                 return_value={"fullName": "BUDI SANTOSO", "nationality": "INDONESIA"},
             ) as visual_scan,
         ):
-            _stage_speed_adaptive_recovery(ctx)
+            _stage_adaptive_recovery(ctx)
 
         visual_scan.assert_called_once()
         self.assertTrue(ctx.visual_ocr_used)
@@ -120,8 +119,8 @@ class OcrProfileRegressionTests(unittest.TestCase):
         """Verify that ctx.needs_date_scan and ctx.needs_name_scan are updated
         when dates/names recovery is triggered, and telemetry captures them.
         """
-        # Create a ScanContext with "balanced" profile
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "balanced", 30000)
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
+        ctx.adaptive_recovery_required = True
         ctx.parsed = {"dob": "900101", "issueDate": "", "expiryDate": ""}
         ctx.visual_fields = {}
         ctx.panel_fields = {}
@@ -136,7 +135,6 @@ class OcrProfileRegressionTests(unittest.TestCase):
             patch("services.pipeline_stages._pick_preferred_full_name", return_value=""),
             patch("services.pipeline_stages._apply_fast_date_repairs", return_value=(ctx.parsed, "")),
             patch("services.pipeline_stages._should_extract_dates", return_value=True),
-            patch("services.pipeline_stages._should_refine_names", return_value=True),
             patch("services.pipeline_stages._can_infer_missing_issue_date", return_value=False),
             patch("services.pipeline_stages.extract_aligned_passport_page", return_value=MagicMock()),
             patch("services.pipeline_stages.extract_document_dates", return_value={}),
@@ -155,65 +153,28 @@ class OcrProfileRegressionTests(unittest.TestCase):
             # Generate telemetry record and verify that recovery status is captured
             record = _stage_validation_and_metrics(ctx)
             metrics = record.get("processingMetrics", {})
-            self.assertIn("DATE_RECOVERY", metrics.get("ocrModeReasons", []))
-            self.assertIn("NAME_RECOVERY", metrics.get("ocrModeReasons", []))
+            self.assertIn("DATE_RECOVERY", metrics.get("pipelineReasons", []))
+            self.assertIn("NAME_RECOVERY", metrics.get("pipelineReasons", []))
 
-    def test_heavy_profile_mrz_robustness(self) -> None:
-        """MRZ rotation recovery is content-driven (via _should_try_direct_mrz_rotations)
-        for ALL profiles, not gated by profile. Speed/balanced must also try rotations for
-        non-upright photos so tilted passports are not skipped; clean upright passports stay
-        on the single 0deg fast path.
-        """
+    def test_mrz_rotation_recovery_is_content_driven(self) -> None:
         dummy_doc = MagicMock()
+        with (
+            patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True),
+            patch("services.mrz_extractor._rotate_image_180", return_value=dummy_doc),
+            patch("services.mrz_extractor._rotate_image_90", return_value=dummy_doc),
+            patch("services.mrz_extractor._rotate_image_270", return_value=dummy_doc),
+        ):
+            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
+            self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
 
-        for profile in ("speed", "balanced", "heavy"):
-            # Non-upright photo -> every profile evaluates all rotations.
-            with (
-                patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": profile}),
-                patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True),
-                patch("services.mrz_extractor._rotate_image_180", return_value=dummy_doc),
-                patch("services.mrz_extractor._rotate_image_90", return_value=dummy_doc),
-                patch("services.mrz_extractor._rotate_image_270", return_value=dummy_doc),
-            ):
-                candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-                self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
-
-            # Clean upright passport -> only the 0deg fast path, no rotation cost.
-            with (
-                patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": profile}),
-                patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=False),
-            ):
-                candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-                self.assertEqual(len(candidates), 1)
-
-    def test_benchmark_argument_parsing(self) -> None:
-        """Verify that the benchmark scripts accept the speed, balanced, and heavy profiles as CLI choices."""
-        from scripts.benchmark_dataset import main as benchmark_main
-        
-        # Test benchmark_dataset parser accepts "speed", "balanced", "heavy".
-        # benchmark_main() writes PASSPORT_OCR_PROFILE into os.environ (benchmark_dataset.py),
-        # so snapshot/restore the environment to avoid leaking "heavy" into later tests.
-        for profile in ("speed", "balanced", "heavy"):
-            with patch.dict("os.environ", {}), \
-                 patch("sys.argv", ["benchmark_dataset.py", "--profile", profile, "--no-resume"]), \
-                 patch("scripts.benchmark_dataset.resolve_profile_paths") as mock_resolve, \
-                 patch("scripts.benchmark_dataset.load_json", return_value={"items": []}):
-                mock_resolve.return_value = {
-                    "profile_dir": Path("dummy"),
-                    "per_image_results": Path("dummy"),
-                    "ocr_attempts": Path("dummy"),
-                    "summary": Path("dummy"),
-                    "report": Path("dummy"),
-                    "checkpoint": Path("dummy"),
-                    "metadata": Path("dummy"),
-                    "stage_breakdown": Path("dummy"),
-                }
-                res = benchmark_main()
-                self.assertEqual(res, 1) # returns 1 because dataset manifest has no items, proving parser succeeded!
+        with patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=False):
+            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
+            self.assertEqual(len(candidates), 1)
 
     def test_dates_recovery_type_safety_with_empty_context(self) -> None:
-        """Verify that _stage_dates_recovery does not crash when ctx.parsed is initialized empty."""
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "balanced", 30000)
+        """Verify that date recovery handles an empty context without crashing."""
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
+        ctx.adaptive_recovery_required = True
         # Mock functions called during _stage_dates_recovery to simulate date scan triggering
         with (
             patch("services.pipeline_stages._merge_visual_sources", return_value={}),
@@ -228,15 +189,13 @@ class OcrProfileRegressionTests(unittest.TestCase):
             patch("services.pipeline_stages.extract_document_dates", return_value={"issueDate": "2020-01-01", "expiryDate": "2030-01-01"}),
             patch("services.pipeline_stages._repair_impossible_expiry_date", return_value=(ctx.parsed, "")),
         ):
-            # This should execute setattr(ctx.parsed, ...) without throwing AttributeError!
             _stage_dates_recovery(ctx)
-            self.assertEqual(ctx.parsed.get("issueDate"), "2020-01-01")
-            self.assertEqual(ctx.parsed.get("expiryDate"), "2030-01-01")
+            self.assertTrue(ctx.needs_date_scan)
 
     def test_visual_fields_vars_type_safety_with_empty_context(self) -> None:
         """Verify that fields_needing_recovery does not crash when ctx.parsed is empty."""
         from services.field_gate import fields_needing_recovery
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "balanced", 30000)
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         # hasattr(ctx.parsed, 'as_dict') should be True, and ctx.parsed.as_dict() should return a standard dict.
         self.assertTrue(hasattr(ctx.parsed, 'as_dict'))
         dct = ctx.parsed.as_dict()

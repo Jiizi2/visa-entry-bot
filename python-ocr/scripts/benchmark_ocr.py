@@ -116,7 +116,7 @@ def _write_invalid_golden_report(args: argparse.Namespace, target: Any, golden_v
                 "estimatedPeakMb": 0.0,
             },
             "fieldAccuracy": {},
-            "ocrModeCounts": {},
+            "pipelinePathCounts": {},
             "panelFallbackUsed": 0,
             "visualOcrUsed": 0,
             "mrzFallbackUsed": 0,
@@ -184,7 +184,7 @@ def _build_benchmark_metadata(args: argparse.Namespace, passport_files: list[str
         "pythonVersion": platform.python_version(),
         "platform": platform.platform(),
         "processor": platform.processor(),
-        "ocrProfile": os.environ.get("PASSPORT_OCR_PROFILE", "speed").strip().lower() or "speed",
+        "pipeline": "single",
         "locationStrategy": os.environ.get("PASSPORT_OCR_LOCATION_STRATEGY", "spatial").strip().lower() or "spatial",
         "packageVersions": {
             name: _package_version(name)
@@ -257,8 +257,8 @@ def _summarize_record(record: dict[str, Any], expected: dict[str, str]) -> dict[
         "ocrCache": _dict_value(metrics.get("ocrCache", {})),
         "rapidocr": _dict_value(metrics.get("rapidocr", {})),
         "imagePreprocessor": _dict_value(metrics.get("imagePreprocessor", {})),
-        "ocrMode": str(metrics.get("ocrMode", "")),
-        "ocrModeReasons": _list_values(metrics.get("ocrModeReasons", [])),
+        "pipelinePath": str(metrics.get("pipelinePath", "")),
+        "pipelineReasons": _list_values(metrics.get("pipelineReasons", [])),
         "expectedFields": sorted(expected),
         "mismatches": mismatches,
     }
@@ -269,7 +269,7 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     stage_totals: dict[str, int] = {}
     field_totals: dict[str, int] = {}
     field_mismatches: dict[str, int] = {}
-    ocr_mode_counts: dict[str, int] = {}
+    pipeline_path_counts: dict[str, int] = {}
     rapidocr_totals = {"callCount": 0, "errorCount": 0, "totalMs": 0, "avgMs": 0, "p95Ms": 0, "maxMs": 0}
     rapidocr_total_ms_values: list[int] = []
     image_preprocessor_totals = {
@@ -306,9 +306,9 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             field_totals[field_name] = field_totals.get(field_name, 0) + 1
             if field_name in mismatch_fields:
                 field_mismatches[field_name] = field_mismatches.get(field_name, 0) + 1
-        ocr_mode = str(record.get("ocrMode", "") or "")
-        if ocr_mode:
-            ocr_mode_counts[ocr_mode] = ocr_mode_counts.get(ocr_mode, 0) + 1
+        pipeline_path = str(record.get("pipelinePath", "") or "")
+        if pipeline_path:
+            pipeline_path_counts[pipeline_path] = pipeline_path_counts.get(pipeline_path, 0) + 1
         rapidocr = record.get("rapidocr", {})
         if isinstance(rapidocr, dict):
             record_rapidocr_total = int(rapidocr.get("totalMs", 0) or 0)
@@ -364,7 +364,7 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "rapidocrTotals": rapidocr_totals,
         "imagePreprocessorTotals": image_preprocessor_totals,
         "fieldAccuracy": _summarize_field_accuracy(field_totals, field_mismatches),
-        "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
+        "pipelinePathCounts": dict(sorted(pipeline_path_counts.items())),
         "panelFallbackUsed": sum(1 for record in records if record.get("panelFallbackUsed")),
         "visualOcrUsed": sum(1 for record in records if record.get("visualOcrUsed")),
         "mrzFallbackUsed": sum(1 for record in records if record.get("mrzFallbackUsed")),

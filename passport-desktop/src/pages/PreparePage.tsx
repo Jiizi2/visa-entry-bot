@@ -118,7 +118,6 @@ export default function PreparePage() {
     try {
       await invoke('start_scan', {
         selectedDir: state.selectedDir,
-        ocrMode: state.ocrMode,
         preparedManifestPath: state.preparedSession?.preparedManifestPath || null,
       });
       updateState({ currentPage: 'scan' });

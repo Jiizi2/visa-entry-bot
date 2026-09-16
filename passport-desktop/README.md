@@ -93,7 +93,7 @@ npm run dev
 | `window_toggle_maximize` | — | `bool` (status maximize) | Toggle maximize |
 | `window_close` | — | `Ok(())` | Tutup jendela |
 | `prepare_passport_images` | `selectedDir` | `Value` (session JSON) | Enumerate & konversi PDF → foto, sinkron |
-| `start_scan` | `selectedDir`, `ocrMode`, `preparedManifestPath?` | `Ok(())` | Spawn OCR worker, stream event ke `scan-event` |
+| `start_scan` | `selectedDir`, `preparedManifestPath?` | `Ok(())` | Spawn OCR worker, stream event ke `scan-event` |
 | `stop_scan` | — | `Ok(())` | Kill OCR worker (taskkill /T /F di Windows) |
 | `open_path_location` | `path` | `Ok(())` | Buka file/folder di Explorer/Finder |
 | `load_manifest` | `manifestPath` | `Value` (JSON) | Baca manifest.json |
@@ -118,7 +118,7 @@ Event dikirim dari Rust ke frontend saat scan berjalan:
 
 | Event | Payload | Keterangan |
 |---|---|---|
-| `scan_started` | `groupId`, `totalFiles`, `ocrProfile` | Scan mulai |
+| `scan_started` | `groupId`, `totalFiles` | Scan mulai |
 | `scan_progress` | `current`, `total`, `fileName` | Satu file selesai |
 | `scan_stage` | `current`, `total`, `fileName`, `stage`, `message`, `fileProgress` | Sub-step per file |
 | `scan_metric` | `current`, `total`, `fileName`, `metrics` | Metrik performa per file |

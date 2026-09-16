@@ -7666,10 +7666,20 @@ def _best_vocabulary_match(candidate: str, vocabulary: set[str]) -> tuple[str, f
         compact = _compact(variant)
         if len(compact) < 4:
             continue
+        variant_value = ""
+        variant_score = 0.0
         for known in vocabulary:
             score = _score(compact, _compact(known))
-            if score > best_score:
-                best_value, best_score = known, score
+            if score > variant_score or (
+                score == variant_score
+                and variant_value
+                and len(_compact(known)) < len(_compact(variant_value))
+            ):
+                variant_value, variant_score = known, score
+        # Earlier variants preserve more of the OCR candidate. Only a strictly
+        # stronger later match may replace them.
+        if variant_score > best_score:
+            best_value, best_score = variant_value, variant_score
     threshold = 86.0 if candidate.replace(" ", "").endswith("REDEB") else 82.0
     return (best_value, best_score) if best_value and best_score >= threshold else ("", 0.0)
 

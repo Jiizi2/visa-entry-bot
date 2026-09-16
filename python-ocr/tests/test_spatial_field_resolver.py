@@ -128,6 +128,17 @@ class SpatialFieldResolverTests(unittest.TestCase):
 
         self.assertEqual(result["issuingOffice"].value, "BANJARMASIN")
 
+    def test_resolves_values_glued_to_damaged_labels_without_another_ocr_pass(self) -> None:
+        index = index_of(
+            observation("TEMPATLAHRIPLACEOFBIRTHBERAU", 650, 430, 980, 470),
+            observation("ISSUWNGOFFICETANJUNGREDEB", 650, 680, 980, 720),
+        )
+
+        result = resolve_location_fields(index)
+
+        self.assertEqual(result["placeOfBirth"].value, "BERAU")
+        self.assertEqual(result["issuingOffice"].value, "TANJUNG REDEB")
+
 
 if __name__ == "__main__":
     unittest.main()

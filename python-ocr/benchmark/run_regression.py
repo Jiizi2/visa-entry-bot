@@ -15,7 +15,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from main import process_passport
-from services.scan_budget import _ocr_profile
 
 def find_sample_images() -> list[Path]:
     """Finds up to 3 sample images in the workspace to seed the benchmark folders."""
@@ -60,8 +59,6 @@ def initialize_benchmarks() -> None:
             }
             # Run one time to build the baseline draft
             try:
-                # Set environment profile temporarily
-                os.environ["PASSPORT_OCR_PROFILE"] = "speed"
                 res = process_passport(str(target_img_path))
                 parsed = res.get("passportExtracted", {})
                 for k in expected.keys():
@@ -93,8 +90,7 @@ def run_regression() -> int:
     crashes = 0
     wrong_overwrites = 0
     
-    profile = os.environ.get("PASSPORT_OCR_PROFILE", "balanced")
-    print(f"Active OCR Profile: {profile.upper()}")
+    print("Active OCR Pipeline: SINGLE")
     print("-" * 60)
     
     start_time = time.perf_counter()

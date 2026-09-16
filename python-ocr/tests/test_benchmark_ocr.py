@@ -142,7 +142,7 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "status": "VALID",
                 "reviewStatus": "VALID",
                 "requiresReview": False,
-                "ocrMode": "FAST",
+                "pipelinePath": "FAST",
                 "totalMs": 100,
                 "stagesMs": {"mrz": 60},
                 "panelFallbackUsed": False,
@@ -158,7 +158,7 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "status": "ERROR",
                 "reviewStatus": "ERROR",
                 "requiresReview": True,
-                "ocrMode": "DEEP",
+                "pipelinePath": "DEEP",
                 "totalMs": 300,
                 "stagesMs": {"mrz": 120, "panel": 80},
                 "panelFallbackUsed": True,
@@ -188,7 +188,7 @@ class BenchmarkOcrTests(unittest.TestCase):
         self.assertEqual(result["errorCount"], 1)
         self.assertEqual(result["reviewStatusCounts"], {"VALID": 1, "NEEDS_REVIEW": 0, "ERROR": 1})
         self.assertEqual(result["reviewCount"], 1)
-        self.assertEqual(result["ocrModeCounts"], {"DEEP": 1, "FAST": 1})
+        self.assertEqual(result["pipelinePathCounts"], {"DEEP": 1, "FAST": 1})
         self.assertEqual(result["mismatchCount"], 1)
         self.assertEqual(result["avgTotalMs"], 200)
         self.assertEqual(result["p95TotalMs"], 100)

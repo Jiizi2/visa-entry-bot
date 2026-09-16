@@ -125,7 +125,6 @@ async function startScan(args) {
     throw new Error("Scan sedang berjalan. Tunggu proses saat ini selesai.");
   }
 
-  const ocrMode = normalizeOcrMode(args?.ocrMode);
   const preparedManifestPath = String(args?.preparedManifestPath || "").trim();
   const worker = locateWorkerPaths();
   scanState.inProgress = true;
@@ -137,10 +136,10 @@ async function startScan(args) {
 
   const child = spawn(
     worker.pythonExecutable,
-    ["-u", worker.workerScript, selectedDir, ocrMode, ...(preparedManifestPath ? [preparedManifestPath] : [])],
+    ["-u", worker.workerScript, selectedDir, ...(preparedManifestPath ? [preparedManifestPath] : [])],
     {
       cwd: join(worker.repoRoot, "python-ocr"),
-      env: { ...process.env, PASSPORT_OCR_PROFILE: ocrMode },
+      env: process.env,
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -905,14 +904,6 @@ function requiredPath(value, message) {
     throw new Error(message);
   }
   return path;
-}
-
-function normalizeOcrMode(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "balanced" || normalized === "heavy" || normalized === "accuracy") {
-    return normalized === "accuracy" ? "heavy" : normalized;
-  }
-  return "speed";
 }
 
 function isManifestFile(path) {

@@ -24,7 +24,7 @@ Command:
 - Average total time: 9357 ms
 - P95 total time: 16161 ms
 - Max total time: 16824 ms
-- OCR mode counts: 17 `RECOVERY`
+- Pipeline path counts: 17 `RECOVERY`
 
 ## Field Accuracy
 

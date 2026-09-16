@@ -1,15 +1,12 @@
-"""End-to-end rotation verification for the speed profile.
+"""End-to-end rotation verification for the single OCR pipeline.
 
 Reproduces the reported regression: a rotated passport photo must still have its
-MRZ/identity recovered in the optimized (speed) pipeline. Pre-fix, 90/180/270deg
+MRZ/identity recovered in the optimized pipeline. Pre-fix, 90/180/270deg
 produced empty identity fields -> ERROR. Post-fix, all orientations should return
 the same identity as 0deg.
 """
-import os
 import sys
 import tempfile
-
-os.environ["PASSPORT_OCR_PROFILE"] = "speed"
 
 import cv2
 

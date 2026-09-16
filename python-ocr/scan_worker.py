@@ -3,13 +3,11 @@ from __future__ import annotations
 import contextlib
 import io
 import json
-import os
 import statistics
 import sys
 import threading
 
-WORKER_OCR_PROFILES = {"speed", "balanced", "heavy"}
-WORKER_OCR_PROFILE_ALIASES = {"accuracy": "heavy"}
+LEGACY_OCR_MODE_ARGUMENTS = {"speed", "balanced", "balance", "heavy", "accuracy"}
 
 
 def emit(event: str, **payload: object) -> None:
@@ -35,8 +33,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
     panel_fallback_used = 0
     visual_ocr_used = 0
     mrz_fallback_used = 0
-    ocr_mode_counts: dict[str, int] = {}
-    ocr_profile_counts: dict[str, int] = {}
+    pipeline_path_counts: dict[str, int] = {}
     skipped_stage_counts: dict[str, int] = {}
     budget_exceeded_count = 0
     for member in members:
@@ -52,12 +49,9 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
             visual_ocr_used += 1
         if metrics.get("mrzFallbackUsed"):
             mrz_fallback_used += 1
-        ocr_mode = str(metrics.get("ocrMode", "") or "")
-        if ocr_mode:
-            ocr_mode_counts[ocr_mode] = ocr_mode_counts.get(ocr_mode, 0) + 1
-        ocr_profile = str(metrics.get("ocrProfile", "") or "")
-        if ocr_profile:
-            ocr_profile_counts[ocr_profile] = ocr_profile_counts.get(ocr_profile, 0) + 1
+        pipeline_path = str(metrics.get("pipelinePath", "") or "")
+        if pipeline_path:
+            pipeline_path_counts[pipeline_path] = pipeline_path_counts.get(pipeline_path, 0) + 1
         if metrics.get("budgetExceeded"):
             budget_exceeded_count += 1
         skipped_stages = metrics.get("skippedStages", [])
@@ -76,8 +70,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
             "panelFallbackUsed": panel_fallback_used,
             "visualOcrUsed": visual_ocr_used,
             "mrzFallbackUsed": mrz_fallback_used,
-            "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
-            "ocrProfileCounts": dict(sorted(ocr_profile_counts.items())),
+            "pipelinePathCounts": dict(sorted(pipeline_path_counts.items())),
             "budgetExceededCount": budget_exceeded_count,
             "skippedStageCounts": dict(sorted(skipped_stage_counts.items())),
         }
@@ -92,8 +85,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
         "panelFallbackUsed": panel_fallback_used,
         "visualOcrUsed": visual_ocr_used,
         "mrzFallbackUsed": mrz_fallback_used,
-        "ocrModeCounts": dict(sorted(ocr_mode_counts.items())),
-        "ocrProfileCounts": dict(sorted(ocr_profile_counts.items())),
+        "pipelinePathCounts": dict(sorted(pipeline_path_counts.items())),
         "budgetExceededCount": budget_exceeded_count,
         "skippedStageCounts": dict(sorted(skipped_stage_counts.items())),
     }
@@ -116,10 +108,14 @@ def start_boot_heartbeat() -> threading.Event:
     return stop_event
 
 
-def normalize_worker_ocr_profile(value: str) -> str:
-    normalized = str(value or "speed").strip().lower()
-    normalized = WORKER_OCR_PROFILE_ALIASES.get(normalized, normalized)
-    return normalized if normalized in WORKER_OCR_PROFILES else "speed"
+def resolve_prepared_manifest_argument(arguments: list[str]) -> str:
+    """Accept the new CLI and quietly ignore one legacy OCR-mode argument."""
+    if len(arguments) < 3:
+        return ""
+    candidate = arguments[2].strip()
+    if candidate.lower() in LEGACY_OCR_MODE_ARGUMENTS:
+        return arguments[3].strip() if len(arguments) > 3 else ""
+    return candidate
 
 
 def prepare_main() -> int:
@@ -162,15 +158,13 @@ def main() -> int:
         return prepare_main()
 
     if len(sys.argv) < 2 or not sys.argv[1].strip():
-        print("Usage: python scan_worker.py <folder> [speed|balanced|heavy] [prepared-inputs.json]", file=sys.stderr)
+        print("Usage: python scan_worker.py <folder> [prepared-inputs.json]", file=sys.stderr)
         return 2
 
     selected_dir = sys.argv[1].strip()
-    ocr_profile = normalize_worker_ocr_profile(sys.argv[2] if len(sys.argv) > 2 else "")
-    prepared_manifest_path = sys.argv[3].strip() if len(sys.argv) > 3 else ""
+    prepared_manifest_path = resolve_prepared_manifest_argument(sys.argv)
 
-    os.environ["PASSPORT_OCR_PROFILE"] = ocr_profile
-    emit("scan_log", message=f"Worker Python aktif. Memuat engine OCR ({ocr_profile})...")
+    emit("scan_log", message="Worker Python aktif. Memuat engine OCR...")
     boot_heartbeat = start_boot_heartbeat()
 
     try:
@@ -181,7 +175,7 @@ def main() -> int:
     finally:
         boot_heartbeat.set()
 
-    emit("scan_log", message=f"Engine OCR siap. Mode {ocr_profile}. Memeriksa folder passport...")
+    emit("scan_log", message="Engine OCR siap. Memeriksa folder passport...")
 
     def on_progress(done: int, total: int, file_name: str) -> None:
         emit("scan_progress", current=done, total=total, fileName=file_name)
@@ -229,7 +223,6 @@ def main() -> int:
             groupDir=target.group_dir,
             passportsDir=target.passports_dir,
             totalFiles=prepared_inputs.total_targets,
-            ocrProfile=ocr_profile,
         )
         with contextlib.redirect_stdout(io.StringIO()):
             result = scan_selected_directory(

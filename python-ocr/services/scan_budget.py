@@ -1,32 +1,14 @@
 from __future__ import annotations
 
-import os
 import time
 
-from services.models import OcrProfile
 from services.ocr_constants import (
-    OCR_PROFILE_ALIASES,
-    OCR_PROFILES,
-    OCR_PROFILE_BUDGET_MS,
+    OCR_BUDGET_MS,
     OCR_STAGE_MIN_REMAINING_MS,
 )
 
-def _ocr_profile() -> str:
-    value = os.environ.get("PASSPORT_OCR_PROFILE", OcrProfile.SPEED).strip().lower()
-    value = OCR_PROFILE_ALIASES.get(value, value)
-    return value if value in OCR_PROFILES else OcrProfile.SPEED
-
-def _is_speed_first_scan() -> bool:
-    return _ocr_profile() == OcrProfile.SPEED
-
-def _is_balanced_scan() -> bool:
-    return _ocr_profile() == OcrProfile.BALANCED
-
-def _is_heavy_scan() -> bool:
-    return _ocr_profile() == OcrProfile.HEAVY
-
-def _ocr_budget_ms(profile: str | None = None) -> int:
-    return OCR_PROFILE_BUDGET_MS.get(profile or _ocr_profile(), OCR_PROFILE_BUDGET_MS[OcrProfile.SPEED])
+def _ocr_budget_ms() -> int:
+    return OCR_BUDGET_MS
 
 def _elapsed_ms(started_at: float) -> int:
     return max(0, int((time.perf_counter() - started_at) * 1000))
@@ -52,7 +34,7 @@ def _build_budget_notes(skipped_stages: list[str]) -> str:
         return ""
     return "OCR TIME BUDGET SKIPPED: " + ", ".join(skipped_stages)
 
-def _classify_ocr_mode(
+def _classify_pipeline_path(
     *,
     mrz_error: str,
     panel_fallback_used: bool,
@@ -61,7 +43,7 @@ def _classify_ocr_mode(
     needs_name_scan: bool,
     review_status: str,
 ) -> str:
-    reasons = _ocr_mode_reasons(
+    reasons = _pipeline_path_reasons(
         mrz_error=mrz_error,
         panel_fallback_used=panel_fallback_used,
         visual_ocr_used=visual_ocr_used,
@@ -73,7 +55,7 @@ def _classify_ocr_mode(
         return "DEEP"
     return "FAST" if not reasons else "RECOVERY"
 
-def _ocr_mode_reasons(
+def _pipeline_path_reasons(
     *,
     mrz_error: str,
     panel_fallback_used: bool,
