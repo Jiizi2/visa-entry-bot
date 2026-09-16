@@ -11,11 +11,11 @@ interface SidebarProps {
 }
 
 const steps = [
-  { id: 'import', label: 'Import', subtitle: 'Pilih folder kerja', icon: 'folder_open' },
-  { id: 'prepare', label: 'Prepare', subtitle: 'Rapikan foto', icon: 'crop' },
-  { id: 'scan', label: 'Scan', subtitle: 'Proses otomatis', icon: 'scan' },
-  { id: 'validation', label: 'Review', subtitle: 'Periksa data', icon: 'review' },
-  { id: 'entry', label: 'Export', subtitle: 'Kirim hasil', icon: 'export' },
+  { id: 'import', label: 'Import', subtitle: 'Pilih folder kerja' },
+  { id: 'prepare', label: 'Prepare', subtitle: 'Rapikan foto' },
+  { id: 'scan', label: 'Scan', subtitle: 'Proses otomatis' },
+  { id: 'validation', label: 'Review', subtitle: 'Periksa data' },
+  { id: 'entry', label: 'Export', subtitle: 'Kirim hasil' },
 ] as const;
 
 export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
@@ -30,19 +30,9 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
         {!isMinimized && (
           <div>
             <strong>EntryMate</strong>
-            <span>Desktop workstation</span>
+            <span>Visa operations</span>
           </div>
         )}
-        <button
-          className="workflow-rail__collapse"
-          type="button"
-          onClick={() => setIsMinimized((value) => !value)}
-          aria-label={isMinimized ? 'Perbesar workflow rail' : 'Perkecil workflow rail'}
-          aria-expanded={!isMinimized}
-          title={isMinimized ? 'Perbesar navigasi' : 'Perkecil navigasi'}
-        >
-          <AppIcon name={isMinimized ? 'panel_open' : 'panel_close'} size={17} />
-        </button>
       </div>
 
       <nav className="workflow-rail__nav" aria-label="Tahapan proses">
@@ -61,9 +51,6 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
               <span className="workflow-step__index" aria-hidden="true">
                 {isCompleted ? <AppIcon name="check" size={13} strokeWidth={2.2} /> : index + 1}
               </span>
-              <span className="workflow-step__icon" aria-hidden="true">
-                <AppIcon name={step.icon} size={18} />
-              </span>
               {!isMinimized && (
                 <span className="workflow-step__copy">
                   <strong>{step.label}</strong>
@@ -76,6 +63,17 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
       </nav>
 
       <div className="workflow-rail__utility">
+        <button
+          className="workflow-rail__collapse"
+          type="button"
+          onClick={() => setIsMinimized((value) => !value)}
+          aria-label={isMinimized ? 'Perbesar workflow rail' : 'Perkecil workflow rail'}
+          aria-expanded={!isMinimized}
+          title={isMinimized ? 'Perbesar navigasi' : 'Perkecil navigasi'}
+        >
+          <AppIcon name={isMinimized ? 'panel_open' : 'panel_close'} size={17} />
+          {!isMinimized && <span>Perkecil sidebar</span>}
+        </button>
         <button
           type="button"
           onClick={() => setIsUpdateDialogOpen(true)}

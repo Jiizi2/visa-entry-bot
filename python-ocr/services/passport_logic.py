@@ -4,21 +4,13 @@ import os
 import re
 from typing import Any
 
-from services.models import OcrProfile, ParsedPassportData, ExtractionEvidence
+from services.models import ParsedPassportData, ExtractionEvidence
 from services.issue_date_extractor import infer_issue_date
 from services.name_support import salvage_family_hints, score_name_fields, token_matches_simple, is_reasonable_token
-from services.panel_fallback import should_use_panel_fallback
-from services.ocr_constants import (
-    OCR_BALANCED_PANEL_RECOVERY_FIELDS,
-    OCR_FULL_PANEL_FIELD_SCOPE,
-    OCR_FULL_VISUAL_FIELD_SCOPE,
-)
-from services.scan_budget import _ocr_profile, _is_speed_first_scan, _is_balanced_scan, _is_heavy_scan
 from services.data_repairs import (
     _has_indonesian_mrz_hint,
     _looks_like_noisy_indonesia_code,
     _has_valid_mrz_validation,
-    _has_failed_mrz_validation,
     _has_reliable_mrz_for_fast_path,
     _mrz_text_values,
     _normalize_mrz_country_hint,
@@ -29,7 +21,7 @@ from services.data_repairs import (
     _parse_iso_date,
 )
 
-def _speed_identity_field_count(parsed: ParsedPassportData) -> int:
+def _identity_field_count(parsed: ParsedPassportData) -> int:
     return sum(
         1
         for field_name in (
@@ -44,41 +36,6 @@ def _speed_identity_field_count(parsed: ParsedPassportData) -> int:
         if str(parsed.get(field_name, "") or "").strip()
     )
 
-
-def _speed_identity_recovery_required(
-    parsed: ParsedPassportData,
-    extraction: ExtractionEvidence,
-) -> bool:
-    """Return True when speed mode must leave the fast path to avoid an empty record."""
-    if not _has_reliable_mrz_for_fast_path(parsed, extraction, panel_fallback_used=False):
-        return True
-    return any(
-        not str(parsed.get(field_name, "") or "").strip()
-        for field_name in ("firstName", "familyName")
-    )
-
-
-def _should_run_initial_panel_scan(
-    ocr_profile: str,
-    extraction: ExtractionEvidence,
-    parsed: ParsedPassportData | None = None,
-) -> bool:
-    if ocr_profile == OcrProfile.SPEED:
-        if parsed is not None:
-            return _speed_identity_recovery_required(parsed, extraction)
-        return should_use_panel_fallback(extraction)
-    if ocr_profile == OcrProfile.HEAVY:
-        return True
-    return ocr_profile == OcrProfile.BALANCED and should_use_panel_fallback(extraction)
-
-def _select_profile_panel_field_names(
-    ocr_profile: str,
-    parsed: ParsedPassportData,
-    extraction: ExtractionEvidence,
-) -> tuple[str, ...]:
-    if ocr_profile == OcrProfile.HEAVY:
-        return OCR_FULL_PANEL_FIELD_SCOPE
-    return _select_panel_field_names(parsed, extraction)
 
 def _is_indonesian_passport(
     parsed: ParsedPassportData,
@@ -138,74 +95,12 @@ def _select_visual_field_names(
         fields.append("fullName")
     return tuple(dict.fromkeys(fields))
 
-def _select_balanced_visual_field_names(
-    parsed: ParsedPassportData,
-    extraction: ExtractionEvidence,
-    panel_fallback_used: bool,
-    panel_fields: dict[str, str],
-) -> tuple[str, ...] | None:
-    fields = _select_visual_field_names(parsed, extraction, panel_fallback_used, panel_fields)
-    if fields is None or fields == ():
-        return fields
-
-    expanded = list(fields)
-    if not panel_fields.get("issueDate"):
-        expanded.append("issueDate")
-    if _has_failed_mrz_validation(extraction) and not panel_fields.get("expiryDate"):
-        expanded.append("expiryDate")
-    return tuple(dict.fromkeys(expanded))
-
-def _select_speed_visual_field_names(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> tuple[str, ...]:
-    if not _should_try_speed_location_ocr(parsed, extraction):
+def _select_location_field_names(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> tuple[str, ...]:
+    if not _should_try_location_ocr(parsed, extraction):
         return ()
     return ("placeOfBirth", "issuingOffice")
 
-def _select_heavy_visual_field_names(
-    parsed: ParsedPassportData,
-    extraction: ExtractionEvidence,
-    panel_fields: dict[str, str],
-) -> tuple[str, ...] | None:
-    if not _has_reliable_mrz_for_fast_path(parsed, extraction, panel_fallback_used=bool(panel_fields)):
-        return None
-    return OCR_FULL_VISUAL_FIELD_SCOPE
-
-def _missing_profile_visual_panel_fields(
-    ocr_profile: str,
-    visual_field_names: tuple[str, ...] | None,
-    visual_fields: dict[str, str],
-    panel_fields: dict[str, str],
-) -> tuple[str, ...]:
-    if ocr_profile == OcrProfile.SPEED:
-        return ()
-    if visual_field_names is None:
-        requested_fields = OCR_FULL_VISUAL_FIELD_SCOPE
-    else:
-        requested_fields = tuple(visual_field_names)
-    if not requested_fields:
-        return ()
-    if ocr_profile == OcrProfile.BALANCED:
-        requested_fields = tuple(field_name for field_name in OCR_BALANCED_PANEL_RECOVERY_FIELDS if field_name in requested_fields)
-    elif ocr_profile != OcrProfile.HEAVY:
-        return ()
-    return tuple(
-        field_name
-        for field_name in requested_fields
-        if field_name in OCR_FULL_PANEL_FIELD_SCOPE and not visual_fields.get(field_name) and not panel_fields.get(field_name)
-    )
-
-def _missing_speed_location_panel_fields(
-    visual_field_names: tuple[str, ...] | None,
-    visual_fields: dict[str, str],
-) -> tuple[str, ...]:
-    if not visual_field_names:
-        return ()
-    return tuple(
-        field_name
-        for field_name in ("placeOfBirth", "issuingOffice")
-        if field_name in visual_field_names and not visual_fields.get(field_name)
-    )
-
-def _should_try_speed_location_ocr(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> bool:
+def _should_try_location_ocr(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> bool:
     if _is_indonesian_passport(parsed, extraction, {}) or _has_indonesian_mrz_hint(extraction):
         return True
     if not _location_ocr_ambiguous_enabled():
@@ -217,17 +112,6 @@ def _should_try_speed_location_ocr(parsed: ParsedPassportData, extraction: Extra
         return True
     nationality = str(parsed.get("nationality", "") or "")
     return _looks_like_noisy_indonesia_code(nationality)
-
-def _should_try_recovery_location_ocr(parsed: ParsedPassportData, extraction: ExtractionEvidence) -> bool:
-    if _is_indonesian_passport(parsed, extraction, {}) or _has_indonesian_mrz_hint(extraction):
-        return True
-    if _has_clear_non_indonesian_mrz_hint(parsed, extraction):
-        return False
-    passport_number = str(parsed.get("passportNumber", "") or "").upper()
-    if re.fullmatch(r"[EXY]\d{7}", passport_number):
-        return True
-    nationality = str(parsed.get("nationality", "") or "")
-    return bool(nationality and _looks_like_noisy_indonesia_code(nationality))
 
 def _location_ocr_ambiguous_enabled() -> bool:
     value = os.environ.get("PASSPORT_LOCATION_OCR_AMBIGUOUS", "").strip().lower()
@@ -296,18 +180,6 @@ def _select_panel_field_names(parsed: ParsedPassportData, extraction: Extraction
         fields.append("expiryDate")
     return tuple(dict.fromkeys(fields))
 
-def _should_skip_panel_for_direct_location_only(
-    parsed: ParsedPassportData,
-    extraction: ExtractionEvidence,
-    panel_field_names: tuple[str, ...],
-) -> bool:
-    return (
-        _is_direct_mrz_extraction(extraction)
-        and "IMAGE GLARE DETECTED" in str(extraction.get("notes", "") or "").upper()
-        and set(panel_field_names).issubset({"placeOfBirth", "issuingOffice"})
-        and _has_reliable_mrz_for_fast_path(parsed, extraction, panel_fallback_used=False)
-    )
-
 def _is_direct_mrz_extraction(extraction: ExtractionEvidence) -> bool:
     return "DIRECT LOWER-BAND OCR" in str(extraction.get("notes", "") or "").upper()
 
@@ -325,18 +197,6 @@ def _should_extract_dates(parsed: ParsedPassportData) -> bool:
     if dob and (issue_date <= dob or expiry_date <= dob):
         return True
     return False
-
-def _should_refine_names(
-    parsed: ParsedPassportData,
-    extraction: ExtractionEvidence,
-    panel_fallback_used: bool,
-    preferred_full_name: str,
-) -> bool:
-    if preferred_full_name:
-        return True
-    if _needs_name_refinement(parsed):
-        return True
-    return _mrz_confidence(extraction) < 0.85 and not panel_fallback_used
 
 def _needs_name_refinement(parsed: ParsedPassportData) -> bool:
     first_compact = _compact_name_value(parsed.get("firstName", ""))

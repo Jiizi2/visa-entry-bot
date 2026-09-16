@@ -169,8 +169,23 @@ def _inline_label_value(field_name: str, text: str) -> str:
         for match in pattern.finditer(normalized):
             marker_end = max(marker_end, match.end())
     if marker_end < 0:
-        return ""
+        return _compact_inline_label_value(field_name, normalized)
     return normalized[marker_end:].strip(" /:-")
+
+
+def _compact_inline_label_value(field_name: str, text: str) -> str:
+    """Recover a value glued to an OCR-damaged bilingual field label."""
+    compact = re.sub(r"[^A-Z]", "", text)
+    for marker in sorted(_COMPACT_LABELS.get(field_name, ()), key=len, reverse=True):
+        exact_start = compact.find(marker)
+        if exact_start >= 0:
+            return compact[exact_start + len(marker) :]
+
+        for prefix_length in range(max(7, len(marker) - 4), min(len(compact) - 2, len(marker) + 4) + 1):
+            prefix = compact[:prefix_length]
+            if SequenceMatcher(None, prefix, marker).ratio() >= 0.78:
+                return compact[prefix_length:]
+    return ""
 
 
 def _looks_like_any_label(text: str) -> bool:

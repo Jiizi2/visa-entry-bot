@@ -21,3 +21,10 @@ data/*/passports/*
 !data/*/passports/.gitkeep
 .edge-debug-profile/
 passport-desktop/bridge-contract/
+
+# Local UI review/build artifacts
+.impeccable/
+**/.impeccable/
+
+# Generated extension package
+/chrome-extension.zip

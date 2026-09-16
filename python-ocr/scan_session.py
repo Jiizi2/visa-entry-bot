@@ -314,8 +314,8 @@ def _build_skipped_pdf_page_record(
         "panelFallbackUsed": False,
         "visualOcrUsed": False,
         "mrzFallbackUsed": False,
-        "ocrMode": "SKIPPED",
-        "ocrModeReasons": ["PDF_PREFLIGHT_NON_PASSPORT_PAGE"],
+        "pipelinePath": "SKIPPED",
+        "pipelineReasons": ["PDF_PREFLIGHT_NON_PASSPORT_PAGE"],
     }
     return record
 

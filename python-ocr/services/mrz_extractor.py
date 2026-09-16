@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 import time
 from dataclasses import dataclass, replace
@@ -103,24 +102,8 @@ def extract_mrz_data(file_path: str) -> dict[str, Any]:
     return result_dict
 
 
-def _is_optimized_pipeline() -> bool:
-    val = os.environ.get("PASSPORT_OCR_PROFILE", "").strip().lower()
-    if val == "legacy":
-        return False
-    from services.scan_budget import _ocr_profile
-    from services.models import OcrProfile
-    # SPEED and BALANCED run with optimized pipeline, HEAVY runs unoptimized accuracy path
-    return _ocr_profile() in {OcrProfile.SPEED, OcrProfile.BALANCED}
-
-
-
-def _get_speed_profile() -> bool:
-    return _is_optimized_pipeline()
-
-
 def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     collector = get_mrz_collector()
-    is_speed = _get_speed_profile()
     direct_mrz = _read_direct_mrz(file_path)
     if _is_high_confidence_indonesian_direct_mrz(direct_mrz):
         if collector is not None and direct_mrz is not None:
@@ -130,7 +113,7 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             collector.successful_width = direct_mrz.successful_width
         return direct_mrz, _direct_mrz_note(direct_mrz)
 
-    if is_speed and is_left_clipped_indonesian_direct_mrz(direct_mrz):
+    if is_left_clipped_indonesian_direct_mrz(direct_mrz):
         if collector is not None and direct_mrz is not None:
             collector.direct_success = True
             collector.successful_orientation = direct_mrz.successful_orientation
@@ -141,7 +124,7 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             "MRZ left edge is clipped; missing document number will use visual recovery.",
         )
 
-    if is_speed and direct_mrz is not None and getattr(direct_mrz, "valid_score", 0) >= 98:
+    if direct_mrz is not None and getattr(direct_mrz, "valid_score", 0) >= 98:
         if collector is not None:
             collector.direct_success = True
             collector.successful_orientation = direct_mrz.successful_orientation
@@ -161,7 +144,7 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
             try:
                 mrz = _read_mrz(
                     variant_path,
-                    prefer_otsu=bool(is_speed and variant_index > 0),
+                    prefer_otsu=variant_index > 0,
                 )
             except RuntimeError:
                 mrz = None
@@ -257,8 +240,12 @@ def _scan_document(
 
 def _direct_mrz_orientation_candidates(document: Any):
     yield document, 0
-    if _is_optimized_pipeline():
-        return
+    # Rotation recovery runs only after the upright fast path fails:
+    # a tilted/portrait/upside-down passport photo has no readable MRZ at 0deg, so
+    # skipping rotations makes the whole passport fail (missing identity fields ->
+    # ERROR -> appears "skipped"). Cost stays low because these branches are only
+    # reached when the 0deg read did not already succeed, and _should_try_direct_mrz_rotations
+    # short-circuits for normal upright passports (landscape with a strong MRZ band).
     if not _should_try_direct_mrz_rotations(document):
         return
     with time_stage("rotation"):
@@ -458,8 +445,7 @@ def _extract_direct_mrz_from_region(region: Any, *, prefer_otsu: bool = False) -
     best_candidate: DirectMrzResult | None = None
     collector = get_mrz_collector()
     
-    widths = (1600,) if _is_optimized_pipeline() else (1600, 2000)
-    for target_width in widths:
+    for target_width in (1600,):
         if _is_high_confidence_indonesian_direct_mrz(best_candidate):
             return best_candidate
             
@@ -482,10 +468,7 @@ def _build_direct_mrz_variants(gray: Any) -> list[Any]:
         sharpened = cv2.addWeighted(clahe, 1.6, cv2.GaussianBlur(clahe, (0, 0), 1.6), -0.6, 0)
         denoised = cv2.fastNlMeansDenoising(sharpened, None, 8, 7, 21)
         _, otsu = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        if _is_optimized_pipeline():
-            return [gray, clahe, otsu]
-        adaptive = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
-        return [gray, clahe, otsu, adaptive]
+        return [gray, clahe, otsu]
 
 
 def _repair_extracted_mrz_data(data: dict[str, Any]) -> dict[str, Any]:

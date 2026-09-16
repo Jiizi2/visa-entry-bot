@@ -71,7 +71,7 @@ RAW_LOCATION_WINDOW_ORDER = {
 }
 RAW_LOCATION_PRIMARY_VARIANT_MODE = "fast"
 RAW_LOCATION_VARIANT_MODE = "default"
-SPEED_LOCATION_WINDOWS = {
+FAST_LOCATION_WINDOWS = {
     "placeOfBirth": (
         (0.42, 0.56, 0.70, 0.99),
         (0.42, 0.62, 0.58, 0.99),
@@ -87,10 +87,10 @@ SPEED_LOCATION_WINDOWS = {
         (0.68, 0.94, 0.52, 1.00),
     ),
 }
-SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD = 2
-SPEED_LOCATION_OCR_MAX_EDGE = 1800
-SPEED_LOCATION_DEBUG_SAMPLE_LIMIT = 16
-SPEED_LOCATION_MIN_CROP_AREA_RATIO = 0.75
+FAST_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD = 2
+FAST_LOCATION_OCR_MAX_EDGE = 1800
+FAST_LOCATION_DEBUG_SAMPLE_LIMIT = 16
+FAST_LOCATION_MIN_CROP_AREA_RATIO = 0.75
 LABEL_FRAGMENTS = ("BERLA", "BIRTH", "DATE", "EXPI", "ISSU", "KANTOR", "KELAMIN", "KEWARGA", "LAHIR", "MENGELUAR", "NATION", "NEGARA", "OFFICE", "PLACE", "SEX", "TEMPAT")
 LABEL_NOISE_TOKENS = {"ARKAN", "ELUARKAN", "MENGELUARKAN"}
 NAME_NOISE_TOKENS = {"COUNTRY", "IDN", "INDONESIA", "JENIS", "KODE", "NAME", "NEGARA", "PASPOR", "PASSPORT", "TYPE"}
@@ -187,7 +187,7 @@ def extract_fast_location_fields(
     reset_fast_location_ocr_stats()
     started = perf_counter()
     _FAST_LOCATION_OCR_STATS["rotationDegrees"] = int(rotation_degrees or 0) % 360
-    requested_fields = tuple(field_name for field_name in field_names if field_name in SPEED_LOCATION_WINDOWS)
+    requested_fields = tuple(field_name for field_name in field_names if field_name in FAST_LOCATION_WINDOWS)
     _FAST_LOCATION_OCR_STATS["requestedFields"] = list(requested_fields)
     strategy = _location_strategy()
     _FAST_LOCATION_OCR_STATS["strategy"] = strategy
@@ -199,7 +199,7 @@ def extract_fast_location_fields(
         image = _orient_image(_load_image(file_path), rotation_degrees)
         data_page = detect_passport_data_page_crop(image)
         image = _select_fast_location_image(image, data_page)
-        image = resize_to_max_edge(image, max_edge=SPEED_LOCATION_OCR_MAX_EDGE)
+        image = resize_to_max_edge(image, max_edge=FAST_LOCATION_OCR_MAX_EDGE)
         spatial_values: dict[str, str] = {}
         spatial_index: PassportOcrIndex | None = None
         if image is not None and strategy in {"spatial", "spatial_shadow"}:
@@ -434,9 +434,9 @@ def _recover_spatial_locations_rec_only(
 def _fast_location_max_windows() -> int:
     raw_value = os.environ.get("PASSPORT_LOCATION_OCR_MAX_WINDOWS", "").strip()
     try:
-        return max(1, min(4, int(raw_value))) if raw_value else SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD
+        return max(1, min(4, int(raw_value))) if raw_value else FAST_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD
     except ValueError:
-        return SPEED_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD
+        return FAST_LOCATION_DEFAULT_MAX_WINDOWS_PER_FIELD
 
 
 def _fast_location_debug_enabled() -> bool:
@@ -471,7 +471,7 @@ def _select_fast_location_image(original: object | None, detected_crop: object |
     original_looks_like_passport_page = 1.20 <= original_aspect <= 1.75
     crop_distorts_page_aspect = abs(crop_aspect - original_aspect) > 0.20
     if original_looks_like_passport_page and (
-        crop_area_ratio < SPEED_LOCATION_MIN_CROP_AREA_RATIO or crop_distorts_page_aspect
+        crop_area_ratio < FAST_LOCATION_MIN_CROP_AREA_RATIO or crop_distorts_page_aspect
     ):
         return original
     return detected_crop
@@ -499,7 +499,7 @@ def _extract_fast_location_from_image(image: object, field_name: str) -> str:
     config = FIELD_CONFIG[field_name]
     candidates: list[str] = []
     _FAST_LOCATION_OCR_STATS["fieldAttempts"] = int(_FAST_LOCATION_OCR_STATS["fieldAttempts"]) + 1
-    for window_index, window in enumerate(SPEED_LOCATION_WINDOWS[field_name][:_fast_location_max_windows()]):
+    for window_index, window in enumerate(FAST_LOCATION_WINDOWS[field_name][:_fast_location_max_windows()]):
         region = crop_relative(image, *window)
         if region is None:
             continue
@@ -618,7 +618,7 @@ def _record_fast_location_debug(
     if not _FAST_LOCATION_OCR_STATS.get("debugEnabled"):
         return
     samples = _FAST_LOCATION_OCR_STATS.setdefault("debugSamples", [])
-    if not isinstance(samples, list) or len(samples) >= SPEED_LOCATION_DEBUG_SAMPLE_LIMIT:
+    if not isinstance(samples, list) or len(samples) >= FAST_LOCATION_DEBUG_SAMPLE_LIMIT:
         return
     samples.append(
         {

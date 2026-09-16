@@ -6,13 +6,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from services.scan_budget import _classify_ocr_mode, _ocr_mode_reasons  # noqa: E402
+from services.scan_budget import _classify_pipeline_path, _pipeline_path_reasons  # noqa: E402
 
 
-class OcrModeTests(unittest.TestCase):
+class PipelinePathTests(unittest.TestCase):
     def test_classifies_fast_when_no_recovery_work_is_needed(self) -> None:
         self.assertEqual(
-            _classify_ocr_mode(
+            _classify_pipeline_path(
                 mrz_error="",
                 panel_fallback_used=False,
                 visual_ocr_used=False,
@@ -23,7 +23,7 @@ class OcrModeTests(unittest.TestCase):
             "FAST",
         )
         self.assertEqual(
-            _ocr_mode_reasons(
+            _pipeline_path_reasons(
                 mrz_error="",
                 panel_fallback_used=False,
                 visual_ocr_used=False,
@@ -35,7 +35,7 @@ class OcrModeTests(unittest.TestCase):
         )
 
     def test_classifies_recovery_when_fallback_work_is_used(self) -> None:
-        reasons = _ocr_mode_reasons(
+        reasons = _pipeline_path_reasons(
             mrz_error="",
             panel_fallback_used=True,
             visual_ocr_used=False,
@@ -45,7 +45,7 @@ class OcrModeTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            _classify_ocr_mode(
+            _classify_pipeline_path(
                 mrz_error="",
                 panel_fallback_used=True,
                 visual_ocr_used=False,
@@ -59,7 +59,7 @@ class OcrModeTests(unittest.TestCase):
 
     def test_classifies_deep_when_mrz_fails_or_record_errors(self) -> None:
         self.assertEqual(
-            _classify_ocr_mode(
+            _classify_pipeline_path(
                 mrz_error="MRZ not detected",
                 panel_fallback_used=True,
                 visual_ocr_used=True,

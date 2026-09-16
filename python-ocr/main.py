@@ -27,17 +27,14 @@ from services.passport_page import clear_passport_page_cache
 from services.ocr_runner import get_ocr_stats, reset_ocr_stats
 from services.scan_context import ScanContext
 from services.ocr_constants import ROOT_DIR, DATA_DIR, SUPPORTED_EXTENSIONS, StepCallback
-from services.scan_budget import _ocr_profile, _ocr_budget_ms, _elapsed_ms, _budget_exceeded
+from services.scan_budget import _ocr_budget_ms, _elapsed_ms, _budget_exceeded
 from services.path_utils import normalize_filesystem_path as _normalize_filesystem_path
 
 from services.pipeline_stages import (
     _stage_mrz,
     _stage_initial_panel,
     _stage_visual_fields,
-    _stage_speed_adaptive_recovery,
-    _stage_recovery_panel,
-    _stage_visual_recovery,
-    _stage_fallback_panel,
+    _stage_adaptive_recovery,
     _stage_dates_recovery,
     _stage_names_recovery,
     _stage_validation_and_metrics,
@@ -213,12 +210,10 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
     reset_fast_location_ocr_stats()
 
     try:
-        ocr_profile = _ocr_profile()
         ctx = ScanContext(
             file_path=file_path,
             file_name=file_name,
-            ocr_profile=ocr_profile,
-            ocr_budget_ms=_ocr_budget_ms(ocr_profile),
+            ocr_budget_ms=_ocr_budget_ms(),
             step_callback=step_callback
         )
         ctx.started_at = started_at
@@ -226,10 +221,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         execute_safe_stage(_stage_mrz, ctx)
         execute_safe_stage(_stage_initial_panel, ctx)
         execute_safe_stage(_stage_visual_fields, ctx)
-        execute_safe_stage(_stage_speed_adaptive_recovery, ctx)
-        execute_safe_stage(_stage_recovery_panel, ctx)
-        execute_safe_stage(_stage_visual_recovery, ctx)
-        execute_safe_stage(_stage_fallback_panel, ctx)
+        execute_safe_stage(_stage_adaptive_recovery, ctx)
         execute_safe_stage(_stage_dates_recovery, ctx)
         execute_safe_stage(_stage_names_recovery, ctx)
         
@@ -245,7 +237,6 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "panelFallbackUsed": panel_fallback_used,
             "visualOcrUsed": visual_ocr_used,
             "mrzFallbackUsed": bool(locals().get("mrz_error", "")),
-            "ocrProfile": _ocr_profile(),
             "budgetMs": _ocr_budget_ms(),
             "elapsedMs": _elapsed_ms(started_at),
             "budgetExceeded": _budget_exceeded(started_at, _ocr_budget_ms()),
@@ -253,8 +244,8 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
             "ocrCache": get_ocr_result_cache_stats(),
             "rapidocr": get_ocr_stats(),
             "imagePreprocessor": get_image_preprocessor_stats(),
-            "ocrMode": "DEEP",
-            "ocrModeReasons": ["PROCESSING_EXCEPTION"],
+            "pipelinePath": "ERROR",
+            "pipelineReasons": ["PROCESSING_EXCEPTION"],
         }
         return record
     finally:

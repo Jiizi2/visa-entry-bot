@@ -1,21 +1,10 @@
 from typing import Optional, Dict, Any, List, TypedDict
 from enum import Enum
 
-class OcrProfile(str, Enum):
-    SPEED = "speed"
-    BALANCED = "balanced"
-    HEAVY = "heavy"
-    ACCURACY = "accuracy"
-
 class ReviewStatus(str, Enum):
     VALID = "VALID"
     NEEDS_REVIEW = "NEEDS_REVIEW"
     ERROR = "ERROR"
-
-class OcrMode(str, Enum):
-    FAST = "FAST"
-    RECOVERY = "RECOVERY"
-    DEEP = "DEEP"
 
 class DictObject(dict):
     """Dict subclass that supports attribute-style access.
@@ -91,5 +80,5 @@ class ProcessingMetrics(DictObject):
     visualMs: int
     recoveryMs: int
     tesseract: Dict[str, Any]
-    ocrMode: str
-    ocrModeReasons: List[str]
+    pipelinePath: str
+    pipelineReasons: List[str]

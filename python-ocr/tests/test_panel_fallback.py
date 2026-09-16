@@ -212,7 +212,7 @@ class PanelFallbackTests(unittest.TestCase):
     def test_panel_name_does_not_replace_unmatched_mrz_family_hint(self) -> None:
         from services.scan_context import ScanContext
         from services.models import ParsedPassportData
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", "balanced", 30000)
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData(firstName="RASYDDIQ", familyName="MAULIDDHAN")
 
         notes = fuse_panel_fields(ctx, {"fullName": "RENBITIP SLSERRE SRAPEBNOM"})

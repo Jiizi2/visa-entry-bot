@@ -12,7 +12,7 @@ class ScanContext:
     """Holds all mutable state for one passport OCR scan.
     
     Attributes are grouped into sections:
-    - Input: file_path, file_name, ocr_profile, ocr_budget_ms
+    - Input: file_path, file_name, ocr_budget_ms
     - Timing: started_at, stage_durations_ms, skipped_ocr_stages
     - Pipeline flags: panel_fallback_used, visual_ocr_used, etc.
     - MRZ results: extraction, parsed, mrz_error
@@ -26,14 +26,12 @@ class ScanContext:
         self,
         file_path: str,
         file_name: str,
-        ocr_profile: str,
         ocr_budget_ms: int,
         step_callback: Optional[Callable[[str, str, float], None]] = None
     ):
         # --- Input ---
         self.file_path: str = file_path
         self.file_name: str = file_name
-        self.ocr_profile: str = ocr_profile
         self.ocr_budget_ms: int = ocr_budget_ms
         self.step_callback: Optional[Callable[[str, str, float], None]] = step_callback
 
@@ -47,10 +45,10 @@ class ScanContext:
         self.visual_ocr_used: bool = False
         self.needs_date_scan: bool = False
         self.needs_name_scan: bool = False
-        self.speed_recovery_required: bool = False
-        self.speed_fast_path: bool = False
-        self.speed_recovery_budget_ms: int = ocr_budget_ms
-        self.speed_first_pass_merged: bool = False
+        self.adaptive_recovery_required: bool = False
+        self.fast_path: bool = False
+        self.recovery_budget_ms: int = ocr_budget_ms
+        self.first_pass_merged: bool = False
 
         # --- MRZ Results ---
         self.extraction: Dict[str, Any] = {"data": {}, "confidence": 0.0, "notes": ""}
@@ -71,8 +69,6 @@ class ScanContext:
         self.panel_fields: Dict[str, str] = {}
         self.panel_notes: str = ""
         self.panel_field_names: Tuple[str, ...] = ()
-        self.skipped_panel_field_names: Tuple[str, ...] = ()
-        self.panel_recovery_field_names: Tuple[str, ...] = ()
 
         # --- Recovery Notes ---
         self.early_name_notes: str = ""
@@ -81,7 +77,7 @@ class ScanContext:
         self.date_repair_notes: str = ""
         self.name_notes: str = ""
         self.validation_notes: str = ""
-        self.speed_scan_notes: str = ""
+        self.pipeline_notes: str = ""
 
         # --- Metadata & Auditing ---
         self.field_metadata: Dict[str, Any] = {}
@@ -89,32 +85,11 @@ class ScanContext:
 
         # --- Stage Timing Config ---
         self.stage_min_remaining_ms: Dict[str, int] = {
-            "visual": 1_000,
-            "speed_visual": 3_000,
-            "panel": 3_000,
-            "speed_panel": 2_500,
-            "visual_recovery": 5_000,
+            "location": 3_000,
             "page_align": 4_000,
             "dates": 3_000,
             "names": 4_000,
         }
-
-    # --- Profile Helpers ---
-
-    @property
-    def is_speed_scan(self) -> bool:
-        """Return True if this is a speed-first OCR profile."""
-        return self.ocr_profile == "speed"
-
-    @property
-    def is_heavy_scan(self) -> bool:
-        """Return True if this is a heavy/accuracy OCR profile."""
-        return self.ocr_profile in {"heavy", "accuracy"}
-
-    @property
-    def is_balanced_scan(self) -> bool:
-        """Return True if this is a balanced OCR profile."""
-        return self.ocr_profile == "balanced"
 
     # --- Timing Helpers ---
 

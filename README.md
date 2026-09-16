@@ -95,7 +95,7 @@ npm run dev
 
 ```powershell
 cd python-ocr
-.\.venv\Scripts\python.exe scan_worker.py <path-folder-passport> [speed|balanced|heavy]
+.\.venv\Scripts\python.exe scan_worker.py <path-folder-passport> [prepared-inputs.json]
 ```
 
 ### Test
@@ -144,15 +144,11 @@ powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -Incl
 
 ---
 
-## Mode OCR
+## Pipeline OCR
 
 Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang berjalan lokal tanpa GPU.
 
-| Mode | Budget | Cocok Untuk |
-|---|---|---|
-| `speed` | target 15-20 detik/foto | First pass ringan; panel lokasi mahal dilewati, second pass hanya memulihkan field identitas yang belum lengkap |
-| `balanced` | 30 detik/foto | Penggunaan sehari-hari |
-| `heavy` | 90 detik/foto | Foto buram, pencahayaan buruk |
+Pipeline berjalan otomatis tanpa pilihan mode. Fast path ringan membaca MRZ dan field lokasi terarah; adaptive recovery hanya berjalan ketika field identitas wajib belum lengkap. Budget pemrosesan adalah 20 detik per foto.
 
 ---
 
