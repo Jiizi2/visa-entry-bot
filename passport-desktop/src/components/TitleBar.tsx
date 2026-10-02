@@ -45,7 +45,7 @@ export default function TitleBar() {
       <div className="window-titlebar__drag-region" aria-hidden="true" />
       <div className="window-titlebar__controls" aria-label="Kontrol jendela">
         <button type="button" onClick={handleMinimize} aria-label="Minimize" title="Minimize">
-          <AppIcon name="minus" size={15} />
+          <AppIcon name="minus" size={16} />
         </button>
         <button
           type="button"
@@ -53,7 +53,7 @@ export default function TitleBar() {
           aria-label={isRestorable ? 'Restore' : 'Maximize'}
           title={isRestorable ? 'Restore' : 'Maximize'}
         >
-          <AppIcon name={isRestorable ? 'square' : 'maximize'} size={14} />
+          <AppIcon name={isRestorable ? 'square' : 'maximize'} size={16} />
         </button>
         <button className="is-close" type="button" onClick={handleClose} aria-label="Close" title="Close">
           <AppIcon name="close" size={16} />

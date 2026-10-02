@@ -80,6 +80,7 @@
   }
 
   const state = {
+    handoffReady: false,
     manifest: null,
     selectedMemberId: "",
     collapsed: true,
@@ -318,10 +319,18 @@
       panelBridge.bindWindowBridge();
       panelBridge.bindRuntimeMessages();
       bindVisibilityStatus();
-      resumeRunningAutofillAfterReload();
-
       // Instansiasi widget melayang
       root.widgetInstance = createWidgetManager({ state });
+      // Only the tab selected by background may restore a desktop job.
+      const desktop = await chrome.runtime.sendMessage({ type: 'NUSUK_CONTENT_READY' }).catch(() => null);
+      if (desktop && (!desktop.isTarget || (state.activeSessionId && !desktop.payload?.activeSessionId))) {
+        state.manifest = null; state.currentRunPayload = null; state.activeSessionId = '';
+        state.executionState = 'idle'; state.resumeAvailableAfterReload = false;
+        state.completedMemberIds = []; state.autofillFailures = [];
+      } else if (desktop?.isTarget && !desktop.snapshot && !desktop.payload?.activeSessionId) {
+        resumeRunningAutofillAfterReload();
+      }
+      state.handoffReady = true;
 
       // Dengarkan perubahan status minimize di storage secara reaktif
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
@@ -330,8 +339,7 @@
             const isMinimized = changes.entrymate_minimized.newValue;
             console.log("[Content] Status minimize berubah di storage:", isMinimized);
             
-            const currentUrl = window.location.href;
-            const isTargetPage = currentUrl.includes("/umrah/mutamer/add-mutamer") || currentUrl.includes("/umrah/mutamer/mutamer-list");
+            const isTargetPage = root.pageContext.readPageContext().pageStatus === 'ready' || (state.manifest?.members?.length && root.pageContext.readPageContext().canNavigateToEntry);
             
             if (isMinimized && isTargetPage) {
               root.widgetInstance?.showWidget();
@@ -352,11 +360,13 @@
           lastUrl = currentUrl;
           onUrlChanged(currentUrl);
         }
+        const pageStatus = root.pageContext.readPageContext().pageStatus;
+        if (pageStatus !== state.pageStatus) { state.pageStatus = pageStatus; postPanelState(); }
       }
 
       function onUrlChanged(url) {
         console.log("[EntryMate] URL terdeteksi:", url);
-        const isTargetPage = url.includes("/umrah/mutamer/add-mutamer") || url.includes("/umrah/mutamer/mutamer-list");
+        const isTargetPage = root.pageContext.readPageContext().pageStatus === 'ready' || (state.manifest?.members?.length && root.pageContext.readPageContext().canNavigateToEntry);
         if (isTargetPage) {
           if (chrome?.storage?.local) {
             chrome.storage.local.get(["entrymate_minimized"], (result) => {
@@ -454,6 +464,9 @@
     state.progressTotal = Number(saved.progressTotal || 0);
     state.logs = Array.isArray(saved.logs) ? saved.logs.slice(-50) : [];
     state.autofillFailures = Array.isArray(saved.autofillFailures) ? saved.autofillFailures.slice(-100) : [];
+    state.activeSessionId = saved.activeSessionId || '';
+    state.revision = Number(saved.revision || 0);
+    state.completedMemberIds = saved.completedMemberIds || [];
     state.autofillAttemptFailures = Array.isArray(saved.autofillAttemptFailures) ? saved.autofillAttemptFailures.slice(-100) : [];
     state.autofillFailureScreenshots = Array.isArray(saved.autofillFailureScreenshots) ? saved.autofillFailureScreenshots.slice(-3) : [];
     state.currentRunPayload = isRunnablePayload(saved.currentRunPayload) ? saved.currentRunPayload : null;
@@ -482,6 +495,7 @@
       return;
     }
     state.resumeAvailableAfterReload = false;
+    if (root.pageContext.readPageContext().pageStatus !== 'ready') { state.executionState = 'paused'; postPanelState(); return; }
     state.executionState = "running";
     state.closed = false;
     state.collapsed = false;

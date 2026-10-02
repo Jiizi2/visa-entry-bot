@@ -107,6 +107,10 @@
         });
 
         if (result.success) {
+          state.completedMemberIds = [...new Set([...(state.completedMemberIds || []), String(member.id)])];
+          state.autofillFailures = (state.autofillFailures || []).filter(f => String(f.memberId) !== String(member.id));
+          await persistState();
+          postPanelState();
           appendLog?.("success", `Jamaah ${memberOffset + 1}/${members.length} berhasil dientry: ${describeMember(member)}`);
           if (chrome?.runtime?.sendMessage) {
             chrome.runtime.sendMessage({
@@ -273,7 +277,7 @@
     async function recordMemberFailure(payload, members, startMemberIndex, memberOffset, reason) {
       const failedMember = members[memberOffset];
       state.autofillFailures = [
-        ...(Array.isArray(state.autofillFailures) ? state.autofillFailures : []),
+        ...(Array.isArray(state.autofillFailures) ? state.autofillFailures.filter(f => String(f.memberId) !== String(failedMember?.id)) : []),
         {
           memberIndex: startMemberIndex + memberOffset,
           memberId: String(failedMember?.id || ""),

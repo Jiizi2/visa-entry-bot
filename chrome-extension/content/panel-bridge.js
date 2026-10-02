@@ -26,6 +26,15 @@
         }
 
         console.log(`[Bridge] Menerima pesan tipe: ${message.type}`, message.payload);
+        if (message.type === 'NUSUK_QUERY_CONTEXT') {
+          sendResponse({
+            ...root.pageContext.readPageContext(),
+            contentReady: state.handoffReady !== false,
+            executionState: state.executionState,
+            hasManifest: Boolean(state.manifest?.members?.length),
+          });
+          return false;
+        }
 
         // --- NUSUK_PANEL_ Messages ---
         if (message.type === "NUSUK_PANEL_READY") {
@@ -119,31 +128,57 @@
         }
 
         if (message.type === "NUSUK_WS_LOAD_BATCH") {
-          state.manifest = {
-            manifestVersion: "1.0.19",
-            manifestPath: message.payload.manifestPath,
-            members: message.payload.members
-          };
+          const manifest = { schemaVersion: 'nusuk-entry-batch-v1', manifestPath: message.payload.manifestPath, members: message.payload.members };
+          try {
+            validateManifestForEntry(manifest);
+          } catch (error) {
+            sendResponse({ ok: false, error: error.message });
+            return false;
+          }
+          if (['running', 'paused'].includes(state.executionState)) {
+            sendResponse({ ok: false, error: 'Pekerjaan masih berjalan. Akhiri pekerjaan dari extension sebelum mengganti batch.' });
+            return false;
+          }
+          state.activeSessionId = message.payload.sessionId || "";
+          state.revision = 0;
+          state.lastDesktopRevision = 0;
+          state.progressCurrent = 0;
+          state.progressTotal = message.payload.members?.length || 0;
+          state.currentRunPayload = null;
+          state.autofillFailures = [];
+          state.autofillAttemptFailures = [];
+          state.completedMemberIds = [];
+          state.executionState = "idle";
+          state.manifest = manifest;
           state.selectedMemberId = state.manifest.members[0]?.id || "";
-          void persistState();
-          postPanelState();
-          sendResponse({ ok: true });
-          return false;
+          persistState().then(() => {
+            postPanelState(); root.widgetInstance?.showWidget(); sendResponse({ ok: true });
+          }).catch(error => sendResponse({ ok: false, error: `Data belum dapat disimpan di extension: ${error.message}` }));
+          return true;
         }
 
         if (message.type === "NUSUK_WS_SESSION_SNAPSHOT") {
-          console.log("[Bridge] Menerima SESSION_SNAPSHOT dari Side Panel:", message.payload);
+          console.log("[Bridge] Menerima SESSION_SNAPSHOT dari Desktop. Revision:", message.payload.revision);
           
-          if (state.revision && message.payload.revision < state.revision) {
+          if (state.activeSessionId === message.payload.sessionId && message.payload.revision < (state.lastDesktopRevision || 0)) {
             console.log(`[Bridge] Mengabaikan snapshot usang. Local revision: ${state.revision}, snapshot: ${message.payload.revision}`);
             sendResponse({ ok: false, error: "Outdated revision" });
             return false;
           }
           
           state.revision = message.payload.revision;
+          state.lastDesktopRevision = message.payload.revision;
           state.activeSessionId = message.payload.sessionId;
+          state.progressCurrent = message.payload.progressCurrent || 0;
+          state.progressTotal = message.payload.progressTotal || message.payload.manifestMembers?.length || 0;
+          state.completedMemberIds = message.payload.completedMemberIds || [];
+          state.autofillFailures = message.payload.failures || [];
+          if (Array.isArray(message.payload.manifestMembers)) {
+            state.manifest = { manifestPath: message.payload.manifestPath, members: message.payload.manifestMembers };
+          }
+          state.selectedMemberId = message.payload.currentMemberId || state.selectedMemberId || state.manifest?.members[0]?.id || "";
           
-          if (message.payload.status === "RUNNING") {
+          if (message.payload.status === "RUNNING" && (!root.pageContext || root.pageContext.readPageContext().pageStatus === 'ready')) {
             const manifestMembers = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
             const activeMembers = message.payload.manifestMembers || manifestMembers;
             
@@ -153,8 +188,13 @@
               
               const currentId = message.payload.currentMemberId;
               const currentIdx = activeMembers.findIndex(m => String(m.id) === String(currentId));
-              const startIdx = currentIdx >= 0 ? currentIdx : 0;
-              const remainingMembers = activeMembers.slice(startIdx);
+              const finishedIds = new Set([
+                ...(message.payload.completedMemberIds || []),
+                ...(message.payload.failures || []).map(failure => failure.memberId),
+              ].map(String));
+              const pendingIdx = activeMembers.findIndex(member => !finishedIds.has(String(member.id)));
+              const startIdx = currentIdx >= 0 ? currentIdx : Math.max(0, pendingIdx);
+              const remainingMembers = activeMembers.slice(startIdx).filter(member => !finishedIds.has(String(member.id)));
               
               if (remainingMembers.length > 0) {
                 state.currentRunPayload = {
@@ -177,12 +217,16 @@
                   });
               }
             }
-          } else if (message.payload.status === "PAUSED") {
+          } else if (message.payload.status === "PAUSED" || message.payload.status === 'RUNNING') {
             state.executionState = "paused";
+            const finished = new Set([...(message.payload.completedMemberIds || []), ...(message.payload.failures || []).map(f => f.memberId)].map(String));
+            state.currentRunPayload = { members: (state.manifest?.members || []).filter(m => !finished.has(String(m.id))), totalMembers: state.manifest?.members?.length || 0, manifestPath: message.payload.manifestPath };
           } else if (message.payload.status === "COMPLETED") {
             state.executionState = "completed";
           } else if (message.payload.status === "IDLE") {
             state.executionState = "idle";
+          } else if (['CREATED', 'BATCH_LOADED'].includes(message.payload.status)) {
+            state.executionState = 'idle';
           }
           
           void persistState();

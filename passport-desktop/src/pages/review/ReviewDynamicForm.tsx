@@ -78,7 +78,7 @@ function DynamicFormField({ keyName, label, activeMember, resolved, extracted, o
         )}
       {isMissing && (
         <p className="type-caption-strong text-red-600 mt-1.5 ml-1 flex items-center gap-1">
-          <AppIcon name="error" size={14} /> Field ini wajib diisi
+          <AppIcon name="error" size={16} /> Field ini wajib diisi
         </p>
       )}
       {warningText && !isMissing && (
@@ -180,7 +180,7 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
               />
               {!resolved?.companionId && (
                 <p className="type-caption-strong text-red-600 mt-1.5 ml-1 flex items-center gap-1">
-                  <AppIcon name="error" size={14} /> Field ini wajib diisi
+                  <AppIcon name="error" size={16} /> Field ini wajib diisi
                 </p>
               )}
             </div>
@@ -210,7 +210,7 @@ export default function ReviewDynamicForm({ activeMember, members, resolved, ext
               />
               {!resolved?.companionRelation && (
                 <p className="type-caption-strong text-red-600 mt-1.5 ml-1 flex items-center gap-1">
-                  <AppIcon name="error" size={14} /> Field ini wajib diisi
+                  <AppIcon name="error" size={16} /> Field ini wajib diisi
                 </p>
               )}
             </div>

@@ -1,6 +1,6 @@
 {
   "name": "entrymate-by-ghaniya-extension",
-  "version": "1.0.0",
+  "version": "1.0.24",
   "private": true,
   "scripts": {
     "test": "node --test"

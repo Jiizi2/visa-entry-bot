@@ -14,6 +14,15 @@ impl MessageRouter {
         cm: &ConnectionManager,
         sm: &SessionManager,
     ) -> Result<(), String> {
+        if !matches!(envelope.r#type, MessageType::Ack | MessageType::Pong) {
+            if let Some(session) = sm.get_session() {
+                if envelope.session_id != session.session_id {
+                    send_error(cm, client_id, "ERR_INVALID_SESSION", "Pesan berasal dari sesi entry yang berbeda.", &envelope);
+                    return Err("Sesi entry tidak cocok.".to_string());
+                }
+                if session.target_client_id.is_some_and(|id| id != client_id) { return Err("Pekerjaan terikat ke browser lain.".into()); }
+            }
+        }
         let current_state = sm.get_session()
             .map(|s| s.status)
             .unwrap_or(SessionState::Idle);
@@ -31,6 +40,12 @@ impl MessageRouter {
         };
 
         match envelope.r#type {
+            MessageType::Running => {
+                if current_state == SessionState::Completed && (envelope.payload["retryFailed"] != true || sm.get_session().is_none_or(|s| s.failures.is_empty())) {
+                    return Err("Batch selesai hanya dapat mengulang jamaah yang gagal.".into());
+                }
+                let _ = sm.update_status(SessionState::Running);
+            }
             MessageType::SessionCreated => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::SessionCreatedPayload>(envelope.payload.clone()) {
                     println!(
@@ -38,49 +53,9 @@ impl MessageRouter {
                         payload.status
                     );
 
-                    // Initialize session in manager
-                    match sm.create_session(envelope.session_id.clone(), "test-workspace-path".to_string()) {
-                        Ok(_) => {
-                            let _ = sm.update_status(next_state);
-
-                            // Respond with ACK
-                            send_envelope(
-                                cm,
-                                client_id,
-                                MessageType::Ack,
-                                &envelope.correlation_id,
-                                serde_json::json!({}),
-                                Some(envelope.message_id.clone()),
-                            );
-                            println!("[Session] Sesi otomatisasi baru aktif di kedua belah pihak.");
-
-                            // Picu LOAD_BATCH otomatis untuk pengujian alur Sprint 3
-                            let load_batch_payload = serde_json::json!({
-                                "members": [
-                                    {
-                                        "id": "member-001",
-                                        "name": "Ahmad Fulan",
-                                        "passportNumber": "A9876543",
-                                        "passportImagePath": "C:\\passports\\ahmad.jpg",
-                                        "companionId": null,
-                                        "resolvedProfile": null
-                                    }
-                                ]
-                            });
-                            send_envelope(
-                                cm,
-                                client_id,
-                                MessageType::LoadBatch,
-                                &envelope.correlation_id,
-                                load_batch_payload,
-                                None,
-                            );
-                            println!("[Session] Mengirim LOAD_BATCH otomatis untuk pengujian.");
-                        }
-                        Err(e) => {
-                            send_error(cm, client_id, "ERR_SESSION_ALREADY_ACTIVE", &e, &envelope);
-                        }
-                    }
+                    let _ = sm.update_status(next_state);
+                    send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id,
+                        serde_json::json!({}), Some(envelope.message_id.clone()));
                 } else {
                     send_error(cm, client_id, "ERR_INVALID_PAYLOAD", "Payload SESSION_CREATED tidak valid.", &envelope);
                 }
@@ -99,23 +74,12 @@ impl MessageRouter {
                     Some(envelope.message_id.clone()),
                 );
                 println!("[Session] Batch data jamaah berhasil dimuat di ekstensi.");
-
-                // Picu START otomatis untuk pengujian alur Sprint 4
-                send_envelope(
-                    cm,
-                    client_id,
-                    MessageType::Start,
-                    &envelope.correlation_id,
-                    serde_json::json!({}),
-                    None,
-                );
-                println!("[Session] Mengirim START otomatis ke ekstensi.");
-                let _ = sm.update_status(crate::session_manager::SessionState::Running);
             }
             MessageType::CurrentMember => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::CurrentMemberPayload>(envelope.payload.clone()) {
                     let _ = sm.update_snapshot(|s| {
                         s.current_member_id = Some(payload.member_id.clone());
+                        s.status = SessionState::Running;
                     });
                     crate::event_dispatcher::EventDispatcher::dispatch_current_member(app, &payload.member_id);
                     send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
@@ -136,31 +100,21 @@ impl MessageRouter {
             }
             MessageType::Progress => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::ProgressPayload>(envelope.payload.clone()) {
-                    let mut is_stale = false;
                     let _ = sm.update_snapshot(|s| {
-                        if payload.revision > s.revision {
-                            s.progress_current = payload.current;
-                            s.progress_total = payload.total;
-                            if let Some(ref st) = payload.status {
-                                s.status = match st.as_str() {
-                                    "RUNNING" => crate::session_manager::SessionState::Running,
-                                    "PAUSED" => crate::session_manager::SessionState::Paused,
-                                    "COMPLETED" => crate::session_manager::SessionState::Completed,
-                                    "IDLE" => crate::session_manager::SessionState::Idle,
-                                    _ => s.status,
-                                };
-                            }
-                            s.revision = payload.revision;
-                        } else {
-                            is_stale = true;
+                        // Connection sequences already reject duplicate/out-of-order
+                        // packets. Client and desktop revisions are different counters.
+                        s.progress_current = payload.current;
+                        s.progress_total = payload.total;
+                        if let Some(ref st) = payload.status {
+                            s.status = match st.as_str() {
+                                "RUNNING" => crate::session_manager::SessionState::Running,
+                                "PAUSED" => crate::session_manager::SessionState::Paused,
+                                "COMPLETED" => crate::session_manager::SessionState::Completed,
+                                "IDLE" => crate::session_manager::SessionState::Idle,
+                                _ => s.status,
+                            };
                         }
                     });
-
-                    if is_stale {
-                        println!("[Session] Mengabaikan progress event karena revision usang: {}", payload.revision);
-                        send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
-                        return Ok(());
-                    }
 
                     let percent = (payload.current * 100) / std::cmp::max(payload.total, 1);
                     let message = format!("Passport {} / {}", payload.current, payload.total);
@@ -173,6 +127,7 @@ impl MessageRouter {
             MessageType::FailureUpdated => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::FailureUpdatedPayload>(envelope.payload.clone()) {
                     let _ = sm.update_snapshot(|s| {
+                        s.failures.retain(|failure| failure["memberId"].as_str() != Some(&payload.member_id));
                         s.failures.push(serde_json::json!({
                             "memberId": payload.member_id,
                             "reason": payload.reason,
@@ -187,6 +142,10 @@ impl MessageRouter {
             MessageType::MemberCompleted => {
                 if let Ok(payload) = serde_json::from_value::<crate::protocol::MemberCompletedPayload>(envelope.payload.clone()) {
                     let _ = sm.update_snapshot(|s| {
+                        if !s.completed_member_ids.contains(&payload.member_id) {
+                            s.completed_member_ids.push(payload.member_id.clone());
+                        }
+                        s.failures.retain(|failure| failure["memberId"].as_str() != Some(&payload.member_id));
                         s.current_member_id = None;
                         s.current_step = None;
                     });
@@ -203,6 +162,10 @@ impl MessageRouter {
                     s.current_step = None;
                 });
                 crate::event_dispatcher::EventDispatcher::dispatch_session_completed(app, &envelope.session_id);
+                send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
+            }
+            MessageType::Stop => {
+                sm.close_session();
                 send_envelope(cm, client_id, MessageType::Ack, &envelope.correlation_id, serde_json::json!({}), Some(envelope.message_id.clone()));
             }
             MessageType::Ack | MessageType::Pong | MessageType::SessionSnapshot => {

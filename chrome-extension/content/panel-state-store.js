@@ -68,6 +68,9 @@
         autofillFailures: state.autofillFailures || [],
         revision: state.revision || 0,
         activeSessionId: state.activeSessionId || "",
+        pageStatus: root.pageContext?.readPageContext().pageStatus || 'loading',
+        canNavigateToEntry: root.pageContext?.readPageContext().canNavigateToEntry || false,
+        completedMemberIds: state.completedMemberIds || [],
       });
       if (root.widgetInstance) {
         root.widgetInstance.updateWidgetUI();
@@ -81,7 +84,7 @@
     function postToPanel(type, payload) {
       try {
         if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
-          chrome.runtime.sendMessage({ type, payload });
+          chrome.runtime.sendMessage({ type: 'NUSUK_CONTENT_PANEL_MESSAGE', payload: { type, payload } }).catch(() => {});
         }
       } catch (e) {
         console.warn("Failed to send message to side panel:", e);
@@ -110,6 +113,7 @@
           currentRunPayload: state.currentRunPayload,
           revision: state.revision || 0,
           activeSessionId: state.activeSessionId || "",
+          completedMemberIds: state.completedMemberIds || [],
         },
       });
     }

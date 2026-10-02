@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import logoUrl from '../assets/brand/entrymate-icon.png';
 import UpdateDialog from './UpdateDialog';
 import AppIcon from './ui/AppIcon';
+import { version } from '../../package.json';
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
 
@@ -10,53 +10,35 @@ interface SidebarProps {
   onChangePage: (page: Page) => void;
 }
 
-const steps = [
-  { id: 'import', label: 'Import', subtitle: 'Pilih folder kerja' },
-  { id: 'prepare', label: 'Prepare', subtitle: 'Rapikan foto' },
-  { id: 'scan', label: 'Scan', subtitle: 'Proses otomatis' },
-  { id: 'validation', label: 'Review', subtitle: 'Periksa data' },
-  { id: 'entry', label: 'Export', subtitle: 'Kirim hasil' },
+const navigationItems = [
+  { id: 'import', label: 'Import', icon: 'folder' },
+  { id: 'prepare', label: 'Prepare', icon: 'image' },
+  { id: 'scan', label: 'Scan', icon: 'scan' },
+  { id: 'validation', label: 'Review', icon: 'review' },
+  { id: 'entry', label: 'Entry', icon: 'send' },
 ] as const;
 
 export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const activeIndex = steps.findIndex((step) => step.id === currentPage);
 
   return (
-    <aside className={`workflow-rail ${isMinimized ? 'is-collapsed' : ''}`} aria-label="Workflow EntryMate">
-      <div className="workflow-rail__brand">
-        <img src={logoUrl} alt="" aria-hidden="true" />
-        {!isMinimized && (
-          <div>
-            <strong>EntryMate</strong>
-            <span>Visa operations</span>
-          </div>
-        )}
-      </div>
-
-      <nav className="workflow-rail__nav" aria-label="Tahapan proses">
-        {steps.map((step, index) => {
-          const isActive = currentPage === step.id;
-          const isCompleted = index < activeIndex;
+    <aside className={`workflow-rail ${isMinimized ? 'is-collapsed' : ''}`} aria-label="Navigasi EntryMate">
+      <nav id="workflow-navigation" className="workflow-rail__nav" aria-label="Halaman aplikasi">
+        {navigationItems.map((item) => {
+          const isActive = currentPage === item.id;
           return (
             <button
-              key={step.id}
-              className={`workflow-step ${isActive ? 'is-active' : ''} ${isCompleted ? 'is-completed' : ''}`}
+              key={item.id}
+              className={`workflow-nav-item ${isActive ? 'is-active' : ''}`}
               type="button"
-              onClick={() => onChangePage(step.id)}
-              aria-current={isActive ? 'step' : undefined}
-              title={`${index + 1}. ${step.label} — ${step.subtitle}`}
+              onClick={() => onChangePage(item.id)}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={item.label}
+              title={item.label}
             >
-              <span className="workflow-step__index" aria-hidden="true">
-                {isCompleted ? <AppIcon name="check" size={13} strokeWidth={2.2} /> : index + 1}
-              </span>
-              {!isMinimized && (
-                <span className="workflow-step__copy">
-                  <strong>{step.label}</strong>
-                  <small>{step.subtitle}</small>
-                </span>
-              )}
+              <AppIcon name={item.icon} />
+              <span className="workflow-nav-item__label">{item.label}</span>
             </button>
           );
         })}
@@ -67,22 +49,24 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
           className="workflow-rail__collapse"
           type="button"
           onClick={() => setIsMinimized((value) => !value)}
-          aria-label={isMinimized ? 'Perbesar workflow rail' : 'Perkecil workflow rail'}
+          aria-label={isMinimized ? 'Perbesar sidebar' : 'Perkecil sidebar'}
           aria-expanded={!isMinimized}
-          title={isMinimized ? 'Perbesar navigasi' : 'Perkecil navigasi'}
+          aria-controls="workflow-navigation"
+          title={isMinimized ? 'Perbesar sidebar' : 'Perkecil sidebar'}
         >
-          <AppIcon name={isMinimized ? 'panel_open' : 'panel_close'} size={17} />
-          {!isMinimized && <span>Perkecil sidebar</span>}
+          <AppIcon name={isMinimized ? 'panel_open' : 'panel_close'} size={18} />
+          <span>{isMinimized ? 'Perbesar sidebar' : 'Perkecil sidebar'}</span>
         </button>
         <button
           type="button"
           onClick={() => setIsUpdateDialogOpen(true)}
           title="Cek pembaruan aplikasi"
+          aria-label="Cek pembaruan aplikasi"
         >
-          <AppIcon name="refresh" size={17} />
-          {!isMinimized && <span>Cek pembaruan</span>}
+          <AppIcon name="refresh" size={18} />
+          <span>Cek pembaruan</span>
         </button>
-        {!isMinimized && <small>EntryMate v1.0.21</small>}
+        <small>EntryMate v{version}</small>
       </div>
 
       <UpdateDialog isOpen={isUpdateDialogOpen} onClose={() => setIsUpdateDialogOpen(false)} />

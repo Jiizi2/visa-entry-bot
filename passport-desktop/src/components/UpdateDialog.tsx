@@ -1,4 +1,6 @@
+import Button from './ui/Button';
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import AppIcon from './ui/AppIcon';
@@ -88,8 +90,8 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="modal-overlay" style={{ zIndex: 99999 }}>
+  return createPortal(
+    <div className="modal-overlay">
       <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="update-dialog-title">
         {/* Header */}
         <div className="modal-header">
@@ -108,7 +110,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
 
           {status === 'up-to-date' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <AppIcon name="check_circle" size={48} className="text-emerald-500" />
+              <AppIcon name="check_circle" size={32} className="text-emerald-500" />
               <div>
                 <p className="type-body-strong text-slate-800 mb-1">Aplikasi sudah versi terbaru</p>
                 <p className="text-slate-500 type-caption">Anda sudah menggunakan versi terbaru EntryMate.</p>
@@ -134,8 +136,8 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out"
-                  style={{ width: `${downloadProgress}%` }}
+                  className="update-progress-fill h-full bg-blue-600 rounded-full"
+                  style={{ transform: `scaleX(${Math.max(0, Math.min(100, downloadProgress)) / 100})` }}
                 ></div>
               </div>
               <p className="type-caption text-slate-500 text-center">Mohon jangan tutup aplikasi saat mengunduh.</p>
@@ -144,7 +146,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
 
           {status === 'ready' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <AppIcon name="rocket_launch" size={48} className="text-emerald-500" />
+              <AppIcon name="rocket_launch" size={32} className="text-emerald-500" />
               <div>
                 <p className="type-body-strong text-slate-800 mb-1">Pembaruan siap!</p>
                 <p className="text-slate-500 type-caption">Pembaruan telah diunduh dan siap diinstal. Aplikasi perlu dimuat ulang.</p>
@@ -154,7 +156,7 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
 
           {status === 'error' && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <AppIcon name="error" size={48} className="text-red-500" />
+              <AppIcon name="error" size={32} className="text-red-500" />
               <div>
                 <p className="type-body-strong text-red-600 mb-1">Gagal memeriksa pembaruan</p>
                 <p className="text-slate-500 type-caption break-all">{errorMsg}</p>
@@ -166,33 +168,33 @@ export default function UpdateDialog({ isOpen, onClose }: UpdateDialogProps) {
         {/* Footer */}
         <div className="modal-footer">
           {(status === 'checking' || status === 'up-to-date' || status === 'error' || status === 'available') && (
-            <button 
+            <Button variant="secondary"
               onClick={onClose}
               className="secondary-button"
             >
               {status === 'available' ? 'Nanti Saja' : 'Tutup'}
-            </button>
+            </Button>
           )}
 
           {status === 'available' && (
-            <button 
+            <Button variant="primary"
               onClick={handleDownloadAndInstall}
               className="primary-action"
             >
               Unduh & Instal
-            </button>
+            </Button>
           )}
 
           {status === 'ready' && (
-            <button 
+            <Button variant="primary"
               onClick={handleRelaunch}
-              className="primary-action w-full !bg-emerald-600 hover:!bg-emerald-700"
+              className="primary-action w-full"
             >
               Mulai Ulang Sekarang
-            </button>
+            </Button>
           )}
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }

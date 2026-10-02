@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import AppIcon from './ui/AppIcon';
 
 interface DatePickerProps {
@@ -11,6 +12,8 @@ interface DatePickerProps {
 export default function CustomDatePicker({ value, onChange, placeholder, className }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<React.CSSProperties>({ visibility: 'hidden' });
   
   // Parse value to initialize calendar view
   const parsedDate = value ? new Date(value) : new Date();
@@ -32,13 +35,39 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Place the calendar in the overlay layer so inspector scrolling cannot clip it.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const positionMenu = () => {
+      if (!containerRef.current || !menuRef.current) return;
+      const anchor = containerRef.current.getBoundingClientRect();
+      const menu = menuRef.current.getBoundingClientRect();
+      const edge = 16;
+      const gap = 8;
+      const below = window.innerHeight - anchor.bottom - edge - gap;
+      const above = anchor.top - edge - gap;
+      const opensAbove = below < menu.height && above > below;
+      const maxHeight = Math.max(80, opensAbove ? above : below);
+      const top = opensAbove ? Math.max(edge, anchor.top - Math.min(menu.height, maxHeight) - gap) : anchor.bottom + gap;
+      const left = Math.max(edge, Math.min(anchor.left, window.innerWidth - menu.width - edge));
+      setMenuPosition({ top, left, maxHeight, visibility: 'visible' });
+    };
+    positionMenu();
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, true);
+    return () => {
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
+    };
+  }, [isOpen, viewMode, currentViewDate]);
 
   const currentYear = currentViewDate.getFullYear();
   const currentMonthIdx = currentViewDate.getMonth();
@@ -92,7 +121,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
       <button 
         key={d} 
         onClick={(e) => { e.preventDefault(); handleDayClick(d); }}
-        className={`flex items-center justify-center h-8 border-none rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-[var(--primary)] text-white type-body-strong' : 'bg-transparent text-slate-900 hover:bg-slate-200 type-body'}`}
+        className={`date-picker__day ${isSelected ? 'is-selected' : ''}`}
       >
         {d}
       </button>
@@ -102,7 +131,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
   const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className="date-picker" ref={containerRef}>
       <input 
         type="text"
         className={className}
@@ -113,7 +142,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
       />
       <button
         type="button"
-        className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center border-0 bg-transparent text-[var(--primary)] cursor-pointer"
+        className="date-picker__toggle"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Buka kalender"
         aria-expanded={isOpen}
@@ -121,10 +150,10 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
         <AppIcon name="calendar" size={18} />
       </button>
 
-      {isOpen && (
-        <div className="absolute top-[calc(100%+4px)] left-0 z-50 w-[280px] bg-white border border-slate-300 rounded-lg shadow-lg p-4 font-sans" role="dialog" aria-label="Pilih tanggal">
+      {isOpen && createPortal(
+        <div ref={menuRef} className="date-picker__menu" style={menuPosition} role="dialog" aria-label="Pilih tanggal">
           <div className="flex items-center justify-between mb-3">
-            <button onClick={(e) => { e.preventDefault(); prevNav(); }} className="flex items-center justify-center w-7 h-7 bg-transparent border border-slate-200 rounded-md cursor-pointer text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900">
+            <button onClick={(e) => { e.preventDefault(); prevNav(); }} className="date-picker__nav">
               <AppIcon name="chevron_left" size={20} />
             </button>
             
@@ -145,7 +174,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
               </span>
             )}
 
-            <button onClick={(e) => { e.preventDefault(); nextNav(); }} className="flex items-center justify-center w-7 h-7 bg-transparent border border-slate-200 rounded-md cursor-pointer text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900">
+            <button onClick={(e) => { e.preventDefault(); nextNav(); }} className="date-picker__nav">
               <AppIcon name="chevron_right" size={20} />
             </button>
           </div>
@@ -164,7 +193,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
               {Array.from({length: 12}, (_, i) => yearPageStart + i).map(y => (
                 <button 
                   key={y}
-                  className={`h-10 border-none rounded-md cursor-pointer transition-colors ${y === currentYear ? 'bg-[var(--primary)] text-white type-body-strong' : 'bg-transparent text-slate-900 hover:bg-slate-200 type-body'}`}
+                  className={`date-picker__year ${y === currentYear ? 'is-selected' : ''}`}
                   onClick={(e) => {
                     e.preventDefault();
                     setCurrentViewDate(new Date(y, currentMonthIdx, 1));
@@ -176,7 +205,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, classNa
               ))}
             </div>
           )}
-        </div>
+        </div>, document.body
       )}
     </div>
   );

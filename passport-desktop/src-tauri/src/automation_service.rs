@@ -7,8 +7,10 @@ impl AutomationService {
     pub fn validate_transition(current: SessionState, trigger: &MessageType) -> Result<SessionState, String> {
         match (current, trigger) {
             (SessionState::Idle, MessageType::SessionCreated) => Ok(SessionState::Created),
+            (SessionState::Created, MessageType::SessionCreated) => Ok(SessionState::Created),
             
             (SessionState::Created, MessageType::BatchLoaded) => Ok(SessionState::BatchLoaded),
+            (SessionState::BatchLoaded, MessageType::BatchLoaded) => Ok(SessionState::BatchLoaded),
             
             (SessionState::BatchLoaded, MessageType::Start) => Ok(SessionState::Running),
             (SessionState::BatchLoaded, MessageType::Next) => Ok(SessionState::Running),
@@ -16,8 +18,10 @@ impl AutomationService {
             
             (SessionState::Running, MessageType::Pause) => Ok(SessionState::Paused),
             (SessionState::Running, MessageType::MemberCompleted) => Ok(SessionState::BatchLoaded),
+            (SessionState::Running, MessageType::SessionCompleted) => Ok(SessionState::Completed),
             
             (SessionState::Paused, MessageType::Start) => Ok(SessionState::Running),
+            (SessionState::BatchLoaded | SessionState::Paused | SessionState::Running | SessionState::Completed, MessageType::Running) => Ok(SessionState::Running),
             
             // Stop command can transition from any active state to Stopped/Idle
             (_, MessageType::Stop) => Ok(SessionState::Idle),
@@ -29,6 +33,11 @@ impl AutomationService {
             (SessionState::Running, MessageType::CurrentMember) => Ok(SessionState::Running),
             (SessionState::Running, MessageType::CurrentStep) => Ok(SessionState::Running),
             (SessionState::Running, MessageType::Progress) => Ok(SessionState::Running),
+            (SessionState::Paused, MessageType::Progress) => Ok(SessionState::Paused),
+            (SessionState::BatchLoaded, MessageType::CurrentMember) => Ok(SessionState::Running),
+            (SessionState::BatchLoaded, MessageType::CurrentStep) => Ok(SessionState::Running),
+            (SessionState::BatchLoaded, MessageType::Progress) => Ok(SessionState::Running),
+            (SessionState::Running, MessageType::FailureUpdated) => Ok(SessionState::Running),
 
             // General utility events
             (_, MessageType::Ack) => Ok(current),

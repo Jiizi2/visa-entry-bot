@@ -1,6 +1,6 @@
 # EntryMate By Ghaniya
 
-> Versi desktop: **1.0.21** | Extension manifest: **1.0.19** | Windows · macOS · Linux
+> Versi desktop: **1.0.24** | Extension manifest: **1.0.24** | Windows · macOS · Linux
 
 Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari aplikasi desktop, worker OCR lokal, dan browser extension. Desktop dan extension terhubung melalui WebSocket lokal; ekspor/upload file JSON tetap tersedia sebagai mode legacy.
 

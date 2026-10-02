@@ -9,6 +9,8 @@ export enum MessageType {
   PING = 'PING',
   HELLO_ACK = 'HELLO_ACK',
   SESSION_SNAPSHOT = 'SESSION_SNAPSHOT',
+  GET_NUSUK_CONTEXT = 'GET_NUSUK_CONTEXT',
+  OPEN_NUSUK = 'OPEN_NUSUK',
 
   // Events (Extension -> Desktop)
   HELLO = 'HELLO',
@@ -26,6 +28,7 @@ export enum MessageType {
   ACK = 'ACK',
   SESSION_CREATED = 'SESSION_CREATED',
   BATCH_LOADED = 'BATCH_LOADED',
+  NUSUK_CONTEXT = 'NUSUK_CONTEXT',
 
   // Errors
   ERROR = 'ERROR'

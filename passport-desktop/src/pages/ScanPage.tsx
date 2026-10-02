@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
@@ -101,6 +103,10 @@ const friendlyStageFor = (
 };
 
 export default function ScanPage() {
+  const preparedSession = useStore(s => s.preparedSession);
+  const queueRef = useRef<HTMLDivElement>(null);
+  const activeQueueRowRef = useRef<HTMLTableRowElement>(null);
+  const documentSheetRef = useRef<HTMLDivElement>(null);
   const isScanning = useStore(s => s.isScanning);
   const progressTotal = useStore(s => s.progressTotal);
   const progressCurrent = useStore(s => s.progressCurrent);
@@ -112,6 +118,20 @@ export default function ScanPage() {
 
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [currentStageCode, setCurrentStageCode] = useState('start');
+
+  useEffect(() => {
+    const sheet = documentSheetRef.current;
+    if (!isScanning || !sheet || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      sheet.classList.toggle('is-offscreen', !entry.isIntersecting);
+    });
+    observer.observe(sheet);
+    return () => {
+      observer.disconnect();
+      sheet.classList.remove('is-offscreen');
+    };
+  }, [isScanning]);
 
   useEffect(() => {
     let interval: number | undefined;
@@ -245,165 +265,119 @@ export default function ScanPage() {
     estRemainingText = formatTime(remainingItems * timePerItem);
   }
 
+  const queueItems: any[] = preparedSession?.items || [];
+  const hasQueue = displayTotal > 0 && queueItems.length === displayTotal;
+  const queuedCount = Math.max(0, remainingCount - (isScanning && remainingCount > 0 ? 1 : 0));
+  const batchName = selectedDir.split(/[\\/]/).pop() || '';
+  const stateText = isFinished ? 'Semua dokumen selesai' : isScanning ? 'Scan sedang berjalan' : friendlyStage.title;
+  const hasScanError = currentStageCode === 'error';
+
+  // Keep the active row visible inside its scroll region, without moving the application viewport.
+  useEffect(() => {
+    const queue = queueRef.current;
+    const row = activeQueueRowRef.current;
+    if (!queue || !row) return;
+    const rowBox = row.getBoundingClientRect();
+    const queueBox = queue.getBoundingClientRect();
+    if (rowBox.bottom > queueBox.bottom || rowBox.top < queueBox.top + 32) {
+      queue.scrollTop += rowBox.top - queueBox.top - queue.clientHeight / 2 + row.clientHeight / 2;
+    }
+  }, [progressFileName, completedCount, hasQueue]);
+
   return (
     <section id="page-scan" className="page-container scan-page">
-      <header className="app-page-header">
-        <div className="app-page-header-left">
-          <div className="app-page-header-icon">
-            <AppIcon name="scan" size={20} />
-          </div>
-          <div className="app-page-header-info">
-            <span className="app-page-step-label">Langkah 3 · Proses passport</span>
-            <h1 className="app-page-title">{friendlyStage.title}</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {displayTotal > 0 && <span className="status-chip info">{completedCount}/{displayTotal} selesai</span>}
-          {isScanning && (
-            <button className="secondary-button !text-red-700" type="button" onClick={handleStopScan}>
-              <AppIcon name="stop" size={17} />
-              Hentikan
-            </button>
-          )}
-        </div>
-      </header>
-
       <div className="scan-workspace">
-        <section className={`scan-hero ${isScanning ? 'is-running' : isFinished ? 'is-finished' : 'is-idle'}`} aria-live="polite">
-          <div className="scan-hero__content">
-            <div className="scan-hero__eyebrow">
-              <span className="scan-hero__pulse" aria-hidden="true" />
-              {isFinished ? 'Semua dokumen selesai' : isScanning ? 'Scan sedang berjalan' : 'Scan tidak berjalan'}
+        <div className="scan-main">
+          <PageHeader title="Scan passport" actions={isScanning ? (
+            <Button variant="secondary" danger type="button" onClick={handleStopScan}>
+              <AppIcon name="stop" size={16} />Hentikan
+            </Button>
+          ) : undefined} />
+          <section className="scan-summary" aria-label="Progres batch">
+            <div className={`scan-running-state ${hasScanError ? 'is-error' : isScanning ? '' : isFinished ? 'is-finished' : 'is-idle'}`} role="status">
+              <span className="status-dot" aria-hidden="true" /><span>{stateText}</span>
             </div>
-
-            <div className="scan-hero__headline">
-              <div>
-                <span>Dokumen saat ini</span>
-                <h2>{progressFileName || 'Menyiapkan dokumen pertama'}</h2>
-                <p>{friendlyStage.description}</p>
-              </div>
-              <div className="scan-hero__percent" aria-hidden="true">
-                <div><strong>{progressPercent}</strong><span>%</span></div>
-                <small>{completedCount} dari {displayTotal} selesai</small>
-              </div>
+            <div className="scan-progress-value">
+              <strong aria-hidden="true">{progressPercent}%</strong>
+              <span>{completedCount} dari {displayTotal} passport selesai</span>
             </div>
-
-            <div
-              className="scan-progress-track"
-              role="progressbar"
-              aria-label={`${completedCount} dari ${displayTotal} passport selesai diproses`}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progressPercent}
-            >
-              <div className="scan-progress-track__fill" style={{ width: `${Math.min(100, progressPercent)}%` }}>
-                {isScanning && <span className="scan-progress-track__glow" />}
-              </div>
+            <div className="scan-progress-track" role="progressbar" aria-label="Progres scan passport"
+              aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, progressPercent)}
+              aria-valuetext={`${completedCount} dari ${displayTotal} passport selesai diproses`}>
+              <div className="scan-progress-track__fill" style={{ transform: `scaleX(${Math.max(0, Math.min(100, progressPercent)) / 100})` }} />
             </div>
-
-            <div className="scan-hero__timing">
-              <div>
-                <AppIcon name="schedule" size={17} />
-                <span>Waktu berjalan<strong>{isScanning || elapsedSeconds > 0 ? formatTime(elapsedSeconds) : '--:--'}</strong></span>
-              </div>
-              <div>
-                <AppIcon name="hourglass" size={17} />
-                <span>Estimasi tersisa<strong>{estRemainingText}</strong></span>
-              </div>
-            </div>
-          </div>
-
-          <div className="scan-hero__visual" aria-hidden="true">
-            <div className="scan-hero__orbit">
-              <span />
-              <AppIcon name={isFinished ? 'check_circle' : 'scan'} size={30} />
-            </div>
-            <strong>{completedCount}</strong>
-            <small>passport selesai</small>
-          </div>
-        </section>
-
-        <div className="scan-detail-grid">
-          <div className="scan-metrics" aria-label="Ringkasan scan">
-            <div className="scan-metric">
-              <span className="scan-metric__icon"><AppIcon name="file" size={17} /></span>
-              <span><small>Total passport</small><strong>{displayTotal}</strong></span>
-            </div>
-            <div className="scan-metric">
-              <span className="scan-metric__icon is-valid"><AppIcon name="check_circle" size={17} /></span>
-              <span><small>Sudah selesai</small><strong>{completedCount}</strong></span>
-            </div>
-            <div className="scan-metric">
-              <span className="scan-metric__icon is-remaining"><AppIcon name="hourglass" size={17} /></span>
-              <span><small>Masih tersisa</small><strong>{remainingCount}</strong></span>
-            </div>
-          </div>
-
-          <section className={`scan-process-card ${isScanning ? 'is-running' : isFinished ? 'is-finished' : 'is-stopped'}`}>
-            <div className="scan-process-card__visual" aria-hidden="true">
-              <div className="scan-document-stack">
-                <span className="scan-document-stack__back" />
-                <div className="scan-document-sheet">
-                  <div className="scan-document-sheet__brand">
-                    <AppIcon name="scan" size={17} />
-                    <span>EntryMate</span>
-                  </div>
-                  <div className="scan-document-sheet__body">
-                    <div className="scan-document-sheet__photo"><AppIcon name="user" size={32} /></div>
-                    <div className="scan-document-sheet__lines"><span /><span /><span /><span /></div>
-                  </div>
-                  {isScanning && <span className="scan-document-sheet__sweep" />}
-                </div>
-                <div className="scan-document-stack__badge">
-                  {isFinished ? <AppIcon name="check_circle" size={16} /> : <span />}
-                  {displayTotal > 0 ? `Dokumen ${currentDocumentNumber} dari ${displayTotal}` : 'Menyiapkan daftar'}
-                </div>
-              </div>
-            </div>
-
-            <div className="scan-process-card__content">
-              <span className="scan-process-card__eyebrow">Yang sedang dilakukan</span>
-              <h2>{friendlyStage.title}</h2>
-              <p>{friendlyStage.description}</p>
-
-              <ol className="scan-journey" aria-label="Tahapan pemrosesan dokumen saat ini">
-                {journeySteps.map((step, index) => {
-                  const isComplete = isFinished || currentStageCode === 'complete' || index < friendlyStage.step;
-                  const isActive = !isComplete && index === friendlyStage.step;
-                  return (
-                    <li key={step.title} className={isComplete ? 'is-complete' : isActive ? 'is-active' : ''}>
-                      <span className="scan-journey__marker">
-                        {isComplete ? <AppIcon name="check" size={15} /> : index + 1}
-                      </span>
-                      <span><strong>{step.title}</strong><small>{step.description}</small></span>
-                    </li>
-                  );
-                })}
-              </ol>
-
-              <div className="scan-user-note">
-                <AppIcon name="info" size={18} />
-                <span>
-                  <strong>Tidak perlu melakukan apa pun.</strong>
-                  Halaman Review akan terbuka otomatis setelah semua passport selesai.
-                </span>
-              </div>
-            </div>
+            <dl className="scan-timing">
+              <div><dt>Waktu berjalan</dt><dd>{isScanning || elapsedSeconds > 0 ? formatTime(elapsedSeconds) : '--:--'}</dd></div>
+              <div><dt>Estimasi tersisa</dt><dd>{estRemainingText}</dd></div>
+              <div><dt>Antrean</dt><dd>{queuedCount} dokumen</dd></div>
+            </dl>
           </section>
-
-          <div className="scan-footer-state">
-            <div>
-              <span className={`scan-footer-state__dot ${isScanning ? 'is-running' : isFinished ? 'is-finished' : ''}`} aria-hidden="true" />
-              <span>
-                {isFinished
-                  ? 'Semua passport selesai. Membuka halaman Review…'
-                  : isScanning
-                    ? 'Scan berjalan otomatis. Jangan tutup aplikasi sampai proses selesai.'
-                    : 'Proses berhenti. Kembali ke Prepare jika ingin mencoba lagi.'}
-              </span>
-            </div>
-          </div>
+          <section className="scan-queue" aria-labelledby="scan-queue-title">
+            <header><h2 id="scan-queue-title">Antrean dokumen</h2>
+              <span className="scan-queue-context" title={selectedDir}>{batchName ? `${batchName} · ` : ''}{displayTotal} dokumen</span>
+            </header>
+            {hasQueue ? (
+              <div className="scan-queue-scroll" ref={queueRef}>
+                <table className="scan-queue-table" aria-label="Status pemrosesan dokumen">
+                  <thead><tr><th scope="col"><span className="sr-only">Nomor</span></th><th scope="col">Dokumen</th><th scope="col">Status</th></tr></thead>
+                  <tbody>{queueItems.map((item, index) => {
+                    const completed = index < completedCount;
+                    const active = isScanning && index === completedCount;
+                    const status = completed ? 'Selesai' : active ? 'Membaca' : isScanning ? 'Menunggu' : 'Belum selesai';
+                    return (
+                      <tr key={item.id ?? index} className={active ? 'is-active' : ''} ref={active ? activeQueueRowRef : undefined} aria-current={active ? 'step' : undefined}>
+                        <td>{index + 1}</td>
+                        <td><span className="scan-queue-file"><AppIcon name="file" size={18} /><span title={item.fileName}>{item.fileName || `Dokumen ${index + 1}`}</span></span></td>
+                        <td><span className={`scan-queue-status ${completed ? 'is-complete' : active ? 'is-active' : ''}`}>
+                          <AppIcon name={completed ? 'check_circle' : active ? 'scan' : 'hourglass'} size={16} />{status}
+                        </span></td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="scan-empty-note">{progressFileName
+                ? `Sedang memproses ${progressFileName}. Daftar dokumen lengkap belum tersedia.`
+                : 'Daftar dokumen akan muncul setelah foto disiapkan di halaman Prepare.'}</p>
+            )}
+          </section>
+          <p className="scan-main-note"><AppIcon name="info" size={16} />
+            {isFinished ? 'Semua passport selesai. Membuka halaman Review…'
+              : isScanning ? 'Biarkan aplikasi tetap terbuka selama proses scan.'
+              : 'Kembali ke Prepare untuk memeriksa dokumen dan mencoba lagi.'}
+          </p>
         </div>
+        <aside className="scan-detail" aria-label="Dokumen aktif">
+          <header><h2>Dokumen aktif</h2>
+            <span>{displayTotal > 0 ? `Dokumen ${currentDocumentNumber} dari ${displayTotal}` : 'Belum ada dokumen'}</span>
+            <p className="scan-detail-filename">{progressFileName || 'Menyiapkan dokumen pertama'}</p>
+          </header>
+          <figure className="scan-document-illustration">
+            <div className="scan-document-sheet" ref={documentSheetRef} aria-hidden="true">
+              <div className="scan-document-sheet__body">
+                <div className="scan-document-sheet__photo"><AppIcon name="user" size={32} /></div>
+                <div className="scan-document-sheet__lines"><span /><span /><span /><span /></div>
+              </div>
+              {isScanning && <span className="scan-document-sheet__sweep" />}
+            </div>
+            <figcaption>Ilustrasi dokumen</figcaption>
+          </figure>
+          <div className="scan-detail-stage" aria-live="polite"><h3>{friendlyStage.title}</h3><p>{friendlyStage.description}</p></div>
+          <ol className="scan-journey" aria-label="Tahapan dokumen aktif">
+            {journeySteps.map((step, index) => {
+              const isComplete = !hasScanError && (isFinished || currentStageCode === 'complete' || index < friendlyStage.step);
+              const isActive = isScanning && !isComplete && index === friendlyStage.step;
+              return (
+                <li key={step.title} className={hasScanError && index === friendlyStage.step ? 'is-error' : isComplete ? 'is-complete' : isActive ? 'is-active' : ''} aria-current={isActive ? 'step' : undefined}>
+                  <span className="scan-journey__marker" aria-hidden="true">{isComplete ? <AppIcon name="check" size={16} /> : index + 1}</span>
+                  <span><strong>{step.title}</strong><small>{step.description}</small></span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="scan-detail-note"><AppIcon name="info" size={16} />Review terbuka otomatis setelah semua dokumen selesai.</p>
+        </aside>
       </div>
     </section>
   );

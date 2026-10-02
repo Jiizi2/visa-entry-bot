@@ -87,7 +87,7 @@ export default function ReviewImageViewer({ activeMember, manifestPath }: Review
       <div className="relative w-full h-full flex flex-col bg-white overflow-hidden">
         <div className="review-source-pane__header">
           <h3 className="type-body-strong text-slate-600 flex items-center gap-2 m-0">
-            <AppIcon name="file" size={17} /> Dokumen sumber
+            <AppIcon name="file" size={18} /> Dokumen sumber
           </h3>
           <div className="flex bg-white rounded shadow-sm border border-slate-300/50 overflow-hidden ml-4" title="Gunakan Ctrl + Scroll untuk Zoom">
             <button className="p-1.5 text-slate-600 bg-transparent cursor-pointer transition-colors flex items-center justify-center hover:bg-slate-100 border-none" title="Zoom Out" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>
@@ -120,8 +120,7 @@ export default function ReviewImageViewer({ activeMember, manifestPath }: Review
             minHeight: '100%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            transition: isDragging ? 'none' : 'width 0.2s ease-out'
+            justifyContent: 'center'
           }}>
             {activeImageData.dataUrl ? (
                 <img 

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "EntryMate By Ghaniya",
-  "version": "1.0.19",
-  "description": "Upload EntryMate JSON and autofill the selected member on the Nusuk website.",
+  "version": "1.0.24",
+  "minimum_chrome_version": "116",
+  "description": "Terima batch dari EntryMate otomatis dan lanjutkan pengisian data jamaah di Nusuk.",
   "icons": {
     "16": "icons/16x16.png",
     "32": "icons/32x32.png",
@@ -10,6 +11,7 @@
     "128": "icons/128x128.png"
   },
   "permissions": [
+    "alarms",
     "activeTab",
     "debugger",
     "scripting",
@@ -53,6 +55,7 @@
         "content/automation-steps.js",
         "content/path-utils.js",
         "content/panel-bridge.js",
+        "content/page-context.js",
         "content/execution-control.js",
         "content/panel-state-store.js",
         "content/wait-utils.js",

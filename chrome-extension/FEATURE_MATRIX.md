@@ -14,9 +14,9 @@ Setiap update fitur extension harus menjaga fitur-fitur di bawah ini tetap berja
 
 | Area | Fitur | File Utama | Risiko Regresi |
 | --- | --- | --- | --- |
-| Transport | WebSocket loopback ke desktop pada port 9001-9005 | `panel.js`, `content/panel-bridge.js` | Critical |
-| Transport | Handshake, sequence, ACK, retry, dan session snapshot | `panel.js`, `content/panel-state-store.js`, `content/panel-bridge.js` | Critical |
-| Transport | Terima Load Batch/Start dan kirim progress ke desktop | `panel.js`, `content/panel-bridge.js`, `content/automation-runner.js` | Critical |
+| Transport | WebSocket loopback ke desktop pada port 9001-9005, tetap aktif tanpa panel | `background.js`, `desktop-transport.js` | Critical |
+| Transport | Handshake, sequence, ACK, retry, dan session snapshot | `desktop-transport.js`, `background.js`, `content/panel-bridge.js` | Critical |
+| Transport | Pilih/fokus tab Nusuk, terima batch dengan konfirmasi, mulai dari browser dan kirim progress ke desktop | `background.js`, `nusuk-handoff.js`, `desktop-transport.js`, `content/panel-bridge.js`, `content/automation-runner.js` | Critical |
 | Panel | Buka panel dari extension action | `background.js`, `content/panel-bridge.js`, `content/panel-shell.js` | Medium |
 | Panel | Upload JSON manifest untuk Legacy Mode | `panel.js`, `content/panel-bridge.js` | High |
 | Panel | Pilih jamaah awal | `panel.js`, `content/panel-bridge.js` | Medium |
@@ -75,7 +75,11 @@ Jalankan checklist ini setiap ada update di `chrome-extension`.
 - Desktop dan extension dapat handshake pada salah satu port `9001-9005`.
 - Indikator koneksi desktop berubah menjadi Terhubung.
 - Load Batch dari desktop memuat member yang benar di extension.
-- Start dari desktop memulai automation.
+- Lanjut ke Nusuk dari desktop memakai tab yang ada tanpa reload atau membuat tab duplikat.
+- Beberapa tab/profil meminta pilihan; tab yang sudah terikat ke pekerjaan tidak tertukar.
+- Mulai pengisian dari panel/widget aktif setelah data siap pada halaman Masar yang telah login. Dari Group List atau halaman Masar lainnya, tab yang sama diarahkan ke Mu’tamer List; automation menunggu halaman dan pemulihan batch selesai. Halaman Mu’tamer List/Tambah Jamaah yang sudah terbuka tetap dipakai. Klik ganda saat pengalihan tidak menggandakan pekerjaan; jeda/reset membatalkan start yang tertunda.
+- Login ulang menahan mulai; data batch tetap tersedia.
+- Ulangi yang gagal mempertahankan sukses dan hanya menjalankan jamaah gagal.
 - Progress dan completion extension tampil kembali di desktop.
 - Reconnect/reload tidak membuat session atau batch ganda.
 - Panel bisa dibuka di halaman Nusuk.

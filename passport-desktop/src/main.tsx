@@ -9,6 +9,9 @@ console.log('Shared Protocol MessageType loaded in React:', MessageType.HELLO);
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
 import './styles/global.css';
+import './styles/components/Workstation.css';
+import './styles/components/Scan.css';
+import './styles/components/Motion.css';
 
 async function applyTaskbarIcon() {
   try {

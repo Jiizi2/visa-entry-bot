@@ -67,6 +67,9 @@ const state = {
   viewMode: "compact",
   revision: 0,
   connectionState: "disconnected",
+  pageStatus: 'loading',
+  canNavigateToEntry: false,
+  completedMemberIds: [],
   
   // STATS TRACKING FOR PREMIUM SUCCESS PAGE
   stats: {
@@ -85,20 +88,10 @@ const EXECUTION_LABELS = {
 };
 
 // --- WebSocket Client State & Logic ---
-let socket = null;
-let activeSocket = null;
-let connectionSequence = 0;
-let lastReceivedSequence = 0;
-let heartbeatTimer = null;
-let missedPings = 0;
-let readyTimeoutTimer = null;
 let readyRetryCount = 0;
 let resumeToken = "";
-let currentPortIndex = 0;
-const ports = [9001, 9002, 9003, 9004, 9005];
 let activeSessionId = "";
-let handshakeCompleted = false;
-let activeBatchMembers = [];
+let lastDesktopRevision = 0;
 
 const telemetry = {
   reconnectCount: 0,
@@ -137,466 +130,68 @@ function updateTelemetryUI() {
   }
 }
 
-function connectWebSocket() {
-  if (activeSocket) {
-    try {
-      activeSocket.onopen = null;
-      activeSocket.onmessage = null;
-      activeSocket.onerror = null;
-      activeSocket.onclose = null;
-      activeSocket.close();
-    } catch (e) {}
-    activeSocket = null;
-  }
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
-  if (readyTimeoutTimer) {
-    clearTimeout(readyTimeoutTimer);
-    readyTimeoutTimer = null;
-  }
-
-  const port = ports[currentPortIndex];
-  console.log(`[Transport] Mencoba menghubungkan ke server WebSocket di ws://127.0.0.1:${port}...`);
-  updateConnectionUI("connecting");
-  
-  const ws = new WebSocket(`ws://127.0.0.1:${port}`);
-  activeSocket = ws;
-  
-  ws.onopen = () => {
-    if (ws !== activeSocket) return;
-    console.log(`[Transport] Koneksi terhubung pada port ${port}!`);
-    socket = ws;
-    handshakeCompleted = false;
-    connectionSequence = 0;
-    lastReceivedSequence = 0;
-    readyRetryCount = 0;
-    
-    updateConnectionUI("authenticating");
-
-    // Send HELLO
-    const helloMsg = {
-      protocolVersion: 1,
-      type: MessageType.HELLO,
-      messageId: generateUuid(),
-      sessionId: "",
-      correlationId: generateUuid(),
-      timestamp: new Date().toISOString(),
-      sequence: ++connectionSequence,
-      payload: {
-        extensionVersion: "1.0.19",
-        browser: "chrome",
-        capabilities: {
-          supportsDebugger: true,
-          supportsScreenshot: false,
-          supportsResume: true
-        }
-      }
-    };
-    ws.send(JSON.stringify(helloMsg));
-    console.log(`[Protocol] Mengirim HELLO ke server.`);
-  };
-
-  ws.onmessage = (event) => {
-    if (ws !== activeSocket) return;
-    try {
-      const envelope = JSON.parse(event.data);
-      
-      if (envelope.sequence && envelope.sequence <= lastReceivedSequence) {
-        console.warn(`[Transport] Mengabaikan paket out-of-order: sequence ${envelope.sequence} <= ${lastReceivedSequence}`);
-        if (envelope.sequence === lastReceivedSequence) {
-          telemetry.duplicatePackets++;
-        } else {
-          telemetry.droppedSeq++;
-        }
-        updateTelemetryUI();
-        return;
-      }
-      lastReceivedSequence = envelope.sequence || lastReceivedSequence;
-
-      console.log(`[Protocol] Menerima pesan:`, envelope.type);
-      
-      switch (envelope.type) {
-        case MessageType.HELLO_ACK:
-          console.log(`[Protocol] HELLO_ACK diterima. Auth token:`, envelope.payload.authToken);
-          handshakeCompleted = true;
-          
-          updateConnectionUI(activeSessionId ? "recovering" : "ready");
-          startHeartbeat(ws);
-          sendReadyMessage();
-          break;
-          
-        case MessageType.SESSION_SNAPSHOT:
-          if (readyTimeoutTimer) {
-            clearTimeout(readyTimeoutTimer);
-            readyTimeoutTimer = null;
-          }
-          console.log(`[Session] SESSION_SNAPSHOT diterima dari Desktop. Revision:`, envelope.payload.revision);
-          
-          if (state.revision && envelope.payload.revision < state.revision) {
-            console.log(`[Session] Mengabaikan snapshot usang. Local revision: ${state.revision}, snapshot: ${envelope.payload.revision}`);
-            break;
-          }
-          
-          if (telemetry.recoveryStartTime) {
-            telemetry.recoveryTime = new Date().getTime() - telemetry.recoveryStartTime;
-            telemetry.recoveryStartTime = 0;
-            telemetry.recoverySuccess++;
-            updateTelemetryUI();
-          }
-          
-          activeSessionId = envelope.payload.sessionId;
-          resumeToken = envelope.payload.resumeToken;
-          state.revision = envelope.payload.revision;
-          state.progress = {
-            current: envelope.payload.progressCurrent || 0,
-            total: envelope.payload.progressTotal || 0,
-          };
-          state.executionState = envelope.payload.status ? envelope.payload.status.toLowerCase() : "idle";
-          state.autofillFailures = envelope.payload.failures || [];
-          
-          if (envelope.payload.manifestMembers && envelope.payload.manifestMembers.length > 0) {
-            state.manifest = {
-              manifestVersion: "1.0.19",
-              manifestPath: envelope.payload.manifestPath || "",
-              members: envelope.payload.manifestMembers
-            };
-          }
-          if (envelope.payload.currentMemberId) {
-            state.selectedMemberId = envelope.payload.currentMemberId;
-          }
-          
-          updateConnectionUI("ready");
-          persistState().catch((e) => console.log("Failed to save snapshot state:", e));
-          
-          renderManifestSection();
-          renderPreview();
-          renderProgress();
-          renderPassportFilesSummary();
-          renderFailures();
-          updateRunControls();
-
-          // Forward to parent tab
-          postToParent("NUSUK_WS_SESSION_SNAPSHOT", envelope.payload);
-          break;
-
-        case MessageType.CREATE_SESSION:
-          console.log(`[Session] CREATE_SESSION diterima dari Desktop. Session ID:`, envelope.sessionId);
-          activeSessionId = envelope.sessionId;
-          
-          const sessionCreatedMsg = {
-            protocolVersion: 1,
-            type: MessageType.SESSION_CREATED,
-            messageId: generateUuid(),
-            sessionId: envelope.sessionId,
-            correlationId: envelope.correlationId || generateUuid(),
-            timestamp: new Date().toISOString(),
-            sequence: ++connectionSequence,
-            replyToMessageId: envelope.messageId,
-            payload: {
-              status: "initialized"
-            }
-          };
-          ws.send(JSON.stringify(sessionCreatedMsg));
-          console.log(`[Session] Mengirim SESSION_CREATED ke Desktop.`);
-          break;
-          
-        case MessageType.LOAD_BATCH:
-          console.log(`[Session] LOAD_BATCH diterima dari Desktop. Jumlah mutamer:`, envelope.payload.members?.length || 0);
-          activeBatchMembers = envelope.payload.members || [];
-          
-          state.manifest = {
-            manifestVersion: "1.0.19",
-            manifestPath: envelope.payload.manifestPath,
-            members: activeBatchMembers
-          };
-          state.selectedMemberId = state.manifest.members[0]?.id || "";
-          state.progress = { current: 0, total: 0 };
-          state.revision = 0;
-          persistState().catch((e) => console.log("Failed to save load batch state:", e));
-          
-          renderManifestSection();
-          renderPreview();
-          renderProgress();
-          renderPassportFilesSummary();
-          updateRunControls();
-
-          postToParent("NUSUK_WS_LOAD_BATCH", { 
-            members: activeBatchMembers,
-            manifestPath: envelope.payload.manifestPath
-          });
-          
-          const batchLoadedMsg = {
-            protocolVersion: 1,
-            type: MessageType.BATCH_LOADED,
-            messageId: generateUuid(),
-            sessionId: envelope.sessionId,
-            correlationId: envelope.correlationId,
-            timestamp: new Date().toISOString(),
-            sequence: ++connectionSequence,
-            replyToMessageId: envelope.messageId,
-            payload: {}
-          };
-          ws.send(JSON.stringify(batchLoadedMsg));
-          console.log(`[Session] Mengirim BATCH_LOADED ke Desktop.`);
-          break;
-          
-        case MessageType.START:
-        case MessageType.NEXT:
-          console.log(`[Session] START/NEXT diterima dari Desktop.`);
-          const startAckMsg = {
-            protocolVersion: 1,
-            type: MessageType.ACK,
-            messageId: generateUuid(),
-            sessionId: envelope.sessionId,
-            correlationId: envelope.correlationId,
-            timestamp: new Date().toISOString(),
-            sequence: ++connectionSequence,
-            replyToMessageId: envelope.messageId,
-            payload: {}
-          };
-          ws.send(JSON.stringify(startAckMsg));
-          
-          postToParent("NUSUK_WS_START");
-          break;
-
-        case MessageType.ACK:
-          console.log(`[Protocol] ACK diterima untuk pesan:`, envelope.replyToMessageId);
-          break;
-          
-        case MessageType.PING:
-          const pongMsg = {
-            protocolVersion: 1,
-            type: MessageType.PONG,
-            messageId: generateUuid(),
-            sessionId: envelope.sessionId || "",
-            correlationId: envelope.correlationId || "",
-            timestamp: new Date().toISOString(),
-            sequence: ++connectionSequence,
-            replyToMessageId: envelope.messageId,
-            payload: envelope.payload || {}
-          };
-          ws.send(JSON.stringify(pongMsg));
-          break;
-
-        case MessageType.PONG:
-          missedPings = 0;
-          if (envelope.payload && envelope.payload.clientTime) {
-            const rtt = new Date().getTime() - envelope.payload.clientTime;
-            telemetry.rttValues.push(rtt);
-            if (telemetry.rttValues.length > 50) telemetry.rttValues.shift();
-            updateTelemetryUI();
-            console.log(`[Transport] Menerima PONG. RTT Latency: ${rtt}ms`);
-          }
-          break;
-          
-        case MessageType.ERROR:
-          console.error(`[Error] Terjadi kesalahan pada server:`, envelope.payload.message);
-          break;
-          
-        default:
-          console.warn(`[Protocol] Tipe pesan tidak dikenal:`, envelope.type);
-      }
-    } catch (e) {
-      console.error("[Protocol] Gagal memproses pesan masuk:", e);
-    }
-  };
-
-  ws.onclose = (event) => {
-    if (ws !== activeSocket) return;
-    console.log(`[Transport] Koneksi WebSocket ditutup pada port ${port}. Code: ${event.code}`);
-    socket = null;
-    activeSocket = null;
-    handshakeCompleted = false;
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = null;
-    }
-    if (readyTimeoutTimer) {
-      clearTimeout(readyTimeoutTimer);
-      readyTimeoutTimer = null;
-    }
-
-    updateConnectionUI("disconnected");
-    
-    telemetry.reconnectCount++;
-    updateTelemetryUI();
-
-    currentPortIndex = (currentPortIndex + 1) % ports.length;
-    setTimeout(connectWebSocket, 3000);
-  };
-
-  ws.onerror = (error) => {
-    if (ws !== activeSocket) return;
-    console.error(`[Transport] Error WebSocket pada port ${port}.`);
-    updateConnectionUI("disconnected");
-  };
+function applyDesktopState(payload) {
+  activeSessionId = payload.activeSessionId || '';
+  resumeToken = payload.resumeToken || '';
+  telemetry.reconnectCount = payload.reconnectCount || 0;
+  telemetry.heartbeatTimeout = payload.heartbeatTimeout || 0;
+  telemetry.rttValues = payload.rttValues || [];
+  telemetry.droppedSeq = payload.droppedSeq || 0;
+  telemetry.duplicatePackets = payload.duplicatePackets || 0;
+  telemetry.recoverySuccess = payload.recoverySuccess || 0;
+  telemetry.recoveryTime = payload.recoveryTime || 0;
+  updateTelemetryUI();
+  updateConnectionUI(payload.connectionState || 'disconnected');
 }
 
-function sendReadyMessage() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const currentUrl = tabs && tabs[0] ? tabs[0].url : "https://masar.nusuk.sa/";
-    
-    const readyMsg = {
-      protocolVersion: 1,
-      type: MessageType.READY,
-      messageId: generateUuid(),
-      sessionId: activeSessionId || "",
-      correlationId: generateUuid(),
-      timestamp: new Date().toISOString(),
-      sequence: ++connectionSequence,
-      payload: {
-        currentUrl: currentUrl || "https://masar.nusuk.sa/",
-        sessionId: activeSessionId || "",
-        resumeToken: resumeToken || ""
-      }
-    };
-    if (activeSocket && activeSocket.readyState === WebSocket.OPEN) {
-      if (activeSessionId) {
-        telemetry.recoveryStartTime = new Date().getTime();
-        updateTelemetryUI();
-      }
-      activeSocket.send(JSON.stringify(readyMsg));
-      console.log(`[Protocol] Mengirim READY ke server dengan URL: ${currentUrl}`);
-      
-      if (activeSessionId) {
-        if (readyTimeoutTimer) clearTimeout(readyTimeoutTimer);
-        readyTimeoutTimer = setTimeout(() => {
-          if (readyRetryCount >= 3) {
-            console.error("[Session] Gagal memulihkan sesi setelah 3 kali mencoba. Menutup koneksi.");
-            updateConnectionUI("disconnected");
-            if (activeSocket) {
-              activeSocket.close();
-            }
-            return;
-          }
-          readyRetryCount++;
-          console.warn(`[Session] Timeout memulihkan sesi (percobaan ${readyRetryCount}/3). Mengirim ulang READY...`);
-          sendReadyMessage();
-        }, 5000);
-      }
+function applyDesktopMessage(envelope) {
+  if (envelope.type === MessageType.SESSION_SNAPSHOT) {
+    const payload = envelope.payload;
+    if (activeSessionId === payload.sessionId && payload.revision < lastDesktopRevision) return;
+    activeSessionId = payload.sessionId;
+    resumeToken = payload.resumeToken;
+    state.revision = payload.revision;
+    lastDesktopRevision = payload.revision || 0;
+    state.progress = { current: payload.progressCurrent || 0, total: payload.progressTotal || 0 };
+    state.executionState = normalizeExecutionState(payload.status);
+    state.autofillFailures = payload.failures || [];
+    state.completedMemberIds = payload.completedMemberIds || [];
+    if (Array.isArray(payload.manifestMembers)) {
+      state.manifest = { manifestPath: payload.manifestPath || '', members: payload.manifestMembers };
     }
-  });
+    state.selectedMemberId = payload.currentMemberId || state.manifest?.members[0]?.id || '';
+  } else if (envelope.type === MessageType.LOAD_BATCH) {
+    activeSessionId = envelope.sessionId || envelope.payload.sessionId || '';
+    resumeToken = envelope.payload.resumeToken || '';
+    state.manifest = { manifestPath: envelope.payload.manifestPath, members: envelope.payload.members || [] };
+    state.selectedMemberId = state.manifest.members[0]?.id || '';
+    state.progress = { current: 0, total: state.manifest.members.length };
+    state.revision = 0;
+    lastDesktopRevision = 0;
+    state.autofillFailures = [];
+    state.completedMemberIds = [];
+    state.executionState = 'idle';
+  } else if (envelope.type === MessageType.ERROR) {
+    setStatus(envelope.payload.message || 'Koneksi desktop mengalami kesalahan.', 'error');
+    return;
+  } else {
+    return;
+  }
+  renderManifestSection();
+  renderPreview();
+  renderProgress();
+  renderPassportFilesSummary();
+  renderFailures();
+  updateRunControls();
 }
 
-function startHeartbeat(ws) {
-  if (heartbeatTimer) clearInterval(heartbeatTimer);
-  missedPings = 0;
-  heartbeatTimer = setInterval(() => {
-    if (ws !== activeSocket || ws.readyState !== WebSocket.OPEN) {
-      clearInterval(heartbeatTimer);
-      return;
-    }
-    
-    if (missedPings >= 3) {
-      console.warn("[Transport] 3 pings terlewat. Menutup koneksi...");
-      telemetry.heartbeatTimeout++;
-      updateTelemetryUI();
-      clearInterval(heartbeatTimer);
-      ws.close(4001, "Ping Timeout");
-      return;
-    }
-
-    if (state.connectionState === "recovering") {
-      // Do not ping while recovering session snapshot
-      return;
-    }
-
-    if (state.executionState === "idle" || state.executionState === "completed") {
-      // Sleep heartbeat ping during idle/completed states to reduce network traffic
-      missedPings = 0;
-      return;
-    }
-    
-    const pingMsg = {
-      protocolVersion: 1,
-      type: MessageType.PING,
-      messageId: generateUuid(),
-      sessionId: activeSessionId || "",
-      correlationId: generateUuid(),
-      timestamp: new Date().toISOString(),
-      sequence: ++connectionSequence,
-      payload: {
-        clientTime: new Date().getTime()
-      }
-    };
-    ws.send(JSON.stringify(pingMsg));
-    missedPings++;
-    console.log(`[Transport] Mengirim PING (lewat: ${missedPings})`);
-  }, 5000);
+async function connectWebSocket() {
+  const response = await chrome.runtime.sendMessage({ type: 'NUSUK_DESKTOP_RECONNECT' });
+  if (response?.payload) applyDesktopState(response.payload);
 }
 
 function sendWebSocketEvent(payload) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    let type = null;
-    let outPayload = {};
-    
-    switch (payload.eventType) {
-      case "CURRENT_MEMBER":
-        type = MessageType.CURRENT_MEMBER;
-        outPayload = { memberId: payload.memberId };
-        break;
-      case "CURRENT_STEP":
-        type = MessageType.CURRENT_STEP;
-        outPayload = { stepName: payload.stepName };
-        break;
-      case "PROGRESS":
-        type = MessageType.PROGRESS;
-        outPayload = { 
-          current: payload.current, 
-          total: payload.total,
-          status: payload.status,
-          revision: payload.revision
-        };
-        break;
-      case "FAILURE_UPDATED":
-        type = MessageType.FAILURE_UPDATED;
-        outPayload = {
-          memberId: payload.memberId,
-          reason: payload.reason,
-          failedAt: payload.failedAt
-        };
-        break;
-      case "MEMBER_COMPLETED":
-        type = MessageType.MEMBER_COMPLETED;
-        outPayload = { memberId: payload.memberId };
-        break;
-      case "SESSION_COMPLETED":
-        type = MessageType.SESSION_COMPLETED;
-        outPayload = {};
-        break;
-      case "STOP":
-        type = MessageType.STOP;
-        outPayload = {};
-        break;
-    }
-    
-    if (type) {
-      const envelope = {
-        protocolVersion: 1,
-        type,
-        messageId: generateUuid(),
-        sessionId: activeSessionId,
-        correlationId: generateUuid(),
-        timestamp: new Date().toISOString(),
-        sequence: ++connectionSequence,
-        payload: outPayload
-      };
-      socket.send(JSON.stringify(envelope));
-      console.log(`[Protocol] Meneruskan event ${type} ke Desktop.`);
-    }
-  }
-}
-
-function generateUuid() {
-  if (self.crypto && self.crypto.randomUUID) {
-    return self.crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  chrome.runtime.sendMessage({ type: 'NUSUK_WS_EVENT', payload }).catch(error => console.warn('[Transport]', error));
 }
 
 dom.uploadBtn.addEventListener("click", () => {
@@ -705,6 +300,7 @@ function handleResetAutofill() {
   state.progress = { current: 0, total: 0 };
   state.revision = 0;
   state.autofillFailures = [];
+  state.completedMemberIds = [];
   state.logs = [];
   
   persistState().catch((e) => console.log("Failed to persist reset state:", e));
@@ -728,6 +324,7 @@ dom.completedResetBtn?.addEventListener("click", handleResetAutofill);
 dom.restartFailedBtn.addEventListener("click", () => {
   postToParent("NUSUK_PANEL_RESTART_FAILED");
 });
+document.getElementById('completed-retry-btn')?.addEventListener('click', () => postToParent('NUSUK_PANEL_RESTART_FAILED'));
 
 dom.clearLogsBtn?.addEventListener("click", () => {
   state.logs = [];
@@ -771,6 +368,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
 
+  if (message.type === "NUSUK_DESKTOP_STATE") {
+    applyDesktopState(message.payload);
+    return;
+  }
+  if (message.type === "NUSUK_DESKTOP_MESSAGE") {
+    applyDesktopMessage(message.payload);
+    return;
+  }
+
   if (message.type === "NUSUK_PANEL_STATE") {
     applyIncomingState(message.payload || {});
     return;
@@ -782,12 +388,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       total: Number(message.payload?.total || 0),
     };
     renderProgress();
-    // Teruskan progress ke desktop app
-    sendWebSocketEvent({
-      eventType: "PROGRESS",
-      current: state.progress.current,
-      total: state.progress.total
-    });
     return;
   }
 
@@ -866,8 +466,9 @@ async function init() {
     });
   }
 
-  // Hubungkan ke server WebSocket lokal desktop
-  connectWebSocket();
+  const desktop = await chrome.runtime.sendMessage({ type: "NUSUK_DESKTOP_GET_STATE" });
+  if (desktop?.payload) applyDesktopState(desktop.payload);
+  if (desktop?.snapshot) applyDesktopMessage({ type: MessageType.SESSION_SNAPSHOT, payload: desktop.snapshot });
 }
 
 function updateConnectionUI(connState) {
@@ -879,7 +480,7 @@ function updateConnectionUI(connState) {
     dom.wsStatusTitle.innerText = connState === "recovering" ? "Desktop: Memulihkan" : "Desktop: Terhubung";
     dom.wsStatusDesc.innerText = connState === "recovering"
       ? "Sedang memulihkan sesi otomatisasi..."
-      : "Sinkronisasi otomatis aktif via WebSocket.";
+      : "Data dan progress tersinkron dengan aplikasi.";
     dom.wsNoticeBanner.classList.remove("hidden");
   } else if (connState === "connecting" || connState === "authenticating") {
     dom.wsIndicator.className = "ws-indicator connected animate-pulse";
@@ -909,6 +510,9 @@ function applyIncomingState(payload) {
   state.selectedMemberId = String(payload.selectedMemberId || state.selectedMemberId || "");
   state.collapsed = Boolean(payload.collapsed);
   state.executionState = normalizeExecutionState(payload.executionState);
+  state.pageStatus = payload.pageStatus || state.pageStatus;
+  state.canNavigateToEntry = Boolean(payload.canNavigateToEntry);
+  state.completedMemberIds = payload.completedMemberIds || state.completedMemberIds;
   state.panelWidth = Number(payload.panelWidth || state.panelWidth || 420);
   state.progress = {
     current: Number(payload.progress?.current || 0),
@@ -1202,20 +806,21 @@ function updateRunControls() {
   const stateName = normalizeExecutionState(state.executionState);
   const connState = state.connectionState;
   const canResume = stateName === "paused" && state.resumeAvailable;
+  const canStartHere = state.pageStatus === 'ready' || state.canNavigateToEntry;
   
   if (dom.statePill) {
     dom.statePill.textContent = EXECUTION_LABELS[stateName] || EXECUTION_LABELS.idle;
     dom.statePill.className = `state-pill-badge ${stateName}`;
   }
 
-  dom.startBtn.textContent = stateName === "paused" ? "Lanjutkan" : "Mulai";
-  dom.startBtn.disabled = stateName === "running" || (!canResume && (!hasMember || !hasPassportSource));
+  dom.startBtn.textContent = stateName === "paused" ? "Lanjutkan" : "Mulai pengisian";
+  dom.startBtn.disabled = stateName === "running" || !canStartHere || (!canResume && (!hasMember || !hasPassportSource));
   dom.pauseBtn.disabled = stateName !== "running";
-  dom.resetBtn.disabled = stateName === "idle" && state.progress.current === 0 && state.logs.length === 0;
+  dom.resetBtn.disabled = stateName === "idle" && !hasMember;
   
   if (state.autofillFailures && state.autofillFailures.length > 0) {
     dom.failuresCard.style.display = "block";
-    dom.restartFailedBtn.disabled = stateName === "running";
+    dom.restartFailedBtn.disabled = stateName === "running" || !canStartHere;
     if (dom.failuresCountBadge) {
       dom.failuresCountBadge.textContent = state.autofillFailures.length;
     }
@@ -1240,7 +845,9 @@ function updateRunControls() {
     const statsReconnects = document.getElementById("stats-reconnects");
 
     const totalFailed = state.autofillFailures ? state.autofillFailures.length : 0;
-    const totalSuccess = Math.max(0, state.progress.current - totalFailed);
+    const totalSuccess = state.completedMemberIds.length;
+    const retry = document.getElementById('completed-retry-btn');
+    if (retry) { retry.hidden = totalFailed === 0; retry.disabled = !canStartHere; }
 
     if (statsSuccessCount) statsSuccessCount.textContent = totalSuccess;
     if (statsFailedCount) statsFailedCount.textContent = totalFailed;
@@ -1268,7 +875,14 @@ function updateRunControls() {
     bodyState = "state-paused"; // Shows running view in paused state so that controls & progress are visible
   }
   
-  document.body.className = bodyState;
+  document.body.className = `${bodyState} ${state.viewMode}-mode`;
+  const folder = String(state.manifest?.manifestPath || '').split(/[\\/]/).slice(-2, -1)[0];
+  document.getElementById('batch-context').textContent = `${getMembers().length} jamaah · ${folder || 'Batch dari aplikasi'}`;
+  const guidance = { ready: 'Data siap. Pilih “Mulai pengisian” untuk mengisi Nusuk.', login_required: 'Login ke Nusuk terlebih dahulu. Data batch tetap tersimpan.', loading: 'Menunggu halaman Nusuk selesai dimuat.', navigate_required: state.canNavigateToEntry ? 'Pilih “Mulai pengisian”. Mu’tamer List akan dibuka otomatis pada tab ini sebelum pengisian.' : 'Buka Masar Nusuk untuk memulai pengisian.' };
+  document.getElementById('page-readiness').textContent = stateName === 'running' ? 'Pengisian berjalan. Anda dapat menjeda dari panel ini.' : stateName === 'paused' && state.pageStatus === 'ready' ? 'Pengisian dijeda. Pilih “Lanjutkan” untuk melanjutkan.' : guidance[state.pageStatus] || guidance.loading;
+  const passengerLabel = document.querySelector('.passenger-card .card-label');
+  if (passengerLabel) passengerLabel.textContent = stateName === 'running' ? 'Jamaah sedang diproses' : 'Jamaah berikutnya';
+  if (stateName === 'idle' && state.manifest) setStatus(state.pageStatus === 'ready' ? 'Data siap untuk pengisian.' : guidance[state.pageStatus] || guidance.loading, state.pageStatus === 'ready' ? 'success' : 'warning');
 
   if (stateName !== "running" && dom.actionFeedbackWrap) {
     dom.actionFeedbackWrap.classList.add("hidden");
@@ -1444,46 +1058,9 @@ function getStorageLocal() {
 }
 
 function postToParent(type, payload = {}) {
-  return new Promise((resolve) => {
-    if (typeof chrome === "undefined" || !chrome.tabs) {
-      resolve();
-      return;
-    }
-    // Query tab aktif di jendela saat ini (paling stabil untuk mendeteksi tab asal SidePanel)
-    chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
-      const targetTabIds = new Set();
-      if (activeTabs && activeTabs[0] && activeTabs[0].id) {
-        targetTabIds.add(activeTabs[0].id);
-      }
-      
-      // Backup: Kueri semua tab Nusuk yang cocok dengan pola URL
-      chrome.tabs.query({ url: "*://*.nusuk.sa/*" }, (nusukTabs) => {
-        if (nusukTabs && nusukTabs.length > 0) {
-          for (const tab of nusukTabs) {
-            targetTabIds.add(tab.id);
-          }
-        }
-        
-        const tabIds = Array.from(targetTabIds);
-        if (tabIds.length === 0) {
-          console.warn("[SidePanel] Tidak menemukan tab Nusuk untuk mengirim pesan:", type);
-          resolve();
-          return;
-        }
-        
-        let completed = 0;
-        for (const tabId of tabIds) {
-          chrome.tabs.sendMessage(tabId, { type, payload }, () => {
-            const err = chrome.runtime.lastError; // Bersihkan error jika tab tidak siap menerima
-            completed++;
-            if (completed === tabIds.length) {
-              resolve();
-            }
-          });
-        }
-      });
-    });
-  });
+  return chrome.runtime.sendMessage({ type: 'NUSUK_PANEL_COMMAND', payload: { type, payload } })
+    .then(response => { if (response?.ok === false) setStatus(response.error || 'Periksa halaman Nusuk dan coba lagi.', 'error'); return response; })
+    .catch(error => console.warn('[SidePanel] Gagal mengirim perintah:', error));
 }
 
 // Sinkronisasi state saat tab berubah atau memuat ulang

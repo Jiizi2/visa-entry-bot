@@ -7,6 +7,10 @@
     "core:default",
     "core:window:allow-set-icon",
     "dialog:default",
-    "opener:default"
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://masar.nusuk.sa/", "app": "chrome" }]
+    }
   ]
 }

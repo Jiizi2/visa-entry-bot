@@ -27,8 +27,8 @@
         <!-- =================== STATE A: IDLE =================== -->
         <section class="state-view-card" id="idle-state-view" style="padding: 40px 24px;">
           <div class="state-view-icon" style="font-size: 40px; margin-bottom: 8px;">🤖</div>
-          <div class="state-view-title" style="font-size: 15px; font-weight: 700;">No Active Session</div>
-          <div class="state-view-desc" style="font-size: 11px; color: var(--ink-muted); margin-bottom: 16px;">Load a batch of mutamers from EntryMate Desktop to begin automated data entry.</div>
+          <div class="state-view-title" style="font-size: 15px; font-weight: 700;">Menunggu data dari aplikasi</div>
+          <div class="state-view-desc" style="font-size: 11px; color: var(--ink-muted); margin-bottom: 16px;">Selesaikan Review di EntryMate, lalu pilih “Lanjut ke Nusuk”. Data akan diterima otomatis.</div>
           <div class="loader-skeleton" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
             <div style="height: 12px; background: var(--bg-surface-soft); border-radius: 4px; width: 60%; margin: 0 auto; opacity: 0.6;"></div>
             <div style="height: 8px; background: var(--bg-surface-soft); border-radius: 4px; width: 45%; margin: 0 auto; opacity: 0.4;"></div>
@@ -45,7 +45,7 @@
         <!-- =================== STATE D: COMPLETED =================== -->
         <section class="state-view-card" id="completed-state-view">
           <div class="state-view-icon">🎉</div>
-          <div class="state-view-title" style="color: var(--success);">Batch Completed!</div>
+          <div class="state-view-title" style="color: var(--success);">Pengisian selesai</div>
           <div class="state-view-desc" style="max-width: 280px; margin-bottom: 12px;">Semua passport dalam batch telah selesai diproses.</div>
           
           <div class="stats-summary-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; margin-bottom: 16px;">
@@ -76,6 +76,7 @@
           </div>
 
           <button id="report-view-btn" class="btn btn-primary btn-sm" type="button" style="width: 100%;">Buka Log Laporan</button>
+          <button id="completed-retry-btn" class="btn btn-primary btn-sm" type="button" hidden>Ulangi yang gagal</button>
           <button id="completed-reset-btn" class="btn btn-secondary btn-sm" type="button" style="width: 100%; margin-top: 8px;">Reset &amp; Mulai Baru</button>
         </section>
 
@@ -89,6 +90,7 @@
 
         <!-- =================== STATE B: RUNNING / ACTIVE =================== -->
         <div id="running-state-view" style="width: 100%; display: flex; flex-direction: column; gap: 20px;">
+          <section class="handoff-summary"><strong id="batch-context">Data dari aplikasi</strong><p id="page-readiness" role="status">Memeriksa halaman Nusuk…</p></section>
           <!-- PROGRESS HERO SECTION -->
           <section class="progress-hero-section">
             <div class="progress-meta" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
@@ -108,8 +110,8 @@
 
           <!-- CONTROLS ROW -->
           <div class="control-row">
-            <button id="start-btn" class="btn btn-primary" type="button">Mulai</button>
-            <button id="pause-btn" class="btn btn-secondary" type="button">Pause</button>
+            <button id="start-btn" class="btn btn-primary" type="button">Mulai pengisian</button>
+            <button id="pause-btn" class="btn btn-secondary" type="button">Jeda</button>
             <button id="reset-btn" class="btn btn-danger" type="button">Reset</button>
           </div>
 
@@ -150,7 +152,7 @@
               <p id="ws-status-desc">Hubungkan dengan membuka aplikasi desktop EntryMate.</p>
             </div>
             <div id="ws-notice-banner" class="file-summary-box hidden" style="border-style: solid; text-align: left; background-color: var(--primary-soft); color: var(--primary); border-color: rgba(166, 108, 45, 0.18);">
-              Mode Otomatisasi WebSocket aktif. Klik <strong>Start</strong> langsung pada aplikasi desktop Anda untuk memulai pengisian otomatis secara terintegrasi.
+              Data diterima otomatis dari aplikasi. Periksa batch, lalu pilih <strong>Mulai pengisian</strong> pada panel ini. Folder hasil scan harus tetap tersedia selama pengisian.
             </div>
           </section>
 

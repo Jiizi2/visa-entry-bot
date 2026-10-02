@@ -29,8 +29,35 @@ pub struct AutomationSession {
     pub manifest_version: u32,
     pub manifest_hash: String,
     pub manifest_path: String,
+    #[serde(default)]
+    pub target_client_id: Option<crate::transport::websocket::ClientId>,
+    #[serde(default)]
+    pub manifest_members: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub completed_member_ids: Vec<String>,
     pub failures: Vec<serde_json::Value>,
     pub revision: u64,
+}
+
+impl AutomationSession {
+    pub fn snapshot_payload(&self) -> serde_json::Value {
+        serde_json::json!({
+            "snapshotVersion": 1,
+            "sessionId": self.session_id,
+            "resumeToken": self.resume_token,
+            "status": self.status,
+            "currentMemberId": self.current_member_id,
+            "progressCurrent": self.progress_current,
+            "progressTotal": self.progress_total,
+            "manifestVersion": self.manifest_version,
+            "manifestHash": self.manifest_hash,
+            "manifestPath": self.manifest_path,
+            "manifestMembers": self.manifest_members,
+            "completedMemberIds": self.completed_member_ids,
+            "failures": self.failures,
+            "revision": self.revision,
+        })
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -89,6 +116,9 @@ impl SessionManager {
             manifest_version: 1,
             manifest_hash: String::new(),
             manifest_path: String::new(),
+            target_client_id: None,
+            manifest_members: Vec::new(),
+            completed_member_ids: Vec::new(),
             failures: Vec::new(),
             revision: 1,
         };
@@ -108,6 +138,15 @@ impl SessionManager {
     pub fn get_session(&self) -> Option<AutomationSession> {
         let active = self.active_session.read().unwrap();
         active.clone()
+    }
+
+    // READY only inspects recovery credentials. Opening/reconnecting an extension
+    // must never replace a batch or create an automatic test session.
+    pub fn resumable_session(&self, session_id: Option<&str>, resume_token: Option<&str>) -> Option<AutomationSession> {
+        self.get_session().filter(|session| {
+            session_id == Some(session.session_id.as_str())
+                && resume_token == Some(session.resume_token.as_str())
+        })
     }
 
     pub fn update_snapshot<F>(&self, update_fn: F) -> Result<AutomationSession, String>
@@ -170,5 +209,51 @@ impl SessionManager {
     pub fn get_journal(&self) -> Vec<JournalEvent> {
         let journal = self.journal.read().unwrap();
         journal.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ready_without_credentials_does_not_create_a_session() {
+        let manager = SessionManager::new();
+        assert!(manager.resumable_session(None, None).is_none());
+        assert!(manager.get_session().is_none());
+    }
+
+    #[test]
+    fn invalid_resume_keeps_the_running_batch() {
+        let manager = SessionManager::new();
+        manager.create_session("active".into(), "workspace".into()).unwrap();
+        manager.update_snapshot(|s| {
+            s.status = SessionState::Running;
+            s.manifest_members = vec![serde_json::json!({ "id": "jamaah-1" })];
+        }).unwrap();
+        assert!(manager.resumable_session(Some("active"), Some("incorrect")).is_none());
+        assert!(manager.resumable_session(None, None).is_none());
+        let session = manager.get_session().unwrap();
+        assert_eq!(session.session_id, "active");
+        assert_eq!(session.status, SessionState::Running);
+        assert_eq!(session.manifest_members.len(), 1);
+    }
+
+    #[test]
+    fn valid_resume_includes_members_and_progress() {
+        let manager = SessionManager::new();
+        let session = manager.create_session("active".into(), "workspace".into()).unwrap();
+        manager.update_snapshot(|s| {
+            s.manifest_members = vec![serde_json::json!({ "id": "jamaah-1", "resolvedProfile": { "firstName": "TEST" } })];
+            s.progress_current = 1;
+            s.progress_total = 2;
+            s.completed_member_ids = vec!["jamaah-1".into()];
+        }).unwrap();
+        let restored = manager.resumable_session(Some("active"), Some(&session.resume_token)).unwrap();
+        let payload = restored.snapshot_payload();
+        assert_eq!(payload["manifestMembers"][0]["resolvedProfile"]["firstName"], "TEST");
+        assert_eq!(payload["progressCurrent"], 1);
+        assert_eq!(payload["progressTotal"], 2);
+        assert_eq!(payload["completedMemberIds"][0], "jamaah-1");
     }
 }

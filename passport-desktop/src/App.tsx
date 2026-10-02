@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy, useRef, useCallback } from 'react';
+import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { useStore } from './store';
@@ -6,8 +6,8 @@ import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import PageTransition from './components/PageTransition';
 import ImportPage from './pages/ImportPage';
-import AppStatusBar from './components/AppStatusBar';
 import CompletionOverlay, { CompletionMoment } from './components/CompletionOverlay';
+import { workflowArtwork } from './assets/workflowArtwork';
 
 const PreparePage = lazy(() => import('./pages/PreparePage'));
 const ScanPage = lazy(() => import('./pages/ScanPage'));
@@ -16,73 +16,69 @@ const EntryPage = lazy(() => import('./pages/EntryPage'));
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
 
-const completionMoments = {
-  welcome: {
-    image: '/welcome.jpeg',
-    title: 'Selamat datang di EntryMate',
-    description: 'Siapkan folder passport untuk memulai workflow.',
-    alt: 'Poster sambutan EntryMate untuk memulai pemindaian passport.',
+const pageOpeningMoments = {
+  import: {
+    image: workflowArtwork.importPrepare.src,
+    title: 'Import passport',
+    description: 'Pilih folder passport untuk memulai batch.',
+    alt: workflowArtwork.importPrepare.alt,
+  },
+  prepare: {
+    image: workflowArtwork.prepare.src,
+    title: 'Rapikan foto passport',
+    description: 'Siapkan foto passport sebelum pemindaian.',
+    alt: workflowArtwork.prepare.alt,
   },
   scan: {
-    image: '/scan_complete.jpeg',
-    title: 'Scan selesai',
-    description: 'Data passport siap diperiksa di tahap Review.',
-    alt: 'Poster EntryMate yang menandakan pemindaian passport selesai.',
+    image: workflowArtwork.scan.src,
+    title: 'Scan passport',
+    description: 'Baca informasi passport untuk direview.',
+    alt: workflowArtwork.scan.alt,
   },
-  review: {
-    image: '/review_complete.jpeg',
-    title: 'Review selesai',
-    description: 'Seluruh passport telah ditinjau dan siap diekspor.',
-    alt: 'Poster EntryMate yang menandakan review seluruh passport selesai.',
+  validation: {
+    image: workflowArtwork.review.src,
+    title: 'Review data',
+    description: 'Periksa dan sesuaikan data passport.',
+    alt: workflowArtwork.review.alt,
   },
-  export: {
-    image: '/export_complete.jpeg',
-    title: 'Export selesai',
-    description: 'Data EntryMate berhasil diproses untuk tahap akhir.',
-    alt: 'Poster EntryMate yang menandakan export data selesai.',
+  entry: {
+    image: workflowArtwork.entry.src,
+    title: 'Entry ke Nusuk',
+    description: 'Kirim data passport yang sudah direview ke Nusuk.',
+    alt: workflowArtwork.entry.alt,
   },
-} satisfies Record<string, CompletionMoment>;
+} satisfies Record<Page, CompletionMoment>;
 
-function CompletionMoments() {
+function PageOpeningArtwork() {
   const currentPage = useStore(state => state.currentPage);
-  const isScanning = useStore(state => state.isScanning);
-  const isEntryRunning = useStore(state => state.isEntryRunning);
-  
-  const [currentMoment, setCurrentMoment] = useState<CompletionMoment | null>(completionMoments.welcome);
-  
-  const prevPage = useRef(currentPage);
-  const prevIsScanning = useRef(isScanning);
-  const prevIsEntryRunning = useRef(isEntryRunning);
+  const [isOpen, setIsOpen] = useState(true);
 
   useEffect(() => {
-    // From Scan to Validation = Scan Complete
-    if (prevPage.current === 'scan' && currentPage === 'validation') {
-       setCurrentMoment(completionMoments.scan);
-    }
-    // From Validation to Entry = Review Complete
-    if (prevPage.current === 'validation' && currentPage === 'entry') {
-       setCurrentMoment(completionMoments.review);
-    }
-    prevPage.current = currentPage;
+    setIsOpen(true);
   }, [currentPage]);
 
-  useEffect(() => {
-    // If entry was running and now finished
-    if (prevIsEntryRunning.current && !isEntryRunning && currentPage === 'entry') {
-      setCurrentMoment(completionMoments.export);
-    }
-    prevIsEntryRunning.current = isEntryRunning;
-  }, [isEntryRunning, currentPage]);
+  const closeArtwork = useCallback(() => setIsOpen(false), []);
 
-  const closeMoment = useCallback(() => setCurrentMoment(null), []);
-
-  if (!currentMoment) return null;
-  return <CompletionOverlay moment={currentMoment} onClose={closeMoment} />;
+  if (!isOpen) return null;
+  return <CompletionOverlay key={currentPage} moment={pageOpeningMoments[currentPage]} onClose={closeArtwork} />;
 }
 
 export default function App() {
   const currentPage = useStore((state) => state.currentPage);
   const updateState = useStore((state) => state.updateState);
+
+  useEffect(() => {
+    const syncMotionVisibility = () => {
+      document.documentElement.classList.toggle('is-motion-paused', document.hidden);
+    };
+
+    syncMotionVisibility();
+    document.addEventListener('visibilitychange', syncMotionVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', syncMotionVisibility);
+      document.documentElement.classList.remove('is-motion-paused');
+    };
+  }, []);
 
   useEffect(() => {
     getCurrentWindow().show().catch((e) => {
@@ -125,10 +121,9 @@ export default function App() {
               </PageTransition>
             </Suspense>
           </main>
-          <AppStatusBar />
         </div>
       </div>
-      <CompletionMoments />
+      <PageOpeningArtwork />
     </>
   );
 }

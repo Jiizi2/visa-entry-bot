@@ -21,6 +21,11 @@
     let previousTabAutoDiscardable = null;
 
     async function startAutofillFromPanel() {
+      if (!pageReady()) return;
+      if (state.executionState === 'completed') {
+        postToPanel('NUSUK_PANEL_STATUS', { tone: 'warning', message: 'Batch selesai. Gunakan “Ulangi yang gagal” jika masih ada jamaah gagal.' });
+        return;
+      }
       if (state.executionState === "running") {
         postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Autofill sedang berjalan." });
         return;
@@ -34,6 +39,7 @@
           return;
         }
         state.executionState = "running";
+        await announceRun();
         await persistState();
         appendLog("success", "Autofill dilanjutkan.");
         postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message: "Autofill dilanjutkan." });
@@ -73,6 +79,9 @@
       };
       state.runToken += 1;
       state.executionState = "running";
+      state.completedMemberIds = [];
+      state.autofillFailures = [];
+      await announceRun();
       resetProgress();
       appendLog("info", `Memulai autofill ${membersToRun.length} jamaah mulai dari pilihan saat ini...`);
       if (SLOW_MODE_ENABLED) {
@@ -135,7 +144,7 @@
             interruptedForResume = true;
             return;
           }
-          state.executionState = "idle";
+          state.executionState = isRunnablePayload(state.currentRunPayload) ? 'paused' : 'idle';
           postToPanel("NUSUK_PANEL_STATUS", {
             tone: "error",
             message: error instanceof Error ? error.message : String(error),
@@ -293,6 +302,8 @@
       state.currentRunPayload = null;
       state.executionState = "idle";
       state.manifest = null;
+      state.activeSessionId = '';
+      state.completedMemberIds = [];
       state.selectedMemberId = "";
       state.autofillFailures = [];
       state.autofillAttemptFailures = [];
@@ -336,6 +347,7 @@
     }
 
     async function restartFailedFromPanel() {
+      if (!pageReady()) return;
       if (state.executionState === "running") {
         postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Autofill sedang berjalan." });
         return;
@@ -361,7 +373,6 @@
         return;
       }
 
-      state.autofillFailures = [];
       state.autofillAttemptFailures = [];
       state.currentRunPayload = {
         members: membersToRun,
@@ -371,6 +382,7 @@
       };
       state.runToken += 1;
       state.executionState = "running";
+      await announceRun(true);
       resetProgress();
       appendLog("info", `Mengulang autofill untuk ${membersToRun.length} jamaah yang gagal...`);
       await lockTabForBackgroundRun();
@@ -378,6 +390,18 @@
       postPanelState();
 
       await runCurrentPayload(membersToRun.length);
+    }
+
+    function pageReady() {
+      if (!root.pageContext || root.pageContext.readPageContext().pageStatus === 'ready') return true;
+      postToPanel('NUSUK_PANEL_STATUS', { tone: 'warning', message: 'Login ke Nusuk dan buka halaman Daftar atau Tambah Jamaah sebelum memulai.' });
+      return false;
+    }
+
+    async function announceRun(retryFailed = false) {
+      if (state.activeSessionId) {
+        await chrome.runtime.sendMessage({ type: 'NUSUK_WS_EVENT', payload: { eventType: 'RUNNING', retryFailed } });
+      }
     }
 
     return {

@@ -232,6 +232,7 @@ export default function CustomSelect({
         className={`form-custom-select__trigger ${isOpen ? 'is-open' : ''} ${invalid ? 'is-invalid' : ''}`}
         type="button"
         role="combobox"
+        title={selectedOption?.description}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -249,7 +250,7 @@ export default function CustomSelect({
           {selectedOption?.description && <small>{selectedOption.description}</small>}
         </span>
         <span className="form-custom-select__chevron" aria-hidden="true">
-          <AppIcon name="chevron_down" size={17} />
+          <AppIcon name="chevron_down" size={18} />
         </span>
       </button>
 
@@ -269,7 +270,7 @@ export default function CustomSelect({
               />
               {query && (
                 <button type="button" onClick={() => setQuery('')} aria-label="Hapus pencarian">
-                  <AppIcon name="close" size={14} />
+                  <AppIcon name="close" size={16} />
                 </button>
               )}
             </div>
@@ -295,13 +296,13 @@ export default function CustomSelect({
                   onKeyDown={(event) => handleOptionKeyDown(event, index)}
                 >
                   <span className="form-custom-select__option-icon" aria-hidden="true">
-                    <AppIcon name={selected ? 'check' : icon} size={15} />
+                    <AppIcon name={selected ? 'check' : icon} size={16} />
                   </span>
                   <span>
                     <strong>{option.label}</strong>
                     {option.description && <small>{option.description}</small>}
                   </span>
-                  {selected && <AppIcon name="check" size={15} />}
+                  {selected && <AppIcon name="check" size={16} />}
                 </button>
               );
             })}

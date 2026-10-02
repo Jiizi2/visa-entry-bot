@@ -116,7 +116,7 @@ export default function ReviewDropdown({ members, activeMember, resolved, onMemb
             <strong>Antrean review</strong>
             <span>{reviewedCount}/{members.length} selesai</span>
           </div>
-          <AppIcon name="checklist" size={17} />
+          <AppIcon name="checklist" size={18} />
         </header>
         <div className="review-member-queue__list" role="listbox" aria-label="Daftar passport">
           {members.map((member: any, index: number) => {
@@ -137,7 +137,7 @@ export default function ReviewDropdown({ members, activeMember, resolved, onMemb
                   <small>{member.resolvedProfile?.passportNumber || '-'}</small>
                 </span>
                 <span className={`review-member-row__status ${reviewed ? 'is-reviewed' : ''}`}>
-                  <AppIcon name={reviewed ? 'check' : 'review'} size={13} />
+                  <AppIcon name={reviewed ? 'check' : 'review'} size={16} />
                   <span className="sr-only">{reviewed ? 'Sudah direview' : 'Perlu review'}</span>
                 </span>
               </button>
@@ -161,12 +161,11 @@ export default function ReviewDropdown({ members, activeMember, resolved, onMemb
             <AppIcon name="user" size={18} />
           </span>
           <span className="review-member-select__selection">
-            <small>Passport yang sedang direview</small>
             <strong>{memberDisplayName(activeMember)}</strong>
             <span>
               <code>{resolved?.passportNumber || '-'}</code>
               <span className={`review-member-select__status ${activeReviewed ? 'is-reviewed' : ''}`}>
-                <AppIcon name={activeReviewed ? 'check' : 'review'} size={12} />
+                <AppIcon name={activeReviewed ? 'check' : 'review'} size={16} />
                 {activeReviewed ? 'Sudah direview' : 'Perlu review'}
               </span>
             </span>
@@ -189,7 +188,7 @@ export default function ReviewDropdown({ members, activeMember, resolved, onMemb
             </header>
 
             <div className="review-member-select__search">
-              <AppIcon name="search" size={17} />
+              <AppIcon name="search" size={18} />
               <input
                 ref={searchInputRef}
                 type="search"
@@ -201,7 +200,7 @@ export default function ReviewDropdown({ members, activeMember, resolved, onMemb
               />
               {searchQuery && (
                 <button type="button" onClick={() => setSearchQuery('')} aria-label="Hapus pencarian">
-                  <AppIcon name="close" size={15} />
+                  <AppIcon name="close" size={16} />
                 </button>
               )}
             </div>
@@ -233,11 +232,11 @@ export default function ReviewDropdown({ members, activeMember, resolved, onMemb
                       <small>{memberPassport(member) || '-'}</small>
                     </span>
                     <span className={`review-member-select__option-status ${reviewed ? 'is-reviewed' : ''}`}>
-                      <AppIcon name={reviewed ? 'check' : 'review'} size={13} />
+                      <AppIcon name={reviewed ? 'check' : 'review'} size={16} />
                       {reviewed ? 'Selesai' : 'Perlu review'}
                     </span>
                     <span className="review-member-select__option-active" aria-hidden="true">
-                      {active && <AppIcon name="check" size={15} />}
+                      {active && <AppIcon name="check" size={16} />}
                     </span>
                   </button>
                 );

@@ -1,3 +1,5 @@
+import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -154,10 +156,7 @@ export default function ImportPage() {
     <section id="page-import" className="page-container import-page">
       <div className="import-command-center">
         <main className="import-main-surface">
-          <header className="import-main-header">
-            <h1>Mulai batch passport baru</h1>
-            <p>Pilih folder berisi dokumen passport, lalu periksa nilai yang akan digunakan untuk rombongan ini.</p>
-          </header>
+          <PageHeader title="Import passport" context="Pilih folder untuk memulai batch." className="import-main-header" />
 
           <button
             type="button"
@@ -166,7 +165,7 @@ export default function ImportPage() {
             disabled={state.isChoosingFolder}
           >
             <span className="import-folder-intake__icon">
-              <AppIcon name={state.isChoosingFolder ? 'hourglass' : state.selectedDir ? 'check' : 'folder_open'} size={34} />
+              <AppIcon name={state.isChoosingFolder ? 'hourglass' : state.selectedDir ? 'check' : 'folder_open'} size={32} />
             </span>
             <span className="import-folder-intake__copy">
               <strong>
@@ -184,7 +183,7 @@ export default function ImportPage() {
             </span>
             <span className="import-folder-intake__cta">
               {state.selectedDir ? 'Ganti folder' : 'Pilih folder'}
-              <AppIcon name="arrow_forward" size={17} />
+              <AppIcon name="arrow_forward" size={18} />
             </span>
           </button>
 
@@ -195,7 +194,7 @@ export default function ImportPage() {
                 <p>Diterapkan otomatis ke seluruh passport dan tetap dapat dikoreksi saat review.</p>
               </div>
               <span className="import-auto-save-status">
-                <AppIcon name="check_circle" size={15} />
+                <AppIcon name="check_circle" size={16} />
                 Tersimpan otomatis
               </span>
             </div>
@@ -229,15 +228,15 @@ export default function ImportPage() {
               <AppIcon name="info" size={16} />
               Detail setiap passport dapat diperiksa dan diedit pada tahap Review.
             </p>
-            <button
+            <Button variant="primary"
               className="primary-action import-continue-action"
               type="button"
               onClick={() => updateState({ currentPage: 'prepare' })}
               disabled={!state.selectedDir}
             >
               Lanjut ke Prepare
-              <AppIcon name="arrow_forward" size={17} />
-            </button>
+              <AppIcon name="arrow_forward" size={18} />
+            </Button>
           </footer>
         </main>
 
@@ -285,7 +284,7 @@ export default function ImportPage() {
             <div className="import-history-list custom-scrollbar">
               {state.recentBatches.length === 0 ? (
                 <div className="import-history-empty">
-                  <span><AppIcon name="folder" size={24} /></span>
+                  <span><AppIcon name="folder" size={20} /></span>
                   <strong>Belum ada riwayat</strong>
                   <p>Folder yang sudah diproses akan muncul di sini.</p>
                 </div>
@@ -339,12 +338,12 @@ export default function ImportPage() {
               </p>
             </div>
             <div className="modal-footer">
-              <button ref={deleteCancelRef} type="button" className="secondary-button" onClick={() => setBatchToDelete(null)}>
+              <Button variant="secondary" ref={deleteCancelRef} type="button" className="secondary-button" onClick={() => setBatchToDelete(null)}>
                 Batal
-              </button>
-              <button type="button" className="primary-action !bg-red-600 hover:!bg-red-700" onClick={handleDeleteHistory}>
+              </Button>
+              <Button variant="primary" type="button" className="primary-action is-danger" onClick={handleDeleteHistory}>
                 Hapus
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -13,8 +13,10 @@ pub struct ClientConnection {
     pub connected_at: chrono::DateTime<chrono::Utc>,
     pub sender: mpsc::UnboundedSender<String>,
     pub handshake_completed: bool,
+    pub ready_completed: bool,
     pub browser: Option<String>,
     pub extension_version: Option<String>,
+    pub supports_handoff: bool,
     pub outgoing_sequence: Arc<AtomicU64>,
     pub incoming_sequence: Arc<AtomicU64>,
 }
@@ -38,8 +40,10 @@ impl ConnectionManager {
             connected_at: chrono::Utc::now(),
             sender,
             handshake_completed: false,
+            ready_completed: false,
             browser: None,
             extension_version: None,
+            supports_handoff: false,
             outgoing_sequence: Arc::new(AtomicU64::new(0)),
             incoming_sequence: Arc::new(AtomicU64::new(0)),
         };
@@ -69,9 +73,26 @@ impl ConnectionManager {
         }
     }
 
-    pub fn is_client_ready(&self, id: ClientId) -> bool {
+    pub fn is_client_handshaken(&self, id: ClientId) -> bool {
         let clients = self.clients.read().unwrap();
         clients.get(&id).map(|c| c.handshake_completed).unwrap_or(false)
+    }
+
+    pub fn set_handoff_support(&self, id: ClientId, supported: bool) {
+        if let Some(conn) = self.clients.write().unwrap().get_mut(&id) { conn.supports_handoff = supported; }
+    }
+
+    pub fn complete_ready(&self, id: ClientId) {
+        if let Some(conn) = self.clients.write().unwrap().get_mut(&id) {
+            conn.ready_completed = conn.handshake_completed;
+        }
+    }
+
+    pub fn get_ready_client_ids(&self) -> Vec<ClientId> {
+        let clients = self.clients.read().unwrap();
+        let mut ready: Vec<_> = clients.values().filter(|conn| conn.ready_completed).collect();
+        ready.sort_by_key(|conn| std::cmp::Reverse(conn.connected_at));
+        ready.iter().map(|conn| conn.id).collect()
     }
 
     pub fn send_to(&self, id: ClientId, text: String) -> Result<(), String> {
@@ -124,5 +145,26 @@ impl ConnectionManager {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_ready_clients_can_receive_desktop_commands() {
+        let manager = ConnectionManager::new();
+        let id = uuid::Uuid::new_v4();
+        let (tx, _rx) = mpsc::unbounded_channel();
+        manager.register_client(id, tx, "127.0.0.1:10000".parse().unwrap());
+        manager.complete_ready(id);
+        assert!(manager.get_ready_client_ids().is_empty());
+        manager.complete_handshake(id, "chrome".into(), "test".into());
+        assert!(manager.get_ready_client_ids().is_empty());
+        manager.complete_ready(id);
+        assert_eq!(manager.get_ready_client_ids(), vec![id]);
+        manager.unregister_client(id);
+        assert!(manager.get_ready_client_ids().is_empty());
     }
 }

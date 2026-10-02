@@ -10,6 +10,7 @@ import {
   Check,
   CheckCheck,
   CheckCircle2,
+  Clock3,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -23,6 +24,7 @@ import {
   FolderOpen,
   Gauge,
   Hourglass,
+  Image,
   Images,
   Info,
   ListChecks,
@@ -41,6 +43,7 @@ import {
   RotateCw,
   ScanLine,
   Search,
+  Send,
   Square,
   StopCircle,
   Terminal,
@@ -85,7 +88,8 @@ const icons: Record<string, LucideIcon> = {
   folder_special: FolderOpen,
   gauge: Gauge,
   hourglass: Hourglass,
-  schedule: Hourglass,
+  schedule: Clock3,
+  image: Image,
   images: Images,
   photo_library: Images,
   info: Info,
@@ -111,8 +115,9 @@ const icons: Record<string, LucideIcon> = {
   rotate_right: RotateCw,
   scan: ScanLine,
   search: Search,
+  send: Send,
   square: Square,
-  stop: StopCircle,
+  stop: Square,
   stop_circle: StopCircle,
   terminal: Terminal,
   trash: Trash2,
@@ -148,7 +153,8 @@ export default function AppIcon({
   return (
     <Icon
       aria-hidden={ariaHidden}
-      className={className}
+      className={`app-icon ${className || ''}`}
+      focusable="false"
       size={size}
       strokeWidth={strokeWidth}
     />

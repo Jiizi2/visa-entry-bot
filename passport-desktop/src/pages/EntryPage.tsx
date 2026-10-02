@@ -1,6 +1,7 @@
+import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../store';
 import {
   buildExportPreviewState,
@@ -136,7 +137,7 @@ export default function EntryPage() {
   const reviewRemaining = exportPreview.review.remaining;
   const readyCount = exportPreview.readyMembers.length;
   const excludedCount = exportPreview.failedMembers.length + exportPreview.skippedMembers.length;
-  const batchReady = reviewRemaining === 0 && readyCount > 0;
+  const batchReady = reviewRemaining === 0 && readyCount > 0 && !state.isScanning;
   const hasMembers = manifestMembers.length > 0;
   const exportStatusTitle = !hasMembers
     ? 'Belum ada passport untuk diekspor'
@@ -155,7 +156,7 @@ export default function EntryPage() {
           : 'Data siap dikirim melalui extension EntryMate.'
         : 'Periksa kembali data yang bermasalah atau tidak dipilih.';
   const exportStatusTone = batchReady ? 'is-ready' : reviewRemaining > 0 ? 'is-warning' : 'is-empty';
-  const automationMembers = manifestMembers
+  const automationMembers = exportPreview.readyMembers
     .filter((member: any) => effectiveSelectedIds.has(member.id) && (member.reviewConfirmed || state.reviewedMemberIds.has(member.id)))
     .map((member: any) => {
       const copy = JSON.parse(JSON.stringify(member));
@@ -167,18 +168,12 @@ export default function EntryPage() {
   return (
     <section className="page-container entry-page">
       <div className="entry-scroll-region">
-        <header className="app-page-header">
-          <div className="app-page-header-left">
-            <div className="app-page-header-icon"><AppIcon name="export" size={20} /></div>
-            <div className="app-page-header-info">
-              <h1 className="app-page-title">Export ke Nusuk</h1>
-            </div>
-          </div>
-          <button className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
-            <AppIcon name="arrow_back" size={15} />
+        <PageHeader title="Entry ke Nusuk" actions={
+          <Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
+            <AppIcon name="arrow_back" size={16} />
             Kembali ke Review
-          </button>
-        </header>
+          </Button>
+        } />
 
         <section className="entry-export-workspace workstation-pane" aria-labelledby="entry-export-mode-title">
           <header className="entry-export-workspace__header">
@@ -186,19 +181,11 @@ export default function EntryPage() {
               <span><AppIcon name={state.legacyMode ? 'file' : 'rocket'} size={20} /></span>
               <div>
                 <h2 id="entry-export-mode-title">{state.legacyMode ? 'Simpan file untuk Nusuk' : 'Kirim langsung ke Nusuk'}</h2>
-                <p>{state.legacyMode ? 'Buat file JSON dari data yang sudah direview.' : 'Isi data melalui extension EntryMate di Chrome.'}</p>
+                <p>{state.legacyMode ? 'Buat file JSON dari data yang sudah direview.' : 'Lanjutkan dari data yang sudah direview ke browser Nusuk Anda.'}</p>
               </div>
             </div>
-            <div className="entry-mode-switch" role="group" aria-label="Cara mengirim data">
-              <button type="button" aria-pressed={!state.legacyMode} onClick={() => updateState({ legacyMode: false })}>
-                <AppIcon name="rocket" size={15} />
-                Extension
-              </button>
-              <button type="button" aria-pressed={state.legacyMode} onClick={() => updateState({ legacyMode: true })}>
-                <AppIcon name="file" size={15} />
-                File JSON
-              </button>
-            </div>
+            {state.legacyMode ? <Button variant="secondary" type="button" className="secondary-button" onClick={() => updateState({ legacyMode: false })}>Kembali ke extension</Button>
+              : <details className="entry-alternative"><summary>Cara lain</summary><Button variant="secondary" type="button" className="secondary-button" onClick={() => updateState({ legacyMode: true })}><AppIcon name="file" size={16} />Simpan file JSON</Button></details>}
           </header>
 
           {!state.legacyMode ? (
@@ -211,14 +198,14 @@ export default function EntryPage() {
               readinessActionLabel={hasMembers ? 'Periksa di Review' : 'Pilih folder'}
               readinessActionIcon={hasMembers ? 'review' : 'folder_open'}
               onResolveReadiness={() => updateState({ currentPage: hasMembers ? 'validation' : 'import' })}
-              onOpenNusuk={() => openUrl('https://masar.nusuk.sa')}
+              validateBatch={() => { const validation = validateCompanionsForExport(state.manifest, state.selectedIds); return validation.ok ? '' : validation.message; }}
             />
           ) : (
             <div className="entry-manual-card">
               <div className="entry-manual-card__body">
                 <div className={`entry-manual-status ${exportStatusTone}`}>
                   <span className="entry-manual-status__icon">
-                    <AppIcon name={batchReady ? 'check_circle' : reviewRemaining > 0 ? 'review' : 'folder_open'} size={26} />
+                    <AppIcon name={batchReady ? 'check_circle' : reviewRemaining > 0 ? 'review' : 'folder_open'} size={20} />
                   </span>
                   <div>
                     <h3>{exportStatusTitle}</h3>
@@ -240,7 +227,7 @@ export default function EntryPage() {
                   {state.exportError ? <span>{state.exportError}</span> : (
                     <div>
                       <span>File JSON berhasil dibuat.</span>
-                      <button className="secondary-button" onClick={handleOpenJsonLocation}>Buka folder</button>
+                      <Button variant="secondary" className="secondary-button" onClick={handleOpenJsonLocation}>Buka folder</Button>
                     </div>
                   )}
                 </div>
@@ -248,24 +235,24 @@ export default function EntryPage() {
 
               <footer className="entry-manual-card__actions">
                 {excludedCount > 0 && (
-                  <span className="entry-manual-card__note"><AppIcon name="info" size={15} /> {excludedCount} passport tidak disertakan.</span>
+                  <span className="entry-manual-card__note"><AppIcon name="info" size={16} /> {excludedCount} passport tidak disertakan.</span>
                 )}
                 <div className="entry-manual-card__buttons">
                   {!hasMembers ? (
-                    <button className="secondary-button" onClick={() => updateState({ currentPage: 'import' })}>
+                    <Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'import' })}>
                       <AppIcon name="folder_open" size={16} />
                       Pilih folder
-                    </button>
+                    </Button>
                   ) : !batchReady ? (
-                    <button className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
+                    <Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
                       <AppIcon name="review" size={16} />
                       Periksa di Review
-                    </button>
+                    </Button>
                   ) : (
-                    <button className="primary-action" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
+                    <Button variant="primary" className="primary-action" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
                       <AppIcon name="download" size={16} />
                       {state.isEntryRunning ? 'Membuat file...' : 'Buat file JSON'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </footer>

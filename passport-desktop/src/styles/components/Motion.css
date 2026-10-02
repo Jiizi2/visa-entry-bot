@@ -1,0 +1,105 @@
+/* Brief state feedback; work surfaces remain still and immediately usable. */
+.page-transition {
+  animation: page-enter var(--duration-slow) var(--ease-standard);
+}
+
+.modal-overlay, .completion-overlay {
+  animation: fadeIn var(--duration-fast) var(--ease-standard);
+}
+
+.modal-card, .crop-dialog, .completion-overlay__dialog {
+  animation: dialog-enter var(--duration-enter) var(--ease-standard);
+}
+
+.form-custom-select__menu, .review-member-select__menu, .date-picker__menu {
+  animation: popover-enter var(--duration-fast) var(--ease-standard);
+}
+
+.primary-action, .secondary-button, .ghost-button {
+  transition: background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.primary-action:active:not(:disabled),
+.secondary-button:active:not(:disabled),
+.ghost-button:active:not(:disabled) {
+  opacity: .86;
+}
+
+.form-custom-select__option, .field-category-tab,
+.date-picker__toggle, .date-picker__nav, .date-picker__day, .date-picker__year,
+.scan-journey__marker {
+  transition: background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+/* Full-width fills animate scale rather than forcing layout on every frame. */
+.scan-progress-track__fill, .entry-process-progress > span, .update-progress-fill {
+  width: 100%;
+  transform-origin: left center;
+  transition: transform var(--duration-slow) var(--ease-standard);
+}
+
+/* The sweep's full-height wrapper makes percentage translation match the sheet. */
+.scan-document-sheet__sweep {
+  top: 0;
+  height: 100%;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.scan-document-sheet__sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--primary);
+}
+
+@keyframes page-enter {
+  from { opacity: .84; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-enter {
+  from { opacity: .75; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes popover-enter {
+  from { opacity: .65; }
+  to { opacity: 1; }
+}
+
+@keyframes scan-document {
+  0% { transform: translateY(17%); opacity: 0; }
+  15%, 85% { opacity: 1; }
+  100% { transform: translateY(86%); opacity: 0; }
+}
+
+/* Pause active indicators while the application is in the background. */
+.scan-document-sheet.is-offscreen .scan-document-sheet__sweep {
+  animation-play-state: paused;
+}
+
+.is-motion-paused *, .is-motion-paused *::before, .is-motion-paused *::after {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition, .modal-overlay, .completion-overlay,
+  .modal-card, .crop-dialog, .completion-overlay__dialog,
+  .form-custom-select__menu, .review-member-select__menu, .date-picker__menu,
+  .app-statusbar, .scan-document-sheet__sweep, .animate-spin {
+    animation: none;
+  }
+
+  .scan-document-sheet__sweep {
+    transform: translateY(50%);
+    opacity: .7;
+  }
+}

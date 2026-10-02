@@ -19,6 +19,7 @@ export interface HelloPayload {
     supportsDebugger: boolean;
     supportsScreenshot: boolean;
     supportsResume: boolean;
+    supportsHandoff?: boolean;
   };
 }
 
@@ -51,6 +52,8 @@ export interface Member {
 
 export interface LoadBatchPayload {
   members: Member[];
+  manifestPath?: string;
+  resumeToken?: string;
 }
 
 export interface SessionSnapshotPayload {
@@ -64,6 +67,8 @@ export interface SessionSnapshotPayload {
   manifestVersion: number;
   manifestHash: string;
   manifestPath: string;
+  manifestMembers: Member[];
+  completedMemberIds: string[];
   failures: any[];
   revision: number;
 }
@@ -120,6 +125,9 @@ export interface ErrorPayload {
 }
 
 export interface MessageMap {
+  [MessageType.GET_NUSUK_CONTEXT]: Record<string, never>;
+  [MessageType.OPEN_NUSUK]: { tabId?: number; preserveSession?: boolean };
+  [MessageType.NUSUK_CONTEXT]: { selectedTabId?: number; tabs: { tabId: number; title: string; url: string; pageStatus: string }[] };
   [MessageType.HELLO]: HelloPayload;
   [MessageType.HELLO_ACK]: HelloAckPayload;
   [MessageType.CREATE_SESSION]: CreateSessionPayload;

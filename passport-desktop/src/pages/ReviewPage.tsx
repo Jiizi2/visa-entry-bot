@@ -1,3 +1,5 @@
+import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import React from 'react';
 import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
@@ -160,7 +162,12 @@ export default function ReviewPage() {
   };
 
   if (!activeMember) {
-    return <div className="page-empty-state">Belum ada data passport untuk direview.</div>;
+    return (
+      <div className="page-container review-page">
+        <PageHeader title="Review data" />
+        <div className="page-empty-state">Belum ada data passport untuk direview.</div>
+      </div>
+    );
   }
 
   const resolved = resolvedProfileOf(activeMember);
@@ -178,22 +185,7 @@ export default function ReviewPage() {
   return (
     <div className="page-container review-page">
       {/* Top Workspace Header */}
-      <header className="app-page-header">
-        <div className="app-page-header-left">
-          <div className="app-page-header-icon">
-            <AppIcon name="review" size={20} />
-          </div>
-          <div className="app-page-header-info">
-            <span className="app-page-step-label">Langkah 4 · Validasi data</span>
-            <h1 className="app-page-title">Review data</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="px-3 py-1 rounded-full type-caption bg-slate-200 text-slate-600 border border-slate-300/50">
-            {remaining} dokumen tersisa
-          </span>
-        </div>
-      </header>
+      <PageHeader title="Review data" actions={<span className="status-chip neutral">{remaining} dokumen tersisa</span>} />
 
       <section className="review-workspace">
         <ReviewDropdown
@@ -219,11 +211,11 @@ export default function ReviewPage() {
             </div>
             <div className="flex items-center gap-3">
               {isReviewed ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md type-caption bg-green-50 text-green-700 border border-green-200">
+                <span className="status-chip valid">
                   <div className="w-2 h-2 rounded-full shrink-0 bg-green-500"></div> Sudah direview
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md type-caption bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="status-chip warn">
                   <div className="w-2 h-2 rounded-full shrink-0 bg-amber-400"></div> Perlu review
                 </span>
               )}
@@ -250,22 +242,22 @@ export default function ReviewPage() {
               </span>
             </div>
             <div className="review-inspector__actions">
-              <button 
+              <Button variant="secondary"
                 className="secondary-button review-delete-action"
                 onClick={handleDeleteClick}
                 title="Hapus passport dari manifest"
               >
                 <AppIcon name="delete" />
                 Hapus
-              </button>
-              <button
+              </Button>
+              <Button variant="primary"
                 className="primary-action ml-auto"
                 onClick={handleNext}
                 disabled={filledCount < allRequiredKeys.length}
               >
                 {activeIndex === members.length - 1 ? 'Setujui & selesaikan' : 'Setujui & berikutnya'}
                 <AppIcon name={activeIndex === members.length - 1 ? 'done_all' : 'arrow_forward'} />
-              </button>
+              </Button>
             </div>
           </div>
           
@@ -286,18 +278,18 @@ export default function ReviewPage() {
               </p>
             </div>
             <div className="modal-footer">
-              <button 
+              <Button variant="secondary"
                 onClick={() => setShowDeleteConfirm(false)}
                 className="secondary-button"
               >
                 Batal
-              </button>
-              <button 
+              </Button>
+              <Button variant="primary"
                 onClick={executeDelete}
-                className="primary-action !bg-red-600 hover:!bg-red-700"
+                className="primary-action is-danger"
               >
                 Ya, Hapus
-              </button>
+              </Button>
             </div>
           </div>
         </div>

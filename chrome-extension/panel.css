@@ -860,6 +860,12 @@ body.state-completed #completed-state-view { display: flex !important; }
 body.state-recovering #recovering-state-view { display: flex !important; }
 body.state-error #error-state-view { display: flex !important; }
 
+.handoff-summary { margin-bottom: 14px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; overflow-wrap: anywhere; }
+.handoff-summary strong { font-size: 13px; }
+.handoff-summary p { margin: 6px 0 0; color: var(--ink-secondary); font-size: 12px; line-height: 1.5; }
+#completed-retry-btn { width: 100%; margin-top: 8px; }
+#completed-retry-btn[hidden] { display: none !important; }
+
 /* In inactive views, hide the control row & progress hero */
 body.state-idle .progress-hero-section,
 body.state-idle .control-row,

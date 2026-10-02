@@ -1,0 +1,19 @@
+Use case: ui-mockup.
+Asset type: preview-only redesign of the left navigation in a desktop Windows application.
+Input image: EDIT TARGET, the current EntryMate Scan screen. Retain its front-on desktop screenshot aspect ratio and full application frame.
+
+Primary request: The user dislikes the sidebar overall. Replace only the sidebar's navigation composition with a clearly different, calm icon-and-label navigation. Keep the approved application design language: graphite #1a1d1e, pearl #f9f9f9, very pale mineral #f1f4f1, muted gold #d9a94f, Inter/Segoe UI typography, 10px control corners. This is a navigation proposal, not a change to the Scan work area.
+
+NEW SIDEBAR:
+- Same left position and approximately the same 176px width. Flat graphite, no gradient, glass, drop shadow or floating card around it.
+- Remove the repeated logo/EntryMate/Visa operations block INSIDE the sidebar; the existing application title bar already carries the brand and must remain intact.
+- Begin navigation near the top, aligned with the main content header. Comfortable 12px horizontal inset.
+- Five clean rows, each about 40px tall, with 8px gaps. Each row has ONE thin Lucide-style outline icon at 18px / stroke1.8, followed by ONE 14px label. No numbered circles, no completion checks, no vertical connector, no subtitles, no extra badges, no icon background tiles.
+- Rows and icons in order: folder icon + "Import"; image icon + "Prepare"; scan-frame icon + "Scan"; clipboard-check icon + "Review"; send-arrow icon + "Entry".
+- "Scan" remains active. Active row uses a very subtle neutral light-on-graphite tint (about 8% pearl opacity), 10px corners, muted-gold icon and label, semibold label. No large gold fill and no gold circle. Other rows are regular-weight readable pearl at restrained opacity; all icon/text columns precisely aligned.
+- Leave quiet space below navigation.
+- Bottom utility area has one faint separator and two flat ghost rows with consistent outline icons: panel-collapse icon + "Perkecil sidebar", refresh icon + "Cek pembaruan". Small muted "EntryMate v1.0.21" beneath. No outlined button boxes or separate cards.
+
+STRICT INVARIANTS:
+Everything OUTSIDE the left sidebar is unchanged: graphite native titlebar with original EntryMate By Ghaniya branding, original window controls, complete Scan page geometry, pale backgrounds, header "Scan passport", "Hentikan" button, 67%, 24 of36 completed, timing/queue values, current document passport_025.jpg, table rows, active-document illustration, timeline and floating status capsule. Keep all original Indonesian text in the work area exactly. Preserve all five navigation destinations and both bottom utilities. No new application features, invented metrics or mobile frame.
+Output one crisp complete desktop UI mockup, straight screenshot, no monitor, annotations, presentation board or alternative variants. The sidebar must visibly read as clean application navigation rather than a vertical progress stepper.

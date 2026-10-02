@@ -39,9 +39,19 @@ Orkestrator loop berada di fungsi `runAutomation`. Siklus kerjanya:
 
 ### Sumber Command dan Data
 
-- **Mode utama:** panel extension terhubung ke WebSocket desktop pada `ws://127.0.0.1:9001-9005`. Desktop mengirim `LOAD_BATCH` dan `START`; extension mengirim progress dan status sesi kembali.
+- **Mode utama:** background service worker extension terhubung ke WebSocket desktop pada `ws://127.0.0.1:9001-9005`, termasuk saat panel tertutup. Tombol **Lanjut ke Nusuk** memeriksa tab pada browser yang terhubung, mengaktifkan tab pilihan tanpa reload, lalu mengirim `LOAD_BATCH`. Desktop menunggu `BATCH_LOADED` setelah data divalidasi dan disimpan oleh content script. User memilih **Mulai pengisian**, **Jeda**, dan **Lanjutkan** dari panel atau widget extension; progress kembali ke desktop. Chrome 116+ diperlukan; heartbeat berjalan saat idle dan alarm membangunkan worker untuk reconnect. Token pemulihan disimpan terpisah dari state panel agar reload tidak menghilangkannya.
 - **Legacy Mode:** user mengupload `nusuk-entry-batch.json`, memilih file passport, lalu memulai automation dari panel extension.
 - Kedua mode masuk ke runner dan kontrak manifest yang sama; perbedaannya hanya pada transport dan cara memperoleh file passport.
+
+### Perpindahan dari aplikasi ke Nusuk
+
+1. Selesaikan Review, buka tahap Entry, lalu pilih **Lanjut ke Nusuk**.
+2. Tab Nusuk yang sudah terbuka dipakai tanpa mengubah URL atau sesi login. Jika ada beberapa tab/profil browser, pilih tujuan sekali. Pekerjaan yang telah diterima tetap memakai tab dan browser asal.
+3. Jika extension terhubung tetapi belum ada tab Nusuk, extension membuka satu tab pada browser/profil tersebut. Jika extension belum terhubung, aplikasi menampilkan langkah aktivasi pada browser yang sudah digunakan; pembukaan Chrome tersedia sebagai tindakan tambahan yang dipilih user.
+4. Extension menampilkan folder, jumlah jamaah, dan jamaah pertama. Pilih **Mulai pengisian** di widget atau panel. Dari halaman Masar lain, termasuk **Group List**, tab yang sama otomatis menuju **Mu’tamer List**, memulihkan batch, lalu memulai automation. Jika sudah berada di Mu’tamer List atau Tambah Jamaah, halaman tetap digunakan. Login atau halaman yang masih dimuat menonaktifkan tombol mulai; jika pengalihan meminta login ulang, batch tetap tersimpan dan user dapat memilih mulai kembali setelah login.
+5. Aplikasi memantau hasil aktual. **Ulangi yang gagal** hanya mengirim jamaah gagal ke runner dan mempertahankan hasil sukses. Ekspor JSON tersedia melalui **Cara lain**.
+
+Extension yang diperbarui pada tab Nusuk yang sudah lama terbuka mungkin memerlukan satu kali refresh agar content script baru aktif. Aplikasi memberi petunjuk khusus untuk kondisi ini dan tidak melakukan refresh otomatis.
 
 ---
 

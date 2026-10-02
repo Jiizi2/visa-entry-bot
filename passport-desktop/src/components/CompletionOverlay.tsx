@@ -1,3 +1,4 @@
+import Button from './ui/Button';
 import { useEffect, useRef } from 'react';
 import AppIcon from './ui/AppIcon';
 
@@ -52,7 +53,7 @@ export default function CompletionOverlay({ moment, onClose }: CompletionOverlay
             <strong id="completion-moment-title">{moment.title}</strong>
             <span id="completion-moment-description">{moment.description}</span>
           </div>
-          <button
+          <Button variant="primary"
             ref={closeButtonRef}
             className="primary-action completion-overlay__close"
             type="button"
@@ -60,7 +61,7 @@ export default function CompletionOverlay({ moment, onClose }: CompletionOverlay
           >
             Lanjutkan
             <AppIcon name="arrow_forward" size={16} />
-          </button>
+          </Button>
         </footer>
       </section>
     </div>

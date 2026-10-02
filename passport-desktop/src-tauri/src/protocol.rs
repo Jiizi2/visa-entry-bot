@@ -13,6 +13,8 @@ pub enum MessageType {
     Stop,
     Ping,
     HelloAck,
+    GetNusukContext,
+    OpenNusuk,
 
     // Events (Extension -> Desktop)
     Hello,
@@ -30,6 +32,7 @@ pub enum MessageType {
     Ack,
     SessionCreated,
     BatchLoaded,
+    NusukContext,
 
     // Errors
     Error,
@@ -63,6 +66,8 @@ pub struct Capabilities {
     pub supports_debugger: bool,
     pub supports_screenshot: bool,
     pub supports_resume: bool,
+    #[serde(default)]
+    pub supports_handoff: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +111,8 @@ pub struct Member {
 #[serde(rename_all = "camelCase")]
 pub struct LoadBatchPayload {
     pub members: Vec<Member>,
+    pub manifest_path: Option<String>,
+    pub resume_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +128,10 @@ pub struct SessionSnapshotPayload {
     pub manifest_version: u32,
     pub manifest_hash: String,
     pub manifest_path: String,
+    #[serde(default)]
+    pub manifest_members: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub completed_member_ids: Vec<String>,
     pub failures: Vec<serde_json::Value>,
     pub revision: u64,
 }

@@ -330,14 +330,32 @@ jobs:
           fi
           echo "✓ updater.json URL validation passed."
 
+      - name: Package Chrome extension
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          zip -r "EntryMate-extension-${RELEASE_TAG#v}.zip" chrome-extension \
+            -x "chrome-extension/test/*" "chrome-extension/node_modules/*" \
+               "chrome-extension/.review/*" "chrome-extension/package*.json"
+
       - name: Create or Update GitHub Release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
           name: "EntryMate ${{ github.ref_name }}"
-          body: "Lihat perubahan terbaru pada rilis ini."
+          body: |
+            Pembaruan desktop dan Chrome extension EntryMate.
+
+            - Tampilan workflow Import, Prepare, Scan, Review, dan Entry diperbarui.
+            - Koneksi desktop-extension berjalan melalui background service worker dan dapat tersambung kembali.
+            - Pengiriman batch ke Nusuk menunggu konfirmasi extension dan mempertahankan progress saat melanjutkan sesi.
+
+            **Update di device lain (Windows x64):**
+            1. Klik **Cek pembaruan** di aplikasi desktop, atau unduh dan jalankan installer `.exe` dari rilis ini.
+            2. Unduh dan ekstrak `EntryMate-extension-*.zip`. Salin isi folder `chrome-extension` ke folder extension yang sudah digunakan, lalu klik **Reload** di `chrome://extensions/`. Untuk pemasangan baru, aktifkan **Developer mode**, klik **Load unpacked**, dan pilih folder tersebut.
+            3. Muat ulang tab Nusuk setelah extension diperbarui.
           token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: "all-artifacts/**/*.exe,all-artifacts/**/*.sig,updater.json"
+          artifacts: "all-artifacts/**/*.exe,all-artifacts/**/*.sig,updater.json,EntryMate-extension-*.zip"
           artifactErrorsFailBuild: true
           removeArtifacts: true
           replacesArtifacts: true

@@ -6,6 +6,7 @@ pub mod protocol_validator;
 pub mod session_manager;
 pub mod automation_service;
 pub mod message_router;
+pub mod handoff;
 pub mod event_dispatcher;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -2063,6 +2064,7 @@ fn start_websocket_orchestrator(
     app_handle: AppHandle,
     connection_manager: Arc<server::connection_manager::ConnectionManager>,
     session_manager: Arc<session_manager::SessionManager>,
+    handoff_manager: Arc<handoff::HandoffManager>,
 ) {
     let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel::<transport::websocket::TransportEvent>();
     let ws_server = Arc::new(transport::websocket::WebSocketServer::new(event_tx));
@@ -2086,11 +2088,11 @@ fn start_websocket_orchestrator(
             match event {
                 transport::websocket::TransportEvent::Connect { client_id, sender, addr } => {
                     cm.register_client(client_id, sender, addr);
-                    let _ = app_handle.emit("transport-connected", serde_json::json!({ "clientId": client_id.to_string() }));
                 }
                 transport::websocket::TransportEvent::Disconnect { client_id } => {
+                    handoff_manager.disconnect(client_id);
                     cm.unregister_client(client_id);
-                    let _ = app_handle.emit("transport-disconnected", serde_json::json!({ "clientId": client_id.to_string() }));
+                    let _ = app_handle.emit("transport-disconnected", serde_json::json!({ "clientId": client_id.to_string(), "connected": !cm.get_ready_client_ids().is_empty() }));
                     sm.metrics.heartbeats_lost.fetch_add(1, Ordering::SeqCst);
                 }
                 transport::websocket::TransportEvent::Message { client_id, text } => {
@@ -2110,6 +2112,7 @@ fn start_websocket_orchestrator(
                                             payload.browser, payload.extension_version
                                         );
                                         cm.complete_handshake(client_id, payload.browser, payload.extension_version);
+                                        cm.set_handoff_support(client_id, payload.capabilities.supports_handoff);
                                         let ack_payload = serde_json::json!({
                                             "authToken": "local-orchestrator-auth"
                                         });
@@ -2126,92 +2129,33 @@ fn start_websocket_orchestrator(
                                     }
                                 }
                                 protocol::MessageType::Ready => {
-                                    if cm.is_client_ready(client_id) {
+                                    if cm.is_client_handshaken(client_id) {
                                         if let Ok(payload) = serde_json::from_value::<protocol::ReadyPayload>(envelope.payload.clone()) {
                                             println!("[Protocol] READY diterima dari URL: {}", payload.current_url);
                                             
-                                            // Validate credentials for recovery
-                                            let is_valid_resume = if let (Some(req_session_id), Some(req_resume_token)) = (&payload.session_id, &payload.resume_token) {
-                                                if let Some(active_session) = sm.get_session() {
-                                                    active_session.session_id == *req_session_id && active_session.resume_token == *req_resume_token
-                                                } else {
-                                                    false
-                                                }
-                                            } else {
-                                                false
-                                            };
-                                            
-                                            if is_valid_resume {
-                                                let s = sm.get_session().unwrap();
+                                            if let Some(s) = sm.resumable_session(payload.session_id.as_deref(), payload.resume_token.as_deref()) {
+                                                let _ = sm.update_snapshot(|s| s.target_client_id = Some(client_id));
                                                 sm.metrics.snapshots_restored.fetch_add(1, Ordering::SeqCst);
                                                 sm.metrics.resumes_successful.fetch_add(1, Ordering::SeqCst);
-                                                println!("[Session] Sesi aktif terdeteksi & terverifikasi (ID: {}). Mengirim SESSION_SNAPSHOT.", s.session_id);
-                                                
-                                                let snapshot_payload = serde_json::json!({
-                                                    "snapshotVersion": 1,
-                                                    "sessionId": s.session_id,
-                                                    "resumeToken": s.resume_token,
-                                                    "status": s.status,
-                                                    "currentMemberId": s.current_member_id,
-                                                    "progressCurrent": s.progress_current,
-                                                    "progressTotal": s.progress_total,
-                                                    "manifestVersion": s.manifest_version,
-                                                    "manifestHash": s.manifest_hash,
-                                                    "manifestPath": s.manifest_path,
-                                                    "failures": s.failures,
-                                                    "revision": s.revision,
-                                                });
-                                                
                                                 sm.metrics.snapshots_generated.fetch_add(1, Ordering::SeqCst);
                                                 send_envelope(
-                                                    &cm,
-                                                    client_id,
-                                                    protocol::MessageType::SessionSnapshot,
-                                                    &envelope.correlation_id,
-                                                    snapshot_payload,
-                                                    None,
+                                                    &cm, client_id, protocol::MessageType::SessionSnapshot,
+                                                    &envelope.correlation_id, s.snapshot_payload(), None,
                                                 );
                                             } else {
-                                                if payload.session_id.is_some() || payload.resume_token.is_some() {
+                                                let requested_resume = payload.session_id.as_deref().is_some_and(|id| !id.is_empty());
+                                                if requested_resume {
                                                     sm.metrics.resumes_failed.fetch_add(1, Ordering::SeqCst);
                                                 }
-                                                println!("[Session] Tidak ada sesi valid untuk di-resume atau token salah. Menginisialisasi sesi baru.");
                                                 send_envelope(
-                                                    &cm,
-                                                    client_id,
-                                                    protocol::MessageType::Ack,
+                                                    &cm, client_id, protocol::MessageType::Ack,
                                                     &envelope.correlation_id,
-                                                    serde_json::json!({}),
+                                                    serde_json::json!({ "sessionReset": requested_resume }),
                                                     Some(envelope.message_id.clone()),
                                                 );
-                                                println!("[Protocol] Handshake selesai untuk klien baru: {}", client_id);
-                                                
-                                                sm.close_session();
-
-                                                // Picu CREATE_SESSION otomatis untuk pengujian alur Sprint 2
-                                                let test_session_id = uuid::Uuid::new_v4().to_string();
-                                                let test_correlation_id = uuid::Uuid::new_v4().to_string();
-                                                
-                                                let _ = sm.create_session(test_session_id.clone(), "test-workspace-path".to_string());
-                                                
-                                                let create_session_env = protocol::Envelope {
-                                                    protocol_version: 1,
-                                                    r#type: protocol::MessageType::CreateSession,
-                                                    message_id: uuid::Uuid::new_v4().to_string(),
-                                                    session_id: test_session_id.clone(),
-                                                    correlation_id: test_correlation_id.clone(),
-                                                    timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-                                                    sequence: cm.next_outgoing_sequence(client_id),
-                                                    reply_to_message_id: None,
-                                                    payload: serde_json::json!({
-                                                        "workspaceId": "test-workspace-path"
-                                                    }),
-                                                };
-                                                if let Ok(text) = serde_json::to_string(&create_session_env) {
-                                                    let _ = cm.send_to(client_id, text);
-                                                    println!("[Session] Mengirim CREATE_SESSION otomatis. SessionID: {}", test_session_id);
-                                                }
                                             }
+                                            cm.complete_ready(client_id);
+                                            let _ = app_handle.emit("transport-connected", serde_json::json!({ "clientId": client_id.to_string(), "connected": true }));
                                         } else {
                                             send_error(&cm, client_id, "ERR_INVALID_PAYLOAD", "Payload READY tidak valid.", &envelope);
                                         }
@@ -2229,9 +2173,14 @@ fn start_websocket_orchestrator(
                                         Some(envelope.message_id.clone()),
                                     );
                                 }
+                                protocol::MessageType::NusukContext | protocol::MessageType::Error => {
+                                    handoff_manager.resolve(client_id, &envelope);
+                                }
                                 _ => {
-                                    if let Err(e) = message_router::MessageRouter::route(&app_for_messages, envelope, client_id, &cm, &sm) {
+                                    if let Err(e) = message_router::MessageRouter::route(&app_for_messages, envelope.clone(), client_id, &cm, &sm) {
                                         eprintln!("[Error] Router gagal meneruskan pesan: {}", e);
+                                    } else {
+                                        handoff_manager.resolve(client_id, &envelope);
                                     }
                                 }
                             }
@@ -2323,7 +2272,7 @@ fn send_error(
 fn is_automation_connected(
     connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
 ) -> bool {
-    !connection_manager.get_active_client_ids().is_empty()
+    !connection_manager.get_ready_client_ids().is_empty()
 }
 
 #[tauri::command]
@@ -2334,7 +2283,7 @@ fn get_system_health(
     let session = session_manager.get_session();
     let status = session.as_ref().map(|s| format!("{:?}", s.status)).unwrap_or_else(|| "IDLE".to_string());
     let revision = session.as_ref().map(|s| s.revision).unwrap_or(0);
-    let client_connected = !connection_manager.get_active_client_ids().is_empty();
+    let client_connected = !connection_manager.get_ready_client_ids().is_empty();
     let journal_usage = format!("{}/200", session_manager.get_journal().len());
     
     serde_json::json!({
@@ -2362,55 +2311,36 @@ fn send_automation_load_batch(
     members: Vec<serde_json::Value>,
     manifest_path: String,
 ) -> Result<(), String> {
-    // Generate version and hash
-    let manifest_version = 1;
-    let manifest_str = serde_json::to_string(&members).unwrap_or_default();
-    let manifest_hash = fnv1a_hash(&manifest_str);
-
-    // Initialize session if none exists
-    let session_exists = session_manager.get_session().is_some();
-    if !session_exists {
-        let new_session_id = uuid::Uuid::new_v4().to_string();
-        let _ = session_manager.create_session(new_session_id, "workspace-path".to_string());
-    }
-
-    // Update session snapshot
-    let _ = session_manager.update_snapshot(|s| {
-        s.manifest_hash = manifest_hash.clone();
-        s.manifest_path = manifest_path.clone();
-        s.manifest_version = manifest_version;
-        s.progress_total = members.len() as u32;
-        s.progress_current = 0;
-        s.failures = Vec::new();
-        s.status = session_manager::SessionState::BatchLoaded;
-    });
-
-    let client_ids = connection_manager.get_active_client_ids();
-    if let Some(client_id) = client_ids.first().cloned() {
-        let sequence = connection_manager.next_outgoing_sequence(client_id);
-        let correlation_id = uuid::Uuid::new_v4().to_string();
-        let load_batch_payload = serde_json::json!({
-            "members": members,
-            "manifestPath": manifest_path
-        });
-        let envelope = protocol::Envelope {
-            protocol_version: 1,
-            r#type: protocol::MessageType::LoadBatch,
-            message_id: uuid::Uuid::new_v4().to_string(),
-            session_id: "".to_string(),
-            correlation_id,
-            timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-            sequence,
-            reply_to_message_id: None,
-            payload: load_batch_payload,
-        };
-        if let Ok(text) = serde_json::to_string(&envelope) {
-            let _ = connection_manager.send_to(client_id, text);
-            println!("[Session] Mengirim LOAD_BATCH dari UI dengan {} jamaah.", members.len());
-            return Ok(());
+    let client_id = connection_manager.get_ready_client_ids().first().cloned()
+        .ok_or_else(|| "Tidak ada ekstensi Chrome yang siap menerima batch.".to_string())?;
+    if let Some(session) = session_manager.get_session() {
+        if matches!(session.status, session_manager::SessionState::Running | session_manager::SessionState::Paused) {
+            return Err("Sesi entry masih berjalan. Selesaikan atau reset sebelum mengirim batch baru.".to_string());
         }
     }
-    Err("Tidak ada ekstensi Chrome yang terhubung.".to_string())
+    if members.is_empty() { return Err("Batch jamaah masih kosong.".to_string()); }
+    session_manager.close_session();
+    session_manager.create_session(uuid::Uuid::new_v4().to_string(), manifest_path.clone())?;
+    let manifest_hash = fnv1a_hash(&serde_json::to_string(&members).map_err(|e| e.to_string())?);
+    let session = session_manager.update_snapshot(|s| {
+        s.manifest_hash = manifest_hash;
+        s.manifest_path = manifest_path.clone();
+        s.manifest_members = members.clone();
+        s.progress_total = members.len() as u32;
+        s.status = session_manager::SessionState::Created;
+    })?;
+    let envelope = protocol::Envelope {
+        protocol_version: 1,
+        r#type: protocol::MessageType::LoadBatch,
+        message_id: uuid::Uuid::new_v4().to_string(),
+        session_id: session.session_id,
+        correlation_id: uuid::Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        sequence: connection_manager.next_outgoing_sequence(client_id),
+        reply_to_message_id: None,
+        payload: serde_json::json!({ "members": members, "manifestPath": manifest_path, "resumeToken": session.resume_token }),
+    };
+    connection_manager.send_to(client_id, serde_json::to_string(&envelope).map_err(|e| e.to_string())?)
 }
 
 #[tauri::command]
@@ -2418,29 +2348,23 @@ fn send_automation_start(
     connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
     session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
 ) -> Result<(), String> {
-    let client_ids = connection_manager.get_active_client_ids();
-    if let Some(client_id) = client_ids.first().cloned() {
-        let sequence = connection_manager.next_outgoing_sequence(client_id);
-        let correlation_id = uuid::Uuid::new_v4().to_string();
-        let envelope = protocol::Envelope {
-            protocol_version: 1,
-            r#type: protocol::MessageType::Start,
-            message_id: uuid::Uuid::new_v4().to_string(),
-            session_id: "".to_string(),
-            correlation_id,
-            timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-            sequence,
-            reply_to_message_id: None,
-            payload: serde_json::json!({}),
-        };
-        if let Ok(text) = serde_json::to_string(&envelope) {
-            let _ = connection_manager.send_to(client_id, text);
-            let _ = session_manager.update_status(session_manager::SessionState::Running);
-            println!("[Session] Mengirim START dari UI.");
-            return Ok(());
-        }
-    }
-    Err("Tidak ada ekstensi Chrome yang terhubung.".to_string())
+    let client_id = connection_manager.get_ready_client_ids().first().cloned()
+        .ok_or_else(|| "Tidak ada ekstensi Chrome yang siap memulai entry.".to_string())?;
+    let session = session_manager.get_session().ok_or_else(|| "Kirim batch sebelum memulai entry.".to_string())?;
+    automation_service::AutomationService::validate_transition(session.status, &protocol::MessageType::Start)?;
+    let envelope = protocol::Envelope {
+        protocol_version: 1,
+        r#type: protocol::MessageType::Start,
+        message_id: uuid::Uuid::new_v4().to_string(),
+        session_id: session.session_id,
+        correlation_id: uuid::Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        sequence: connection_manager.next_outgoing_sequence(client_id),
+        reply_to_message_id: None,
+        payload: serde_json::json!({}),
+    };
+    connection_manager.send_to(client_id, serde_json::to_string(&envelope).map_err(|e| e.to_string())?)?;
+    session_manager.update_status(session_manager::SessionState::Running)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -2453,6 +2377,8 @@ pub fn run() {
 
     let connection_manager = Arc::new(server::connection_manager::ConnectionManager::new());
     let connection_manager_for_setup = connection_manager.clone();
+    let handoff_manager = Arc::new(handoff::HandoffManager::default());
+    let handoff_manager_for_setup = handoff_manager.clone();
 
     let session_manager = Arc::new(session_manager::SessionManager::new());
     let session_manager_for_setup = session_manager.clone();
@@ -2463,6 +2389,7 @@ pub fn run() {
         .manage(ScanState::default())
         .manage(renderer_health)
         .manage(connection_manager)
+        .manage(handoff_manager)
         .manage(session_manager)
         .setup(move |app| {
             log_diagnostic("tauri setup complete");
@@ -2471,6 +2398,7 @@ pub fn run() {
                 app.handle().clone(),
                 connection_manager_for_setup.clone(),
                 session_manager_for_setup.clone(),
+                handoff_manager_for_setup.clone(),
             );
             Ok(())
         })
@@ -2522,6 +2450,8 @@ pub fn run() {
             send_automation_load_batch,
             send_automation_start,
             is_automation_connected,
+            handoff::prepare_nusuk_handoff,
+            handoff::get_automation_status,
             get_system_health
         ])
         .run(tauri::generate_context!())

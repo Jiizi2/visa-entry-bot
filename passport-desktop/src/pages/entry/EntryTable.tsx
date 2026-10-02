@@ -46,7 +46,7 @@ export default function EntryTable({ exportPreview, reviewedMemberIds }: EntryTa
                   <td>
                     <div className="entry-member-name">{memberDisplayName(member)}</div>
                     <div className="entry-member-passport">
-                      <AppIcon name="file" size={13} />
+                      <AppIcon name="file" size={16} />
                       {memberPassport(member) || '-'}
                     </div>
                   </td>
@@ -59,7 +59,7 @@ export default function EntryTable({ exportPreview, reviewedMemberIds }: EntryTa
                   </td>
                   <td>
                     <span className={`status-chip ${statusTone}`}>
-                      <AppIcon name={isReady ? 'check' : status === 'ERROR' ? 'alert' : isReviewed ? 'minus' : 'hourglass'} size={13} />
+                      <AppIcon name={isReady ? 'check' : status === 'ERROR' ? 'alert' : isReviewed ? 'minus' : 'hourglass'} size={16} />
                       {statusLabel}
                     </span>
                   </td>

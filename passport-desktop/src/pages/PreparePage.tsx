@@ -1,3 +1,5 @@
+import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
@@ -306,25 +308,14 @@ export default function PreparePage() {
 
   return (
     <section id="page-prepare" className="page-container prepare-page">
-      <header className="app-page-header">
-        <div className="app-page-header-left">
-          <div className="app-page-header-icon">
-            <AppIcon name="crop" size={20} />
-          </div>
-          <div className="app-page-header-info">
-            <span className="app-page-step-label">Langkah 2 · Siapkan foto</span>
-            <h1 className="app-page-title">Rapikan foto passport</h1>
-            <p className="app-page-subtitle">Putar, potong (crop), atau kompres foto agar teks terbaca jelas oleh OCR.</p>
-          </div>
-        </div>
-      </header>
+      <PageHeader title="Rapikan foto passport" context={items.length > 0 ? `${items.length} foto` : undefined} />
 
       <div className="prepare-workspace">
         
         {/* Left Panel: Photo List */}
         <aside className="prepare-queue workstation-pane" aria-label="Daftar foto passport">
           <div className="p-4 border-b border-slate-300/40 bg-slate-50/50 flex justify-center">
-            <AppIcon name="photo_library" size={24} className="text-slate-600" />
+            <AppIcon name="photo_library" size={20} className="text-slate-600" />
           </div>
           
           <div className="grow overflow-y-auto p-3 flex flex-col gap-4 bg-slate-50/50 items-center">
@@ -340,7 +331,7 @@ export default function PreparePage() {
               return (
                 <button
                   key={item.id}
-                  className={`relative cursor-pointer bg-transparent border-none p-0 outline-none group ${isActive && !isSelectMode ? "before:absolute before:-left-3 before:top-0 before:bottom-0 before:w-1 before:bg-blue-700 before:rounded-r-full" : ""}`}
+                  className="relative cursor-pointer bg-transparent border-none p-0 outline-none group"
                   type="button"
                   onClick={() => {
                     if (isSelectMode) {
@@ -373,7 +364,7 @@ export default function PreparePage() {
                           : 'bg-white border-slate-300 text-slate-400'
                       }`}>
                         {isSelected ? (
-                          <AppIcon name="check" size={10} strokeWidth={3} />
+                          <AppIcon name="check" size={16} />
                         ) : (
                           <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
                         )}
@@ -463,7 +454,7 @@ export default function PreparePage() {
             {!state.isPreparingImages && (
               isSelectMode ? (
                 <div className="prepare-action-bar workstation-toolbar" aria-label="Aksi pilihan foto">
-                  <button 
+                  <Button compact variant="secondary"
                     className="secondary-button"
                     type="button"
                     onClick={() => {
@@ -473,22 +464,22 @@ export default function PreparePage() {
                   >
                     <AppIcon name="arrow_back" size={18} />
                     Batal
-                  </button>
-                  <span className="type-body-strong text-slate-700 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-100 h-10 flex items-center">
+                  </Button>
+                  <span className="type-body-strong bg-blue-50 text-blue-700 px-3 py-1 rounded-md border border-blue-100 h-8 flex items-center">
                     {selectedIds.length} terpilih
                   </span>
 
                   <div className="h-5 w-px bg-slate-300/60 mx-1"></div>
 
-                  <button 
+                  <Button compact variant="secondary"
                     className="secondary-button"
                     type="button"
                     onClick={() => setSelectedIds(items.map((i: any) => String(i.id)))}
                   >
                     <AppIcon name="select_all" size={18} />
                     Semua
-                  </button>
-                  <button 
+                  </Button>
+                  <Button compact variant="secondary"
                     className="secondary-button"
                     type="button"
                     disabled={selectedIds.length === 0}
@@ -496,48 +487,48 @@ export default function PreparePage() {
                   >
                     <AppIcon name="deselect" size={18} />
                     Bersihkan
-                  </button>
+                  </Button>
 
                   <div className="h-5 w-px bg-slate-300/60 mx-1"></div>
 
-                  <button 
-                    className="primary-action !bg-amber-600 hover:!bg-amber-700"
+                  <Button compact variant="primary"
+                    className="primary-action"
                     type="button"
                     disabled={selectedIds.length === 0}
                     onClick={() => setShowBatchEndorseConfirm(true)}
                   >
                     <AppIcon name="folder_special" size={18} />
                     Endorsement ({selectedIds.length})
-                  </button>
-                  <button 
-                    className="primary-action !bg-red-600 hover:!bg-red-700"
+                  </Button>
+                  <Button compact variant="primary"
+                    className="primary-action is-danger"
                     type="button"
                     disabled={selectedIds.length === 0}
                     onClick={() => setShowBatchDeleteConfirm(true)}
                   >
                     <AppIcon name="delete" size={18} />
                     Hapus ({selectedIds.length})
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 activeItem && (
                   <div className="prepare-action-bar workstation-toolbar" aria-label="Alat foto">
-                    <button className="secondary-button !text-blue-700 !bg-blue-50 hover:!bg-blue-100" type="button" onClick={() => {
+                    <Button compact variant="secondary" className="secondary-button !text-blue-700 !bg-blue-50 hover:!bg-blue-100" type="button" onClick={() => {
                       setIsSelectMode(true);
                       setSelectedIds([]);
                     }}>
                       <AppIcon name="checklist" size={18} />
                       Pilih Banyak
-                    </button>
+                    </Button>
                     <div className="h-5 w-px bg-slate-300/60 mx-1"></div>
                     
-                    <button className="secondary-button" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
+                    <Button compact variant="secondary" className="secondary-button" onClick={() => setIsCropping(true)} disabled={!activeImageData.dataUrl}>
                       <AppIcon name="crop" size={18} />
                       Crop
-                    </button>
+                    </Button>
 
                     {/* Rotation Group */}
-                    <div className="flex border border-slate-300/60 rounded-lg overflow-hidden shadow-sm bg-white h-10">
+                    <div className="flex border border-slate-300/60 rounded-md overflow-hidden bg-slate-50 h-8">
                       <button className="flex items-center justify-center w-9 h-full text-slate-700 hover:bg-slate-100 hover:text-blue-700 active:scale-95 cursor-pointer border-none border-r border-slate-200 disabled:opacity-40" onClick={() => handleRotate(-90)} disabled={!activeImageData.dataUrl} title="Putar Kiri">
                         <AppIcon name="rotate_left" size={18} />
                       </button>
@@ -546,29 +537,29 @@ export default function PreparePage() {
                       </button>
                     </div>
 
-                    <button className="secondary-button" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
+                    <Button compact variant="secondary" className="secondary-button" onClick={() => setShowEndorseConfirm(true)} disabled={!activeImageData.dataUrl}>
                       <AppIcon name="folder_special" size={18} />
                       Endorsement
-                    </button>
+                    </Button>
 
                     {activeImageData.dataUrl && getFileSizeInfo(activeImageData.dataUrl).isOversize && (
-                      <button className="secondary-button !text-amber-700 !bg-amber-50 hover:!bg-amber-100" onClick={handleCompress}>
+                      <Button compact variant="secondary" className="secondary-button !text-amber-700 !bg-amber-50 hover:!bg-amber-100" onClick={handleCompress}>
                         <AppIcon name="compress" size={18} />
                         Kompres
-                      </button>
+                      </Button>
                     )}
 
-                    <button className="secondary-button !text-red-700 !bg-red-50 hover:!bg-red-100" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
+                    <Button compact variant="secondary" className="secondary-button !text-red-700 !bg-red-50 hover:!bg-red-100" onClick={() => setShowDeleteConfirm(true)} disabled={!activeImageData.dataUrl}>
                       <AppIcon name="delete" size={18} />
                       Hapus
-                    </button>
+                    </Button>
                     
                     {/* Find next item for "Berikutnya" */}
                     {(() => {
                       const currentIndex = items.findIndex((i: any) => String(i.id) === state.activePreparedItemId);
                       const hasNext = currentIndex >= 0 && currentIndex < items.length - 1;
                       return (
-                        <button 
+                        <Button compact variant="secondary"
                           className="secondary-button" 
                           type="button"
                           disabled={!hasNext}
@@ -578,7 +569,7 @@ export default function PreparePage() {
                         >
                           Berikutnya
                           <AppIcon name="navigate_next" size={18} />
-                        </button>
+                        </Button>
                       );
                     })()}
                   </div>
@@ -595,13 +586,13 @@ export default function PreparePage() {
             </p>
             {error && <div className="text-red-600 type-body-strong m-0 mb-2.5 p-2.5 bg-red-600/10 rounded-md border border-red-600/30">{error}</div>}
             <div className="flex gap-4">
-              <button className="secondary-button" type="button" onClick={() => updateState({ currentPage: 'import' })}>
+              <Button variant="secondary" className="secondary-button" type="button" onClick={() => updateState({ currentPage: 'import' })}>
                 Kembali Folder
-              </button>
-              <button className="primary-action" type="button" onClick={handleStartScan} disabled={state.isScanning || state.isPreparingImages}>
+              </Button>
+              <Button variant="primary" className="primary-action" type="button" onClick={handleStartScan} disabled={state.isScanning || state.isPreparingImages}>
                 Start Scan
                 <AppIcon name="arrow_forward" size={20} />
-              </button>
+              </Button>
             </div>
           </div>
           
@@ -627,12 +618,12 @@ export default function PreparePage() {
               <p>Apakah Anda yakin ingin menghapus foto ini? Tindakan ini tidak dapat dibatalkan.</p>
             </div>
             <div className="modal-footer">
-              <button className="secondary-button" onClick={() => setShowDeleteConfirm(false)}>
+              <Button variant="secondary" className="secondary-button" onClick={() => setShowDeleteConfirm(false)}>
                 Batal
-              </button>
-              <button className="primary-action !bg-red-600 hover:!bg-red-700" onClick={handleDelete}>
+              </Button>
+              <Button variant="primary" className="primary-action is-danger" onClick={handleDelete}>
                 Hapus
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -652,12 +643,12 @@ export default function PreparePage() {
               </p>
             </div>
             <div className="modal-footer">
-              <button className="secondary-button" onClick={() => setShowEndorseConfirm(false)}>
+              <Button variant="secondary" className="secondary-button" onClick={() => setShowEndorseConfirm(false)}>
                 Batal
-              </button>
-              <button className="primary-action !bg-amber-600 hover:!bg-amber-700" onClick={handleEndorse}>
+              </Button>
+              <Button variant="primary" className="primary-action" onClick={handleEndorse}>
                 Pindahkan
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -677,12 +668,12 @@ export default function PreparePage() {
               </p>
             </div>
             <div className="modal-footer">
-              <button className="secondary-button" onClick={() => setShowBatchEndorseConfirm(false)}>
+              <Button variant="secondary" className="secondary-button" onClick={() => setShowBatchEndorseConfirm(false)}>
                 Batal
-              </button>
-              <button className="primary-action !bg-amber-600 hover:!bg-amber-700" onClick={handleBatchEndorse}>
+              </Button>
+              <Button variant="primary" className="primary-action" onClick={handleBatchEndorse}>
                 Pindahkan Semua
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -700,12 +691,12 @@ export default function PreparePage() {
               <p>Apakah Anda yakin ingin menghapus <strong>{selectedIds.length} foto</strong> terpilih? Tindakan ini tidak dapat dibatalkan.</p>
             </div>
             <div className="modal-footer">
-              <button className="secondary-button" onClick={() => setShowBatchDeleteConfirm(false)}>
+              <Button variant="secondary" className="secondary-button" onClick={() => setShowBatchDeleteConfirm(false)}>
                 Batal
-              </button>
-              <button className="primary-action !bg-red-600 hover:!bg-red-700" onClick={handleBatchDelete}>
+              </Button>
+              <Button variant="primary" className="primary-action is-danger" onClick={handleBatchDelete}>
                 Hapus Semua
-              </button>
+              </Button>
             </div>
           </div>
         </div>
