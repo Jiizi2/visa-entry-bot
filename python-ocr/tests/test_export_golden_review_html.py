@@ -6,10 +6,35 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from export_golden_review_html import build_review_html  # noqa: E402
+from export_golden_review_html import _image_src, build_review_html  # noqa: E402
 
 
 class ExportGoldenReviewHtmlTests(unittest.TestCase):
+    def test_image_src_uses_relative_path_on_same_drive(self) -> None:
+        image_src = _image_src(
+            str(Path("passports/A & B.png").resolve()),
+            output=Path("review/output.html"),
+        )
+
+        self.assertEqual(image_src, "../passports/A%20%26%20B.png")
+
+    @unittest.skipUnless(sys.platform == "win32", "Requires Windows drive letters")
+    def test_build_review_html_links_images_across_drives(self) -> None:
+        html = build_review_html(
+            {
+                "candidates": [
+                    {
+                        "fileName": "A & B.png",
+                        "sourcePath": "C:/passports/A & B.png",
+                    },
+                ],
+            },
+            output=Path("D:/review/output.html"),
+        )
+
+        self.assertIn('href="file:///C:/passports/A%20%26%20B.png"', html)
+        self.assertIn('src="file:///C:/passports/A%20%26%20B.png"', html)
+
     def test_build_review_html_renders_image_and_expected_fields(self) -> None:
         html = build_review_html(
             {

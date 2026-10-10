@@ -487,6 +487,9 @@ def _image_src(source_path: str, *, output: Path | None) -> str:
         try:
             relative = os.path.relpath(source.resolve(), output.parent.resolve())
             return quote(relative.replace(os.sep, "/"), safe="/:._-")
+        except ValueError:
+            # Windows cannot make a relative path between different drives.
+            return source.resolve().as_uri()
         except OSError:
             pass
     return quote(source.as_posix(), safe="/:._-")
