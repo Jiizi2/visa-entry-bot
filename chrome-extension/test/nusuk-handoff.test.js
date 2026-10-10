@@ -70,6 +70,17 @@ test('Mutamer List and an existing Add Mutamer form stay on their current docume
   }
 });
 
+test('continuing after skip discards the old form and waits for a fresh list document', async () => {
+  const h = navigationHarness();
+  h.current.url = 'https://masar.nusuk.sa/umrah/mutamer/add-mutamer';
+  let checks = 0;
+  h.chrome.tabs.sendMessage = async () => ({ pageStatus: 'ready', contentReady: !h.mutations.length || ++checks > 1 });
+  await h.handoff.prepareEntry(h.current, { forceFresh: true });
+  assert.equal(h.current.url, tab(10).url);
+  assert.equal(h.mutations.length, 1);
+  assert.equal(h.ticks(), 1);
+});
+
 test('an entry document still recovering its batch is waited on without another navigation', async () => {
   const h = navigationHarness(); h.current.url = tab(10).url;
   h.chrome.tabs.sendMessage = async () => ({ pageStatus: 'ready', contentReady: h.ticks() > 0 });

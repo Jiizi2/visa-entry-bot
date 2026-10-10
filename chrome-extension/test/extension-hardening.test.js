@@ -267,10 +267,16 @@ test("manual photos cannot follow a different batch even when the filename is id
   assert.equal(store.getUploadState().uploadFileCount, 0);
 });
 
-test("manifest rejects shared passport identities, shared images, and names that would be truncated", () => {
+test("manifest rejects shared identities and images but warns about long names and contact format", () => {
   const root = loadBrowserScripts(["content/manifest-validator.js"]);
   assert.throws(() => root.manifestValidator.validateManifestForEntry({ members: [validMember(), validMember({ id: "member-2" })] }), /nomor paspor duplikat.*file paspor dipakai/s);
-  assert.throws(() => root.manifestValidator.validateManifestForEntry({ members: [validMember({ resolvedProfile: { firstName: "ABCDEFGHIJKLMNOP" } })] }), /nama tidak boleh dipotong/);
+  const profile = { firstName: "ABCDEFGHIJKLMNOP", email: "ali@local", mobileNumber: "1234567" };
+  const result = root.manifestValidator.validateManifestForEntry({ schemaVersion: "nusuk-entry-batch-v1", members: [validMember({ resolvedProfile: profile })] });
+  assert.equal(result.valid, true);
+  assert.equal(result.warnings.length, 3);
+  assert.match(result.warnings[0], /melebihi 15 karakter/);
+  assert.match(result.warnings[1], /format email perlu diperiksa/);
+  assert.match(result.warnings[2], /nomor HP terlihat pendek/);
 });
 
 test("looksLikeUploadError distinguishes between hints and actual errors", () => {

@@ -56,7 +56,7 @@ File JSON menyertakan data jamaah yang sudah direview dan path gambar passport d
 2. Tahan dan seret file pada halaman Entry desktop ke area **Letakkan file JSON di sini** di panel extension.
 3. Tunggu konfirmasi jumlah jamaah dan periksa folder serta jamaah pertama.
 4. Pilih **Mulai pengisian** di panel atau widget extension. Dari Group List, extension membuka Mu'tamer List pada tab yang sama sebelum memulai.
-5. Pilih **Jeda**, **Lanjutkan**, atau **Ulangi yang gagal** sesuai status di extension.
+5. Periksa status setiap jamaah di **Daftar nama entry**. Jika proses berhenti, pilih **Lanjutkan sisa** untuk mencoba jamaah yang sama atau **Lewati & lanjutkan** untuk mengerjakan nama berikutnya. Saat proses masih berjalan, pilih **Jeda** terlebih dahulu. Setelah antrean selesai, gunakan **Ulangi gagal / dilewati** untuk mencoba kembali nama yang ditunda.
 
 **Pilih file JSON** tetap tersedia sebagai alternatif. Di desktop, **Buka folder file** langsung menampilkan lokasi file sehingga operator tidak perlu mencari sendiri. File yang tidak valid ditolak sebelum batch diganti. Batch aktif, dijeda, atau memiliki hasil simpan yang belum terkonfirmasi harus diperiksa dan direset sebelum menerima file baru. Batch dan checkpoint disimpan per tab; tab lain tidak memulihkan batch tersebut.
 

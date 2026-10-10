@@ -198,17 +198,27 @@
         finishStep(step, selector);
         return;
       }
+      let filled = false;
       for (let attempt = 0; ; attempt++) {
         await checkpoint(runId);
         markActiveElement(input);
         setInputValue(input, value);
-        if (String(input.value || "").trim() === value) break;
+        if (String(input.value || "").trim() === value) {
+          filled = true;
+          break;
+        }
         if (attempt >= 2) {
-          throw root.identityGuard.identityError(`nilai kolom ${selector} tidak tersimpan utuh setelah pengisian ulang`);
+          const field = String(step?.value || "").match(/member\.resolvedProfile\.([^}]+)/)?.[1];
+          const labels = { firstName: "nama depan Inggris", fatherName: "nama ayah Inggris", grandfatherName: "nama kakek Inggris", familyName: "nama keluarga Inggris",
+            "arabic.firstName": "nama depan Arab", "arabic.fatherName": "nama ayah Arab", "arabic.grandfatherName": "nama kakek Arab", "arabic.familyName": "nama keluarga Arab",
+            cityOfIssued: "kota penerbit paspor", profession: "profesi", birthCity: "kota lahir", email: "email" };
+          const fieldLabel = labels[field] || input.getAttribute?.("placeholder") || "data jamaah";
+          root.identityGuard.recordDataWarning(context, `fill_${selector}`, `nilai kolom ${fieldLabel} tidak tersimpan utuh setelah pengisian ulang`);
+          break;
         }
         await sleep(200, runId);
       }
-      appendLog("success", `Filled ${selector} with ${value}`);
+      if (filled) appendLog("success", `Filled ${selector} with ${value}`);
       finishStep(step, selector);
     }
 

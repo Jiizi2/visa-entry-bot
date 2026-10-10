@@ -371,7 +371,7 @@
         const stage = detectNusukStage();
         if (stage !== beforeStage) return true;
         const guard = root.identityGuard;
-        const identityCheck = { 1: "verifyPassportIdentity", 2: "verifyMemberNames", 4: "verifySummaryIdentity" }[stage];
+        const identityCheck = { 1: "verifyPassportIdentity", 2: "checkMemberNames", 4: "verifySummaryIdentity" }[stage];
         if (identityCheck) {
           await guard.waitForIdentityCheck(identityCheck, context, {
             checkpoint, sleep, runId, timeoutMs: Math.min(15000, Math.max(0, deadline - Date.now())),
@@ -381,8 +381,8 @@
         } else if (stage !== 3) {
           throw guard.identityError("tahap halaman Nusuk tidak dapat diverifikasi");
         }
-        // Disclosure has no identity fields; the following Summary verifies the
-        // active passport, reviewed name and attachment before the final save.
+        // Disclosure has no identity fields. Summary requires the active passport
+        // and reports name or unavailable attachment evidence before the save.
         markActiveElement(button);
         if (stage === 4) {
           await root.submissionGuard.submitOnce({

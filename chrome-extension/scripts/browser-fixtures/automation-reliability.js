@@ -88,7 +88,7 @@ window.runAutomationReliabilityTests = async function (test, assert, field) {
         root.domUtils.findFirstVisible(root.identityGuard.nameSelector(0, "en")).addEventListener("change", event => { event.target.value = "LUZERMAN"; });
       }
       document.getElementById("next").addEventListener("click", () => {
-        root.identityGuard.verifyMemberNames({ member: activeMember, identityEvidence: { passportNumber: profile.passportNumber, passportName: `${profile.firstName} ${profile.familyName}` } });
+        if (!(options.refusesName && activeMember.id === "10")) root.identityGuard.verifyMemberNames({ member: activeMember, identityEvidence: { passportNumber: profile.passportNumber, passportName: `${profile.firstName} ${profile.familyName}` } });
         filledNames.set(activeMember.id, [0, 1, 2, 3].map(index => root.domUtils.findFirstVisible(root.identityGuard.nameSelector(index, "en")).value).filter(Boolean).join(" "));
         transition(disclosure);
       });
@@ -103,7 +103,8 @@ window.runAutomationReliabilityTests = async function (test, assert, field) {
       const member = activeMember, profile = member.resolvedProfile;
       const name = options.wrongSummaryName && member.id === "10" ? "LUZERMAN" : filledNames.get(member.id);
       const filename = options.wrongSummaryFile && member.id === "10" ? "other.jpeg" : member.fileName;
-      surface.innerHTML = `<div class="card"><h2 class="title">Summary</h2>${field("Passport Number", profile.passportNumber)}${field("Full Name", name)}${field("Passport Image", filename)}${nextButton()}</div>`;
+      const details = options.hiddenSummaryData && member.id === "10" ? "" : field("Full Name", name) + field("Passport Image", filename);
+      surface.innerHTML = `<div class="card"><h2 class="title">Summary</h2>${field("Passport Number", profile.passportNumber)}${details}${nextButton()}</div>`;
       if (options.hiddenOldInput) surface.insertAdjacentHTML("beforeend", '<div hidden class="passport-upload-section"><input type="file" accept="image/jpeg"></div>');
       document.getElementById("next").addEventListener("click", () => {
         submitted.push(member.id);
@@ -162,6 +163,9 @@ window.runAutomationReliabilityTests = async function (test, assert, field) {
     ["SUHERMAN consistently misread as LUZERMAN on passport 10", { suherman: true }],
     ["permanently misread OCR names on every passport", { misreadAllNames: true }],
     ["name fields changed by Nusuk after the production fill steps", { resetFilledNames: true }],
+    ["a Summary name that still differs from the reviewed name", { wrongSummaryName: true, suherman: true }],
+    ["a name control that refuses correction", { refusesName: true, suherman: true }],
+    ["Summary names and attachment filenames that are not displayed", { hiddenSummaryData: true }],
   ]) {
     await test(`all 16 passports save exactly once with ${label}`, async () => {
       const h = fixture(options);
@@ -173,12 +177,18 @@ window.runAutomationReliabilityTests = async function (test, assert, field) {
         assert(h.state.progressCurrent === 16 && h.state.completedMemberIds.length === 16, "The batch stopped before passport 16");
         assert(!h.state.pendingSubmission && !h.state.currentRunPayload, "The completed batch retained a pending save or queue");
         if (options.suherman) {
-          assert(h.filledNames.get("10") === "SUHERMAN SUHERMAN", "LUZERMAN reached Summary instead of the reviewed single-name fields");
+          if (!options.refusesName) assert(h.filledNames.get("10") === "SUHERMAN SUHERMAN", "The accepted name fields did not follow the reviewed profile");
           const note = h.state.autofillNameCorrections.find(note => note.memberId === "10");
           assert(note?.observedName === "LUZERMAN" && note.expectedName === "SUHERMAN SUHERMAN", "The reported OCR correction was lost");
           assert(h.logs.some(log => log.message.includes("Catatan OCR Nusuk")), "The correction was absent from the final report");
         }
         if (options.misreadAllNames) assert(h.state.autofillNameCorrections.length === 16, "Some corrected OCR names were lost or recorded twice");
+        if (options.wrongSummaryName || options.refusesName || options.hiddenSummaryData) {
+          const warnings = h.state.autofillDataWarnings;
+          assert(warnings.length > 0 && warnings.every(note => note.memberId === "10"), "Warnings did not identify the affected passport");
+          assert(new Set(warnings.map(note => note.key)).size === warnings.length, "Repeated checks duplicated warnings");
+          assert(h.logs.some(log => log.level === "warning" && log.message.includes("Periksa hasil paspor X0000010")), "The final review reminder was missing");
+        }
       } finally { h.restore(); }
     });
   }
@@ -186,8 +196,6 @@ window.runAutomationReliabilityTests = async function (test, assert, field) {
     ["a different passport number", { wrongNumber: true, suherman: true }, /Nomor paspor.*berbeda/],
     ["a wrong selected file", { wrongSelectedFile: true, suherman: true }, /file paspor terpilih.*berbeda/],
     ["a wrong Summary attachment", { wrongSummaryFile: true, suherman: true }, /File paspor.*berbeda/],
-    ["a Summary name that is still LUZERMAN", { wrongSummaryName: true, suherman: true }, /Nama pada ringkasan.*berbeda/],
-    ["a name control that refuses every correction", { refusesName: true, suherman: true }, /tidak tersimpan utuh setelah pengisian ulang/],
   ]) {
     await test(`${label} on passport 10 stops before Save and preserves the remaining seven`, async () => {
       const h = fixture(options);

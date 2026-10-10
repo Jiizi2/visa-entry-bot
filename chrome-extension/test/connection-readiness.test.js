@@ -57,7 +57,7 @@ test('a tab without a content listener gets a bounded wait and a refresh instruc
 });
 
 test('batch changes and automation commands are never replayed by connection recovery', async () => {
-  for (const type of ['NUSUK_PANEL_UPLOAD_MANIFEST', 'NUSUK_PANEL_START_AUTOFILL', 'NUSUK_PANEL_RESTART_FAILED', 'NUSUK_PANEL_RESET_AUTOFILL']) {
+  for (const type of ['NUSUK_PANEL_UPLOAD_MANIFEST', 'NUSUK_PANEL_START_AUTOFILL', 'NUSUK_PANEL_RESTART_FAILED', 'NUSUK_PANEL_RESET_AUTOFILL', 'NUSUK_PANEL_SKIP_MEMBER']) {
     const h = backgroundHarness(message => {
       if (message.type === 'NUSUK_QUERY_CONTEXT') return { pageStatus: 'ready', contentReady: true, hasManifest: true };
       throw missingReceiver();

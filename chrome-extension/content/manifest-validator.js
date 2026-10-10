@@ -78,7 +78,7 @@
     const seenPassports = new Set();
     const seenImages = new Set();
     manifest.members.forEach((member, index) => {
-      validateMember(member, index, seenIds, errors);
+      validateMember(member, index, seenIds, errors, warnings);
       const passport = stringValue(member?.resolvedProfile?.passportNumber).toUpperCase().replace(/\s/g, "");
       const image = stringValue(member?.passportImagePath || member?.fileName).replace(/\\/g, "/").toLowerCase();
       if (passport && seenPassports.has(passport)) errors.push(`members[${index + 1}] nomor paspor duplikat: ${passport}.`);
@@ -95,7 +95,7 @@
     };
   }
 
-  function validateMember(member, index, seenIds, errors) {
+  function validateMember(member, index, seenIds, errors, warnings) {
     const label = `members[${index + 1}]`;
     if (!member || typeof member !== "object" || Array.isArray(member)) {
       errors.push(`${label} harus berupa object.`);
@@ -137,7 +137,7 @@
     }
     for (const field of ["firstName", "fatherName", "grandfatherName"]) {
       if (stringValue(profile[field]).length > 15) {
-        errors.push(`${memberLabel(member, label)} kolom ${field} melebihi 15 karakter; nama tidak boleh dipotong otomatis.`);
+        warnings.push(`${memberLabel(member, label)} kolom ${field} melebihi 15 karakter; periksa hasil nama di Nusuk karena kolom dapat membatasi panjangnya.`);
       }
     }
 
@@ -159,12 +159,12 @@
 
     const email = stringValue(profile.email);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.push(`${memberLabel(member, label)} email tidak valid.`);
+      warnings.push(`${memberLabel(member, label)} format email perlu diperiksa. Pengisian tetap dilanjutkan.`);
     }
 
     const phoneDigits = stringValue(profile.mobileNumber).replace(/\D/g, "");
     if (phoneDigits && phoneDigits.length < 8) {
-      errors.push(`${memberLabel(member, label)} nomor HP terlalu pendek.`);
+      warnings.push(`${memberLabel(member, label)} nomor HP terlihat pendek. Pengisian tetap dilanjutkan; periksa nomor di Nusuk.`);
     }
   }
 

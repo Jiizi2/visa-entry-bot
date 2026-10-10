@@ -51,7 +51,8 @@
     function postPanelState() {
       const { uploadFileCount, uploadFileNames } = getUploadState();
       const completed = new Set((state.completedMemberIds || []).map(String));
-      const remaining = (state.currentRunPayload?.members || []).filter(member => member && !completed.has(String(member.id)));
+      const deferred = new Set((state.autofillFailures || []).filter(failure => failure.deferred).map(failure => String(failure.memberId)));
+      const remaining = (state.currentRunPayload?.members || []).filter(member => member && !completed.has(String(member.id)) && !deferred.has(String(member.id)));
       const snapshot = {
         manifest: state.manifest,
         selectedMemberId: state.selectedMemberId,
@@ -61,7 +62,9 @@
         resumeAvailable: remaining.length > 0,
         remainingMemberCount: remaining.length,
         nextMemberId: String(remaining[0]?.id || ""),
+        queuedMemberIds: remaining.map(member => String(member.id)),
         submissionResolutionInProgress: Boolean(state.submissionResolutionInProgress),
+        queueUpdateInProgress: Boolean(state.queueUpdateInProgress),
         panelWidth: state.panelWidth,
         uploadFileCount,
         uploadFileNames,
@@ -115,9 +118,11 @@
           progressCurrent: state.progressCurrent,
           progressTotal: state.progressTotal,
           logs: state.logs,
-          autofillFailures: Array.isArray(state.autofillFailures) ? state.autofillFailures.slice(-100) : [],
+          autofillFailures: Array.isArray(state.autofillFailures) ? state.autofillFailures : [],
+          freshEntryRequired: Boolean(state.freshEntryRequired),
           autofillAttemptFailures: Array.isArray(state.autofillAttemptFailures) ? state.autofillAttemptFailures.slice(-100) : [],
           autofillNameCorrections: state.autofillNameCorrections || [],
+          autofillDataWarnings: state.autofillDataWarnings || [],
           autofillFailureScreenshots: Array.isArray(state.autofillFailureScreenshots) ? state.autofillFailureScreenshots.slice(-3) : [],
           currentRunPayload: state.currentRunPayload,
           revision: state.revision || 0,

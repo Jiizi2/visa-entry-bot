@@ -34,6 +34,10 @@
   const rejects = async (action, expected) => { try { await action(); } catch (error) { assert(expected.test(error.message), error.message); return; } throw new Error("Expected a safety block"); };
   const test = async (name, action) => { try { await action(); results.push({ name, ok: true }); } catch (error) { results.push({ name, ok: false, error: error.stack || error.message }); } };
   const field = (label, value, id) => `<div class="field"><span>${label}</span><p${id ? ` id="${id}"` : ""}>${value}</p></div>`;
+  const expectSummaryWarning = (ctx, pattern) => {
+    guard.verifySummaryIdentity(ctx);
+    assert(ctx.identityEvidence.dataWarnings.some(note => pattern.test(note.message)), "The data discrepancy was not reported");
+  };
   const summary = () => { surface.innerHTML = `<div class="card"><h2 class="title">Summary</h2>${field("Passport Number", "X1234567")}${field("Full Name", "ALI BUDI", "summary-name")}${field("Passport Image", '<span id="attachment">demo.jpeg</span><br><small>.jpeg · 173378</small>')}<div class="action-buttons"><div class="navigation-buttons"><button id="next">Next</button></div></div></div>`; };
   function form(value = profile, groups = ["firstName", "secondName", "thirdName", "familyName"]) {
     surface.innerHTML = `<input formcontrolname="passportNumber" value="${value.passportNumber}">`;
@@ -144,7 +148,7 @@
       surface.innerHTML = field("Passport Number", value.passportNumber) + field("Full Name", complete, "summary-name") + field("Passport Image", "demo.jpeg");
       guard.verifySummaryIdentity(ctx);
       document.getElementById("summary-name").textContent = observed.filter(Boolean).join(" ");
-      await rejects(() => guard.verifySummaryIdentity(ctx), /Nama pada ringkasan.*berbeda/);
+      expectSummaryWarning(ctx, /Nama pada ringkasan.*berbeda/);
     });
   }
   await test("misread, reordered or truncated OCR words can be corrected by production name steps", async () => {
@@ -243,19 +247,19 @@
     document.getElementById("attachment").textContent = "Document 2.png";
     guard.verifySummaryIdentity(ctx);
   });
-  await test("an unrelated identity elsewhere on the page cannot replace labeled evidence", async () => {
+  await test("summary name warnings use labeled evidence instead of unrelated page text", async () => {
     summary(); document.getElementById("summary-name").textContent = "OTHER PERSON"; surface.insertAdjacentHTML("beforeend", '<h1>ALI BUDI X1234567</h1>');
-    await rejects(() => guard.verifySummaryIdentity(summaryContext()), /Nama pada ringkasan.*berbeda/);
+    expectSummaryWarning(summaryContext(), /Nama pada ringkasan.*berbeda/);
   });
   await test("a mismatched passport attachment is blocked before submit", async () => {
     summary(); document.getElementById("attachment").textContent = "other-person.jpeg";
     await rejects(() => guard.verifySummaryIdentity(summaryContext()), /File paspor.*berbeda/);
   });
-  await test("correct full name cannot hide incorrect split name labels", async () => {
+  await test("incorrect split names remain visible as warnings when the full name matches", async () => {
     summary(); surface.insertAdjacentHTML("beforeend", field("First Name", "OTHER"));
-    await rejects(() => guard.verifySummaryIdentity(summaryContext()), /firstName pada ringkasan berbeda/);
+    expectSummaryWarning(summaryContext(), /firstName pada ringkasan berbeda/);
   });
-  await test("a summary waits for an empty split name even when its full name has already loaded", async () => {
+  await test("an empty summary split name warns without blocking a single save", async () => {
     summary(); surface.insertAdjacentHTML("beforeend", field("First Name", "", "summary-first"));
     let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
     const h = navigation({ onSleep: clock => {
@@ -263,8 +267,10 @@
       if (clicks && clock >= 1400) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>';
     } });
     try {
-      await h.nav.clickNextButtonRobust(3000, 1, summaryContext());
-      assert(clicks === 1 && h.stored.length === 1, "A partly rendered split name was saved early or more than once");
+      const ctx = summaryContext();
+      await h.nav.clickNextButtonRobust(3000, 1, ctx);
+      assert(clicks === 1 && h.stored.length === 1, "The warning blocked saving or caused a duplicate save");
+      assert(ctx.identityEvidence.dataWarnings.some(note => note.key === "summary_name_firstName"), "The empty name was not reported");
     } finally { h.restore(); }
   });
   await test("split summary labels support explicit empty middle fields", () => {
@@ -327,11 +333,8 @@
   await test("a resumed Summary with different or missing identity never clicks Save", async () => {
     for (const [fieldIndex, value, expected] of [
       [0, "OTHER", /Nomor paspor.*berbeda/],
-      [1, "OTHER PERSON", /Nama pada ringkasan.*berbeda/],
       [2, "other.jpeg", /File paspor.*berbeda/],
       [0, "", /Nomor paspor.*tidak dapat diverifikasi/],
-      [1, "", /nama pada ringkasan.*tidak dapat diverifikasi/],
-      [2, "", /File paspor.*tidak dapat diverifikasi/],
     ]) {
       summary(); surface.querySelectorAll(".field p")[fieldIndex].textContent = value;
       let saves = 0; document.getElementById("next").addEventListener("click", () => saves++);

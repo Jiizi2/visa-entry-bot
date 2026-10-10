@@ -62,6 +62,12 @@ test("a different Nusuk OCR name is recorded without blocking the reviewed name 
   h.guard.verifyMemberNames(h.context);
 });
 
+function assertSummaryWarning(h, pattern) {
+  h.context.identityEvidence.dataWarnings = [];
+  h.guard.verifySummaryIdentity(h.context);
+  assert.ok(h.context.identityEvidence.dataWarnings.some(note => pattern.test(note.message)));
+}
+
 function reportedNameHarness() {
   return identityHarness({
     passportNumber: "C8640496", firstName: "DIAH", fatherName: "PURNAMAWATI ALI", grandfatherName: "", familyName: "ANYANG",
@@ -69,7 +75,7 @@ function reportedNameHarness() {
   });
 }
 
-test("SUHERMAN misread as LUZERMAN uses reviewed single-name fields and still requires them on Summary", () => {
+test("SUHERMAN misread as LUZERMAN uses reviewed fields and warns when Summary still differs", () => {
   const h = identityHarness({ firstName: "SUHERMAN", fatherName: "", grandfatherName: "", familyName: "SUHERMAN" });
   h.guard.recordPassportUpload(h.context, h.context.member.passportImagePath, "fatih.jpeg");
   h.inputs["firstName.en"].value = "LUZERMAN";
@@ -80,7 +86,7 @@ test("SUHERMAN misread as LUZERMAN uses reviewed single-name fields and still re
   h.formFromProfile();
   h.guard.verifyMemberNames(h.context);
   h.label("Full Name", "LUZERMAN"); h.label("Passport Image", "fatih.jpeg");
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /Nama pada ringkasan.*berbeda/);
+  assertSummaryWarning(h, /Nama pada ringkasan.*berbeda/);
   h.labels[0].parentElement.textContent = "Full Name\nSUHERMAN SUHERMAN";
   h.guard.verifySummaryIdentity(h.context);
 });
@@ -135,7 +141,7 @@ test("names changed after filling are corrected with bounded retries and a fresh
   assert.equal(h.inputs["firstName.en"].value, "OTHER");
 });
 
-test("name repair stops after two corrections, cancellation, page changes, or an unknown destination", async () => {
+test("name repair warns after two corrections but stops on cancellation, page changes, or unknown destinations", async () => {
   for (const problem of ["rejected", "cancelled", "page_changed", "missing"]) {
     const h = identityHarness(); h.guard.verifyPassportName(h.context);
     h.inputs["firstName.en"].value = "OTHER";
@@ -146,9 +152,31 @@ test("name repair stops after two corrections, cancellation, page changes, or an
       checkpoint: async () => { if (problem === "cancelled") throw new Error("cancelled"); },
       sleep: async () => {}, runId: 1, isCurrentForm: () => problem !== "page_changed",
     };
-    await assert.rejects(h.guard.ensureMemberNames(h.context, options), problem === "cancelled" ? /cancelled/ : /Entry dihentikan/);
+    if (problem === "rejected") {
+      await h.guard.ensureMemberNames(h.context, options);
+      h.guard.checkMemberNames(h.context);
+      assert.equal(h.context.identityEvidence.dataWarnings.length, 1);
+      assert.match(h.context.identityEvidence.dataWarnings[0].message, /firstName.*masih berisi nama lain/);
+    } else {
+      await assert.rejects(h.guard.ensureMemberNames(h.context, options), problem === "cancelled" ? /cancelled/ : /Entry dihentikan/);
+    }
     assert.equal(writes, problem === "rejected" ? 2 : 0);
   }
+});
+
+test("relaxed member-name checks report each discrepancy once and still block wrong passports or revoked reviews", () => {
+  const h = identityHarness(); h.guard.verifyPassportName(h.context);
+  const warnings = []; h.context.onDataWarning = note => warnings.push(note);
+  h.inputs["firstName.en"].value = "OTHER";
+  h.inputs["thirdName.ar"].value = "OLD";
+  h.guard.checkMemberNames(h.context); h.guard.checkMemberNames(h.context);
+  assert.equal(warnings.length, 2);
+  assert.equal(h.context.identityEvidence.dataWarnings.length, 2);
+  h.inputs.passport.value = "OTHER";
+  assert.throws(() => h.guard.checkMemberNames(h.context), /Nomor paspor.*berbeda/);
+  h.inputs.passport.value = "E4332864";
+  h.context.member.reviewConfirmed = false;
+  assert.throws(() => h.guard.checkMemberNames(h.context), /belum dikonfirmasi melalui review/);
 });
 
 test("reported passport with blank Nusuk middle names can use the reviewed complete name", () => {
@@ -272,7 +300,7 @@ test("blank or misread OCR names do not consume an identity timeout before revie
   assert.equal(h.context.identityEvidence.nameCorrection.observedName, "OTHER");
 });
 
-test("empty destination and split-summary names wait for rendering but never accept another name", async () => {
+test("name repair can wait for rendering while split-summary differences are immediate warnings", async () => {
   const h = identityHarness(); h.guard.verifyPassportName(h.context);
   h.inputs["firstName.en"].value = "";
   let wait = readinessHarness(h, { onSleep: clock => { if (clock >= 360) h.formFromProfile(); } });
@@ -281,11 +309,13 @@ test("empty destination and split-summary names wait for rendering but never acc
   h.label("Full Name", "FATIH RAFAIZAN ARDIAN"); h.label("First Name", ""); h.label("Passport Image", "fatih.jpeg");
   wait = readinessHarness(h, { onSleep: clock => { if (clock >= 360) h.labels[1].parentElement.textContent = "First Name\nFATIH RAFAIZAN"; } });
   await h.guard.waitForIdentityCheck("verifySummaryIdentity", h.context, wait.options);
-  assert.equal(wait.elapsed(), 360);
+  assert.equal(wait.elapsed(), 0);
+  assert.match(h.context.identityEvidence.dataWarnings[0].message, /firstName pada ringkasan berbeda/);
   h.labels[1].parentElement.textContent = "First Name\nOTHER";
   wait = readinessHarness(h);
-  await assert.rejects(h.guard.waitForIdentityCheck("verifySummaryIdentity", h.context, wait.options), /firstName pada ringkasan berbeda/);
-  assert.equal(wait.elapsed(), 900);
+  await h.guard.waitForIdentityCheck("verifySummaryIdentity", h.context, wait.options);
+  assert.equal(wait.elapsed(), 0);
+  assert.equal(h.context.identityEvidence.dataWarnings.length, 1);
 });
 
 test("a persistent conflicting number is rejected after the rendering wait without recording evidence", async () => {
@@ -507,13 +537,13 @@ test("a complete passport name with a different column distribution is accepted"
   assert.throws(() => h.guard.verifyMemberNames(h.context), /fatherName.*terpotong/);
 });
 
-test("missing middle names at upload still require the complete reviewed name on the summary", () => {
+test("missing reviewed middle names on the summary are flagged without stopping", () => {
   const h = reportedNameHarness();
   h.inputs["secondName.en"].value = "";
   h.guard.verifyPassportName(h.context);
   h.label("Passport Image", "fatih.jpeg");
   h.label("Full Name", "DIAH ANYANG");
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /Nama pada ringkasan.*berbeda/);
+  assertSummaryWarning(h, /Nama pada ringkasan.*berbeda/);
   h.labels[1].parentElement.textContent = "Full Name\nDIAH PURNAMAWATI ALI ANYANG";
   h.guard.verifySummaryIdentity(h.context);
 });
@@ -551,7 +581,7 @@ test("exact names including empty English and Arabic middle fields are verified"
   assert.throws(() => h.guard.verifyMemberNames(h.context), /firstName.*terpotong/);
 });
 
-test("summary checks exact name and passport and fails closed when evidence is missing", () => {
+test("summary requires the passport number and records differing or unreadable names", () => {
   const h = identityHarness();
   h.guard.verifyPassportName(h.context);
   delete h.inputs.passport;
@@ -560,9 +590,9 @@ test("summary checks exact name and passport and fails closed when evidence is m
   h.label("Passport Image", "fatih.jpeg\n.jpeg · 173378");
   h.guard.verifySummaryIdentity(h.context);
   h.labels[1].parentElement.textContent = "Full Name\nMUHAMMAD CHOLID HIDAYATULLAH";
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /Nama pada ringkasan.*berbeda/);
+  assertSummaryWarning(h, /Nama pada ringkasan.*berbeda/);
   h.labels.splice(1, 1);
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /nama pada ringkasan.*tidak dapat diverifikasi/);
+  assertSummaryWarning(h, /Nama pada ringkasan.*tidak dapat diverifikasi/);
 });
 
 test("a matching summary can verify identity after earlier runtime evidence is lost", () => {
@@ -582,7 +612,7 @@ test("conflicting duplicate name controls cannot be ignored before overwriting p
   assert.throws(() => h.guard.verifyPassportName(h.context), /beberapa kolom nama/);
 });
 
-test("a correct summary full name does not hide conflicting split names or an incorrect attachment", () => {
+test("summary blocks wrong attachments and warns about split names or missing file display", () => {
   const h = identityHarness();
   h.guard.verifyPassportName(h.context);
   h.label("Full Name", "FATIH RAFAIZAN ARDIAN");
@@ -591,9 +621,9 @@ test("a correct summary full name does not hide conflicting split names or an in
   h.labels[1].parentElement.textContent = "Passport Image\nfatih.jpeg";
   h.guard.verifySummaryIdentity(h.context);
   h.label("First Name", "MUHAMMAD CHOLID");
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /firstName pada ringkasan berbeda/);
+  assertSummaryWarning(h, /firstName pada ringkasan berbeda/);
   h.labels.pop(); h.labels.pop();
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /File paspor.*tidak dapat diverifikasi/);
+  assertSummaryWarning(h, /file paspor.*tidak terbaca/);
 });
 
 function attachmentHarness(expectedName) {
@@ -629,7 +659,7 @@ test("summary filename formatting cannot conceal a different name, sequence numb
     assert.throws(() => h.guard.verifySummaryIdentity(h.context), /File paspor/);
   }
   h.showAttachment(".png · 173378");
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /File paspor.*tidak dapat diverifikasi/);
+  assertSummaryWarning(h, /file paspor.*tidak terbaca/);
 });
 
 test("a renamed summary attachment is blocked when the same formatted name identifies another batch file", () => {
@@ -644,14 +674,14 @@ test("a renamed summary attachment is blocked when the same formatted name ident
   h.guard.verifySummaryIdentity(h.context);
 });
 
-test("filename normalization still requires exact passport and complete reviewed names on the summary", () => {
+test("filename normalization keeps the passport check strict and name differences visible", () => {
   const h = attachmentHarness("Document 2.png");
   h.showAttachment("document_2.png");
   h.inputs.passport.value = "WRONG";
   assert.throws(() => h.guard.verifySummaryIdentity(h.context), /Nomor paspor.*berbeda/);
   h.formFromProfile();
   h.labels[0].parentElement.textContent = "Full Name\nOTHER PERSON";
-  assert.throws(() => h.guard.verifySummaryIdentity(h.context), /Nama pada ringkasan.*berbeda/);
+  assertSummaryWarning(h, /Nama pada ringkasan.*berbeda/);
 });
 
 test("empty name fields clear old values through input events", async () => {
@@ -773,14 +803,11 @@ test("disclosure and summary resume verify the live summary and save once withou
   }
 });
 
-test("resumed identity checks block incorrect or incomplete summaries before saving and retain the queue", async () => {
+test("resumed identity checks block wrong passports or files and retain the queue", async () => {
   const cases = [
     [h => { h.labels[0].parentElement.textContent = "Passport Number\nOTHER"; }, /Nomor paspor.*berbeda/],
-    [h => { h.labels[1].parentElement.textContent = "Full Name\nOTHER PERSON"; }, /Nama pada ringkasan.*berbeda/],
     [h => { h.labels[2].parentElement.textContent = "Passport Image\nother.jpeg"; }, /File paspor.*berbeda/],
     [h => { h.labels.splice(0, 1); }, /Nomor paspor.*tidak dapat diverifikasi/],
-    [h => { h.labels.splice(1, 1); }, /nama pada ringkasan.*tidak dapat diverifikasi/],
-    [h => { h.labels.splice(2, 1); }, /File paspor.*tidak dapat diverifikasi/],
   ];
   for (const stage of [3, 4]) {
     for (const [changeSummary, expected] of cases) {

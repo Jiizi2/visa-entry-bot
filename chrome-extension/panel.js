@@ -4,6 +4,8 @@ let panelTargetReady = false;
 let panelWindowId = null;
 let panelConnectionError = null;
 let resolvingSubmission = false;
+let updatingQueue = false;
+const queueRows = new Map();
 
 const dom = {
   uploadBtn: document.getElementById("upload-btn"),
@@ -51,6 +53,13 @@ const dom = {
   pendingSubmissionDetail: document.getElementById("pending-submission-detail"),
   submissionSavedBtn: document.getElementById("submission-saved-btn"),
   submissionNotSavedBtn: document.getElementById("submission-not-saved-btn"),
+  memberQueue: document.getElementById("member-queue"),
+  memberQueueList: document.getElementById("member-queue-list"),
+  queueSummary: document.getElementById("queue-summary"),
+  queueGuidance: document.getElementById("queue-guidance"),
+  queueFilter: document.getElementById("queue-filter"),
+  queueEmpty: document.getElementById("queue-empty"),
+  queueRetryBtn: document.getElementById("queue-retry-btn"),
 };
 
 const state = {
@@ -76,6 +85,8 @@ const state = {
   pendingSubmission: null,
   remainingMemberCount: 0,
   nextMemberId: "",
+  queuedMemberIds: [],
+  queueUpdateInProgress: false,
   submissionResolutionInProgress: false,
   
   // STATS TRACKING FOR PREMIUM SUCCESS PAGE
@@ -196,6 +207,8 @@ dom.restartFailedBtn.addEventListener("click", () => {
   postToParent("NUSUK_PANEL_RESTART_FAILED");
 });
 document.getElementById('completed-retry-btn')?.addEventListener('click', () => postToParent('NUSUK_PANEL_RESTART_FAILED'));
+dom.queueRetryBtn?.addEventListener('click', () => postToParent('NUSUK_PANEL_RESTART_FAILED'));
+dom.queueFilter?.addEventListener('change', renderMemberQueue);
 dom.submissionSavedBtn?.addEventListener('click', () => resolveSubmission('saved'));
 dom.submissionNotSavedBtn?.addEventListener('click', () => resolveSubmission('not_saved'));
 
@@ -348,6 +361,8 @@ function applyIncomingState(payload) {
   state.completedMemberIds = payload.completedMemberIds || [];
   state.remainingMemberCount = Number(payload.remainingMemberCount || 0);
   state.nextMemberId = String(payload.nextMemberId || "");
+  state.queuedMemberIds = payload.queuedMemberIds || [];
+  state.queueUpdateInProgress = Boolean(payload.queueUpdateInProgress);
   state.submissionResolutionInProgress = Boolean(payload.submissionResolutionInProgress);
   if (state.executionState === 'paused' && state.nextMemberId) state.selectedMemberId = state.nextMemberId;
   state.panelWidth = Number(payload.panelWidth || state.panelWidth || 420);
@@ -639,7 +654,8 @@ function updateRunControls() {
   const stateName = normalizeExecutionState(state.executionState);
   const canResume = stateName === "paused" && state.resumeAvailable;
   const canStartHere = state.pageStatus === 'ready' || state.canNavigateToEntry;
-  const resolving = resolvingSubmission || state.submissionResolutionInProgress;
+  const resolving = resolvingSubmission || state.submissionResolutionInProgress || updatingQueue || state.queueUpdateInProgress;
+  const canRetry = canRetryQueue();
   const needsReview = Boolean(state.pendingSubmission) && stateName !== 'running';
   if (needsReview && !dom.statusBanner.classList.contains('error')) {
     setStatus('Hasil simpan belum terkonfirmasi.', 'warning');
@@ -669,8 +685,8 @@ function updateRunControls() {
   
   if (state.autofillFailures && state.autofillFailures.length > 0) {
     dom.failuresCard.style.display = "block";
-    dom.restartFailedBtn.textContent = canResume ? 'Lanjutkan sisa' : 'Ulangi yang gagal';
-    dom.restartFailedBtn.disabled = !panelTargetReady || resolving || Boolean(state.pendingSubmission) || stateName === "running" || !canStartHere;
+    dom.restartFailedBtn.textContent = 'Ulangi gagal / dilewati';
+    dom.restartFailedBtn.disabled = !canRetry;
     if (dom.failuresCountBadge) {
       dom.failuresCountBadge.textContent = state.autofillFailures.length;
     }
@@ -692,7 +708,11 @@ function updateRunControls() {
     const totalFailed = state.autofillFailures ? state.autofillFailures.length : 0;
     const totalSuccess = state.completedMemberIds.length;
     const retry = document.getElementById('completed-retry-btn');
-    if (retry) { retry.hidden = totalFailed === 0; retry.disabled = !panelTargetReady || resolving || Boolean(state.pendingSubmission) || !canStartHere; }
+    if (retry) { retry.hidden = totalFailed === 0; retry.disabled = !canRetry; }
+    document.getElementById('completed-state-title').textContent = totalFailed ? 'Antrean selesai' : 'Pengisian selesai';
+    document.getElementById('completed-state-desc').textContent = totalFailed
+      ? `${totalSuccess} passport tersimpan. ${totalFailed} nama gagal atau dilewati menunggu perintah Anda untuk diulang.`
+      : 'Semua passport dalam antrean telah selesai diproses.';
 
     if (statsSuccessCount) statsSuccessCount.textContent = totalSuccess;
     if (statsFailedCount) statsFailedCount.textContent = totalFailed;
@@ -730,6 +750,113 @@ function updateRunControls() {
   if (stateName !== "running" && dom.actionFeedbackWrap) {
     dom.actionFeedbackWrap.classList.add("hidden");
   }
+  renderMemberQueue();
+}
+
+function canRetryQueue() {
+  return panelTargetReady && state.executionState === 'completed' && !state.resumeAvailable
+    && !state.pendingSubmission && !state.submissionResolutionInProgress && !resolvingSubmission
+    && !state.queueUpdateInProgress && !updatingQueue && !fileImporter.isImporting()
+    && (state.pageStatus === 'ready' || state.canNavigateToEntry);
+}
+
+async function skipQueueMember(memberId) {
+  if (updatingQueue || state.queueUpdateInProgress) return;
+  const shouldContinue = state.executionState === 'paused' && String(state.nextMemberId) === memberId;
+  const targetTabId = currentTabId;
+  updatingQueue = true;
+  updateRunControls();
+  try {
+    const response = await postToParent('NUSUK_PANEL_SKIP_MEMBER', { memberId });
+    if (!response.ok) {
+      setStatus(response.error, 'error');
+      return;
+    }
+    if (currentTabId === targetTabId && shouldContinue && response.panelState?.resumeAvailable) {
+      await postToParent('NUSUK_PANEL_START_AUTOFILL');
+    }
+  } finally {
+    updatingQueue = false;
+    updateRunControls();
+  }
+}
+
+function renderMemberQueue() {
+  if (!dom.memberQueue) return;
+  const members = getMembers();
+  dom.memberQueue.hidden = members.length === 0;
+  if (!members.length) dom.queueFilter.value = 'all';
+  const completed = new Set(state.completedMemberIds.map(String));
+  const failures = new Map(state.autofillFailures.map(failure => [String(failure.memberId), failure]));
+  const queued = new Set(state.queuedMemberIds.map(String));
+  const memberIds = new Set(members.map(member => String(member.id)));
+  for (const [id, row] of queueRows) {
+    if (!memberIds.has(id)) { row.element.remove(); queueRows.delete(id); }
+  }
+  const retryCount = members.filter(member => failures.has(String(member.id)) && !completed.has(String(member.id))).length;
+  const savedCount = members.filter(member => completed.has(String(member.id))).length;
+  dom.queueSummary.textContent = `${savedCount} tersimpan · ${retryCount} perlu diulang · ${members.length - savedCount - retryCount} belum selesai`;
+  dom.queueGuidance.textContent = state.pendingSubmission
+    ? 'Periksa hasil simpan sebelum melewati atau mengulang nama.'
+    : state.executionState === 'running' ? 'Jeda proses untuk melewati nama. Nama yang dilewati dapat diulang setelah antrean selesai.'
+    : state.executionState === 'completed' ? 'Pilih “Ulangi gagal / dilewati” saat Anda siap. Nama yang sudah tersimpan tidak diulang.'
+    : 'Lewati nama yang bermasalah untuk dikerjakan setelah sisa antrean selesai.';
+  dom.queueRetryBtn.hidden = retryCount === 0;
+  dom.queueRetryBtn.disabled = !canRetryQueue();
+  dom.queueRetryBtn.textContent = `Ulangi gagal / dilewati (${retryCount})`;
+  const blocked = !panelTargetReady || updatingQueue || state.queueUpdateInProgress || state.submissionResolutionInProgress
+    || resolvingSubmission || Boolean(state.pendingSubmission) || state.executionState === 'running' || fileImporter.isImporting();
+  let visibleCount = 0;
+  for (const [index, member] of members.entries()) {
+    const id = String(member.id), failure = failures.get(id);
+    const saved = completed.has(id), pending = String(state.pendingSubmission?.memberId || '') === id;
+    const active = state.selectedMemberId === id;
+    const deferred = Boolean(failure?.deferred);
+    const kind = saved ? 'saved' : pending ? 'review' : deferred ? 'deferred'
+      : active && state.executionState === 'running' ? 'running' : failure ? 'failed'
+      : active && state.executionState === 'paused' ? 'paused' : 'waiting';
+    const labels = { saved: 'Tersimpan', review: 'Perlu diperiksa', deferred: 'Dilewati', running: 'Diproses', failed: 'Gagal', paused: 'Dijeda', waiting: 'Menunggu' };
+    let row = queueRows.get(id);
+    if (!row) {
+      const element = document.createElement('li');
+      element.dataset.memberId = id;
+      const number = document.createElement('span'); number.className = 'queue-member-number'; number.setAttribute('aria-hidden', 'true');
+      const info = document.createElement('div'); info.className = 'queue-member-info';
+      const name = document.createElement('strong'); name.className = 'queue-member-name';
+      const passport = document.createElement('span'); passport.className = 'queue-member-passport';
+      info.append(name, passport);
+      const footer = document.createElement('div'); footer.className = 'queue-row-footer';
+      const status = document.createElement('span');
+      const skip = document.createElement('button'); skip.type = 'button'; skip.className = 'btn btn-outline queue-skip-btn';
+      skip.addEventListener('click', () => void skipQueueMember(id));
+      footer.append(status, skip);
+      const reason = document.createElement('p'); reason.className = 'queue-member-reason';
+      element.append(number, info, footer, reason);
+      row = { element, number, name, passport, status, skip, reason };
+      queueRows.set(id, row);
+      dom.memberQueueList.append(element);
+    }
+    if (dom.memberQueueList.children[index] !== row.element) {
+      dom.memberQueueList.insertBefore(row.element, dom.memberQueueList.children[index] || null);
+    }
+    row.element.className = `queue-row queue-${kind}`;
+    row.element.hidden = dom.queueFilter.value === 'retry' && (saved || !failure);
+    if (!row.element.hidden) visibleCount++;
+    row.number.textContent = String(index + 1);
+    row.name.textContent = memberDisplayName(member);
+    row.passport.textContent = memberPassport(member);
+    row.status.className = `queue-member-status ${kind}`;
+    row.status.textContent = kind === 'waiting' && state.executionState === 'completed' ? 'Belum diproses'
+      : kind === 'waiting' && state.resumeAvailable && !queued.has(id) ? 'Di luar antrean' : labels[kind];
+    row.skip.hidden = saved || pending || deferred;
+    row.skip.disabled = blocked;
+    const continueAfterSkip = state.executionState === 'paused' && state.nextMemberId === id;
+    row.skip.textContent = continueAfterSkip ? 'Lewati & lanjutkan' : 'Lewati dulu';
+    row.skip.setAttribute('aria-label', `${row.skip.textContent}: ${memberDisplayName(member)}, paspor ${memberPassport(member)}`);
+    row.reason.hidden = !failure || saved || kind === 'running';
+    row.reason.textContent = failure ? `${deferred ? 'Menunggu perintah ulang. ' : ''}${failure.message || failure.reason}` : '';
+  }
+  dom.queueEmpty.hidden = visibleCount > 0;
 }
 
 function renderBatchRecovery(resolving) {
@@ -759,15 +886,15 @@ function renderFailures() {
     const name = member ? memberDisplayName(member) : `ID: ${failure.memberId}`;
     
     const wrapper = document.createElement("div");
-    wrapper.className = "log-row error";
+    wrapper.className = failure.deferred ? "log-row warning" : "log-row error";
     
     const label = document.createElement("span");
     label.className = "log-level";
-    label.textContent = "GAGAL";
+    label.textContent = failure.deferred ? "DILEWATI" : "GAGAL";
     
     const msg = document.createElement("span");
     msg.className = "log-message";
-    msg.textContent = `${name} - ${failure.reason}`;
+    msg.textContent = `${name} - ${failure.message || failure.reason}`;
     
     wrapper.append(label, msg);
     fragment.append(wrapper);
@@ -870,7 +997,9 @@ function getMembersToRunFromSelection() {
     return [];
   }
   const selectedIndex = Math.max(0, members.findIndex((member) => String(member.id || "") === String(state.selectedMemberId || "")));
-  return members.slice(selectedIndex);
+  const completed = new Set(state.completedMemberIds.map(String));
+  const deferred = new Set(state.autofillFailures.filter(failure => failure.deferred).map(failure => String(failure.memberId)));
+  return members.slice(selectedIndex).filter(member => !completed.has(String(member.id)) && !deferred.has(String(member.id)));
 }
 
 async function persistState() {

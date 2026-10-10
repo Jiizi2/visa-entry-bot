@@ -42,19 +42,19 @@
       return { status: selected.pageStatus, selectedTabId: selected.tabId, tabs: [selected] };
     }
 
-    async function prepareEntry(tab, { isCancelled = () => false } = {}) {
+    async function prepareEntry(tab, { isCancelled = () => false, forceFresh = false } = {}) {
       const checkCancelled = () => { if (isCancelled()) throw new Error('Persiapan pengisian dibatalkan.'); };
       checkCancelled();
       const context = await pageContext(tab);
       checkCancelled();
-      if (context.pageStatus === 'ready' && context.contentReady !== false) return tab;
+      if (!forceFresh && context.pageStatus === 'ready' && context.contentReady !== false) return tab;
       if (context.pageStatus === 'login_required') throw new Error('Login ke Nusuk terlebih dahulu, lalu pilih Mulai pengisian kembali. Data batch tetap tersimpan.');
       if (context.pageStatus === 'needs_refresh') throw new Error('Muat ulang tab Nusuk sekali agar extension aktif, lalu coba lagi.');
       if (!/^https:\/\/masar\.nusuk\.sa(?:\/|$)/.test(tab.url || '')) {
         throw new Error('Buka Masar Nusuk pada browser ini sebelum memulai pengisian.');
       }
-      if (!['ready', 'loading'].includes(context.pageStatus)) {
-        if (!context.canNavigateToEntry) throw new Error('Buka Masar Nusuk pada browser ini sebelum memulai pengisian.');
+      if (forceFresh || !['ready', 'loading'].includes(context.pageStatus)) {
+        if (!forceFresh && !context.canNavigateToEntry) throw new Error('Buka Masar Nusuk pada browser ini sebelum memulai pengisian.');
         await chrome.tabs.update(tab.id, { url: MUTAMER_LIST_URL, active: true });
       }
       const deadline = now() + 20000;

@@ -58,9 +58,9 @@ async function sendToNusuk(type, payload = {}, requestedId) {
         const context = await handoff.pageContext(tab);
         if (context.executionState === 'running') return { ok: true, tabId: tab.id };
         if (context.hasManifest === false) throw new Error('Seret file JSON dari halaman Entry sebelum memulai pengisian.');
-        if (context.executionState === 'completed' && type !== 'NUSUK_PANEL_RESTART_FAILED') throw new Error('Batch selesai. Pilih Ulangi yang gagal jika masih ada jamaah gagal.');
+        if (context.executionState === 'completed' && type !== 'NUSUK_PANEL_RESTART_FAILED') throw new Error('Antrean selesai. Pilih Ulangi gagal / dilewati jika masih ada nama yang perlu diulang.');
         if (context.canNavigateToEntry) notifyPanel({ type: 'NUSUK_PANEL_STATUS', payload: { tone: 'neutral', message: 'Membuka Mu?tamer List. Pengisian dimulai setelah halaman siap.' } }, tab.id);
-        await handoff.prepareEntry(tab, { isCancelled: () => operation.cancelled });
+        await handoff.prepareEntry(tab, { isCancelled: () => operation.cancelled, forceFresh: context.freshEntryRequired });
         if (operation.cancelled || targetTabId !== tab.id) throw new Error('Tab tujuan berubah. Pilih Mulai pengisian kembali pada tab yang digunakan.');
         const response = await sendNusukMessage(tab.id, { type, payload });
         if (response?.ok !== true) throw new Error(response?.error || 'Pengisian belum dapat dimulai.');
@@ -70,7 +70,7 @@ async function sendToNusuk(type, payload = {}, requestedId) {
     preparingStarts.set(tab.id, operation);
     return operation.promise;
   }
-  if (['NUSUK_PANEL_RESET_AUTOFILL', 'NUSUK_PANEL_PAUSE_AUTOFILL'].includes(type)) {
+  if (['NUSUK_PANEL_RESET_AUTOFILL', 'NUSUK_PANEL_PAUSE_AUTOFILL', 'NUSUK_PANEL_SKIP_MEMBER'].includes(type)) {
     const operation = preparingStarts.get(tab.id);
     if (operation) operation.cancelled = true;
   }

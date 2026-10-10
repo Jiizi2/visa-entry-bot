@@ -36,14 +36,17 @@
         throw new Error("Missing member payload.");
       }
       const completed = new Set((state.completedMemberIds || []).map(String));
-      const members = requestedMembers.filter(member => !completed.has(String(member.id)));
+      const deferred = new Set((state.autofillFailures || []).filter(failure => failure.deferred).map(failure => String(failure.memberId)));
+      const members = requestedMembers.filter(member => !completed.has(String(member.id)) && !deferred.has(String(member.id)));
       if (!members.length) return;
       // Validate every entry path, including direct runtime messages and restored checkpoints.
-      root.manifestValidator.validateManifestForEntry({
+      const validation = root.manifestValidator.validateManifestForEntry({
         schemaVersion: root.manifestValidator.ENTRY_BATCH_SCHEMA_VERSION,
         contractVersion: state.manifest?.contractVersion,
         members,
       });
+      appendLog?.("info", "Pemeriksaan data tambahan bersifat peringatan. Tetap periksa data setiap jamaah satu per satu di Nusuk.");
+      for (const warning of validation?.warnings || []) appendLog?.("warning", warning);
 
       const globalSteps = [
         {
@@ -76,6 +79,14 @@
           manifestPath: String(payload?.manifestPath || state.manifest?.manifestPath || ""),
           runId,
           identityEvidence: {},
+          onDataWarning: warning => {
+            const memberId = String(member.id);
+            if ((state.autofillDataWarnings || []).some(note => note.memberId === memberId && note.key === warning.key)) return;
+            state.autofillDataWarnings = [...(state.autofillDataWarnings || []), {
+              memberId, passportNumber: member.resolvedProfile.passportNumber, ...warning,
+            }];
+            appendLog?.("warning", `${describeMember(member)}: ${warning.message}. Proses tetap dilanjutkan; periksa hasil jamaah ini di Nusuk.`);
+          },
         };
 
         state.selectedMemberId = String(member.id || state.selectedMemberId || "");
@@ -130,16 +141,22 @@
         }
 
         appendLog?.("error", `Entry berhenti pada jamaah ${memberOffset + 1}/${members.length}: ${describeMember(member)}. Alasan: ${result.reason}`);
-        await recordMemberFailure(payload, members, startMemberIndex, memberOffset, result.reason);
+        await recordMemberFailure(payload, members, startMemberIndex, memberOffset, result.reason, result.message);
         throw new Error(`Entry dihentikan pada ${describeMember(member)}: ${result.message || result.reason}. Jamaah berikutnya belum diproses; periksa form aktif sebelum melanjutkan.`);
       }
       const corrections = (state.autofillNameCorrections || []).filter(note =>
         (state.completedMemberIds || []).map(String).includes(note.memberId));
       if (corrections.length) {
-        appendLog?.("info", `Catatan OCR Nusuk: nama ${corrections.length} jamaah diisi mengikuti data review EntryMate.`);
+        appendLog?.("info", `Catatan OCR Nusuk: nama ${corrections.length} jamaah terdeteksi berbeda dari data review EntryMate.`);
         for (const note of corrections) {
           appendLog?.("info", `${note.passportNumber}: ${note.observedName || "(nama OCR kosong)"} → ${note.expectedName}`);
         }
+      }
+      const completedWarnings = (state.autofillDataWarnings || []).filter(note =>
+        (state.completedMemberIds || []).map(String).includes(note.memberId));
+      for (const memberId of new Set(completedWarnings.map(note => note.memberId))) {
+        const notes = completedWarnings.filter(note => note.memberId === memberId);
+        appendLog?.("warning", `Periksa hasil paspor ${notes[0].passportNumber}: ${notes.map(note => note.message).join("; ")}.`);
       }
       if (chrome?.runtime?.sendMessage) {
         chrome.runtime.sendMessage({
@@ -329,7 +346,7 @@
       }
     }
 
-    async function recordMemberFailure(payload, members, startMemberIndex, memberOffset, reason) {
+    async function recordMemberFailure(payload, members, startMemberIndex, memberOffset, reason, message) {
       const failedMember = members[memberOffset];
       state.autofillFailures = [
         ...(Array.isArray(state.autofillFailures) ? state.autofillFailures.filter(f => String(f.memberId) !== String(failedMember?.id)) : []),
@@ -337,9 +354,10 @@
           memberIndex: startMemberIndex + memberOffset,
           memberId: String(failedMember?.id || ""),
           reason: String(reason || "unknown"),
+          message: String(message || reason || "Entry gagal."),
           failedAt: new Date().toISOString(),
         },
-      ].slice(-100);
+      ];
 
       if (chrome?.runtime?.sendMessage) {
         chrome.runtime.sendMessage({

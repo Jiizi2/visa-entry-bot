@@ -37,8 +37,8 @@
         <!-- =================== STATE D: COMPLETED =================== -->
         <section class="state-view-card" id="completed-state-view">
           <div class="state-view-icon">🎉</div>
-          <div class="state-view-title" style="color: var(--success);">Pengisian selesai</div>
-          <div class="state-view-desc" style="max-width: 280px; margin-bottom: 12px;">Semua passport dalam batch telah selesai diproses.</div>
+          <div class="state-view-title" id="completed-state-title" style="color: var(--success);">Pengisian selesai</div>
+          <div class="state-view-desc" id="completed-state-desc" style="max-width: 280px; margin-bottom: 12px;">Semua passport dalam batch telah selesai diproses.</div>
           
           <div class="stats-summary-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; margin-bottom: 16px;">
             <div class="metric-item">
@@ -46,7 +46,7 @@
               <span class="metric-value" id="stats-success-count">0</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label">Gagal</span>
+              <span class="metric-label">Perlu diulang</span>
               <span class="metric-value" id="stats-failed-count">0</span>
             </div>
             <div class="metric-item">
@@ -64,7 +64,7 @@
           </div>
 
           <button id="report-view-btn" class="btn btn-primary btn-sm" type="button" style="width: 100%;">Buka Log Laporan</button>
-          <button id="completed-retry-btn" class="btn btn-primary btn-sm" type="button" hidden>Ulangi yang gagal</button>
+          <button id="completed-retry-btn" class="btn btn-primary btn-sm" type="button" hidden>Ulangi gagal / dilewati</button>
           <button id="completed-reset-btn" class="btn btn-secondary btn-sm" type="button" style="width: 100%; margin-top: 8px;">Reset &amp; Mulai Baru</button>
         </section>
 
@@ -133,6 +133,23 @@
             </div>
           </section>
         </div>
+
+        <section id="member-queue" class="member-queue" hidden aria-labelledby="member-queue-title">
+          <div class="queue-header">
+            <h2 id="member-queue-title">Daftar nama entry</h2>
+            <label class="queue-filter-label" for="queue-filter">Tampilkan
+              <select id="queue-filter">
+                <option value="all">Semua nama</option>
+                <option value="retry">Perlu diulang</option>
+              </select>
+            </label>
+          </div>
+          <p id="queue-summary" class="queue-summary" role="status" aria-live="polite"></p>
+          <p id="queue-guidance" class="queue-guidance"></p>
+          <ol id="member-queue-list" class="member-queue-list" aria-label="Nama dan status entry jamaah"></ol>
+          <p id="queue-empty" class="queue-guidance" hidden>Tidak ada nama yang perlu diulang.</p>
+          <button id="queue-retry-btn" class="btn btn-secondary" type="button" hidden>Ulangi gagal / dilewati</button>
+        </section>
 
         <!-- EXPANDED CONTAINER (Hanya Terlihat Di Mode Expanded) -->
         <div class="expanded-container">
@@ -211,10 +228,10 @@
           <section class="panel-card failures-card" id="failures-card" style="display: none;">
             <div class="section-head-with-action">
               <div>
-                <h2>Jamaah Gagal (<span id="failures-count-badge">0</span>)</h2>
-                <p>Daftar gagal entry.</p>
+                <h2>Perlu diulang (<span id="failures-count-badge">0</span>)</h2>
+                <p>Nama yang gagal atau dilewati.</p>
               </div>
-              <button id="restart-failed-btn" class="btn btn-secondary btn-sm" type="button">Ulangi Gagal</button>
+              <button id="restart-failed-btn" class="btn btn-secondary btn-sm" type="button">Ulangi gagal / dilewati</button>
             </div>
             <div id="failures-list" class="log-list-container"></div>
           </section>

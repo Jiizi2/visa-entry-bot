@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 
-async function harness({ executionState = 'idle', hasManifest = true } = {}) {
+async function harness({ executionState = 'idle', hasManifest = true, freshEntryRequired = false } = {}) {
   const commands = [], navigations = [];
   let listener, finishNavigation, navigationStarted;
   const navigationReady = new Promise(resolve => { finishNavigation = resolve; });
@@ -21,7 +21,7 @@ async function harness({ executionState = 'idle', hasManifest = true } = {}) {
       sendMessage: async (id, message) => {
         if (message.type === 'NUSUK_QUERY_CONTEXT') {
           if (navigations.length) { await navigationReady; return { pageStatus: 'ready', contentReady: true, executionState, hasManifest }; }
-          return { pageStatus: 'navigate_required', canNavigateToEntry: true, contentReady: true, executionState, hasManifest };
+          return { pageStatus: freshEntryRequired ? 'ready' : 'navigate_required', canNavigateToEntry: true, contentReady: true, executionState, hasManifest, freshEntryRequired };
         }
         commands.push({ id, type: message.type }); return { ok: true };
       },
@@ -50,8 +50,8 @@ test('double start during navigation delivers one start only after the destinati
   assert.deepEqual(h.commands, [{ id: 10, type: 'NUSUK_PANEL_START_AUTOFILL' }]);
 });
 
-test('pause and reset while navigating cancel the pending start', async () => {
-  for (const type of ['NUSUK_PANEL_PAUSE_AUTOFILL', 'NUSUK_PANEL_RESET_AUTOFILL']) {
+test('pause, reset and skip while navigating cancel the pending start', async () => {
+  for (const type of ['NUSUK_PANEL_PAUSE_AUTOFILL', 'NUSUK_PANEL_RESET_AUTOFILL', 'NUSUK_PANEL_SKIP_MEMBER']) {
     const h = await harness();
     const start = h.command('NUSUK_PANEL_START_AUTOFILL');
     await h.navigating;
@@ -60,6 +60,17 @@ test('pause and reset while navigating cancel the pending start', async () => {
     assert.equal((await start).ok, false);
     assert.deepEqual(h.commands, [{ id: 10, type }]);
   }
+});
+
+test('a skipped member requires fresh navigation even when the old entry form reports ready', async () => {
+  const h = await harness({ executionState: 'paused', freshEntryRequired: true });
+  const start = h.command('NUSUK_PANEL_START_AUTOFILL');
+  await h.navigating;
+  assert.equal(h.commands.length, 0);
+  h.finishNavigation();
+  assert.equal((await start).ok, true);
+  assert.equal(h.navigations.length, 1);
+  assert.deepEqual(h.commands, [{ id: 10, type: 'NUSUK_PANEL_START_AUTOFILL' }]);
 });
 
 test('an active runner and an empty batch cannot trigger a new navigation', async () => {

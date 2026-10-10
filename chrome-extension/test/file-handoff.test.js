@@ -72,7 +72,7 @@ test('a native file drop anywhere in the panel is accepted and browser navigatio
 
 function bridgeHarness(persistState = async () => {}) {
   const state = { manifest: batch('old'), selectedMemberId: 'old-4', executionState: 'completed', currentRunPayload: { members: ['old'] },
-    activeSessionId: 'old', completedMemberIds: ['old-4'], autofillFailures: ['old'], autofillNameCorrections: [{ memberId: 'old-4', observedName: 'LUZERMAN' }], revision: 5 };
+    activeSessionId: 'old', completedMemberIds: ['old-4'], autofillFailures: ['old'], autofillNameCorrections: [{ memberId: 'old-4', observedName: 'LUZERMAN' }], autofillDataWarnings: [{ memberId: 'old-4', key: 'summary_full_name', message: 'Different name' }], revision: 5 };
   let listener; const files = [];
   const context = vm.createContext({ window: { NusukAutofill: {} }, chrome: { runtime: { onMessage: { addListener: fn => { listener = fn; } } } } });
   load(context, 'content/manifest-validator.js'); load(context, 'content/panel-bridge.js');
@@ -89,6 +89,7 @@ test('an accepted replacement clears the entire previous run and manual photo se
   assert.equal(h.state.activeSessionId, ''); assert.equal(h.state.executionState, 'idle');
   assert.equal(h.state.completedMemberIds.length, 0); assert.equal(h.state.autofillFailures.length, 0);
   assert.equal(h.state.autofillNameCorrections.length, 0);
+  assert.equal(h.state.autofillDataWarnings.length, 0);
   assert.equal(h.files.length, 1); assert.equal(h.files[0].length, 0);
 });
 
@@ -144,7 +145,7 @@ test('reload restores only this browser session and keeps an unresolved submissi
   const hydrate = source.slice(source.indexOf('  async function hydrateState()'), source.indexOf('  async function readStoredState()'));
   for (const browserSessionId of ['current-browser', 'previous-browser']) {
     const state = { browserSessionId: 'current-browser', storageKey: 'nusukAutofillState:11', manifest: null, currentRunPayload: null, executionState: 'idle' };
-    const saved = { browserSessionId, manifest: batch('a'), selectedMemberId: 'a-4', executionState: 'running', currentRunPayload: { members: batch('a').members }, autofillNameCorrections: [{ memberId: 'a-4', observedName: 'LUZERMAN' }] };
+    const saved = { browserSessionId, manifest: batch('a'), selectedMemberId: 'a-4', executionState: 'running', currentRunPayload: { members: batch('a').members }, autofillNameCorrections: [{ memberId: 'a-4', observedName: 'LUZERMAN' }], autofillDataWarnings: [{ memberId: 'a-4', key: 'summary_full_name', message: 'Different name' }] };
     const lock = { memberId: 'a-4', passportNumber: 'a000004' };
     const context = vm.createContext({ state, readStoredState: async () => ({ 'nusukAutofillState:11': saved, 'nusukAutofillState:11:pending': lock }),
       clampPanelWidth: () => 420, isRunnablePayload: value => Array.isArray(value?.members), normalizeHydratedExecutionState: value => value });
@@ -154,6 +155,7 @@ test('reload restores only this browser session and keeps an unresolved submissi
     if (browserSessionId === 'current-browser') {
       assert.equal(state.manifest, saved.manifest); assert.equal(state.currentRunPayload, saved.currentRunPayload);
       assert.equal(state.autofillNameCorrections, saved.autofillNameCorrections);
+      assert.equal(state.autofillDataWarnings, saved.autofillDataWarnings);
     } else { assert.equal(state.manifest, null); assert.equal(state.currentRunPayload, null); assert.equal(state.executionState, 'idle'); }
   }
 });

@@ -24,7 +24,7 @@
       if (!submissionReady()) return;
       if (!pageReady()) return;
       if (state.executionState === 'completed') {
-        postToPanel('NUSUK_PANEL_STATUS', { tone: 'warning', message: 'Batch selesai. Gunakan “Ulangi yang gagal” jika masih ada jamaah gagal.' });
+        postToPanel('NUSUK_PANEL_STATUS', { tone: 'warning', message: 'Antrean selesai. Gunakan “Ulangi gagal / dilewati” jika masih ada nama yang perlu diulang.' });
         return;
       }
       if (state.executionState === "running") {
@@ -47,6 +47,7 @@
           return;
         }
         state.executionState = "running";
+        state.freshEntryRequired = false;
         await announceRun();
         await persistRunCheckpoint();
         const remainingCount = countRunPayloadMembers(state.currentRunPayload);
@@ -88,6 +89,7 @@
       };
       state.runToken += 1;
       state.executionState = "running";
+      state.freshEntryRequired = false;
       await announceRun();
       if (!(state.completedMemberIds || []).length) resetProgress();
       appendLog("info", `Memulai autofill ${membersToRun.length} jamaah mulai dari pilihan saat ini...`);
@@ -111,6 +113,12 @@
       if (!["running", "paused"].includes(state.executionState) || !isRunnablePayload(state.currentRunPayload) || activeRunPromise) {
         return false;
       }
+      if (!pageReady()) {
+        state.executionState = "paused";
+        await persistState();
+        postPanelState();
+        return false;
+      }
       if (!validatePayloadReadyForEntry(state.currentRunPayload)) {
         state.executionState = "paused";
         await persistState();
@@ -119,6 +127,7 @@
       }
       const remainingCount = countRunPayloadMembers(state.currentRunPayload);
       state.executionState = "running";
+      state.freshEntryRequired = false;
       appendLog("warning", `Halaman Nusuk refresh. Melanjutkan otomatis dari checkpoint: ${remainingCount} jamaah tersisa.`);
       postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: `Halaman refresh. Autofill lanjut otomatis dengan ${remainingCount} jamaah tersisa.` });
       await persistRunCheckpoint();
@@ -147,9 +156,12 @@
             state.executionState = "completed";
             completedSuccessfully = true;
             const correctionCount = (state.autofillNameCorrections || []).filter(note => (state.completedMemberIds || []).map(String).includes(note.memberId)).length;
-            const message = `Autofill selesai untuk ${memberCount} jamaah.${correctionCount ? ` Nama OCR Nusuk pada ${correctionCount} jamaah dikoreksi mengikuti data review; rincian di log.` : ""}`;
-            appendLog("success", message);
-            postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message });
+            const warningCount = new Set((state.autofillDataWarnings || []).filter(note => (state.completedMemberIds || []).map(String).includes(note.memberId)).map(note => note.memberId)).size;
+            const retryCount = (state.autofillFailures || []).filter(failure => !(state.completedMemberIds || []).map(String).includes(String(failure.memberId))).length;
+            const message = `Antrean selesai untuk ${memberCount} jamaah.${retryCount ? ` ${retryCount} jamaah gagal atau dilewati menunggu perintah “Ulangi gagal / dilewati”.` : ""}${correctionCount ? ` Nama OCR Nusuk pada ${correctionCount} jamaah berbeda dari data review; rincian di log.` : ""}${warningCount ? ` Ada catatan data pada ${warningCount} jamaah; periksa rincian di log.` : ""} Tetap periksa hasil setiap jamaah di Nusuk.`;
+            const tone = warningCount || retryCount ? "warning" : "success";
+            appendLog(tone, message);
+            postToPanel("NUSUK_PANEL_STATUS", { tone, message });
           }
         } catch (error) {
           if (isControlError(error, "reset")) {
@@ -191,16 +203,94 @@
       }
       const selectedIndex = getSelectedMemberIndex();
       const completed = new Set((state.completedMemberIds || []).map(String));
+      const deferred = deferredMemberIds();
       const rawSlice = (selectedIndex >= 0 ? members.slice(selectedIndex) : members)
-        .filter(member => !completed.has(String(member.id)));
+        .filter(member => !completed.has(String(member.id)) && !deferred.has(String(member.id)));
       return sortMembersByDependency(rawSlice);
     }
 
     function remainingPayload(payload) {
       if (!isRunnablePayload(payload)) return null;
       const completed = new Set((state.completedMemberIds || []).map(String));
-      const members = payload.members.filter(member => member && !completed.has(String(member.id)));
+      const deferred = deferredMemberIds();
+      const members = payload.members.filter(member => member && !completed.has(String(member.id)) && !deferred.has(String(member.id)));
       return members.length ? { ...payload, members, totalMembers: members.length } : null;
+    }
+
+    function deferredMemberIds() {
+      return new Set((state.autofillFailures || []).filter(failure => failure.deferred).map(failure => String(failure.memberId)));
+    }
+
+    async function skipMemberFromPanel({ memberId } = {}) {
+      if (state.queueUpdateInProgress || state.submissionResolutionInProgress) throw new Error("Tunggu perubahan antrean selesai dicatat.");
+      if (state.executionState === "running") throw new Error("Jeda pengisian sebelum melewati jamaah.");
+      root.submissionGuard.assertNoPending(state);
+      const id = String(memberId || "");
+      const member = state.manifest?.members?.find(item => String(item.id) === id);
+      if (!member) throw new Error("Jamaah tidak ditemukan di batch aktif.");
+      if ((state.completedMemberIds || []).map(String).includes(id)) throw new Error("Jamaah yang sudah tersimpan tidak perlu dilewati.");
+      if (deferredMemberIds().has(id)) throw new Error("Jamaah ini sudah ditandai untuk diulang setelah antrean selesai.");
+
+      state.queueUpdateInProgress = true;
+      postPanelState();
+      try {
+        // A paused attempt still owns callbacks and the old members array.
+        // Cancel it and wait before removing a member from its checkpoint.
+        if (activeRunPromise) {
+          state.runToken += 1;
+          await activeRunPromise;
+        }
+        root.submissionGuard.assertNoPending(state);
+        if ((state.completedMemberIds || []).map(String).includes(id)) throw new Error("Jamaah ini sudah tersimpan selama proses berhenti.");
+        const previous = {
+          autofillFailures: state.autofillFailures,
+          currentRunPayload: state.currentRunPayload,
+          selectedMemberId: state.selectedMemberId,
+          executionState: state.executionState,
+          freshEntryRequired: state.freshEntryRequired,
+          revision: state.revision,
+        };
+        const payload = remainingPayload(state.currentRunPayload);
+        const skippingCurrent = String(payload?.members[0]?.id || "") === id;
+        const failure = (state.autofillFailures || []).find(item => String(item.memberId) === id);
+        state.autofillFailures = [
+          ...(state.autofillFailures || []).filter(item => String(item.memberId) !== id),
+          { ...failure, memberId: id, memberIndex: state.manifest.members.indexOf(member),
+            reason: failure?.reason || "user_skipped", message: failure?.message || "Dilewati oleh pengguna.",
+            failedAt: failure?.failedAt || new Date().toISOString(), deferred: true, deferredAt: new Date().toISOString() },
+        ];
+        state.currentRunPayload = remainingPayload(payload);
+        if (payload) {
+          state.freshEntryRequired = Boolean(state.freshEntryRequired || skippingCurrent);
+          state.executionState = state.currentRunPayload ? "paused" : "completed";
+          state.selectedMemberId = String(state.currentRunPayload?.members[0]?.id || id);
+        } else if (state.executionState === "idle") {
+          const nextMembers = getMembersToRun();
+          if (!nextMembers.length) {
+            state.executionState = "completed";
+          } else if (String(state.selectedMemberId) === id) {
+            // Keep the earliest eligible manifest position. The execution sort
+            // moves dependents later; using its first member as a start index
+            // would accidentally exclude an earlier child from the next run.
+            const nextIds = new Set(nextMembers.map(item => String(item.id)));
+            state.selectedMemberId = String(state.manifest.members.find(item => nextIds.has(String(item.id)))?.id || id);
+          }
+        }
+        state.revision = (state.revision || 0) + 1;
+        try {
+          await persistState({ required: true });
+        } catch (error) {
+          Object.assign(state, previous);
+          throw new Error(`Jamaah belum dapat dilewati. Antrean sebelumnya tetap dipertahankan: ${error.message || error}`);
+        }
+        const name = [member.resolvedProfile?.firstName, member.resolvedProfile?.familyName].filter(Boolean).join(" ") || id;
+        const message = `${name} dilewati dulu dan dapat diulang setelah antrean selesai.`;
+        appendLog("warning", message);
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message });
+      } finally {
+        state.queueUpdateInProgress = false;
+        postPanelState();
+      }
     }
 
     async function persistRunCheckpoint() {
@@ -333,6 +423,7 @@
     }
 
     async function resetAutofillFromPanel() {
+      if (state.queueUpdateInProgress) throw new Error("Tunggu perubahan antrean selesai dicatat.");
       if (state.submissionResolutionInProgress) throw new Error("Tunggu hasil pemeriksaan simpan selesai dicatat.");
       if (state.pendingSubmission && !window.confirm(root.submissionGuard.submissionError(
         `hasil simpan paspor ${state.pendingSubmission.passportNumber} belum terkonfirmasi. Reset membuka blokir pengiriman ulang. Lanjutkan hanya setelah memeriksa daftar Nusuk; jangan entry ulang jamaah yang sudah tersimpan. Apakah hasilnya sudah diperiksa?`
@@ -343,6 +434,7 @@
       if (stoppingRun) await stoppingRun;
       // Clear checkpoints after the old run has unwound, including delayed failure reporting.
       state.currentRunPayload = null;
+      state.freshEntryRequired = false;
       state.executionState = "idle";
       state.pendingSubmission = null;
       state.manifest = null;
@@ -352,6 +444,7 @@
       state.autofillFailures = [];
       state.autofillAttemptFailures = [];
       state.autofillNameCorrections = [];
+      state.autofillDataWarnings = [];
       state.autofillFailureScreenshots = [];
       state.revision = 0;
       state.activeSessionId = "";
@@ -398,14 +491,13 @@
         postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Autofill sedang berjalan." });
         return;
       }
-      // A stopped batch still includes members after the failure. Keep that queue intact.
-      if (state.executionState === "paused" && isRunnablePayload(state.currentRunPayload)) {
-        await startAutofillFromPanel();
+      if (isRunnablePayload(remainingPayload(state.currentRunPayload))) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Selesaikan sisa antrean terlebih dahulu. Pilih “Lanjutkan sisa” atau lewati jamaah yang bermasalah dari daftar nama." });
         return;
       }
       const failures = state.autofillFailures || [];
       if (!failures.length) {
-        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada jamaah gagal untuk diulang." });
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Tidak ada nama gagal atau dilewati untuk diulang." });
         return;
       }
       const members = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
@@ -426,6 +518,8 @@
       }
       if (!validatePayloadReadyForEntry({ members: membersToRun })) return;
 
+      const retryIds = new Set(membersToRun.map(member => String(member.id)));
+      state.autofillFailures = failures.map(failure => retryIds.has(String(failure.memberId)) ? { ...failure, deferred: false } : failure);
       state.autofillAttemptFailures = [];
       state.currentRunPayload = {
         members: membersToRun,
@@ -435,8 +529,9 @@
       };
       state.runToken += 1;
       state.executionState = "running";
+      state.freshEntryRequired = false;
       await announceRun(true);
-      appendLog("info", `Mengulang autofill untuk ${membersToRun.length} jamaah yang gagal...`);
+      appendLog("info", `Mengulang autofill untuk ${membersToRun.length} jamaah yang gagal atau dilewati...`);
       await lockTabForBackgroundRun();
       await persistRunCheckpoint();
       postPanelState();
@@ -445,7 +540,7 @@
     }
 
     async function resolvePendingSubmissionFromPanel({ outcome, memberId, passportNumber, startedAt } = {}) {
-      if (state.submissionResolutionInProgress || state.executionState === "running") {
+      if (state.queueUpdateInProgress || state.submissionResolutionInProgress || state.executionState === "running") {
         throw new Error("Jeda pengisian sebelum mencatat hasil pemeriksaan simpan.");
       }
       if (!["saved", "not_saved"].includes(outcome)) throw new Error("Pilih hasil pemeriksaan simpan di Nusuk.");
@@ -517,12 +612,21 @@
     }
 
     function pageReady() {
+      const url = String(window.location?.href || (typeof location !== "undefined" ? location.href : ""));
+      if (state.freshEntryRequired && !/\/umrah\/mutamer\/mutamer-list(?:\/|\?|#|$)/i.test(url)) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Form jamaah yang dilewati perlu ditutup terlebih dahulu. Lanjutkan dari panel untuk membuka Mu’tamer List otomatis." });
+        return false;
+      }
       if (!root.pageContext || root.pageContext.readPageContext().pageStatus === 'ready') return true;
       postToPanel('NUSUK_PANEL_STATUS', { tone: 'warning', message: 'Login ke Nusuk dan buka halaman Daftar atau Tambah Jamaah sebelum memulai.' });
       return false;
     }
 
     function submissionReady() {
+      if (state.queueUpdateInProgress) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Tunggu perubahan antrean selesai dicatat." });
+        return false;
+      }
       if (state.submissionResolutionInProgress) {
         postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Tunggu hasil pemeriksaan simpan selesai dicatat." });
         return false;
@@ -549,6 +653,7 @@
       resetAutofillFromPanel,
       restartFailedFromPanel,
       resolvePendingSubmissionFromPanel,
+      skipMemberFromPanel,
     };
   }
 

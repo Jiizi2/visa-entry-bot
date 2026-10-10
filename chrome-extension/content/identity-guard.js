@@ -21,7 +21,16 @@
     const error = new Error(`Entry dihentikan: ${message}. Periksa data dan paspor jamaah sebelum melanjutkan.`);
     error.name = "NusukIdentityError";
     error.retryable = retryable;
+    error.detail = message;
     return error;
+  }
+
+  function recordDataWarning(context, key, message) {
+    context.identityEvidence = context.identityEvidence || {};
+    const warnings = context.identityEvidence.dataWarnings = context.identityEvidence.dataWarnings || [];
+    if (warnings.some(warning => warning.key === key)) return;
+    warnings.push({ key, message });
+    context.onDataWarning?.({ key, message });
   }
 
   function normalizeName(value) {
@@ -214,8 +223,8 @@
       || uploaded.path !== String(context.member.passportImagePath))) {
       throw identityError("file paspor yang diunggah bukan milik jamaah aktif");
     }
-    // A resumed Member Form may not display the attachment. It is mandatory
-    // on the live Summary before Save, independently of this runtime evidence.
+    // Nusuk may hide or rename the attachment display. A readable conflict
+    // still blocks entry; unavailable display evidence is only a reminder.
     verifyPassportFile(context, false);
   }
 
@@ -260,7 +269,7 @@
     context.identityEvidence.passportName = expectedName;
   }
 
-  function verifyMemberNames(context) {
+  function verifyMemberNames(context, { warnOnly = false } = {}) {
     const profile = reviewedProfile(context);
     if (context.identityEvidence?.passportName !== normalizeName(fullName(profile)) || !hasVerifiedPassportIdentity(context)) {
       throw identityError("paspor aktif belum diverifikasi untuk jamaah ini");
@@ -275,12 +284,21 @@
         if (!inputs.length) throw identityError(`kolom ${field} (${language}) tidak dapat diverifikasi`, true);
         const mismatched = inputs.filter(input => normalizeName(input.value) !== value);
         if (mismatched.length) {
-          const error = identityError(`kolom ${field} (${language}) berubah, terpotong, atau masih berisi nama lain`, Boolean(value) && mismatched.every(input => !normalizeName(input.value)));
+          const message = `kolom ${field} (${language}) berubah, terpotong, atau masih berisi nama lain`;
+          if (warnOnly) {
+            recordDataWarning(context, `member_name_${language}_${field}`, message);
+            return;
+          }
+          const error = identityError(message, Boolean(value) && mismatched.every(input => !normalizeName(input.value)));
           error.code = "name_fields_mismatch";
           throw error;
         }
       });
     }
+  }
+
+  function checkMemberNames(context) {
+    verifyMemberNames(context, { warnOnly: true });
   }
 
   async function ensureMemberNames(context, { checkpoint, sleep, runId, isCurrentForm } = {}) {
@@ -291,7 +309,11 @@
         verifyMemberNames(context);
         return;
       } catch (error) {
-        if (error?.code !== "name_fields_mismatch" || attempt >= 2) throw error;
+        if (error?.code !== "name_fields_mismatch") throw error;
+        if (attempt >= 2) {
+          checkMemberNames(context);
+          return;
+        }
       }
       // verifyMemberNames has checked the reviewed profile and active passport.
       // Repair only its known name controls; never correct a different passport.
@@ -320,8 +342,8 @@
   }
 
   function verifySummaryIdentity(context) {
-    // A resumed run may have no earlier runtime evidence. The live Summary must
-    // independently match the member's number, complete name and passport file.
+    // The live passport number remains mandatory, including after a reload.
+    // Name differences are reminders for the operator's individual review.
     const profile = reviewedProfile(context);
     verifyPassportIdentity(context);
     const values = labeledValues(FULL_NAME_LABELS);
@@ -330,14 +352,20 @@
       const mismatched = part.map(value => normalizeName(/^[\s\-\u2013\u2014]*$/.test(value) ? "" : value))
         .filter(value => value !== normalizeName(profile[NAME_FIELDS[index]]));
       if (mismatched.length) {
-        throw identityError(`kolom ${NAME_FIELDS[index]} pada ringkasan berbeda dari data jamaah`, mismatched.every(value => !value));
+        recordDataWarning(context, `summary_name_${NAME_FIELDS[index]}`, `kolom ${NAME_FIELDS[index]} pada ringkasan berbeda dari data jamaah`);
       }
     });
     if (!values.some(value => normalizeName(value))) {
-      if (!parts[0].length || !parts[3].length) throw identityError("nama pada ringkasan Nusuk tidak dapat diverifikasi", true);
-      values.push(parts.map(part => /^[\s\-]*$/.test(part[0] || "") ? "" : part[0]).filter(Boolean).join(" "));
+      if (parts[0].length && parts[3].length) {
+        values.push(parts.map(part => /^[\s\-]*$/.test(part[0] || "") ? "" : part[0]).filter(Boolean).join(" "));
+      }
     }
-    assertValues(values, fullName(profile), normalizeName, "Nama pada ringkasan");
+    try {
+      assertValues(values, fullName(profile), normalizeName, "Nama pada ringkasan");
+    } catch (error) {
+      if (error?.name !== "NusukIdentityError") throw error;
+      recordDataWarning(context, "summary_full_name", error.detail);
+    }
     verifyPassportFile(context);
   }
 
@@ -347,11 +375,11 @@
     if (!expectedFile) throw identityError("path file paspor jamaah kosong");
     const filenames = labeledValues(ATTACHMENT_LABELS)
       .flatMap(value => String(value).split(/\r?\n/))
-      .map(line => line.trim().match(/^(.+?\.(?:jpe?g|png|webp|heic|pdf))(?=$|[\s\u00b7\u2022])/i)?.[1])
+      .map(line => line.trim().match(/^(.+?\.[a-z0-9]{2,10})(?=$|[\s\u00b7\u2022])/i)?.[1])
       .filter(Boolean);
-    if (!required && !filenames.length) {
-      if (labeledValues(ATTACHMENT_LABELS).some(value => String(value).trim())) {
-        throw identityError("file paspor pada form Nusuk tidak dapat diverifikasi", true);
+    if (!filenames.length) {
+      if (required || labeledValues(ATTACHMENT_LABELS).some(value => String(value).trim())) {
+        recordDataWarning(context, "passport_file_unreadable", "nama file paspor pada halaman Nusuk tidak terbaca; periksa lampiran jamaah ini");
       }
       return;
     }
@@ -367,5 +395,5 @@
     }
   }
 
-  root.identityGuard = Object.freeze({ nameSelector, identityError, hasVerifiedPassportIdentity, waitForIdentityCheck, recordPassportUpload, verifyPassportIdentity, verifyPassportName, verifyMemberNames, ensureMemberNames, verifySummaryIdentity });
+  root.identityGuard = Object.freeze({ nameSelector, identityError, recordDataWarning, hasVerifiedPassportIdentity, waitForIdentityCheck, recordPassportUpload, verifyPassportIdentity, verifyPassportName, verifyMemberNames, checkMemberNames, ensureMemberNames, verifySummaryIdentity });
 })();

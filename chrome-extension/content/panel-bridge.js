@@ -3,19 +3,19 @@
   const { validateManifestForEntry, formatManifestUploadMessage } = root.manifestValidator || {};
 
   function createPanelBridge({ state, persistState, postPanelState, postToPanel, registerUploadFiles, getUploadFileCount,
-    startAutofillFromPanel, pauseAutofillFromPanel, resetAutofillFromPanel, restartFailedFromPanel, resolvePendingSubmissionFromPanel, runAutomation, setTabAutoDiscardable }) {
+    startAutofillFromPanel, pauseAutofillFromPanel, resetAutofillFromPanel, restartFailedFromPanel, resolvePendingSubmissionFromPanel, skipMemberFromPanel, runAutomation, setTabAutoDiscardable }) {
     let previousRuntimeAutoDiscardable = null;
     let importing = false;
     function bindWindowBridge() {
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!message || typeof message !== 'object' || !message.type) return false;
         if (message.type === 'NUSUK_QUERY_CONTEXT') {
-          sendResponse({ ...root.pageContext.readPageContext(), contentReady: state.handoffReady !== false, executionState: state.executionState, hasManifest: Boolean(state.manifest?.members?.length) });
+          sendResponse({ ...root.pageContext.readPageContext(), contentReady: state.handoffReady !== false, executionState: state.executionState, freshEntryRequired: Boolean(state.freshEntryRequired), hasManifest: Boolean(state.manifest?.members?.length) });
           return false;
         }
         if (message.type === 'NUSUK_PANEL_READY') { sendResponse({ ok: true, panelState: postPanelState() }); return false; }
         if (message.type === 'NUSUK_PANEL_UPLOAD_MANIFEST') {
-          if (importing || state.submissionResolutionInProgress || ['running', 'paused'].includes(state.executionState) || state.pendingSubmission) {
+          if (importing || state.queueUpdateInProgress || state.submissionResolutionInProgress || ['running', 'paused'].includes(state.executionState) || state.pendingSubmission) {
             sendResponse({ ok: false, error: 'Batch tidak boleh diganti selama pekerjaan aktif atau hasil simpan belum diperiksa. Periksa form Nusuk, lalu reset sebelum mengganti batch.' });
             return false;
           }
@@ -27,11 +27,12 @@
             activeSessionId: state.activeSessionId, completedMemberIds: state.completedMemberIds, executionState: state.executionState,
             progressCurrent: state.progressCurrent, progressTotal: state.progressTotal, autofillFailures: state.autofillFailures,
             autofillAttemptFailures: state.autofillAttemptFailures, autofillNameCorrections: state.autofillNameCorrections,
-            autofillFailureScreenshots: state.autofillFailureScreenshots, revision: state.revision };
+            autofillDataWarnings: state.autofillDataWarnings,
+            autofillFailureScreenshots: state.autofillFailureScreenshots, freshEntryRequired: state.freshEntryRequired, revision: state.revision };
           importing = true;
           Object.assign(state, { manifest, selectedMemberId: manifest.members[0]?.id || '', currentRunPayload: null,
             activeSessionId: '', completedMemberIds: [], executionState: 'idle', progressCurrent: 0, progressTotal: manifest.members.length,
-            autofillFailures: [], autofillAttemptFailures: [], autofillNameCorrections: [], autofillFailureScreenshots: [], revision: 0 });
+            autofillFailures: [], autofillAttemptFailures: [], autofillNameCorrections: [], autofillDataWarnings: [], autofillFailureScreenshots: [], freshEntryRequired: false, revision: 0 });
           persistState({ required: true }).then(() => {
             registerUploadFiles?.([]);
             postPanelState();
@@ -45,7 +46,7 @@
           return true;
         }
         if (message.type === 'NUSUK_PANEL_UPLOAD_FILES') {
-          if (importing || state.submissionResolutionInProgress || ['running', 'paused'].includes(state.executionState) || state.pendingSubmission) { sendResponse({ ok: false, error: 'Reset pekerjaan sebelum mengganti file passport.' }); return false; }
+          if (importing || state.queueUpdateInProgress || state.submissionResolutionInProgress || ['running', 'paused'].includes(state.executionState) || state.pendingSubmission) { sendResponse({ ok: false, error: 'Reset pekerjaan sebelum mengganti file passport.' }); return false; }
           registerUploadFiles(Array.isArray(message.payload?.files) ? message.payload.files : []);
           const count = getUploadFileCount();
           postPanelState();
@@ -53,7 +54,7 @@
           return false;
         }
         if (message.type === 'NUSUK_PANEL_SELECT_MEMBER') {
-          if (importing || state.submissionResolutionInProgress || ['running', 'paused'].includes(state.executionState) || state.pendingSubmission) { sendResponse({ ok: false, error: 'Pilihan jamaah tidak boleh diganti selama pekerjaan aktif.' }); return false; }
+          if (importing || state.queueUpdateInProgress || state.submissionResolutionInProgress || ['running', 'paused'].includes(state.executionState) || state.pendingSubmission) { sendResponse({ ok: false, error: 'Pilihan jamaah tidak boleh diganti selama pekerjaan aktif.' }); return false; }
           const id = String(message.payload?.memberId || '');
           if (!state.manifest?.members?.some(member => String(member.id) === id)) { sendResponse({ ok: false, error: 'Jamaah tidak ditemukan di batch aktif.' }); return false; }
           state.selectedMemberId = id;
@@ -62,7 +63,7 @@
         }
         const commands = { NUSUK_PANEL_START_AUTOFILL: startAutofillFromPanel, NUSUK_PANEL_PAUSE_AUTOFILL: pauseAutofillFromPanel,
           NUSUK_PANEL_RESET_AUTOFILL: resetAutofillFromPanel, NUSUK_PANEL_RESTART_FAILED: restartFailedFromPanel,
-          NUSUK_PANEL_RESOLVE_SUBMISSION: resolvePendingSubmissionFromPanel };
+          NUSUK_PANEL_RESOLVE_SUBMISSION: resolvePendingSubmissionFromPanel, NUSUK_PANEL_SKIP_MEMBER: skipMemberFromPanel };
         if (commands[message.type]) {
           if (importing) { sendResponse({ ok: false, error: 'Tunggu file JSON selesai dimuat.' }); return false; }
           if (message.type === 'NUSUK_PANEL_START_AUTOFILL' || message.type === 'NUSUK_PANEL_RESTART_FAILED') {
@@ -76,7 +77,7 @@
         if (message.type === 'NUSUK_PANEL_MINIMIZE') { root.widgetInstance?.showWidget(); sendResponse({ ok: true }); return false; }
 
         if (message.type === "NUSUK_AUTOFILL_MEMBER") {
-          if (importing || state.submissionResolutionInProgress || state.executionState === "running" || state.executionState === "paused" || state.pendingSubmission) {
+          if (importing || state.queueUpdateInProgress || state.submissionResolutionInProgress || state.executionState === "running" || state.executionState === "paused" || state.pendingSubmission) {
             sendResponse({ ok: false, error: "Autofill sedang berjalan di tab ini." });
             return false;
           }

@@ -93,9 +93,12 @@
     currentRunPayload: null,
     pendingSubmission: null,
     submissionResolutionInProgress: false,
+    queueUpdateInProgress: false,
+    freshEntryRequired: false,
     autofillFailures: [],
     autofillAttemptFailures: [],
     autofillNameCorrections: [],
+    autofillDataWarnings: [],
     autofillFailureScreenshots: [],
     resumeAvailableAfterReload: false,
     runToken: 0,
@@ -285,6 +288,7 @@
     resetAutofillFromPanel,
     restartFailedFromPanel,
     resolvePendingSubmissionFromPanel,
+    skipMemberFromPanel,
   } = createAutofillSession({
     state,
     isControlError,
@@ -318,6 +322,7 @@
         resetAutofillFromPanel,
         restartFailedFromPanel,
         resolvePendingSubmissionFromPanel,
+        skipMemberFromPanel,
         runAutomation,
         setTabAutoDiscardable,
       });
@@ -470,12 +475,14 @@
     state.progressCurrent = Number(saved.progressCurrent || 0);
     state.progressTotal = Number(saved.progressTotal || 0);
     state.logs = Array.isArray(saved.logs) ? saved.logs.slice(-50) : [];
-    state.autofillFailures = Array.isArray(saved.autofillFailures) ? saved.autofillFailures.slice(-100) : [];
+    state.autofillFailures = Array.isArray(saved.autofillFailures) ? saved.autofillFailures : [];
+    state.freshEntryRequired = Boolean(saved.freshEntryRequired);
     state.activeSessionId = saved.activeSessionId || '';
     state.revision = Number(saved.revision || 0);
     state.completedMemberIds = saved.completedMemberIds || [];
     state.autofillAttemptFailures = Array.isArray(saved.autofillAttemptFailures) ? saved.autofillAttemptFailures.slice(-100) : [];
     state.autofillNameCorrections = Array.isArray(saved.autofillNameCorrections) ? saved.autofillNameCorrections : [];
+    state.autofillDataWarnings = Array.isArray(saved.autofillDataWarnings) ? saved.autofillDataWarnings : [];
     state.autofillFailureScreenshots = Array.isArray(saved.autofillFailureScreenshots) ? saved.autofillFailureScreenshots.slice(-3) : [];
     state.currentRunPayload = isRunnablePayload(saved.currentRunPayload) ? saved.currentRunPayload : null;
     if (!Object.prototype.hasOwnProperty.call(stored, state.storageKey + ':pending') && !Object.prototype.hasOwnProperty.call(stored, "nusukPendingSubmission")) state.pendingSubmission = saved.pendingSubmission || null;

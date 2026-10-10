@@ -1793,3 +1793,172 @@ dd {
   padding: 8px 12px;
   white-space: normal;
 }
+
+/* The queue stays available in compact mode and after the main run ends. */
+.member-queue {
+  flex: 0 0 auto;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.member-queue[hidden],
+.member-queue [hidden] {
+  display: none !important;
+}
+
+.queue-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.queue-header h2 {
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.queue-filter-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+}
+
+.queue-filter-label select {
+  width: auto;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--ink-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.queue-summary,
+.queue-guidance {
+  margin-top: 8px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.member-queue-list {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  margin-top: 12px;
+}
+
+.queue-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.queue-member-number {
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.queue-member-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.queue-member-passport {
+  color: var(--ink-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.queue-row-footer {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.queue-member-status {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  background: var(--bg-surface-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.queue-member-status.saved {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.queue-member-status.failed,
+.queue-member-status.review {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.queue-member-status.deferred,
+.queue-member-status.running,
+.queue-member-status.paused {
+  color: #965b24;
+  background: var(--warning-soft);
+}
+
+.queue-skip-btn {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  box-shadow: none;
+  transition: background-color 150ms, border-color 150ms;
+}
+
+.queue-skip-btn:active {
+  transform: none;
+}
+
+.member-queue :is(button, select):focus-visible {
+  outline: 2px solid var(--dark-gold);
+  outline-offset: 2px;
+}
+
+.queue-member-reason {
+  grid-column: 2;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+#queue-retry-btn {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 40px;
+  padding-block: 8px;
+  white-space: normal;
+}

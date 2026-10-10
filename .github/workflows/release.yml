@@ -355,9 +355,11 @@ jobs:
           body: |
             Pembaruan desktop dan Chrome extension EntryMate.
 
-            - Tampilan workflow Import, Prepare, Scan, Review, dan Entry diperbarui.
-            - Koneksi desktop-extension berjalan melalui background service worker dan dapat tersambung kembali.
-            - Pengiriman batch ke Nusuk menunggu konfirmasi extension dan mempertahankan progress saat melanjutkan sesi.
+            - Panel extension menampilkan daftar nama, nomor paspor, status entry, dan alasan gagal.
+            - Pilih **Lewati & lanjutkan** pada nama yang menghentikan proses untuk meneruskan sisa antrean dengan form baru.
+            - Setelah antrean selesai, **Ulangi gagal / dilewati** hanya memproses nama yang perlu diulang atas perintah pengguna. Nama yang sudah tersimpan tidak dikirim ulang.
+            - Penanda lewati dan progres tetap tersimpan setelah refresh pada tab yang sama. Hasil simpan yang belum terkonfirmasi tetap memerlukan pemeriksaan sebelum dilanjutkan.
+            - Perbedaan nama OCR dan data tambahan dicatat sebagai peringatan untuk pemeriksaan operator; nomor paspor yang berbeda dan lampiran yang jelas tertukar tetap menghentikan entry.
 
             **Update di device lain (Windows x64):**
             1. Klik **Cek pembaruan** di aplikasi desktop, atau unduh dan jalankan installer `.exe` dari rilis ini.
