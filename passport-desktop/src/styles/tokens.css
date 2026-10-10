@@ -117,6 +117,8 @@
   --tracking-overline: 0.06em;
   --duration-slow: 180ms;
   --duration-enter: 220ms;
+  --duration-page: 400ms;
+  --ease-page: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /* Legacy semantic aliases now resolve to the controlled type ramp. */

@@ -11,6 +11,20 @@ from services.resolved_name_rules import build_resolved_name_fields
 
 
 class ResolvedNameRulesTests(unittest.TestCase):
+    def test_reported_passport_preserves_full_name(self) -> None:
+        resolved = build_resolved_name_fields({"firstName": "FATIH RAFAIZAN", "familyName": "ARDIAN"})
+        self.assertEqual(" ".join(resolved[field] for field in ("firstName", "fatherName", "grandfatherName", "familyName") if resolved[field]), "FATIH RAFAIZAN ARDIAN")
+
+    def test_oversized_word_is_preserved_without_splitting(self) -> None:
+        resolved = build_resolved_name_fields({"firstName": "ABCDEFGHIJKLMNOP", "familyName": "ARDIAN"})
+        self.assertEqual(resolved["firstName"], "ABCDEFGHIJKLMNOP")
+        self.assertEqual(resolved["fatherName"], "")
+
+    def test_overflow_name_preserves_all_letters_and_words(self) -> None:
+        given = "ABDULLAH MUHAMMAD RAHMAT HIDAYAT CAHAYA BUDI PRATAMA"
+        resolved = build_resolved_name_fields({"firstName": given, "familyName": "ARDIAN"})
+        self.assertEqual(" ".join(resolved[field] for field in ("firstName", "fatherName", "grandfatherName", "familyName") if resolved[field]), f"{given} ARDIAN")
+
     def test_two_token_name_assigns_first_and_family(self) -> None:
         resolved = build_resolved_name_fields({"firstName": "M", "familyName": "HAMDI"})
 

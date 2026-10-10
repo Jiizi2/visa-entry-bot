@@ -176,17 +176,17 @@ test('page readiness distinguishes login, loading and the correct entry route', 
 test('batch acceptance waits for durable storage and invalid data does not replace the old batch', async () => {
   let listener, saved, answer;
   const state = { executionState: 'idle', manifest: { members: [{ id: 'old' }] } };
-  const ctx = vm.createContext({ window: { NusukAutofill: { manifestValidator: { validateManifestForEntry: manifest => { if(!manifest.members?.length) throw Error('empty'); } } } }, console, chrome: { runtime: { onMessage: { addListener: fn => { listener = fn; } } } } });
+  const ctx = vm.createContext({ window: { NusukAutofill: { manifestValidator: { validateManifestForEntry: manifest => { if(!manifest.members?.length) throw Error('empty'); return { warnings: [] }; }, formatManifestUploadMessage: () => 'loaded' } } }, console, chrome: { runtime: { onMessage: { addListener: fn => { listener = fn; } } } } });
   vm.runInContext(fs.readFileSync(path.join(root, 'content/panel-bridge.js'), 'utf8'), ctx);
-  const bridge = ctx.window.NusukAutofill.panelBridge.createPanelBridge({ state, persistState: () => new Promise(resolve => { saved = resolve; }), postPanelState: () => {} });
+  const bridge = ctx.window.NusukAutofill.panelBridge.createPanelBridge({ state, persistState: () => new Promise(resolve => { saved = resolve; }), postPanelState: () => {}, postToPanel: () => {} });
   bridge.bindWindowBridge();
-  listener({type:'NUSUK_WS_LOAD_BATCH',payload:{members:[],sessionId:'bad'}},{},value => {answer=value;});
+  listener({type:'NUSUK_PANEL_UPLOAD_MANIFEST',payload:{manifest:{members:[]}}},{},value => {answer=value;});
   assert.equal(answer.ok, false); assert.equal(state.manifest.members[0].id, 'old');
   answer = undefined;
-  listener({type:'NUSUK_WS_LOAD_BATCH',payload:{members:[{id:'new'}],sessionId:'accepted'}},{},value => {answer=value;});
+  listener({type:'NUSUK_PANEL_UPLOAD_MANIFEST',payload:{manifest:{members:[{id:'new'}]}}},{},value => {answer=value;});
   assert.equal(answer, undefined);
   saved(); await new Promise(resolve => setImmediate(resolve));
-  assert.equal(answer.ok, true); assert.equal(state.activeSessionId, 'accepted');
+  assert.equal(answer.ok, true); assert.equal(state.activeSessionId, '');
 });
 
 test('retry runs only failed members, preserves successes, and login blocks all starts', async () => {
@@ -195,6 +195,7 @@ test('retry runs only failed members, preserves successes, and login blocks all 
   const state = {activeSessionId:'session',executionState:'completed',manifest:{manifestPath:'C:/Demo/manifest.json',members},completedMemberIds:['a'],autofillFailures:[{memberId:'b'}],runToken:0};
   let pageStatus = 'ready';
   const ctx = vm.createContext({ window: { NusukAutofill: { constants:{},manifestValidator:{validateManifestForEntry:()=>true},pageContext:{readPageContext:()=>({pageStatus})} } }, console, chrome: {runtime:{sendMessage:async message=>{events.push(message);}}} });
+  vm.runInContext(fs.readFileSync(path.join(root,'content/submission-guard.js'),'utf8'),ctx);
   vm.runInContext(fs.readFileSync(path.join(root,'content/autofill-session.js'),'utf8'),ctx);
   const control = ctx.window.NusukAutofill.autofillSession.createAutofillSession({state,isControlError:()=>false,clearActiveHighlight:()=>{},resetProgress:()=>{},appendLog:()=>{},postPanelState:()=>{},postToPanel:()=>{},persistState:async()=>{},getSelectedMember:()=>members[0],runAutomation:async payload=>{runs.push(payload);}});
   await control.startAutofillFromPanel(); assert.equal(runs.length,0);

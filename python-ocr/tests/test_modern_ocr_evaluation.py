@@ -68,7 +68,7 @@ class ModernOcrEvaluationTests(unittest.TestCase):
         pytesseract = Mock()
         pytesseract.image_to_string.return_value = "PASSPORT"
         with (
-            patch("services.modern_ocr_evaluation.cv2.imread", return_value=object()),
+            patch("services.modern_ocr_evaluation.read_image", return_value=object()),
             patch("services.modern_ocr_evaluation.importlib.import_module", return_value=pytesseract),
         ):
             result = evaluate_modern_ocr_engine("file.png", "tesseract")

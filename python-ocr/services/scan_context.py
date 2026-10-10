@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from services.log import logger
 from services.models import ParsedPassportData
+from services.ocr_constants import OCR_STAGE_MIN_REMAINING_MS
 
 
 class ScanContext:
@@ -54,6 +55,9 @@ class ScanContext:
         self.extraction: Dict[str, Any] = {"data": {}, "confidence": 0.0, "notes": ""}
         self.parsed: ParsedPassportData = ParsedPassportData()
         self.mrz_error: str = ""
+        self.mrz_name_fields: Dict[str, str] = {}
+        from services.visual_identity import VisualIdentityEvidence
+        self.visual_identity_evidence = VisualIdentityEvidence()
 
         # --- Page & Rotation ---
         self.page: Any = None
@@ -84,12 +88,7 @@ class ScanContext:
         self.stage_reports: List[Any] = []
 
         # --- Stage Timing Config ---
-        self.stage_min_remaining_ms: Dict[str, int] = {
-            "location": 3_000,
-            "page_align": 4_000,
-            "dates": 3_000,
-            "names": 4_000,
-        }
+        self.stage_min_remaining_ms: Dict[str, int] = dict(OCR_STAGE_MIN_REMAINING_MS)
 
     # --- Timing Helpers ---
 

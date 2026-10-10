@@ -54,6 +54,17 @@ class LocationNormalizerTests(unittest.TestCase):
         self.assertEqual(normalize_location_value("placeOfBirth", "SURABAYA"), "SURABAYA")
         self.assertEqual(normalize_location_value("issuingOffice", "DENPASAR"), "DENPASAR")
 
+    def test_confident_unlisted_birth_place_is_not_replaced_by_a_similar_city(self) -> None:
+        self.assertEqual(
+            pick_best_location_value("placeOfBirth", ["SUNGAI RANYAH"], preserve_unlisted=True),
+            "SUNGAI RANYAH",
+        )
+        self.assertEqual(
+            pick_best_location_value("placeOfBirth", ["PARE PARE"], preserve_unlisted=True),
+            "PAREPARE",
+        )
+        self.assertEqual(pick_best_location_value("placeOfBirth", ["LT"], preserve_unlisted=True), "")
+
 
 if __name__ == "__main__":
     unittest.main()

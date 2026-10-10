@@ -30,10 +30,20 @@
     detectNusukStage,
   }) {
     async function runAutomation(payload, runId = state.runToken) {
-      const members = resolveAutomationMembers(payload);
-      if (!members.length) {
+      root.submissionGuard.assertNoPending(state);
+      const requestedMembers = resolveAutomationMembers(payload);
+      if (!requestedMembers.length) {
         throw new Error("Missing member payload.");
       }
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const members = requestedMembers.filter(member => !completed.has(String(member.id)));
+      if (!members.length) return;
+      // Validate every entry path, including direct runtime messages and restored checkpoints.
+      root.manifestValidator.validateManifestForEntry({
+        schemaVersion: root.manifestValidator.ENTRY_BATCH_SCHEMA_VERSION,
+        contractVersion: state.manifest?.contractVersion,
+        members,
+      });
 
       const globalSteps = [
         {
@@ -44,23 +54,19 @@
       ];
 
       const perMemberSteps = buildPerMemberSteps(NEXT_BUTTON_SELECTOR);
-      const progressSteps = [...globalSteps, ...perMemberSteps].filter(countsForProgress);
       const manifestMembers = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
       state.progressTotal = manifestMembers.length > 0 ? manifestMembers.length : members.length;
       const startMemberIndex = Math.max(0, Number(payload?.startMemberIndex ?? payload?.memberIndex ?? 0));
-      if (members.length > 0) {
-        const completedCount = state.progressTotal - members.length;
-        state.progressCurrent = completedCount + 1;
-      } else {
-        state.progressCurrent = 0;
-      }
+      state.progressCurrent = completedMemberCount();
       postPanelState();
 
       for (let memberOffset = 0; memberOffset < members.length; memberOffset += 1) {
+        await checkpoint(runId);
         const member = members[memberOffset];
         const context = {
           member,
           members,
+          batchMembers: manifestMembers.length ? manifestMembers : members,
           memberIndex: startMemberIndex + memberOffset,
           batchMemberIndex: memberOffset,
           memberNumber: memberOffset + 1,
@@ -69,18 +75,24 @@
           entryReleaseDate: resolvePreferredReleaseDate(member),
           manifestPath: String(payload?.manifestPath || state.manifest?.manifestPath || ""),
           runId,
+          identityEvidence: {},
         };
 
         state.selectedMemberId = String(member.id || state.selectedMemberId || "");
         
-        // Compute progress based on execution offset of members batch
-        const completedCount = state.progressTotal - members.length;
-        state.progressCurrent = completedCount + memberOffset + 1;
+        // Persist the entire remaining queue before touching this member's form.
+        state.currentRunPayload = {
+          ...payload,
+          members: members.slice(memberOffset),
+          startMemberIndex: startMemberIndex + memberOffset,
+          totalMembers: members.length - memberOffset,
+        };
+        state.progressCurrent = completedMemberCount();
         state.revision = (state.revision || 0) + 1;
 
         if (chrome?.runtime?.sendMessage) {
           chrome.runtime.sendMessage({
-            type: "NUSUK_WS_EVENT",
+            type: "NUSUK_AUTOFILL_EVENT",
             payload: {
               eventType: "CURRENT_MEMBER",
               memberId: member.id || `member-${memberOffset + 1}`
@@ -88,7 +100,7 @@
           });
         }
         appendLog?.("info", `Memproses jamaah ${memberOffset + 1}/${members.length}: ${describeMember(member)}`);
-        await persistState();
+        await persistState({ required: true });
         postPanelState();
         // Post progress update
         if (typeof postProgress === "function") {
@@ -107,29 +119,31 @@
         });
 
         if (result.success) {
+          await checkpoint(runId);
           state.completedMemberIds = [...new Set([...(state.completedMemberIds || []), String(member.id)])];
           state.autofillFailures = (state.autofillFailures || []).filter(f => String(f.memberId) !== String(member.id));
-          await persistState();
+          state.progressCurrent = completedMemberCount();
+          await persistState({ required: true });
           postPanelState();
           appendLog?.("success", `Jamaah ${memberOffset + 1}/${members.length} berhasil dientry: ${describeMember(member)}`);
-          if (chrome?.runtime?.sendMessage) {
-            chrome.runtime.sendMessage({
-              type: "NUSUK_WS_EVENT",
-              payload: {
-                eventType: "MEMBER_COMPLETED",
-                memberId: member.id
-              }
-            });
-          }
           continue;
         }
 
-        appendLog?.("error", `Jamaah ${memberOffset + 1}/${members.length} dilewati setelah retry maksimal: ${describeMember(member)}. Alasan: ${result.reason}`);
+        appendLog?.("error", `Entry berhenti pada jamaah ${memberOffset + 1}/${members.length}: ${describeMember(member)}. Alasan: ${result.reason}`);
         await recordMemberFailure(payload, members, startMemberIndex, memberOffset, result.reason);
+        throw new Error(`Entry dihentikan pada ${describeMember(member)}: ${result.message || result.reason}. Jamaah berikutnya belum diproses; periksa form aktif sebelum melanjutkan.`);
+      }
+      const corrections = (state.autofillNameCorrections || []).filter(note =>
+        (state.completedMemberIds || []).map(String).includes(note.memberId));
+      if (corrections.length) {
+        appendLog?.("info", `Catatan OCR Nusuk: nama ${corrections.length} jamaah diisi mengikuti data review EntryMate.`);
+        for (const note of corrections) {
+          appendLog?.("info", `${note.passportNumber}: ${note.observedName || "(nama OCR kosong)"} → ${note.expectedName}`);
+        }
       }
       if (chrome?.runtime?.sendMessage) {
         chrome.runtime.sendMessage({
-          type: "NUSUK_WS_EVENT",
+          type: "NUSUK_AUTOFILL_EVENT",
           payload: {
             eventType: "SESSION_COMPLETED"
           }
@@ -144,18 +158,24 @@
         await checkpoint(runId);
         try {
           await withWatchdog(
-            runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId }),
+            onProgress => runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId, onProgress }),
             Number(AUTOFILL_MEMBER_WATCHDOG_MS || 180000),
             `jamaah ${context.memberNumber}/${context.totalMembers}`
           );
           return { success: true };
         } catch (error) {
           throwIfControlError(error);
+          if (context.memberAddedVerified) {
+            throw new Error(`Jamaah ${describeMember(context.member)} sudah tersimpan di Nusuk, tetapi penutupan form gagal. Entry berhenti; jamaah ini tidak diulang otomatis. ${error.message || error}`);
+          }
           state.progressCurrent = Math.min(memberStartProgress, Number(state.progressTotal || memberStartProgress));
           const reason = classifyAutomationFailure(error);
           await recordAttemptFailure(context, attempt, maxRetries, reason, error);
+          if (state.pendingSubmission || error?.name === "NusukSubmissionError" || (error?.name === "NusukIdentityError" && !error.retryable) || reason === "watchdog_timeout") {
+            return { success: false, reason, message: error.message };
+          }
           if (attempt >= maxRetries) {
-            return { success: false, reason };
+            return { success: false, reason, message: error.message };
           }
           await recoverAfterAttemptFailure(reason, runId);
           await sleep(backoffDelay(attempt), runId);
@@ -164,9 +184,11 @@
       return { success: false, reason: "max_retries_exceeded" };
     }
 
-    async function runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId }) {
+    async function runMemberOnce({ payload, members, startMemberIndex, memberOffset, context, globalSteps, perMemberSteps, runId, onProgress }) {
       await ensureSessionStillUsable();
       const resumeStage = resolveCurrentNusukStage();
+      // Runtime evidence is lost after a reload or a new run. Resumed Disclosure
+      // and Summary forms are checked against the live Summary before saving.
       const shouldSkipOpenForm = resumeStage > 0 && resumeStage < 5;
       const firstPerMemberStepIndex = shouldSkipOpenForm
         ? findResumeStepIndex(perMemberSteps, resumeStage)
@@ -181,9 +203,11 @@
         }
         await checkpoint(runId);
         await ensureSessionStillUsable();
+        onProgress();
+        context.currentStep = globalSteps[index].label || globalSteps[index].action;
         if (chrome?.runtime?.sendMessage) {
           chrome.runtime.sendMessage({
-            type: "NUSUK_WS_EVENT",
+            type: "NUSUK_AUTOFILL_EVENT",
             payload: {
               eventType: "CURRENT_STEP",
               stepName: globalSteps[index].label || globalSteps[index].action || `Langkah ${index + 1}`
@@ -191,6 +215,7 @@
           });
         }
         await runStep(globalSteps[index], { ...context, index });
+        onProgress();
         await slowModeDelayAfterStep(globalSteps[index], runId);
       }
 
@@ -198,9 +223,11 @@
         await checkpoint(runId);
         await ensureSessionStillUsable();
         const step = perMemberSteps[index];
+        onProgress();
+        context.currentStep = step.label || step.action;
         if (chrome?.runtime?.sendMessage) {
           chrome.runtime.sendMessage({
-            type: "NUSUK_WS_EVENT",
+            type: "NUSUK_AUTOFILL_EVENT",
             payload: {
               eventType: "CURRENT_STEP",
               stepName: step.label || step.action || `Langkah ${index + 1}`
@@ -208,8 +235,20 @@
           });
         }
         await runStep(step, { ...context, index: globalSteps.length + index });
+        const correction = context.identityEvidence.nameCorrection;
+        if (correction && !(state.autofillNameCorrections || []).some(note => note.memberId === String(context.member.id))) {
+          state.autofillNameCorrections = [...(state.autofillNameCorrections || []), {
+            memberId: String(context.member.id), passportNumber: context.member.resolvedProfile.passportNumber,
+            passportImagePath: context.member.passportImagePath, ...correction,
+          }];
+          await persistState({ required: true });
+        }
+        onProgress();
         if (isMutamerSuccessPopupWaitStep(step)) {
-          await markMemberAddedForResume(payload, members, startMemberIndex, memberOffset);
+          await checkpoint(runId);
+          root.submissionGuard.assertPendingMember(state, context);
+          context.memberAddedVerified = true;
+          await markMemberAddedForResume(payload, members, startMemberIndex, memberOffset, runId);
         }
         await slowModeDelayAfterStep(step, runId);
       }
@@ -258,20 +297,36 @@
       return "halaman aktif";
     }
 
-    async function markMemberAddedForResume(payload, members, startMemberIndex, memberOffset) {
+    async function markMemberAddedForResume(payload, members, startMemberIndex, memberOffset, runId) {
+      const member = members[memberOffset];
+      const previous = {
+        completedMemberIds: state.completedMemberIds,
+        autofillFailures: state.autofillFailures,
+        currentRunPayload: state.currentRunPayload,
+        pendingSubmission: state.pendingSubmission,
+        progressCurrent: state.progressCurrent,
+      };
+      state.completedMemberIds = [...new Set([...(state.completedMemberIds || []), String(member.id)])];
+      state.autofillFailures = (state.autofillFailures || []).filter(f => String(f.memberId) !== String(member.id));
       const remainingMembers = members.slice(memberOffset + 1);
-      if (!remainingMembers.length) {
-        state.currentRunPayload = null;
-        await persistState?.();
-        return;
-      }
-      state.currentRunPayload = {
+      state.currentRunPayload = remainingMembers.length ? {
         ...payload,
         members: remainingMembers,
         startMemberIndex: startMemberIndex + memberOffset + 1,
         totalMembers: remainingMembers.length,
-      };
-      await persistState?.();
+      } : null;
+      state.pendingSubmission = null;
+      state.progressCurrent = completedMemberCount();
+      try {
+        await persistState({ required: true, submissionCheckpoint: true });
+      } catch (error) {
+        Object.assign(state, previous);
+        throw root.submissionGuard.submissionError(`hasil sukses Nusuk belum dapat dicatat (${error.message || error})`);
+      }
+      await checkpoint(runId);
+      if (chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: "NUSUK_AUTOFILL_EVENT", payload: { eventType: "MEMBER_COMPLETED", memberId: member.id } });
+      }
     }
 
     async function recordMemberFailure(payload, members, startMemberIndex, memberOffset, reason) {
@@ -288,7 +343,7 @@
 
       if (chrome?.runtime?.sendMessage) {
         chrome.runtime.sendMessage({
-          type: "NUSUK_WS_EVENT",
+          type: "NUSUK_AUTOFILL_EVENT",
           payload: {
             eventType: "FAILURE_UPDATED",
             memberId: String(failedMember?.id || ""),
@@ -298,16 +353,22 @@
         });
       }
 
-      const remainingMembers = members.slice(memberOffset + 1);
+      const remainingMembers = members.slice(memberOffset);
       state.currentRunPayload = remainingMembers.length
         ? {
             ...payload,
             members: remainingMembers,
-            startMemberIndex: startMemberIndex + memberOffset + 1,
+            startMemberIndex: startMemberIndex + memberOffset,
             totalMembers: remainingMembers.length,
           }
         : null;
-      await persistState?.();
+      await persistState?.({ required: true });
+    }
+
+    function completedMemberCount() {
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const members = state.manifest?.members;
+      return Array.isArray(members) ? members.filter(member => completed.has(String(member.id))).length : completed.size;
     }
 
     async function recordAttemptFailure(context, attempt, maxRetries, reason, error) {
@@ -320,6 +381,8 @@
         attempt,
         maxRetries,
         reason,
+        step: String(context.currentStep || ""),
+        nusukStage: resolveCurrentNusukStage(),
         url: String(location.href || ""),
         message: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
@@ -361,6 +424,10 @@
     }
 
     async function recoverAfterAttemptFailure(reason, runId) {
+      if (reason === "identity_not_ready") {
+        appendLog?.("info", "Data paspor belum selesai dimuat. Mengulang pemeriksaan jamaah yang sama tanpa mengirim ulang data.");
+        return;
+      }
       if (reason === "session_expired") {
         appendLog?.("warning", "Session terlihat expired. Silakan login ulang di tab ini; automation akan lanjut setelah halaman kembali siap.");
         await waitForSessionRecovery(runId);
@@ -425,6 +492,8 @@
 
     function classifyAutomationFailure(error) {
       const message = String(error?.message || error || "").toLowerCase();
+      if (state.pendingSubmission || error?.name === "NusukSubmissionError") return "submission_unconfirmed";
+      if (error?.name === "NusukIdentityError") return error.retryable ? "identity_not_ready" : "identity_mismatch";
       if (message.includes("execution interrupted")) {
         return "interrupted";
       }
@@ -465,14 +534,36 @@
       return Math.min(max, base * Math.pow(2, Math.max(0, attempt - 1)) + jitter);
     }
 
-    async function withWatchdog(promise, timeoutMs, label) {
-      let timer = 0;
+    async function withWatchdog(task, timeoutMs, label) {
+      let timer = 0, finished = false, onProgress;
+      const watchdogRunToken = state.runToken;
       const watchdog = new Promise((_, reject) => {
-        timer = window.setTimeout(() => reject(new Error(`watchdog_timeout:${label}`)), Math.max(5000, Number(timeoutMs || 0)));
+        onProgress = () => {
+          if (finished) return;
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => {
+            if (finished) return;
+            if (state.runToken !== watchdogRunToken) {
+              finished = true;
+              reject(Object.assign(new Error("Execution interrupted: reset"), { name: "NusukControlError", controlReason: "reset" }));
+              return;
+            }
+            if (state.executionState === "paused") {
+              onProgress();
+              return;
+            }
+            // Measure a stuck step, not the total duration of a working member.
+            finished = true;
+            state.runToken += 1;
+            reject(new Error(`watchdog_timeout:${label}`));
+          }, Math.max(5000, Number(timeoutMs || 0)));
+        };
+        onProgress();
       });
       try {
-        return await Promise.race([promise, watchdog]);
+        return await Promise.race([task(onProgress), watchdog]);
       } finally {
+        finished = true;
         window.clearTimeout(timer);
       }
     }

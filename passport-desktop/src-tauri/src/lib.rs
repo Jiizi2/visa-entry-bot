@@ -1,13 +1,5 @@
 use base64::{engine::general_purpose, Engine as _};
-pub mod transport;
-pub mod server;
-pub mod protocol;
-pub mod protocol_validator;
-pub mod session_manager;
-pub mod automation_service;
-pub mod message_router;
-pub mod handoff;
-pub mod event_dispatcher;
+mod file_handoff;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
@@ -21,7 +13,6 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 use tauri::{AppHandle, Emitter, Manager, State};
-use std::sync::atomic::Ordering;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -440,7 +431,20 @@ fn start_scan(
 }
 
 #[tauri::command]
-fn prepare_passport_images(
+async fn prepare_passport_images(
+    selected_dir: String,
+    pdf_batch_mode: Option<bool>,
+) -> Result<Value, String> {
+    // Waiting for the Python worker on the window thread prevents WebView input,
+    // including dismissing the Prepare artwork, until every document is ready.
+    tauri::async_runtime::spawn_blocking(move || {
+        prepare_passport_images_blocking(selected_dir, pdf_batch_mode)
+    })
+    .await
+    .map_err(|err| format!("Gagal menyiapkan foto: {err}"))?
+}
+
+fn prepare_passport_images_blocking(
     selected_dir: String,
     pdf_batch_mode: Option<bool>,
 ) -> Result<Value, String> {
@@ -1014,16 +1018,18 @@ fn open_path_location(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        let mut command = Command::new("explorer.exe");
         if metadata
             .as_ref()
             .map(|metadata| metadata.is_file())
             .unwrap_or(false)
         {
-            command.arg(format!("/select,{}", candidate.to_string_lossy()));
-        } else {
-            command.arg(&folder);
+            // Use the native shell API so spaces, commas and extended paths are
+            // handled as file paths rather than Explorer command-line syntax.
+            return tauri_plugin_opener::reveal_item_in_dir(&candidate)
+                .map_err(|err| format!("Gagal membuka lokasi file di Explorer: {err}"));
         }
+        let mut command = Command::new("explorer.exe");
+        command.arg(path_to_display_string(&folder));
         command.creation_flags(0x08000000);
         command
             .spawn()
@@ -1173,7 +1179,19 @@ fn resolve_passport_image_path(
 }
 
 #[tauri::command]
-fn load_passport_image_data(
+async fn load_passport_image_data(
+    manifest_path: String,
+    image_path: String,
+    file_name: String,
+) -> Result<Option<PassportImageData>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        load_passport_image_data_blocking(manifest_path, image_path, file_name)
+    })
+    .await
+    .map_err(|err| format!("Gagal memuat foto: {err}"))?
+}
+
+fn load_passport_image_data_blocking(
     manifest_path: String,
     image_path: String,
     file_name: String,
@@ -1562,6 +1580,9 @@ fn create_nusuk_batch(
         "groupId": manifest.get("groupId").cloned().unwrap_or(Value::String(String::new())),
         "manifestPath": manifest_path,
         "generatedBy": "entrymate-by-ghaniya",
+        "batchId": uuid::Uuid::new_v4().to_string(),
+        "generatedAt": chrono::Utc::now().to_rfc3339(),
+        "contractVersion": manifest.get("contractVersion").cloned().unwrap_or(Value::Null),
         "members": filtered_members
     });
 
@@ -1951,6 +1972,27 @@ mod tests {
     use serde_json::Map;
 
     #[test]
+    fn json_export_keeps_member_identity_and_photo_and_generates_a_new_batch_id() {
+        let folder = std::env::temp_dir().join(format!("entrymate-export-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&folder).unwrap();
+        let manifest_path = folder.join("manifest.json").to_string_lossy().into_owned();
+        let member = json!({"id":"a-4", "reviewStatus":"VALID", "reviewConfirmed":true,
+            "passportImagePath":"C:/batch-a/4.jpg", "resolvedProfile":{"passportNumber":"A000004","firstName":"MEMBER A"}});
+        let manifest = json!({"members":[member.clone(), {"id":"b-1","reviewStatus":"VALID","reviewConfirmed":false}]});
+        let output = create_nusuk_batch(manifest_path.clone(), vec![], Some(manifest.clone())).unwrap();
+        let first: Value = serde_json::from_str(&fs::read_to_string(&output).unwrap()).unwrap();
+        assert_eq!(first["members"], json!([member]));
+        assert_eq!(first["manifestPath"], manifest_path);
+        assert_eq!(first["schemaVersion"], "nusuk-entry-batch-v1");
+        assert!(uuid::Uuid::parse_str(first["batchId"].as_str().unwrap()).is_ok());
+        create_nusuk_batch(manifest_path, vec![], Some(manifest)).unwrap();
+        let second: Value = serde_json::from_str(&fs::read_to_string(&output).unwrap()).unwrap();
+        assert_ne!(first["batchId"], second["batchId"]);
+        fs::remove_file(output).unwrap();
+        fs::remove_dir(folder).unwrap();
+    }
+
+    #[test]
     fn member_review_status_prefers_review_status() {
         let mut member = Map::new();
         member.insert("status".to_string(), Value::String("VALID".to_string()));
@@ -2060,313 +2102,6 @@ mod tests {
     }
 }
 
-fn start_websocket_orchestrator(
-    app_handle: AppHandle,
-    connection_manager: Arc<server::connection_manager::ConnectionManager>,
-    session_manager: Arc<session_manager::SessionManager>,
-    handoff_manager: Arc<handoff::HandoffManager>,
-) {
-    let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel::<transport::websocket::TransportEvent>();
-    let ws_server = Arc::new(transport::websocket::WebSocketServer::new(event_tx));
-    let cm = connection_manager.clone();
-    let sm = session_manager.clone();
-    let app_for_messages = app_handle.clone();
-
-    tauri::async_runtime::spawn(async move {
-        match ws_server.start(9001..=9005).await {
-            Ok(port) => {
-                println!("[Transport] WebSocket Server terpasang di port: {}", port);
-            }
-            Err(e) => {
-                eprintln!("[Error] Gagal menjalankan WebSocket Server: {:?}", e);
-            }
-        }
-    });
-
-    tauri::async_runtime::spawn(async move {
-        while let Some(event) = event_rx.recv().await {
-            match event {
-                transport::websocket::TransportEvent::Connect { client_id, sender, addr } => {
-                    cm.register_client(client_id, sender, addr);
-                }
-                transport::websocket::TransportEvent::Disconnect { client_id } => {
-                    handoff_manager.disconnect(client_id);
-                    cm.unregister_client(client_id);
-                    let _ = app_handle.emit("transport-disconnected", serde_json::json!({ "clientId": client_id.to_string(), "connected": !cm.get_ready_client_ids().is_empty() }));
-                    sm.metrics.heartbeats_lost.fetch_add(1, Ordering::SeqCst);
-                }
-                transport::websocket::TransportEvent::Message { client_id, text } => {
-                    println!("[Protocol] Menerima pesan mentah: {}", text);
-                    match protocol_validator::ProtocolValidator::validate(&text) {
-                        Ok(envelope) => {
-                            if !cm.check_incoming_sequence(client_id, envelope.sequence) {
-                                println!("[Protocol] Mengabaikan pesan dengan sequence usang: {}", envelope.sequence);
-                                sm.metrics.sequence_dropped.fetch_add(1, Ordering::SeqCst);
-                                continue;
-                            }
-                            match envelope.r#type {
-                                protocol::MessageType::Hello => {
-                                    if let Ok(payload) = serde_json::from_value::<protocol::HelloPayload>(envelope.payload.clone()) {
-                                        println!(
-                                            "[Protocol] HELLO diterima: browser={}, version={}",
-                                            payload.browser, payload.extension_version
-                                        );
-                                        cm.complete_handshake(client_id, payload.browser, payload.extension_version);
-                                        cm.set_handoff_support(client_id, payload.capabilities.supports_handoff);
-                                        let ack_payload = serde_json::json!({
-                                            "authToken": "local-orchestrator-auth"
-                                        });
-                                        send_envelope(
-                                            &cm,
-                                            client_id,
-                                            protocol::MessageType::HelloAck,
-                                            &envelope.correlation_id,
-                                            ack_payload,
-                                            Some(envelope.message_id.clone()),
-                                        );
-                                    } else {
-                                        send_error(&cm, client_id, "ERR_INVALID_PAYLOAD", "Payload HELLO tidak valid.", &envelope);
-                                    }
-                                }
-                                protocol::MessageType::Ready => {
-                                    if cm.is_client_handshaken(client_id) {
-                                        if let Ok(payload) = serde_json::from_value::<protocol::ReadyPayload>(envelope.payload.clone()) {
-                                            println!("[Protocol] READY diterima dari URL: {}", payload.current_url);
-                                            
-                                            if let Some(s) = sm.resumable_session(payload.session_id.as_deref(), payload.resume_token.as_deref()) {
-                                                let _ = sm.update_snapshot(|s| s.target_client_id = Some(client_id));
-                                                sm.metrics.snapshots_restored.fetch_add(1, Ordering::SeqCst);
-                                                sm.metrics.resumes_successful.fetch_add(1, Ordering::SeqCst);
-                                                sm.metrics.snapshots_generated.fetch_add(1, Ordering::SeqCst);
-                                                send_envelope(
-                                                    &cm, client_id, protocol::MessageType::SessionSnapshot,
-                                                    &envelope.correlation_id, s.snapshot_payload(), None,
-                                                );
-                                            } else {
-                                                let requested_resume = payload.session_id.as_deref().is_some_and(|id| !id.is_empty());
-                                                if requested_resume {
-                                                    sm.metrics.resumes_failed.fetch_add(1, Ordering::SeqCst);
-                                                }
-                                                send_envelope(
-                                                    &cm, client_id, protocol::MessageType::Ack,
-                                                    &envelope.correlation_id,
-                                                    serde_json::json!({ "sessionReset": requested_resume }),
-                                                    Some(envelope.message_id.clone()),
-                                                );
-                                            }
-                                            cm.complete_ready(client_id);
-                                            let _ = app_handle.emit("transport-connected", serde_json::json!({ "clientId": client_id.to_string(), "connected": true }));
-                                        } else {
-                                            send_error(&cm, client_id, "ERR_INVALID_PAYLOAD", "Payload READY tidak valid.", &envelope);
-                                        }
-                                    } else {
-                                        send_error(&cm, client_id, "ERR_ILLEGAL_TRANSITION", "Klien belum menyelesaikan handshake HELLO.", &envelope);
-                                    }
-                                }
-                                protocol::MessageType::Ping => {
-                                    send_envelope(
-                                        &cm,
-                                        client_id,
-                                        protocol::MessageType::Pong,
-                                        &envelope.correlation_id,
-                                        envelope.payload.clone(), // Echo payload (includes timestamp)
-                                        Some(envelope.message_id.clone()),
-                                    );
-                                }
-                                protocol::MessageType::NusukContext | protocol::MessageType::Error => {
-                                    handoff_manager.resolve(client_id, &envelope);
-                                }
-                                _ => {
-                                    if let Err(e) = message_router::MessageRouter::route(&app_for_messages, envelope.clone(), client_id, &cm, &sm) {
-                                        eprintln!("[Error] Router gagal meneruskan pesan: {}", e);
-                                    } else {
-                                        handoff_manager.resolve(client_id, &envelope);
-                                    }
-                                }
-                            }
-                        }
-                        Err(err_payload) => {
-                            eprintln!("[Error] Validasi protokol gagal: {:?}", err_payload);
-                            let error_env = protocol::Envelope {
-                                protocol_version: 1,
-                                r#type: protocol::MessageType::Error,
-                                message_id: uuid::Uuid::new_v4().to_string(),
-                                session_id: "".to_string(),
-                                correlation_id: "".to_string(),
-                                timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-                                sequence: cm.next_outgoing_sequence(client_id),
-                                reply_to_message_id: None,
-                                payload: serde_json::to_value(&err_payload).unwrap(),
-                            };
-                            if let Ok(error_text) = serde_json::to_string(&error_env) {
-                                let _ = cm.send_to(client_id, error_text);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-fn fnv1a_hash(s: &str) -> String {
-    let mut hash: u64 = 0xcbf29ce484222325;
-    for byte in s.bytes() {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    format!("{:016x}", hash)
-}
-
-fn send_envelope(
-    cm: &server::connection_manager::ConnectionManager,
-    client_id: transport::websocket::ClientId,
-    msg_type: protocol::MessageType,
-    correlation_id: &str,
-    payload: serde_json::Value,
-    reply_to: Option<String>,
-) {
-    let sequence = cm.next_outgoing_sequence(client_id);
-    let envelope = protocol::Envelope {
-        protocol_version: 1,
-        r#type: msg_type,
-        message_id: uuid::Uuid::new_v4().to_string(),
-        session_id: "".to_string(),
-        correlation_id: correlation_id.to_string(),
-        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        sequence,
-        reply_to_message_id: reply_to,
-        payload,
-    };
-    if let Ok(text) = serde_json::to_string(&envelope) {
-        if let Err(e) = cm.send_to(client_id, text) {
-            eprintln!("[Error] Gagal mengirim amplop {:?}: {:?}", envelope.r#type, e);
-        }
-    }
-}
-
-fn send_error(
-    cm: &server::connection_manager::ConnectionManager,
-    client_id: transport::websocket::ClientId,
-    code: &str,
-    message: &str,
-    reply_to_envelope: &protocol::Envelope,
-) {
-    let err_payload = protocol::ErrorPayload {
-        code: code.to_string(),
-        message: message.to_string(),
-        recoverable: true,
-        details: None,
-    };
-    send_envelope(
-        cm,
-        client_id,
-        protocol::MessageType::Error,
-        &reply_to_envelope.correlation_id,
-        serde_json::to_value(&err_payload).unwrap(),
-        Some(reply_to_envelope.message_id.clone()),
-    );
-}
-
-#[tauri::command]
-fn is_automation_connected(
-    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
-) -> bool {
-    !connection_manager.get_ready_client_ids().is_empty()
-}
-
-#[tauri::command]
-fn get_system_health(
-    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
-    session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
-) -> serde_json::Value {
-    let session = session_manager.get_session();
-    let status = session.as_ref().map(|s| format!("{:?}", s.status)).unwrap_or_else(|| "IDLE".to_string());
-    let revision = session.as_ref().map(|s| s.revision).unwrap_or(0);
-    let client_connected = !connection_manager.get_ready_client_ids().is_empty();
-    let journal_usage = format!("{}/200", session_manager.get_journal().len());
-    
-    serde_json::json!({
-        "status": status,
-        "revision": revision,
-        "clientConnected": client_connected,
-        "journalUsage": journal_usage,
-        "metrics": {
-            "snapshotsGenerated": session_manager.metrics.snapshots_generated.load(Ordering::SeqCst),
-            "snapshotsRestored": session_manager.metrics.snapshots_restored.load(Ordering::SeqCst),
-            "resumesSuccessful": session_manager.metrics.resumes_successful.load(Ordering::SeqCst),
-            "resumesFailed": session_manager.metrics.resumes_failed.load(Ordering::SeqCst),
-            "heartbeatsLost": session_manager.metrics.heartbeats_lost.load(Ordering::SeqCst),
-            "recoveryTimeouts": session_manager.metrics.recovery_timeouts.load(Ordering::SeqCst),
-            "sequenceDropped": session_manager.metrics.sequence_dropped.load(Ordering::SeqCst),
-            "journalOverflow": session_manager.metrics.journal_overflow.load(Ordering::SeqCst),
-        }
-    })
-}
-
-#[tauri::command]
-fn send_automation_load_batch(
-    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
-    session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
-    members: Vec<serde_json::Value>,
-    manifest_path: String,
-) -> Result<(), String> {
-    let client_id = connection_manager.get_ready_client_ids().first().cloned()
-        .ok_or_else(|| "Tidak ada ekstensi Chrome yang siap menerima batch.".to_string())?;
-    if let Some(session) = session_manager.get_session() {
-        if matches!(session.status, session_manager::SessionState::Running | session_manager::SessionState::Paused) {
-            return Err("Sesi entry masih berjalan. Selesaikan atau reset sebelum mengirim batch baru.".to_string());
-        }
-    }
-    if members.is_empty() { return Err("Batch jamaah masih kosong.".to_string()); }
-    session_manager.close_session();
-    session_manager.create_session(uuid::Uuid::new_v4().to_string(), manifest_path.clone())?;
-    let manifest_hash = fnv1a_hash(&serde_json::to_string(&members).map_err(|e| e.to_string())?);
-    let session = session_manager.update_snapshot(|s| {
-        s.manifest_hash = manifest_hash;
-        s.manifest_path = manifest_path.clone();
-        s.manifest_members = members.clone();
-        s.progress_total = members.len() as u32;
-        s.status = session_manager::SessionState::Created;
-    })?;
-    let envelope = protocol::Envelope {
-        protocol_version: 1,
-        r#type: protocol::MessageType::LoadBatch,
-        message_id: uuid::Uuid::new_v4().to_string(),
-        session_id: session.session_id,
-        correlation_id: uuid::Uuid::new_v4().to_string(),
-        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        sequence: connection_manager.next_outgoing_sequence(client_id),
-        reply_to_message_id: None,
-        payload: serde_json::json!({ "members": members, "manifestPath": manifest_path, "resumeToken": session.resume_token }),
-    };
-    connection_manager.send_to(client_id, serde_json::to_string(&envelope).map_err(|e| e.to_string())?)
-}
-
-#[tauri::command]
-fn send_automation_start(
-    connection_manager: tauri::State<'_, Arc<server::connection_manager::ConnectionManager>>,
-    session_manager: tauri::State<'_, Arc<session_manager::SessionManager>>,
-) -> Result<(), String> {
-    let client_id = connection_manager.get_ready_client_ids().first().cloned()
-        .ok_or_else(|| "Tidak ada ekstensi Chrome yang siap memulai entry.".to_string())?;
-    let session = session_manager.get_session().ok_or_else(|| "Kirim batch sebelum memulai entry.".to_string())?;
-    automation_service::AutomationService::validate_transition(session.status, &protocol::MessageType::Start)?;
-    let envelope = protocol::Envelope {
-        protocol_version: 1,
-        r#type: protocol::MessageType::Start,
-        message_id: uuid::Uuid::new_v4().to_string(),
-        session_id: session.session_id,
-        correlation_id: uuid::Uuid::new_v4().to_string(),
-        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        sequence: connection_manager.next_outgoing_sequence(client_id),
-        reply_to_message_id: None,
-        payload: serde_json::json!({}),
-    };
-    connection_manager.send_to(client_id, serde_json::to_string(&envelope).map_err(|e| e.to_string())?)?;
-    session_manager.update_status(session_manager::SessionState::Running)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     configure_webview2_runtime();
@@ -2375,31 +2110,14 @@ pub fn run() {
     let renderer_health_for_setup = renderer_health.clone();
     let renderer_health_for_window_events = renderer_health.clone();
 
-    let connection_manager = Arc::new(server::connection_manager::ConnectionManager::new());
-    let connection_manager_for_setup = connection_manager.clone();
-    let handoff_manager = Arc::new(handoff::HandoffManager::default());
-    let handoff_manager_for_setup = handoff_manager.clone();
-
-    let session_manager = Arc::new(session_manager::SessionManager::new());
-    let session_manager_for_setup = session_manager.clone();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(ScanState::default())
         .manage(renderer_health)
-        .manage(connection_manager)
-        .manage(handoff_manager)
-        .manage(session_manager)
         .setup(move |app| {
             log_diagnostic("tauri setup complete");
             start_renderer_watchdog(app.handle().clone(), renderer_health_for_setup.clone());
-            start_websocket_orchestrator(
-                app.handle().clone(),
-                connection_manager_for_setup.clone(),
-                session_manager_for_setup.clone(),
-                handoff_manager_for_setup.clone(),
-            );
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -2447,12 +2165,7 @@ pub fn run() {
             endorse_prepared_passport_images_batch,
             remove_prepared_passport_images_batch,
             create_nusuk_batch,
-            send_automation_load_batch,
-            send_automation_start,
-            is_automation_connected,
-            handoff::prepare_nusuk_handoff,
-            handoff::get_automation_status,
-            get_system_health
+            file_handoff::drag_nusuk_batch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

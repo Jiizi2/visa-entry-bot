@@ -7613,7 +7613,12 @@ def is_known_location_value(field_name: str, value: str) -> bool:
     return _canonical_value(field_name, _clean_text(value)) in _known_values(field_name)
 
 
-def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
+def pick_best_location_value(
+    field_name: str,
+    candidates: list[str],
+    *,
+    preserve_unlisted: bool = False,
+) -> str:
     cleaned = [_canonical_value(field_name, _clean_text(value)) for value in candidates if _clean_text(value)]
     if not cleaned:
         return ""
@@ -7625,8 +7630,16 @@ def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
     best_value = cleaned[0]
     best_score = -1.0
     for candidate in cleaned:
+        if (field_name == "issuingOffice" and preserve_unlisted
+                and re.fullmatch(r"(?:KBRI|KJRI) [A-Z]+(?: [A-Z]+)*", candidate)):
+            return candidate
         score = float(cleaned.count(candidate)) * 18.0
         normalized, match_score = _best_vocabulary_match(candidate, vocabulary)
+        # A confident value directly under PLACE OF BIRTH may name a village
+        # absent from the city/district dictionary. Weak similarity is not proof
+        # that the printed name should be replaced by a different place.
+        if field_name == "placeOfBirth" and preserve_unlisted and match_score < 95.0:
+            normalized = ""
         if normalized:
             score += match_score
             if score > best_score:
@@ -7640,7 +7653,7 @@ def pick_best_location_value(field_name: str, candidates: list[str]) -> str:
         return ""
     if len(best_value.replace(" ", "")) < 4:
         return ""
-    return best_value if cleaned.count(best_value) > 1 else ""
+    return best_value if preserve_unlisted or cleaned.count(best_value) > 1 else ""
 
 
 def _pick_specific_issuing_office(candidates: list[str]) -> str:
@@ -7662,18 +7675,20 @@ def _pick_specific_issuing_office(candidates: list[str]) -> str:
 def _best_vocabulary_match(candidate: str, vocabulary: set[str]) -> tuple[str, float]:
     best_value = ""
     best_score = 0.0
+    ordered_vocabulary = sorted(vocabulary)
     for variant in _variants(candidate):
         compact = _compact(variant)
         if len(compact) < 4:
             continue
         variant_value = ""
         variant_score = 0.0
-        for known in vocabulary:
+        for known in ordered_vocabulary:
             score = _score(compact, _compact(known))
             if score > variant_score or (
                 score == variant_score
                 and variant_value
-                and len(_compact(known)) < len(_compact(variant_value))
+                and (known == variant and variant_value != variant
+                     or variant_value != variant and len(_compact(known)) < len(_compact(variant_value)))
             ):
                 variant_value, variant_score = known, score
         # Earlier variants preserve more of the OCR candidate. Only a strictly

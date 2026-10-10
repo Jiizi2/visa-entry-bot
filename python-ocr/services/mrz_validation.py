@@ -3,6 +3,26 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+MRZ_CHECKED_FIELDS = ("passportNumber", "dob", "expiryDate")
+
+
+def mrz_field_is_verified(validation: object, field_name: str) -> bool:
+    """A failed composite check does not invalidate passing individual checks."""
+    if field_name not in MRZ_CHECKED_FIELDS or not isinstance(validation, dict):
+        return False
+    checks = validation.get("checks", [])
+    if isinstance(checks, list):
+        matches = [check for check in checks if isinstance(check, dict) and check.get("fieldName") == field_name]
+        if matches:
+            return all(check.get("valid") is True for check in matches)
+    return validation.get("valid") is True
+
+
+def mrz_fields_needing_recovery(validation: object) -> tuple[str, ...]:
+    if not isinstance(validation, dict) or not validation:
+        return ()
+    return tuple(field for field in MRZ_CHECKED_FIELDS if not mrz_field_is_verified(validation, field))
+
 
 @dataclass(frozen=True)
 class MrzCheckResult:

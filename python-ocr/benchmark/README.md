@@ -2,6 +2,10 @@
 
 Panduan ini mendokumentasikan arsitektur, aliran data, serta sistem pintu kualitas otomatis (*quality gate*) pada modul ekstraksi MRZ untuk mendukung pengembangan jangka panjang secara aman dan bebas dari *technical debt*.
 
+Build release desktop sekarang menjalankan `pytest tests -q` dan `python scripts/verify_ocr_release.py` sebelum PyInstaller. Gate ini memeriksa snapshot agregat `ocr_release_validation.json` terhadap source OCR, fixture, target kualitas, versi engine, dan hash model. Snapshot harus mencakup seluruh 84 foto fixture, tanpa mismatch, error OCR, timeout, crash stage, atau tahap yang terlewat karena budget; review manusia tetap wajib.
+
+Setelah source OCR berubah, jalankan `python scripts/verify_ocr_release.py --refresh` menggunakan dataset foto lokal. CI memvalidasi snapshot dan menjalankan tes tanpa foto paspor. Hasil lengkap per orang ditulis hanya ke `.review/ocr-release-full.json`, yang diabaikan Git. Latensi snapshot adalah pengukuran pada mesin benchmark, bukan jaminan kecepatan untuk semua laptop. Gate benchmark MRZ di bawah tetap tersedia untuk analisis rinci.
+
 ---
 
 ## 1. Arsitektur Framework Benchmark (Benchmark Architecture)

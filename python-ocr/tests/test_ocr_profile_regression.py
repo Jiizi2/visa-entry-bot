@@ -8,12 +8,64 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.scan_context import ScanContext
-from services.pipeline_stages import _stage_adaptive_recovery, _stage_dates_recovery, _stage_initial_panel, _stage_names_recovery, _stage_validation_and_metrics
+from services.pipeline_stages import _stage_adaptive_recovery, _stage_dates_recovery, _stage_initial_panel, _stage_mrz, _stage_names_recovery, _stage_validation_and_metrics
+from services.ocr_runner import ocr_time_remaining, reset_ocr_deadline, set_ocr_deadline
+from services.scan_budget import _ocr_budget_ms
 from services.mrz_extractor import _direct_mrz_orientation_candidates
 from services.models import ParsedPassportData
+from services.visual_identity import VisualIdentityEvidence
 
 
 class SinglePipelineRegressionTests(unittest.TestCase):
+    def test_slow_mrz_retains_time_for_visual_recovery(self) -> None:
+        clock = [100.0]
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", _ocr_budget_ms())
+        extraction = {"data": {}, "confidence": 0.0}
+
+        def slow_mrz(file_path):
+            clock[0] += 24.0
+            self.assertEqual(ocr_time_remaining(), 6.0)
+            return extraction
+
+        with (
+            patch("services.pipeline_stages.time.perf_counter", side_effect=lambda: clock[0]),
+            patch("services.ocr_runner.perf_counter", side_effect=lambda: clock[0]),
+            patch("services.pipeline_stages.extract_mrz_data", side_effect=slow_mrz),
+        ):
+            token = set_ocr_deadline(160.0)
+            try:
+                _stage_mrz(ctx)
+                self.assertEqual(ctx.extraction, extraction)
+                self.assertEqual(ctx.mrz_error, "")
+                self.assertEqual(ocr_time_remaining(), 36.0)
+            finally:
+                reset_ocr_deadline(token)
+
+    def test_targeted_recovery_remains_available_after_thirty_seconds(self) -> None:
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", _ocr_budget_ms())
+        ctx.visual_fields = {"placeOfBirth": "JAKARTA", "issuingOffice": "JAKARTA"}
+        ctx.visual_identity_evidence = VisualIdentityEvidence(
+            fields={"fullName": "BUDI SANTOSO"}, confidence={"fullName": 0.99},
+            name_candidates=("BUDI SANTOSO",), name_words_verified=True,
+        )
+        panel_fields = {
+            "fullName": "BUDI SANTOSO", "passportNumber": "E1234567",
+            "nationality": "INDONESIA", "dob": "1990-01-02", "gender": "MALE",
+            "issueDate": "2025-01-01", "expiryDate": "2035-01-01",
+        }
+        _stage_initial_panel(ctx)
+
+        with (
+            patch.object(ctx, "elapsed_ms", return_value=45_000),
+            patch("services.pipeline_stages.extract_document_panel_fields", return_value=panel_fields) as panel_scan,
+        ):
+            _stage_adaptive_recovery(ctx)
+
+        panel_scan.assert_called_once()
+        self.assertEqual(ctx.parsed.get("passportNumber"), "E1234567")
+        self.assertEqual(ctx.ocr_budget_ms, 60_000)
+        self.assertEqual(ctx.skipped_ocr_stages, [])
+
     def test_pipeline_latches_fast_path_for_healthy_mrz(self) -> None:
         ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData(
@@ -26,6 +78,12 @@ class SinglePipelineRegressionTests(unittest.TestCase):
             gender="MALE",
         )
         ctx.extraction = {"confidence": 0.95, "mrzValidation": {"valid": True}}
+        ctx.parsed["issueDate"] = "2025-01-08"
+        ctx.visual_fields = {"fullName": "KARIM ALFARIZI RAMADAN", "placeOfBirth": "BERAU", "issuingOffice": "TANJUNG REDEB"}
+        ctx.visual_identity_evidence = VisualIdentityEvidence(
+            fields={"fullName": "KARIM ALFARIZI RAMADAN"}, confidence={"fullName": 0.99},
+            name_candidates=("KARIM ALFARIZI RAMADAN",), name_words_verified=True,
+        )
 
         with patch("services.pipeline_stages.extract_document_panel_fields") as panel_scan:
             _stage_initial_panel(ctx)
@@ -42,7 +100,7 @@ class SinglePipelineRegressionTests(unittest.TestCase):
         self.assertFalse(metrics["adaptiveRecoveryUsed"])
 
     def test_pipeline_rescues_empty_mrz_with_targeted_panel(self) -> None:
-        ctx = ScanContext("dummy.jpg", "dummy.jpg", 0)
+        ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData()
         ctx.extraction = {"data": {}, "confidence": 0.0, "notes": ""}
         panel_fields = {
@@ -68,13 +126,13 @@ class SinglePipelineRegressionTests(unittest.TestCase):
         self.assertNotIn("issuingOffice", panel_scan.call_args.kwargs["field_names"])
         self.assertTrue(ctx.adaptive_recovery_required)
         self.assertFalse(ctx.fast_path)
-        self.assertEqual(ctx.ocr_budget_ms, 0)
+        self.assertEqual(ctx.ocr_budget_ms, 20_000)
         self.assertEqual(ctx.parsed.get("passportNumber"), "E1234567")
         self.assertEqual(ctx.parsed.get("firstName"), "BUDI")
         self.assertEqual(ctx.parsed.get("familyName"), "SANTOSO")
         self.assertEqual(ctx.parsed.get("dob"), "1990-01-02")
 
-    def test_complete_identity_does_not_run_panel_for_low_confidence_mrz(self) -> None:
+    def test_complete_identity_still_requires_recovery_for_invalid_mrz(self) -> None:
         ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
         ctx.parsed = ParsedPassportData(
             firstName="BUDI",
@@ -88,12 +146,16 @@ class SinglePipelineRegressionTests(unittest.TestCase):
         ctx.extraction = {"data": {}, "confidence": 0.2, "mrzValidation": {"valid": False}}
         _stage_initial_panel(ctx)
 
-        with patch("services.pipeline_stages.extract_document_panel_fields") as panel_scan:
+        with (
+            patch("services.pipeline_stages.extract_document_panel_fields", return_value={}) as panel_scan,
+            patch("services.pipeline_stages.extract_fast_location_fields", return_value={}),
+        ):
             _stage_adaptive_recovery(ctx)
 
-        panel_scan.assert_not_called()
-        self.assertTrue(ctx.fast_path)
-        self.assertFalse(ctx.adaptive_recovery_required)
+        panel_scan.assert_called_once()
+        self.assertIn("fullName", panel_scan.call_args.kwargs["field_names"])
+        self.assertFalse(ctx.fast_path)
+        self.assertTrue(ctx.adaptive_recovery_required)
 
     def test_pipeline_uses_visual_recovery_when_mrz_and_panel_are_empty(self) -> None:
         ctx = ScanContext("dummy.jpg", "dummy.jpg", 20_000)
@@ -156,20 +218,17 @@ class SinglePipelineRegressionTests(unittest.TestCase):
             self.assertIn("DATE_RECOVERY", metrics.get("pipelineReasons", []))
             self.assertIn("NAME_RECOVERY", metrics.get("pipelineReasons", []))
 
-    def test_mrz_rotation_recovery_is_content_driven(self) -> None:
+    def test_mrz_rotation_recovery_is_lazy_until_upright_read_fails(self) -> None:
         dummy_doc = MagicMock()
         with (
-            patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True),
-            patch("services.mrz_extractor._rotate_image_180", return_value=dummy_doc),
+            patch("services.mrz_extractor._rotate_image_180", return_value=dummy_doc) as rotate_180,
             patch("services.mrz_extractor._rotate_image_90", return_value=dummy_doc),
             patch("services.mrz_extractor._rotate_image_270", return_value=dummy_doc),
         ):
-            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-            self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
-
-        with patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=False):
-            candidates = list(_direct_mrz_orientation_candidates(dummy_doc))
-            self.assertEqual(len(candidates), 1)
+            candidates = _direct_mrz_orientation_candidates(dummy_doc)
+            self.assertEqual(next(candidates), (dummy_doc, 0))
+            rotate_180.assert_not_called()
+            self.assertEqual([c[1] for c in candidates], [180, 90, 270])
 
     def test_dates_recovery_type_safety_with_empty_context(self) -> None:
         """Verify that date recovery handles an empty context without crashing."""

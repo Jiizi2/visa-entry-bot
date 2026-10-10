@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import UpdateDialog from './UpdateDialog';
 import AppIcon from './ui/AppIcon';
+import SidebarPet from './SidebarPet';
 import { version } from '../../package.json';
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
@@ -21,10 +22,48 @@ const navigationItems = [
 export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const navigationRef = useRef<HTMLElement>(null);
+  const [highlight, setHighlight] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const navigation = navigationRef.current;
+    const activeButton = navigation?.querySelector<HTMLElement>('.workflow-nav-item.is-active');
+    if (!navigation || !activeButton) return;
+
+    const measureHighlight = () => {
+      const next = {
+        top: activeButton.offsetTop,
+        left: activeButton.offsetLeft,
+        width: activeButton.offsetWidth,
+        height: activeButton.offsetHeight,
+      };
+      setHighlight(previous => previous && Object.keys(next).every(key =>
+        previous[key as keyof typeof next] === next[key as keyof typeof next]
+      ) ? previous : next);
+    };
+
+    measureHighlight();
+    const observer = new ResizeObserver(measureHighlight);
+    observer.observe(navigation);
+    observer.observe(activeButton);
+    return () => observer.disconnect();
+  }, [currentPage, isMinimized]);
 
   return (
     <aside className={`workflow-rail ${isMinimized ? 'is-collapsed' : ''}`} aria-label="Navigasi EntryMate">
-      <nav id="workflow-navigation" className="workflow-rail__nav" aria-label="Halaman aplikasi">
+      <nav ref={navigationRef} id="workflow-navigation" className="workflow-rail__nav" aria-label="Halaman aplikasi">
+        {highlight && (
+          <span
+            className="workflow-nav-highlight"
+            aria-hidden="true"
+            style={{
+              left: highlight.left,
+              width: highlight.width,
+              height: highlight.height,
+              transform: `translateY(${highlight.top}px)`,
+            }}
+          />
+        )}
         {navigationItems.map((item) => {
           const isActive = currentPage === item.id;
           return (
@@ -43,6 +82,8 @@ export default function Sidebar({ currentPage, onChangePage }: SidebarProps) {
           );
         })}
       </nav>
+
+      <SidebarPet />
 
       <div className="workflow-rail__utility">
         <button

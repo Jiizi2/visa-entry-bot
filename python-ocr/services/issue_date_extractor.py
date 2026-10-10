@@ -10,6 +10,7 @@ except ImportError:  # pragma: no cover - depends on local environment
 
 
 from services.passport_page import build_mrz_relative_crops, collect_ocr_lines, crop_relative, extract_aligned_passport_page
+from services.image_io import read_image
 
 MONTHS = {
     "JAN": 1,
@@ -124,7 +125,7 @@ def _collect_raw_candidates(file_path: str) -> list[str]:
 def _collect_legacy_candidates(file_path: str) -> list[str]:
     if cv2 is None:
         return []
-    image = cv2.imread(file_path)
+    image = read_image(file_path)
     if image is None:
         return []
 

@@ -24,22 +24,14 @@
       <!-- MAIN CONTENT WRAPPER -->
       <main class="panel-main-content">
         
-        <!-- =================== STATE A: IDLE =================== -->
-        <section class="state-view-card" id="idle-state-view" style="padding: 40px 24px;">
-          <div class="state-view-icon" style="font-size: 40px; margin-bottom: 8px;">🤖</div>
-          <div class="state-view-title" style="font-size: 15px; font-weight: 700;">Menunggu data dari aplikasi</div>
-          <div class="state-view-desc" style="font-size: 11px; color: var(--ink-muted); margin-bottom: 16px;">Selesaikan Review di EntryMate, lalu pilih “Lanjut ke Nusuk”. Data akan diterima otomatis.</div>
-          <div class="loader-skeleton" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
-            <div style="height: 12px; background: var(--bg-surface-soft); border-radius: 4px; width: 60%; margin: 0 auto; opacity: 0.6;"></div>
-            <div style="height: 8px; background: var(--bg-surface-soft); border-radius: 4px; width: 45%; margin: 0 auto; opacity: 0.4;"></div>
+        <section class="json-drop-section" aria-labelledby="json-drop-title">
+          <div id="json-drop-zone" class="json-drop-zone" aria-busy="false">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 12v6m-3-3 3 3 3-3"/></svg>
+            <h2 id="json-drop-title">Letakkan file JSON di sini</h2>
+            <p>Seret file dari halaman Entry di aplikasi setelah semua passport direview.</p>
+            <button id="choose-json-btn" type="button" class="btn btn-secondary">Pilih file JSON</button>
           </div>
-        </section>
-
-        <!-- =================== STATE C: RECOVERING =================== -->
-        <section class="state-view-card" id="recovering-state-view">
-          <div class="state-view-icon animate-pulse">⏳</div>
-          <div class="state-view-title" style="color: var(--warning);">Memulihkan Sesi...</div>
-          <div class="state-view-desc">Sesi terputus. Jangan tutup tab Nusuk atau memuat ulang browser Anda.</div>
+          <p id="json-import-status" class="json-import-status neutral" role="status" aria-live="polite">Belum ada batch dimuat.</p>
         </section>
 
         <!-- =================== STATE D: COMPLETED =================== -->
@@ -66,10 +58,6 @@
               <span class="metric-value" id="stats-avg-time">0s</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label">Sambungan Ulang</span>
-              <span class="metric-value" id="stats-reconnects">0</span>
-            </div>
-            <div class="metric-item">
               <span class="metric-label">Metode Run</span>
               <span class="metric-value">Otomatis</span>
             </div>
@@ -80,17 +68,8 @@
           <button id="completed-reset-btn" class="btn btn-secondary btn-sm" type="button" style="width: 100%; margin-top: 8px;">Reset &amp; Mulai Baru</button>
         </section>
 
-        <!-- =================== STATE E: ERROR =================== -->
-        <section class="state-view-card" id="error-state-view">
-          <div class="state-view-icon">⚠️</div>
-          <div class="state-view-title" style="color: var(--danger);">Desktop Terputus</div>
-          <div class="state-view-desc">Gagal menyambung ke server desktop setelah 3 kali mencoba. Pastikan aplikasi desktop EntryMate Anda sedang aktif.</div>
-          <button id="retry-connect-btn" class="btn btn-primary btn-sm" type="button" style="margin-top: 8px;">Coba Hubungkan Kembali</button>
-        </section>
-
-        <!-- =================== STATE B: RUNNING / ACTIVE =================== -->
         <div id="running-state-view" style="width: 100%; display: flex; flex-direction: column; gap: 20px;">
-          <section class="handoff-summary"><strong id="batch-context">Data dari aplikasi</strong><p id="page-readiness" role="status">Memeriksa halaman Nusuk…</p></section>
+          <section class="handoff-summary"><strong id="batch-context">Batch dari file JSON</strong><p id="page-readiness" role="status">Memeriksa halaman Nusuk…</p></section>
           <!-- PROGRESS HERO SECTION -->
           <section class="progress-hero-section">
             <div class="progress-meta" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
@@ -105,6 +84,19 @@
             <div id="eta-container" class="eta-container" style="display: none; justify-content: space-between; font-size: 10px; color: var(--ink-muted); font-weight: 500; margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 6px;">
               <span>Rerata: <span id="eta-avg-time-val">-</span></span>
               <span>Estimasi Sisa: <span id="eta-remaining-val">-</span></span>
+            </div>
+          </section>
+
+          <section id="batch-recovery" class="batch-recovery" hidden aria-labelledby="batch-recovery-title">
+            <h2 id="batch-recovery-title">Progres tersimpan</h2>
+            <p id="batch-recovery-summary" role="status" aria-live="polite"></p>
+            <div id="pending-submission-review" hidden>
+              <p id="pending-submission-detail" class="pending-submission-detail"></p>
+              <p>Periksa nomor paspor ini di daftar jamaah Nusuk, lalu pilih hasilnya untuk melanjutkan batch.</p>
+              <div class="submission-review-actions">
+                <button id="submission-saved-btn" class="btn btn-secondary" type="button">Sudah tersimpan</button>
+                <button id="submission-not-saved-btn" class="btn btn-secondary" type="button">Belum tersimpan</button>
+              </div>
             </div>
           </section>
 
@@ -145,65 +137,10 @@
         <!-- EXPANDED CONTAINER (Hanya Terlihat Di Mode Expanded) -->
         <div class="expanded-container">
           
-          <!-- Connection Card (Detail Notice) -->
-          <section class="panel-card connection-card">
-            <div class="section-head">
-              <h2>Hubungan Desktop</h2>
-              <p id="ws-status-desc">Hubungkan dengan membuka aplikasi desktop EntryMate.</p>
-            </div>
-            <div id="ws-notice-banner" class="file-summary-box hidden" style="border-style: solid; text-align: left; background-color: var(--primary-soft); color: var(--primary); border-color: rgba(166, 108, 45, 0.18);">
-              Data diterima otomatis dari aplikasi. Periksa batch, lalu pilih <strong>Mulai pengisian</strong> pada panel ini. Folder hasil scan harus tetap tersedia selama pengisian.
-            </div>
-          </section>
-
-          <!-- Telemetry Dashboard Card -->
-          <details class="collapsible-card" id="telemetry-details">
-            <summary class="collapsible-summary">
-              <span>Telemetry & Performance</span>
-              <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
-            <div class="collapsible-content">
-              <div class="telemetry-grid">
-                <div class="metric-item">
-                  <span class="metric-label">Sambungan Ulang</span>
-                  <span class="metric-value" id="telemetry-reconnect-count">0</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Lama Pemulihan</span>
-                  <span class="metric-value" id="telemetry-recovery-time">0ms</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Avg RTT</span>
-                  <span class="metric-value" id="telemetry-avg-rtt">0ms</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Max RTT</span>
-                  <span class="metric-value" id="telemetry-max-rtt">0ms</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Sequence Dropped</span>
-                  <span class="metric-value" id="telemetry-dropped-seq">0</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Duplicate Packets</span>
-                  <span class="metric-value" id="telemetry-duplicate-packets">0</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Heartbeat Timeout</span>
-                  <span class="metric-value" id="telemetry-heartbeat-timeout">0</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Recovery Success</span>
-                  <span class="metric-value" id="telemetry-recovery-success">0</span>
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <!-- Legacy Manual Controls -->
+          <!-- Batch and passport file controls -->
           <details class="collapsible-card">
             <summary class="collapsible-summary">
-              <span>Legacy Mode (Kontrol Manual)</span>
+              <span>Pilihan jamaah dan file passport</span>
               <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="collapsible-content">
@@ -303,11 +240,7 @@
       <!-- STICKY FOOTER -->
       <footer class="panel-footer-status">
         <div class="footer-left">
-          <div id="ws-indicator" class="ws-indicator disconnected"></div>
-          <span id="ws-status-title">Desktop: Terputus</span>
-          <span class="latency-pill hidden" id="ws-latency-wrapper">
-            <span id="ws-latency-value">0</span> ms
-          </span>
+          <span id="file-target-status">Memeriksa tab Nusuk…</span>
         </div>
         <div class="footer-right">
           <span id="state-pill" class="state-pill-badge idle">Menunggu</span>
@@ -316,7 +249,7 @@
 
     </div>
 
-    <script src="content/protocol-types.js"></script>
+    <script src="batch-file-import.js"></script>
     <script src="content/manifest-validator.js"></script>
     <script src="panel.js"></script>
   </body>

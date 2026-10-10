@@ -953,7 +953,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertIn("ISSUE DATE INFERRED FROM REPAIRED EXPIRY", note)
 
     def test_single_pipeline_budget_and_date_repair_avoid_extra_ocr(self) -> None:
-        self.assertEqual(_ocr_budget_ms(), 20_000)
+        self.assertEqual(_ocr_budget_ms(), 60_000)
 
         parsed, note = _apply_fast_date_repairs(
             {"dob": "1984-07-16", "issueDate": "", "expiryDate": "2033-03-20"}
@@ -1070,7 +1070,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         )
         with (
             patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}),
-            patch("services.mrz_extractor.cv2.imread", return_value=image),
+            patch("services.mrz_extractor._load_image", return_value=image),
             patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._rotate_image_180", return_value=rotated),
             patch("services.mrz_extractor._extract_direct_mrz_from_region", side_effect=[None, None, direct]) as extractor,
@@ -1091,7 +1091,7 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         )
         with (
             patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}),
-            patch("services.mrz_extractor.cv2.imread", return_value=image),
+            patch("services.mrz_extractor._load_image", return_value=image),
             patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
             patch("services.mrz_extractor._rotate_image_180", return_value=image),
             patch("services.mrz_extractor._rotate_image_90", return_value=rotated_90),
@@ -1103,20 +1103,25 @@ class OcrPerformanceGuardTests(unittest.TestCase):
         self.assertEqual(result.rotation_degrees, 90)
         self.assertEqual(extractor.call_count, 5)
 
-    def test_direct_mrz_skips_rotations_for_upright_landscape_mrz_band(self) -> None:
+    def test_direct_mrz_skips_rotations_after_verified_upright_mrz(self) -> None:
         image = np.zeros((100, 200, 3), dtype=np.uint8)
+        direct = DirectMrzResult(
+            line1="P<IDNRAMADAN<<KARIM<ALFARIZI<<<<<<<<<<<<<<<<",
+            line2="E8710852<5IDN1906017M30010866403050106000214",
+            valid_score=100,
+        )
         with (
             patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "legacy"}),
-            patch("services.mrz_extractor.cv2.imread", return_value=image),
+            patch("services.mrz_extractor._load_image", return_value=image),
             patch("services.mrz_extractor.detect_passport_data_page_crop", return_value=image),
-            patch("services.mrz_extractor._mrz_band_score", return_value=180.0),
             patch("services.mrz_extractor._rotate_image_180") as rotate_180,
-            patch("services.mrz_extractor._extract_direct_mrz_from_region", return_value=None) as extractor,
+            patch("services.mrz_extractor._extract_direct_mrz_from_region", return_value=direct) as extractor,
         ):
             result = _read_direct_mrz("file.png")
 
-        self.assertIsNone(result)
-        self.assertEqual(extractor.call_count, 2)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.rotation_degrees, 0)
+        self.assertEqual(extractor.call_count, 1)
         rotate_180.assert_not_called()
 
     def test_direct_mrz_region_stops_after_high_confidence_candidate(self) -> None:
@@ -1237,13 +1242,8 @@ class OcrPerformanceGuardTests(unittest.TestCase):
 
         image = np.zeros((100, 200), dtype=np.uint8)
         with patch.dict("os.environ", {"PASSPORT_OCR_PROFILE": "heavy"}):
-            with patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=False):
-                candidates = list(_direct_mrz_orientation_candidates(image))
-                self.assertEqual(len(candidates), 1)
-                self.assertEqual(candidates[0][1], 0)
-            with patch("services.mrz_extractor._should_try_direct_mrz_rotations", return_value=True):
-                candidates = list(_direct_mrz_orientation_candidates(image))
-                self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
+            candidates = list(_direct_mrz_orientation_candidates(image))
+            self.assertEqual([c[1] for c in candidates], [0, 180, 90, 270])
 
             with patch("services.mrz_extractor.time_stage"):
                 variants = _build_direct_mrz_variants(image)

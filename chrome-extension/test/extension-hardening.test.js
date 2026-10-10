@@ -223,7 +223,7 @@ test("upload file store resolves selected files by basename and rejects duplicat
   store.registerUploadFiles([first]);
 
   assert.equal(
-    await store.resolveSelectedUploadFile("data/group/passports/passport.jpg", { member: { fileName: "passport.jpg" } }),
+    await store.resolveSelectedUploadFile("data/group/passports/batch/passport.jpg", { member: { fileName: "passport.jpg" } }),
     first,
   );
 
@@ -233,10 +233,44 @@ test("upload file store resolves selected files by basename and rejects duplicat
     new TestFile("passport.jpg", { webkitRelativePath: "batch-b/passport.jpg" }),
   ]);
 
-  assert.equal(
-    await duplicateStore.resolveSelectedUploadFile("passport.jpg", { member: { fileName: "passport.jpg" } }),
-    null,
-  );
+  await assert.rejects(duplicateStore.resolveSelectedUploadFile("passport.jpg", { member: { fileName: "passport.jpg" } }), /file paspor ambigu/);
+});
+
+test("upload selection preserves the requested folder, crop path, and extension", async () => {
+  class TestFile {
+    constructor(name, webkitRelativePath = "") { Object.assign(this, { name, webkitRelativePath, size: 100, type: "image/jpeg" }); }
+  }
+  const root = loadBrowserScripts(["content/constants.js", "content/path-utils.js", "content/upload-file-store.js"], { File: TestFile });
+  const store = root.uploadFileStore.createUploadFileStore({ state: { manifest: {} } });
+  const original = new TestFile("original.jpg", "batch/original.jpg");
+  const wrongFolder = new TestFile("passport.jpg", "other/passport.jpg");
+  const png = new TestFile("crop.png");
+  store.registerUploadFiles([original, wrongFolder, png]);
+  assert.equal(await store.resolveSelectedUploadFile("C:/batch/crop.jpg", { member: { fileName: "original.jpg" } }), null);
+  assert.equal(await store.resolveSelectedUploadFile("C:/batch/passport.jpg", {}), null);
+  assert.equal(await store.resolveSelectedUploadFile("C:/batch/crop.jpg", {}), null);
+  assert.equal(await store.resolveSelectedUploadFile("C:/batch/original.jpg", {}), original);
+  const correct = new TestFile("passport.jpg", "batch/passport.jpg");
+  store.registerUploadFiles([wrongFolder, correct]);
+  assert.equal(await store.resolveSelectedUploadFile("C:/batch/passport.jpg", {}), correct);
+});
+
+test("manual photos cannot follow a different batch even when the filename is identical", async () => {
+  class TestFile { constructor(name) { Object.assign(this, { name, size: 100, type: 'image/jpeg' }); } }
+  const root = loadBrowserScripts(["content/constants.js", "content/path-utils.js", "content/upload-file-store.js"], { File: TestFile });
+  const state = { storageKey: 'nusukAutofillState:11', manifest: { batchId: 'a', manifestPath: 'C:/a/manifest.json' } };
+  const store = root.uploadFileStore.createUploadFileStore({ state });
+  const photo = new TestFile('4.jpg'); store.registerUploadFiles([photo]);
+  assert.equal(await store.resolveSelectedUploadFile('4.jpg', {}), photo);
+  state.manifest = { batchId: 'b', manifestPath: 'C:/b/manifest.json' };
+  assert.equal(await store.resolveSelectedUploadFile('4.jpg', {}), null);
+  assert.equal(store.getUploadState().uploadFileCount, 0);
+});
+
+test("manifest rejects shared passport identities, shared images, and names that would be truncated", () => {
+  const root = loadBrowserScripts(["content/manifest-validator.js"]);
+  assert.throws(() => root.manifestValidator.validateManifestForEntry({ members: [validMember(), validMember({ id: "member-2" })] }), /nomor paspor duplikat.*file paspor dipakai/s);
+  assert.throws(() => root.manifestValidator.validateManifestForEntry({ members: [validMember({ resolvedProfile: { firstName: "ABCDEFGHIJKLMNOP" } })] }), /nama tidak boleh dipotong/);
 });
 
 test("looksLikeUploadError distinguishes between hints and actual errors", () => {

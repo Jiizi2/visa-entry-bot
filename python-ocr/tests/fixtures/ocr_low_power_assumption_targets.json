@@ -1,6 +1,8 @@
 {
   "mismatchCount": 0,
-  "reviewCount": 0,
+  "requireManualReview": true,
+  "errorCount": 0,
+  "ocrErrorCount": 0,
   "avgTotalMs": 12000,
   "p95TotalMs": 18000,
   "maxTotalMs": 25000,

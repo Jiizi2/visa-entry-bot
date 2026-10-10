@@ -191,11 +191,11 @@ class BenchmarkOcrTests(unittest.TestCase):
         self.assertEqual(result["pipelinePathCounts"], {"DEEP": 1, "FAST": 1})
         self.assertEqual(result["mismatchCount"], 1)
         self.assertEqual(result["avgTotalMs"], 200)
-        self.assertEqual(result["p95TotalMs"], 100)
+        self.assertEqual(result["p95TotalMs"], 300)
         self.assertEqual(result["maxTotalMs"], 300)
         self.assertEqual(result["stageTotalsMs"], {"mrz": 180, "panel": 80})
         self.assertEqual(result["ocrCacheTotals"], {"hitCount": 4, "missCount": 6, "storeCount": 6})
-        self.assertEqual(result["rapidocrTotals"], {"callCount": 7, "errorCount": 1, "totalMs": 170, "avgMs": 85, "p95Ms": 50, "maxMs": 90})
+        self.assertEqual(result["rapidocrTotals"], {"callCount": 7, "errorCount": 1, "totalMs": 170, "avgMs": 85, "p95Ms": 120, "maxMs": 90})
         self.assertEqual(
             result["imagePreprocessorTotals"],
             {
@@ -205,7 +205,7 @@ class BenchmarkOcrTests(unittest.TestCase):
                 "errorCount": 0,
                 "totalMs": 30,
                 "avgMs": 15,
-                "p95Ms": 12,
+                "p95Ms": 18,
                 "maxMs": 18,
                 "inputMegaPixels": 2.2,
                 "outputMegaPixels": 1.5,

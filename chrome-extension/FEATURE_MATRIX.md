@@ -8,17 +8,17 @@ Setiap update fitur extension harus menjaga fitur-fitur di bawah ini tetap berja
 - Upload file Nusuk membutuhkan `chrome.debugger`.
 - Permission `debugger` di `manifest.json` adalah dependency aktif, bukan legacy.
 - Jangan hapus flow `NUSUK_DEBUGGER_SET_FILE` kecuali ada mekanisme upload baru yang sudah terbukti di halaman Nusuk asli.
-- Implementasi desktop dan Python OCR berada di luar scope dokumen ini, tetapi kontrak transport WebSocket desktop-extension termasuk fitur extension yang wajib dijaga.
+- Implementasi desktop dan Python OCR berada di luar scope dokumen ini, tetapi kontrak file JSON hasil review termasuk fitur extension yang wajib dijaga.
 
 ## Fitur Aktif
 
 | Area | Fitur | File Utama | Risiko Regresi |
 | --- | --- | --- | --- |
-| Transport | WebSocket loopback ke desktop pada port 9001-9005, tetap aktif tanpa panel | `background.js`, `desktop-transport.js` | Critical |
-| Transport | Handshake, sequence, ACK, retry, dan session snapshot | `desktop-transport.js`, `background.js`, `content/panel-bridge.js` | Critical |
-| Transport | Pilih/fokus tab Nusuk, terima batch dengan konfirmasi, mulai dari browser dan kirim progress ke desktop | `background.js`, `nusuk-handoff.js`, `desktop-transport.js`, `content/panel-bridge.js`, `content/automation-runner.js` | Critical |
+| Transport | Drag-and-drop file JSON hasil review, tersedia pada panel ringkas dan detail | `batch-file-import.js`, `panel.js`, `panel.html` | Critical |
+| Transport | Validasi dan konfirmasi setelah penyimpanan; import gagal mempertahankan batch lama | `content/manifest-validator.js`, `content/panel-bridge.js` | Critical |
+| Transport | Command terikat pada tab tujuan; data dan checkpoint per tab serta sesi browser | `background.js`, `content.js`, `content/panel-state-store.js` | Critical |
 | Panel | Buka panel dari extension action | `background.js`, `content/panel-bridge.js`, `content/panel-shell.js` | Medium |
-| Panel | Upload JSON manifest untuk Legacy Mode | `panel.js`, `content/panel-bridge.js` | High |
+| Panel | Pemilih file JSON hasil review | `panel.js`, `content/panel-bridge.js` | High |
 | Panel | Pilih jamaah awal | `panel.js`, `content/panel-bridge.js` | Medium |
 | Panel | Preview data jamaah | `panel.js`, `panel.html` | Low |
 | Panel | Pilih folder/file passport | `panel.js`, `panel.html`, `content/upload-file-store.js` | High |
@@ -26,7 +26,7 @@ Setiap update fitur extension harus menjaga fitur-fitur di bawah ini tetap berja
 | Panel | Progress dan log aktivitas | `panel.js`, `content/panel-state-store.js`, `content/step-progress.js` | Medium |
 | State | Simpan dan restore state panel | `content/panel-state-store.js`, `content.js` | Medium |
 | Upload | Mapping file dari `fileName` dan `passportImagePath` | `content/upload-file-store.js`, `content/path-utils.js` | High |
-| Upload | Cache file upload via IndexedDB | `content/upload-file-store.js` | Medium |
+| Upload | Cache file upload via IndexedDB per tab dan batch | `content/upload-file-store.js` | Medium |
 | Upload | Pilih input passport yang benar | `content/upload-inputs.js`, `content/attachment-utils.js` | High |
 | Upload | Pasang file ke input via DataTransfer | `content/upload-manager.js` | High |
 | Upload | Fallback upload via Chrome debugger | `content/upload-manager.js`, `background.js`, `manifest.json` | Critical |
@@ -66,24 +66,27 @@ File berikut tidak boleh diubah tanpa menjalankan checklist manual:
 - `content/upload-file-store.js`
 - `content/upload-inputs.js`
 - `content/upload-manager.js`
-- `panel.js` (transport WebSocket dan session protocol)
+- `panel.js` (import file dan command tab tujuan)
 
 ## Checklist Manual Sebelum Merge
 
 Jalankan checklist ini setiap ada update di `chrome-extension`.
 
-- Desktop dan extension dapat handshake pada salah satu port `9001-9005`.
-- Indikator koneksi desktop berubah menjadi Terhubung.
-- Load Batch dari desktop memuat member yang benar di extension.
-- Lanjut ke Nusuk dari desktop memakai tab yang ada tanpa reload atau membuat tab duplikat.
-- Beberapa tab/profil meminta pilihan; tab yang sudah terikat ke pekerjaan tidak tertukar.
+- Halaman 5 otomatis menghasilkan JSON dari data review terbaru, area seret aktif setelah file siap.
+- Seret file native dari aplikasi ke panel extension dan pastikan jumlah jamaah serta folder sesuai.
+- File rusak atau lebih dari satu file ditolak; batch lama tetap utuh.
+- Import ketika berjalan, dijeda, atau hasil simpan belum jelas ditolak.
+- Pergantian folder di desktop tidak memunculkan file export yang sudah tidak sesuai.
+- Batch dan cache foto tab lain tidak ikut masuk; browser baru tidak memulihkan batch lama berdasarkan nomor tab.
 - Mulai pengisian dari panel/widget aktif setelah data siap pada halaman Masar yang telah login. Dari Group List atau halaman Masar lainnya, tab yang sama diarahkan ke Mu’tamer List; automation menunggu halaman dan pemulihan batch selesai. Halaman Mu’tamer List/Tambah Jamaah yang sudah terbuka tetap dipakai. Klik ganda saat pengalihan tidak menggandakan pekerjaan; jeda/reset membatalkan start yang tertunda.
 - Login ulang menahan mulai; data batch tetap tersedia.
-- Ulangi yang gagal mempertahankan sukses dan hanya menjalankan jamaah gagal.
-- Progress dan completion extension tampil kembali di desktop.
-- Reconnect/reload tidak membuat session atau batch ganda.
+- Lanjutkan sisa mempertahankan sukses dan menjalankan jamaah gagal beserta jamaah berikutnya yang belum diproses. Ulangi yang gagal pada batch selesai hanya menjalankan jamaah gagal.
+- Jika hasil simpan Nusuk belum terkonfirmasi, keputusan Sudah tersimpan/Belum tersimpan di panel membuka pemulihan tanpa reset setelah operator memeriksa nomor paspor di daftar Nusuk.
+- Counter progres hanya bertambah setelah sukses terkonfirmasi atau setelah operator mencatat hasil pemeriksaan simpan; kegagalan tidak dihitung sebagai sukses.
+- Progress dan completion tampil pada panel dan widget extension.
+- Reload pada tab yang sama memulihkan batch dan checkpoint milik tab tersebut dalam sesi browser yang sama.
 - Panel bisa dibuka di halaman Nusuk.
-- JSON manifest tetap bisa diupload pada Legacy Mode.
+- Pemilih file JSON tetap tersedia sebagai alternatif drag-and-drop.
 - Daftar jamaah muncul.
 - Preview data jamaah tampil.
 - Folder/file passport bisa dipilih.

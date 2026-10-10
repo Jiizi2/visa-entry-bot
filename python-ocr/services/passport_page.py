@@ -14,9 +14,9 @@ try:
 except ImportError:  # pragma: no cover - depends on local environment
     cv2 = None
 
-from services.image_preprocessor import temporary_mrz_variants
+from services.image_preprocessor import _load_image, temporary_mrz_variants
 from services.ocr_result_cache import build_region_cache_key, get_cached_lines, store_cached_lines
-from services.ocr_runner import build_ocr_config, run_rapid_ocr
+from services.ocr_runner import build_ocr_config, run_rapid_ocr, run_rapid_ocr_detailed
 
 
 @lru_cache(maxsize=8)
@@ -42,7 +42,7 @@ def clear_passport_page_cache() -> None:
 def build_mrz_relative_crops(file_path: str, windows: tuple[tuple[float, float, float, float], ...]) -> list[object]:
     if cv2 is None:
         return []
-    image = cv2.imread(file_path)
+    image = _load_image(file_path)
     if image is None:
         return []
 
@@ -86,7 +86,7 @@ def crop_relative(
 
 
 def _extract_page_from_path(file_path: str) -> object | None:
-    image = cv2.imread(file_path)
+    image = _load_image(file_path)
     if image is None:
         return None
     box = _resolve_mrz_box(file_path)
@@ -97,11 +97,7 @@ def _extract_page_from_path(file_path: str) -> object | None:
 
 @lru_cache(maxsize=256)
 def _resolve_mrz_box(file_path: str) -> tuple[float, float, float, float, float, float, float, float] | None:
-    from services.ocr_runner import RAPID_OCR_INSTANCE
-    if RAPID_OCR_INSTANCE is None:
-        return None
-
-    image = cv2.imread(file_path)
+    image = _load_image(file_path)
     if image is None:
         return None
 
@@ -114,7 +110,8 @@ def _resolve_mrz_box(file_path: str) -> tuple[float, float, float, float, float,
             small_image = image
             scale = 1.0
 
-        result, _ = RAPID_OCR_INSTANCE(small_image)
+        detailed = run_rapid_ocr_detailed(small_image, source="page_alignment")
+        result = [(item.box, item.text, item.confidence) for item in detailed.observations]
         if not result:
             return None
     except Exception:

@@ -129,6 +129,12 @@ def _repair_direct_line2_digits(line: str) -> str:
     for index in (9, 42, 43):
         if index < len(chars):
             chars[index] = chars[index].translate(digit_table)
+    if line[0] in {"E", "X", "Y"} and line[8] == "<" and line[10:13] == "IDN":
+        number = line[0] + line[1:8].translate(digit_table) + "<"
+        # Indonesian serials are numeric after their prefix. Only replace a
+        # letter/digit confusion when the printed check digit confirms it.
+        if number[1:8].isdigit() and _mrz_check_digit(number) == chars[9]:
+            chars[:9] = number
     for start, end in ((13, 20), (21, 28)):
         for index in range(start, min(end, len(chars))):
             chars[index] = chars[index].translate(digit_table)

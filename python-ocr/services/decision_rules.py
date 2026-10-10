@@ -4,6 +4,7 @@ import time
 from typing import Any, Dict, Tuple
 from services.log import logger
 from services.scan_context import ScanContext
+from services.mrz_validation import MRZ_CHECKED_FIELDS, mrz_field_is_verified
 
 class AuthorityPolicy:
     """Defines authority levels for different data sources."""
@@ -30,7 +31,8 @@ def evaluate_overwrite(
 ) -> Tuple[bool, str]:
     """Determines whether a new field value should replace the current value.
     
-    Implements the "Never Degrades" policy using a hierarchical quality selection:
+    Protects passing MRZ checksums and allows valid document evidence to recover
+    an MRZ field whose checksum could not be verified. Otherwise compares:
     1. Authority Level (MRZ > INFERENCE > DICTIONARY > VISUAL > PANEL)
     2. Validation Status (Validated / Dictionary Match > Unvalidated)
     3. OCR Confidence Score
@@ -54,6 +56,11 @@ def evaluate_overwrite(
     # Never allow lower authority to replace verified MRZ data.
     if current_source == "MRZ" and current_validated and new_source != "MRZ":
         return False, "MRZ authority is higher (verified checksum passed)."
+
+    if current_source == "MRZ" and not current_validated and new_source in {"VISUAL", "PANEL"}:
+        if new_validated and new_confidence >= 0.70:
+            return True, "Validated document evidence replaces MRZ without a verified field checksum."
+        return False, "Unverified MRZ correction requires valid document evidence with confidence >= 0.70."
 
     # Rule 3: Hierarchical comparison: Authority Level
     if new_level > current_level:
@@ -88,8 +95,14 @@ class DecisionRules:
         validated: bool = False
     ) -> bool:
         """Evaluates business rules and conditionally updates the field in ScanContext."""
-        current_value = getattr(ctx.parsed, field_name, "")
+        current_value = ctx.parsed.get(field_name, "") if isinstance(ctx.parsed, dict) else getattr(ctx.parsed, field_name, "")
         current_meta = ctx.field_metadata.get(field_name, {})
+        validation = ctx.extraction.get("mrzValidation")
+        if (current_meta.get("source") == "INFERENCE" and source in {"VISUAL", "PANEL"}
+                and field_name in MRZ_CHECKED_FIELDS and isinstance(validation, dict) and validation
+                and not mrz_field_is_verified(validation, field_name)):
+            # A formatting repair does not turn a failed checksum into verified MRZ.
+            current_meta = {**current_meta, "source": "MRZ", "validated": False}
 
         can_replace, reason = evaluate_overwrite(
             current_value,

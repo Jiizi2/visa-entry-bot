@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Local passport identity safety regression tests</title>
+<style>.field { padding: 4px; } .field > span, .field > label { display: block; } #surface { min-height: 100px; } input { width: 180px; }</style>
+<div id="surface"></div>
+<pre id="results">RUNNING</pre>
+<script>window.chrome = window.chrome || {}; chrome.runtime = { getURL: () => "chrome-extension://local-test/" };</script>
+<script src="../../content/constants.js"></script>
+<script src="../../content/manifest-validator.js"></script>
+<script src="../../content/date-utils.js"></script>
+<script src="../../content/value-utils.js"></script>
+<script src="../../content/dom-utils.js"></script>
+<script src="../../content/identity-guard.js"></script>
+<script src="../../content/automation-steps.js"></script>
+<script src="../../content/submission-guard.js"></script>
+<script src="../../content/nusuk-navigation.js"></script>
+<script src="../../content/step-basic-actions.js"></script>
+<script src="../../content/step-upload-actions.js"></script>
+<script src="../../content/wait-utils.js"></script>
+<script src="../../content/step-progress.js"></script>
+<script src="../../content/step-form-actions.js"></script>
+<script src="../../content/step-runner.js"></script>
+<script src="../../content/automation-runner.js"></script>
+<script src="../../scripts/browser-fixtures/automation-reliability.js"></script>
+<script>
+(async () => {
+  const root = window.NusukAutofill, guard = root.identityGuard;
+  const surface = document.getElementById("surface"), results = [];
+  const profile = { passportNumber: "X1234567", firstName: "ALI", fatherName: "", grandfatherName: "", familyName: "BUDI", arabic: { firstName: "علي", fatherName: "", grandfatherName: "", familyName: "بودي" } };
+  const context = (value = profile) => ({ member: { id: "demo", passportImagePath: "C:/Demo/demo.jpeg", reviewConfirmed: true, reviewStatus: "VALID", resolvedProfile: structuredClone(value) }, identityEvidence: {} });
+  const summaryContext = () => ({ ...context(), identityEvidence: { passportNumber: "X1234567", passportName: "ALI BUDI" } });
+  const assert = (value, message) => { if (!value) throw new Error(message); };
+  const rejects = async (action, expected) => { try { await action(); } catch (error) { assert(expected.test(error.message), error.message); return; } throw new Error("Expected a safety block"); };
+  const test = async (name, action) => { try { await action(); results.push({ name, ok: true }); } catch (error) { results.push({ name, ok: false, error: error.stack || error.message }); } };
+  const field = (label, value, id) => `<div class="field"><span>${label}</span><p${id ? ` id="${id}"` : ""}>${value}</p></div>`;
+  const summary = () => { surface.innerHTML = `<div class="card"><h2 class="title">Summary</h2>${field("Passport Number", "X1234567")}${field("Full Name", "ALI BUDI", "summary-name")}${field("Passport Image", '<span id="attachment">demo.jpeg</span><br><small>.jpeg · 173378</small>')}<div class="action-buttons"><div class="navigation-buttons"><button id="next">Next</button></div></div></div>`; };
+  function form(value = profile, groups = ["firstName", "secondName", "thirdName", "familyName"]) {
+    surface.innerHTML = `<input formcontrolname="passportNumber" value="${value.passportNumber}">`;
+    groups.forEach((group, index) => {
+      const field = ["firstName", "fatherName", "grandfatherName", "familyName"][index];
+      surface.insertAdjacentHTML("beforeend", `<div formgroupname="${group}"><input formcontrolname="en" value="${value[field]}"><input formcontrolname="ar" value="${value.arabic[field]}"></div>`);
+    });
+  }
+  const nameInput = (index, lang) => root.domUtils.findFirstVisible(guard.nameSelector(index, lang));
+
+  async function fillReviewedNames(ctx) {
+    const actions = root.stepBasicActions.createStepBasicActions({
+      checkpoint: async () => {}, markActiveElement() {}, appendLog() {}, finishStep() {},
+      waitForInput: async selector => root.domUtils.findFirstVisible(selector),
+    });
+    const steps = root.automationSteps.buildPerMemberSteps("button").filter(step => step.action === "fill" && step.selector.includes("formgroupname"));
+    assert(steps.length === 8, "Production steps must fill all English and Arabic name columns");
+    for (const step of steps) await actions.handleFill(step, ctx, step.selector, 1000, false, 1);
+    guard.verifyMemberNames(ctx);
+  }
+
+  await test("actual Angular form selectors separate English and Arabic names", () => {
+    form(); const ctx = context(); guard.verifyPassportIdentity(ctx); guard.verifyPassportName(ctx); guard.verifyMemberNames(ctx);
+    assert(nameInput(0, "en") !== nameInput(0, "ar"), "Selectors mixed name languages");
+  });
+  await test("reported X2575843 identity is read from alternate live passport controls", () => {
+    const value = { ...profile, passportNumber: "X2575843", firstName: "ANGGY", familyName: "AULIAWAN" };
+    for (const attribute of ['name="passportNo"', 'id="PassportNumber"', 'formcontrolname="PASSPORTNO"', 'formcontrolname="passport_number"', 'name="identity.passportNumber"', 'placeholder="Passport No."', 'aria-label="Passport Number (English)"', 'aria-label="Passport Number: *"']) {
+      surface.innerHTML = `<input ${attribute} value="X2575843" readonly><input formcontrolname="passportTypeId" value="NORMAL">`;
+      const ctx = context(value); guard.verifyPassportIdentity(ctx);
+      assert(ctx.identityEvidence.passportNumber === "X2575843", `Live passport control not read: ${attribute}`);
+    }
+  });
+  await test("passport labels support required marks, read-only cards, inline values, definition lists and table cells", () => {
+    for (const markup of [
+      '<div class="field"><span>Passport Number: *</span><p>X1234567</p></div>',
+      '<div class="field"><div><strong>Passport No.:</strong></div><div><span>X1234567</span></div></div>',
+      '<label for="nusuk-document">Passport Number:</label><input id="nusuk-document" value="X1234567" disabled>',
+      '<form><label>Passport No.:</label><input formcontrolname="documentNumber" value="X1234567"></form>',
+      '<p>Passport No.: <b>X1234567</b></p>',
+      '<dl><dt>Passport Number:</dt><dd>X1234567</dd><dt>Full Name</dt><dd>ALI BUDI</dd></dl>',
+      '<table><tbody><tr><th><span>Passport No.:</span></th><td><span>X1234567</span></td></tr><tr><th>Nationality</th><td>INDONESIA</td></tr></tbody></table>',
+      field("رقم جواز السفر", "\u200fX١٢٣٤٥٦٧\u200e"),
+      field("Nomor Paspor:", "Ｘ１２３４５６７"),
+    ]) {
+      surface.innerHTML = markup;
+      const ctx = context(); guard.verifyPassportIdentity(ctx);
+      assert(ctx.identityEvidence.passportNumber === "X1234567", `Passport label not read: ${markup}`);
+    }
+  });
+  await test("passport evidence ignores hidden old forms and blocks conflicting visible labels", async () => {
+    surface.innerHTML = '<input name="passportNo" value="X1234567"><div hidden><input formcontrolname="passportNumber" value="OTHER"></div>';
+    guard.verifyPassportIdentity(context());
+    surface.insertAdjacentHTML("beforeend", field("Passport No.:", "OTHER"));
+    await rejects(() => guard.verifyPassportIdentity(context()), /Nomor paspor.*berbeda/);
+  });
+  await test("hidden text inside a visible passport display is not identity evidence", async () => {
+    surface.innerHTML = '<p>Passport Number: X1234567<span hidden>OTHER</span></p>';
+    guard.verifyPassportIdentity(context());
+    surface.innerHTML = '<div class="field"><span>Passport Number:</span><p style="min-height:10px"><span hidden>X1234567</span></p></div>';
+    await rejects(() => guard.verifyPassportIdentity(context()), /Nomor paspor.*tidak dapat diverifikasi/);
+  });
+  await test("unrelated page text or another labeled field cannot supply a missing passport number", async () => {
+    surface.innerHTML = '<div class="field"><span>Passport Number:</span></div>' + field("Full Name", "X1234567") + '<h1>X1234567</h1><input formcontrolname="passportTypeId" value="X1234567">';
+    await rejects(() => guard.verifyPassportIdentity(context()), /Nomor paspor.*tidak dapat diverifikasi/);
+  });
+  await test("a blank passport number on Member Form uses only that member's previous verification", async () => {
+    form(); const ctx = context(); guard.verifyPassportIdentity(ctx);
+    surface.querySelector("input[formcontrolname='passportNumber']").value = "";
+    guard.verifyPassportName(ctx);
+    await rejects(() => guard.verifyPassportName(context()), /Nomor paspor.*tidak dapat diverifikasi/);
+    surface.querySelector("input[formcontrolname='passportNumber']").value = "OTHER";
+    await rejects(() => guard.verifyPassportName(ctx), /Nomor paspor.*berbeda/);
+  });
+  const reportedProfile = {
+    passportNumber: "C8640496", firstName: "DIAH", fatherName: "PURNAMAWATI ALI", grandfatherName: "", familyName: "ANYANG",
+    arabic: { firstName: "دياه", fatherName: "بورناماواتي علي", grandfatherName: "", familyName: "أنيانغ" },
+  };
+  await test("reported incomplete Nusuk OCR is completed by the production name fill steps", async () => {
+    form(reportedProfile); const ctx = context(reportedProfile); guard.verifyPassportIdentity(ctx);
+    nameInput(1, "en").value = ""; nameInput(1, "ar").value = "";
+    guard.verifyPassportName(ctx);
+    assert(ctx.identityEvidence.uploadedPassportName === "DIAH ANYANG", "The original uploaded name was lost");
+    await rejects(() => guard.verifyMemberNames(ctx), /fatherName.*terpotong/);
+    let events = 0; nameInput(1, "en").addEventListener("input", () => events++); nameInput(1, "en").addEventListener("change", () => events++);
+    await fillReviewedNames(ctx);
+    assert(events === 2 && nameInput(1, "en").value === "PURNAMAWATI ALI", "The reviewed middle names did not reach the form");
+  });
+  const generalNameCases = [
+    { expected: ["GLADYS SHAFIRA", "", "", "AMRU"], observed: ["GLADYS", "", "", "AMRU"] },
+    { expected: ["ALEX BUDI", "CITRA DANI", "EKO", "FARAH"], observed: ["ALEX CITRA", "", "", "FARAH"] },
+    { expected: ["DIAH", "PURNAMAWATI ALI", "", "ANYANG"], observed: ["DIAH", "PURNAMAWATI", "", "ANYANG"] },
+    { expected: ["ALEX", "BUDI CITRA", "", "VAN DANI"], observed: ["ALEX", "BUDI", "", "DANI"] },
+    { expected: ["ALEX BUDI", "CITRA", "BUDI", "DANI"], observed: ["ALEX BUDI", "", "BUDI", "DANI"] },
+    { expected: ["SARI", "", "", "SARI"], observed: ["", "", "", "SARI"] },
+  ];
+  for (const { expected, observed } of generalNameCases) {
+    await test(`general name rule fills all reviewed fields and requires a complete summary: ${expected.filter(Boolean).join(" ")}`, async () => {
+      const fields = ["firstName", "fatherName", "grandfatherName", "familyName"];
+      const value = { ...profile, ...Object.fromEntries(fields.map((key, index) => [key, expected[index]])),
+        arabic: { firstName: "أول", fatherName: expected[1] ? "ثاني" : "", grandfatherName: expected[2] ? "ثالث" : "", familyName: "أخير" } };
+      form(value); const ctx = context(value); guard.verifyPassportIdentity(ctx);
+      observed.forEach((word, index) => { nameInput(index, "en").value = word; });
+      guard.verifyPassportName(ctx);
+      await rejects(() => guard.verifyMemberNames(ctx), /terpotong/);
+      await fillReviewedNames(ctx);
+      const complete = expected.filter(Boolean).join(" ");
+      surface.innerHTML = field("Passport Number", value.passportNumber) + field("Full Name", complete, "summary-name") + field("Passport Image", "demo.jpeg");
+      guard.verifySummaryIdentity(ctx);
+      document.getElementById("summary-name").textContent = observed.filter(Boolean).join(" ");
+      await rejects(() => guard.verifySummaryIdentity(ctx), /Nama pada ringkasan.*berbeda/);
+    });
+  }
+  await test("misread, reordered or truncated OCR words can be corrected by production name steps", async () => {
+    const value = { ...profile, firstName: "ALEX BUDI", fatherName: "CITRA", grandfatherName: "BUDI", familyName: "DANI" };
+    for (const given of ["ALEX OTHER", "ALEX BUD", "ALEX CITRA CITRA", "ALEX BUDI BUDI CITRA", "BUDI CITRA", "ALEX BUDI BUDI BUDI"]) {
+      form(value); const ctx = context(value); nameInput(0, "en").value = given; nameInput(1, "en").value = ""; nameInput(2, "en").value = "";
+      guard.verifyPassportName(ctx);
+      assert(nameInput(0, "en").value === given, "The OCR checkpoint overwrote the form");
+      assert(ctx.identityEvidence.nameCorrection.observedName.includes(given), "The OCR discrepancy was not recorded");
+      await fillReviewedNames(ctx);
+    }
+  });
+  await test("missing words inside First Name cannot bypass a changed passport number", async () => {
+    const value = { ...profile, firstName: "GLADYS SHAFIRA", familyName: "AMRU" };
+    form(value); const ctx = context(value); guard.verifyPassportIdentity(ctx); nameInput(0, "en").value = "GLADYS";
+    surface.querySelector("input[formcontrolname='passportNumber']").value = "OTHER";
+    await rejects(() => guard.verifyPassportName(ctx), /Nomor paspor.*berbeda/);
+  });
+  await test("alternative father and grandfather Angular controls are verified in both languages", async () => {
+    const value = structuredClone(reportedProfile); value.fatherName = "PURNAMAWATI"; value.grandfatherName = "ALI";
+    value.arabic.fatherName = "بورناماواتي"; value.arabic.grandfatherName = "علي";
+    for (const third of ["grandfatherName", "grandFatherName"]) {
+      form(value, ["firstName", "fatherName", third, "familyName"]);
+      const ctx = context(value); guard.verifyPassportName(ctx); guard.verifyMemberNames(ctx);
+      for (const language of ["en", "ar"]) {
+        assert(nameInput(1, language)?.value === (language === "en" ? value : value.arabic).fatherName, "Father selector failed");
+        assert(root.domUtils.queryAll(guard.nameSelector(2, language)).length === 1, "Grandfather selector mixed languages");
+      }
+      surface.insertAdjacentHTML("beforeend", '<div formgroupname="secondName"><input formcontrolname="en" value="OTHER PERSON"></div>');
+      await rejects(() => guard.verifyPassportName(ctx), /beberapa kolom nama/);
+    }
+  });
+  await test("English placeholders with language suffixes include complete middle names", () => {
+    surface.innerHTML = `<input formcontrolname="passportNumber" value="C8640496"><input placeholder="First Name (English)" value="DIAH"><input placeholder="Father's Name (English)" value="PURNAMAWATI ALI"><input placeholder="Grand Father Name (English)" value=""><input placeholder="Family Name (English)" value="ANYANG"><input placeholder="First Name (Arabic)" value="دياه"><input placeholder="Father's Name (Arabic)" value="بورناماواتي علي"><input placeholder="Grand Father Name (Arabic)" value=""><input placeholder="Family Name (Arabic)" value="أنيانغ">`;
+    const ctx = context(reportedProfile); guard.verifyPassportName(ctx); guard.verifyMemberNames(ctx);
+    assert(root.domUtils.queryAll(guard.nameSelector(1, "en")).length === 1, "Arabic names contaminated English middle name evidence");
+  });
+  await test("a missing middle name control is blocked instead of being treated as blank OCR", async () => {
+    form(reportedProfile); nameInput(1, "en").parentElement.remove();
+    await rejects(() => guard.verifyPassportName(context(reportedProfile)), /fatherName.*tidak dapat diverifikasi/);
+  });
+  await test("middle names can be completed when Member Form hides the previously verified passport number", async () => {
+    form(reportedProfile); const ctx = context(reportedProfile); guard.verifyPassportIdentity(ctx);
+    surface.querySelector("input[formcontrolname='passportNumber']").remove(); nameInput(1, "en").value = "";
+    guard.verifyPassportName(ctx);
+    await rejects(() => guard.verifyPassportName(context(reportedProfile)), /Nomor paspor.*tidak dapat diverifikasi/);
+  });
+  await test("a differing OCR name uses the reviewed profile when the passport number matches", async () => {
+    form(); const ctx = context(); guard.verifyPassportIdentity(ctx); nameInput(0, "en").value = "OTHER"; nameInput(3, "en").value = "PERSON";
+    guard.verifyPassportName(ctx);
+    assert(ctx.identityEvidence.nameCorrection.observedName === "OTHER PERSON", "OCR correction was not recorded");
+    await fillReviewedNames(ctx);
+    assert(nameInput(0, "en").value === profile.firstName, "The reviewed name was not filled");
+  });
+  await test("placeholder selectors never include the Arabic field as English evidence", () => {
+    surface.innerHTML = '<input placeholder="First Name" value="ALI"><input placeholder="First Name (Arabic)" value="علي"><input placeholder="Family Name" value="BUDI"><input placeholder="Family Name (Arabic)" value="بودي"><input formcontrolname="passportNumber" value="X1234567">';
+    const ctx = context(); guard.verifyPassportName(ctx); guard.verifyMemberNames(ctx);
+    assert(root.domUtils.queryAll(guard.nameSelector(0, "en")).length === 1, "Arabic placeholder matched English selector");
+  });
+  await test("duplicate visible conflicting controls are blocked", async () => {
+    form(); surface.insertAdjacentHTML("beforeend", '<input formcontrolname="firstName.en" value="OTHER">');
+    await rejects(() => guard.verifyPassportName(context()), /beberapa kolom nama/);
+  });
+  await test("hidden old forms do not contaminate current identity evidence", () => {
+    form(); surface.insertAdjacentHTML("beforeend", '<div style="display:none" formgroupname="firstName"><input formcontrolname="en" value="OTHER"></div>');
+    guard.verifyPassportName(context());
+  });
+  await test("empty middle names are cleared and input/change events reach the form", async () => {
+    form(); const input = nameInput(1, "en"); input.value = "OLD NAME"; let events = 0;
+    input.addEventListener("input", () => events++); input.addEventListener("change", () => events++);
+    const actions = root.stepBasicActions.createStepBasicActions({ checkpoint: async () => {}, markActiveElement() {}, appendLog() {}, finishStep() {} });
+    await actions.handleFill({ value: "{{member.resolvedProfile.fatherName}}", clear_when_empty: true }, context(), guard.nameSelector(1, "en"), 1000, false, 1);
+    assert(input.value === "" && events === 2, "Old middle name remained in Angular form");
+  });
+  await test("real read-only summary cards verify the uploaded filename as well as identity", () => { summary(); guard.verifySummaryIdentity(summaryContext()); });
+  await test("summary filenames allow server capitalization and space-to-underscore display formatting", () => {
+    for (const [expected, displayed] of [["HALIJAH 2.png", "halijah_2.png"], ["Document  Alpha  04.PDF", "document__alpha_04.pdf"], ["Ali-Budi 3.JPEG", "ali-budi_3.jpeg"], ["ÉMILIE 03.PNG", "e\u0301milie_03.png"]]) {
+      summary(); const ctx = summaryContext(); ctx.member.passportImagePath = `C:/Demo/${expected}`;
+      document.getElementById("attachment").textContent = displayed;
+      guard.verifySummaryIdentity(ctx);
+      assert(ctx.member.passportImagePath === `C:/Demo/${expected}`, "Filename display rules changed the upload source path");
+    }
+  });
+  await test("summary filenames still reject different numeric suffixes, stems, extensions and token boundaries", async () => {
+    summary(); const ctx = summaryContext(); ctx.member.passportImagePath = "C:/Demo/Document 2.png";
+    for (const displayed of ["document_3.png", "document_02.png", "document_2.jpg", "other_2.png", "document2.png", "document-2.png", "document_2_copy.png", "document_2.png.exe"]) {
+      document.getElementById("attachment").textContent = displayed;
+      await rejects(() => guard.verifySummaryIdentity(ctx), /File paspor/);
+    }
+  });
+  await test("renamed attachments cannot match another file from the full batch, including saved members", async () => {
+    summary(); const ctx = summaryContext(); ctx.member.passportImagePath = "C:/Demo/Document 2.png";
+    ctx.members = [ctx.member]; ctx.batchMembers = [{ id: "saved", passportImagePath: "C:/Demo/Document_2.png" }, ctx.member];
+    document.getElementById("attachment").textContent = "document_2.png";
+    await rejects(() => guard.verifySummaryIdentity(ctx), /File paspor.*ambigu/);
+    document.getElementById("attachment").textContent = "Document 2.png";
+    guard.verifySummaryIdentity(ctx);
+  });
+  await test("an unrelated identity elsewhere on the page cannot replace labeled evidence", async () => {
+    summary(); document.getElementById("summary-name").textContent = "OTHER PERSON"; surface.insertAdjacentHTML("beforeend", '<h1>ALI BUDI X1234567</h1>');
+    await rejects(() => guard.verifySummaryIdentity(summaryContext()), /Nama pada ringkasan.*berbeda/);
+  });
+  await test("a mismatched passport attachment is blocked before submit", async () => {
+    summary(); document.getElementById("attachment").textContent = "other-person.jpeg";
+    await rejects(() => guard.verifySummaryIdentity(summaryContext()), /File paspor.*berbeda/);
+  });
+  await test("correct full name cannot hide incorrect split name labels", async () => {
+    summary(); surface.insertAdjacentHTML("beforeend", field("First Name", "OTHER"));
+    await rejects(() => guard.verifySummaryIdentity(summaryContext()), /firstName pada ringkasan berbeda/);
+  });
+  await test("a summary waits for an empty split name even when its full name has already loaded", async () => {
+    summary(); surface.insertAdjacentHTML("beforeend", field("First Name", "", "summary-first"));
+    let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation({ onSleep: clock => {
+      if (!clicks && clock >= 540) document.getElementById("summary-first").textContent = "ALI";
+      if (clicks && clock >= 1400) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>';
+    } });
+    try {
+      await h.nav.clickNextButtonRobust(3000, 1, summaryContext());
+      assert(clicks === 1 && h.stored.length === 1, "A partly rendered split name was saved early or more than once");
+    } finally { h.restore(); }
+  });
+  await test("split summary labels support explicit empty middle fields", () => {
+    surface.innerHTML = field("Passport Number", "X1234567") + field("First Name", "ALI") + field("Father's Name", "-") + field("Grandfather Name", "-") + field("Family Name", "BUDI") + field("Passport Image", "demo.jpeg");
+    guard.verifySummaryIdentity(summaryContext());
+  });
+  await test("a matching resumed summary does not require earlier runtime identity evidence", () => {
+    summary(); guard.verifySummaryIdentity(context());
+  });
+  await test("a missing mandatory passport upload is never silently skipped", async () => {
+    const actions = root.stepUploadActions.createStepUploadActions({ appendLog() {}, finishStep() {}, upload: { waitForFileInputForStep: async () => null } });
+    await rejects(() => actions.handleSetFiles({ upload_kind: "passport" }, context(), "passport", 1000, false, 1), /upload wajib tidak boleh dilewati/);
+  });
+
+  function navigation({ onSleep, persist } = {}) {
+    let clock = 0; const originalNow = Date.now; Date.now = () => clock;
+    const state = { runToken: 1 }, stored = [];
+    const nav = root.nusukNavigation.createNusukNavigation({
+      state, checkpoint: async () => {}, markActiveElement() {},
+      persistState: async options => { stored.push(structuredClone(state.pendingSubmission)); await persist?.(options); },
+      sleep: async ms => { clock += ms; onSleep?.(clock); },
+      waitUntil: async (check, timeout, message) => {
+        const deadline = clock + timeout;
+        while (clock < deadline) { const result = await check(); if (result) return result; clock += 120; onSleep?.(clock); }
+        throw new Error(typeof message === "function" ? message() : message);
+      },
+    });
+    return { nav, state, stored, restore: () => { Date.now = originalNow; } };
+  }
+  await test("resuming Disclosure reaches Summary and saves exactly once without earlier identity evidence", async () => {
+    surface.innerHTML = '<div class="card"><h2 class="title">Disclosure Form</h2><div class="question"><input type="radio" checked></div><div class="action-buttons"><div class="navigation-buttons"><button id="next">Next</button></div></div></div>';
+    let disclosureClicks = 0, saves = 0;
+    document.getElementById("next").addEventListener("click", () => {
+      disclosureClicks++;
+      summary();
+      document.getElementById("next").addEventListener("click", () => saves++);
+    });
+    const ctx = context(), h = navigation({ onSleep: () => {
+      if (saves) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>';
+    } });
+    try {
+      await h.nav.clickNextButtonRobust(3000, 1, ctx);
+      assert(disclosureClicks === 1 && saves === 0 && !h.state.pendingSubmission, "Disclosure was stopped or submitted before the summary check");
+      await h.nav.clickNextButtonRobust(3000, 1, ctx);
+      assert(saves === 1 && h.stored.length === 1, "The matching resumed summary was not saved exactly once");
+      assert(h.state.pendingSubmission?.passportNumber === "X1234567", "The resumed save lost its submission lock");
+    } finally { h.restore(); }
+  });
+  await test("a matching resumed Summary saves exactly once without earlier identity evidence", async () => {
+    summary(); let saves = 0;
+    document.getElementById("next").addEventListener("click", () => saves++);
+    const h = navigation({ onSleep: () => {
+      if (saves) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>';
+    } });
+    try {
+      await h.nav.clickNextButtonRobust(3000, 1, context());
+      assert(saves === 1 && h.stored.length === 1, "The matching resumed summary was stopped or saved more than once");
+    } finally { h.restore(); }
+  });
+  await test("a resumed Summary with different or missing identity never clicks Save", async () => {
+    for (const [fieldIndex, value, expected] of [
+      [0, "OTHER", /Nomor paspor.*berbeda/],
+      [1, "OTHER PERSON", /Nama pada ringkasan.*berbeda/],
+      [2, "other.jpeg", /File paspor.*berbeda/],
+      [0, "", /Nomor paspor.*tidak dapat diverifikasi/],
+      [1, "", /nama pada ringkasan.*tidak dapat diverifikasi/],
+      [2, "", /File paspor.*tidak dapat diverifikasi/],
+    ]) {
+      summary(); surface.querySelectorAll(".field p")[fieldIndex].textContent = value;
+      let saves = 0; document.getElementById("next").addEventListener("click", () => saves++);
+      const h = navigation();
+      try {
+        await rejects(() => h.nav.clickNextButtonRobust(1000, 1, context()), expected);
+        assert(saves === 0 && !h.state.pendingSubmission, "A different or unreadable resumed summary was saved");
+      } finally { h.restore(); }
+    }
+  });
+  await test("Passport Details waits for its late number before clicking Next", async () => {
+    surface.innerHTML = '<input formcontrolname="issueCityName" value="JAKARTA"><input id="PassportNo" value=""><div class="action-buttons"><div class="navigation-buttons"><button id="next">Next</button></div></div>';
+    let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const ctx = context(), h = navigation({ onSleep: clock => {
+      if (!clicks && clock >= 720) document.getElementById("PassportNo").value = "X1234567";
+      if (clicks) { form(); surface.insertAdjacentHTML("beforeend", '<input formcontrolname="profession" value="OTHER">'); }
+    } });
+    try {
+      await h.nav.clickNextButtonRobust(2000, 1, ctx);
+      assert(clicks === 1 && ctx.identityEvidence.passportNumber === "X1234567", "Next ran without the loaded passport identity");
+    } finally { h.restore(); }
+  });
+  await test("a missing or conflicting Passport Details number never clicks Next", async () => {
+    for (const value of ["", "OTHER"]) {
+      surface.innerHTML = `<input formcontrolname="issueCityName" value="JAKARTA"><input name="passportNo" value="${value}"><div class="action-buttons"><div class="navigation-buttons"><button id="next">Next</button></div></div>`;
+      let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+      const h = navigation();
+      try {
+        await rejects(() => h.nav.clickNextButtonRobust(1000, 1, context()), value ? /Nomor paspor.*berbeda/ : /Nomor paspor.*tidak dapat diverifikasi/);
+        assert(clicks === 0, "Next was clicked without matching passport evidence");
+      } finally { h.restore(); }
+    }
+  });
+  await test("a slow summary number is read before exactly one final save", async () => {
+    summary(); surface.querySelector(".field p").id = "summary-passport"; document.getElementById("summary-passport").textContent = "";
+    let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation({ onSleep: clock => {
+      if (!clicks && clock >= 720) document.getElementById("summary-passport").textContent = "X1234567";
+      if (clicks && clock >= 1600) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>';
+    } });
+    try {
+      await h.nav.clickNextButtonRobust(3000, 1, summaryContext());
+      assert(clicks === 1 && h.stored.length === 1, "The delayed summary caused an early or duplicate save");
+    } finally { h.restore(); }
+  });
+  await test("cached identity cannot submit a summary with no passport number", async () => {
+    summary(); surface.querySelector(".field p").textContent = "";
+    let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation();
+    try {
+      await rejects(() => h.nav.clickNextButtonRobust(1000, 1, summaryContext()), /Nomor paspor.*tidak dapat diverifikasi/);
+      assert(clicks === 0 && !h.state.pendingSubmission, "Missing summary identity reached final submission");
+    } finally { h.restore(); }
+  });
+  await test("next-button recovery fills names only after the reviewed-name checkpoint", async () => {
+    form(); nameInput(0, "en").value = ""; const h = navigation();
+    try {
+      await h.nav.attemptFillRequiredFieldsForCurrentPage(context());
+      assert(nameInput(0, "en").value === "", "An unreadable passport name was replaced before verification");
+      const ctx = context(); guard.verifyPassportName(ctx);
+      await h.nav.attemptFillRequiredFieldsForCurrentPage(ctx);
+      assert(nameInput(0, "en").value === profile.firstName, "The reviewed name was not recovered");
+      guard.verifyMemberNames(ctx);
+    } finally { h.restore(); }
+  });
+  await test("returning to Mutamer List alone is never accepted as confirmed success", async () => {
+    surface.innerHTML = '<h2 class="mutamer-header-title">Mutamer List</h2><button>Add new mutamer</button>'; const h = navigation();
+    try { await rejects(() => h.nav.waitForNusukPageReady("success", 1000), /belum siap/); } finally { h.restore(); }
+  });
+  await test("a slow Nusuk response produces exactly one final submit", async () => {
+    summary(); let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation({ onSleep: clock => { if (clicks && clock >= 6500) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>'; } });
+    try {
+      await h.nav.clickNextButtonRobust(20000, 1, summaryContext());
+      assert(clicks === 1 && h.stored.length === 1, "The final save was retried");
+      assert(h.state.pendingSubmission?.passportNumber === "X1234567", "The pending save lock was lost");
+    } finally { h.restore(); }
+  });
+  await test("a display-normalized passport filename allows exactly one final save with the original source path", async () => {
+    summary(); const ctx = summaryContext(); ctx.member.passportImagePath = "C:/Demo/Document 2.png";
+    document.getElementById("attachment").textContent = "document_2.png";
+    let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation({ onSleep: clock => { if (clicks && clock >= 6500) surface.innerHTML = '<div class="popup"><h3>Mutamer has been added successfully</h3></div>'; } });
+    try {
+      await h.nav.clickNextButtonRobust(20000, 1, ctx);
+      assert(clicks === 1 && h.stored.length === 1, "The formatted filename caused a save retry");
+      assert(h.state.pendingSubmission?.passportImagePath === "c:/demo/document 2.png", "Display normalization changed the saved source identity");
+    } finally { h.restore(); }
+  });
+  await test("a numeric filename change while persisting the save checkpoint prevents the click", async () => {
+    summary(); const ctx = summaryContext(); ctx.member.passportImagePath = "C:/Demo/Document 2.png";
+    document.getElementById("attachment").textContent = "document_2.png";
+    let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation({ persist: async () => { document.getElementById("attachment").textContent = "document_3.png"; } });
+    try {
+      await rejects(() => h.nav.clickNextButtonRobust(20000, 1, ctx), /File paspor.*berbeda/);
+      assert(clicks === 0, "A different numbered passport file was submitted");
+    } finally { h.restore(); }
+  });
+  await test("a save with no response stops without a second click", async () => {
+    summary(); let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++); const h = navigation();
+    try {
+      await rejects(() => h.nav.clickNextButtonRobust(20000, 1, summaryContext()), /belum mengonfirmasi penyimpanan/);
+      assert(clicks === 1, "The final save was sent more than once");
+    } finally { h.restore(); }
+  });
+  await test("identity changes during asynchronous persistence prevent the final click", async () => {
+    summary(); let clicks = 0; document.getElementById("next").addEventListener("click", () => clicks++);
+    const h = navigation({ persist: async () => { document.getElementById("attachment").textContent = "other-person.jpeg"; } });
+    try {
+      await rejects(() => h.nav.clickNextButtonRobust(20000, 1, summaryContext()), /File paspor.*berbeda/);
+      assert(clicks === 0, "The changed passport was submitted");
+    } finally { h.restore(); }
+  });
+  await window.runAutomationReliabilityTests(test, assert, field);
+  document.getElementById("results").textContent = JSON.stringify({ total: results.length, passed: results.filter(result => result.ok).length, results });
+})().catch(error => { document.getElementById("results").textContent = JSON.stringify({ fatal: error.stack || error.message }); });
+</script>
+</html>

@@ -50,6 +50,7 @@
       clearActiveHighlight,
     });
     const basicActions = createStepBasicActions({
+      checkpoint,
       sleep,
       waitForInput,
       waitForEnabled,
@@ -96,6 +97,19 @@
 
       await checkpoint(runId);
       await slowModeDelayBeforeStep(action, runId);
+
+      const identityChecks = {
+        verify_passport_identity: "verifyPassportIdentity",
+        verify_passport_name: "verifyPassportName",
+      };
+      if (identityChecks[action]) {
+        await root.identityGuard.waitForIdentityCheck(identityChecks[action], context, {
+          checkpoint, sleep, runId, timeoutMs: Math.min(timeoutMs, 15000),
+          onWait: () => appendLog("info", "Menunggu identitas paspor pada form Nusuk selesai dimuat..."),
+        });
+        finishStep(step, action);
+        return;
+      }
 
       if (action === "wait_for_selector") {
         await basicActions.handleWaitForSelector(step, selector, timeoutMs, runId);

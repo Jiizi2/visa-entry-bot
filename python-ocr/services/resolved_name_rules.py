@@ -55,7 +55,7 @@ def _combine_name(first_name: str, family_name: str) -> str:
     return " ".join(parts)
 
 
-def _distribute_given_name_columns(tokens: list[str]) -> ParsedPassportData:
+def _distribute_given_name_columns(tokens: list[str]) -> dict[str, str]:
     remaining_tokens = list(tokens)
     columns = ["", "", ""]
     for index in range(len(columns)):
@@ -73,10 +73,8 @@ def _fill_column(tokens: list[str]) -> tuple[str, list[str]]:
         return "", []
     first_token = tokens[0]
     if len(first_token) > MAX_NAME_COLUMN_CHARS:
-        head = first_token[:MAX_NAME_COLUMN_CHARS]
-        tail = first_token[MAX_NAME_COLUMN_CHARS :]
-        remaining = ([tail] if tail else []) + tokens[1:]
-        return head, remaining
+        # Keep the passport spelling intact. Oversized fields require review.
+        return first_token, tokens[1:]
 
     selected: list[str] = []
     current_length = 0
@@ -94,11 +92,8 @@ def _fill_column(tokens: list[str]) -> tuple[str, list[str]]:
 def _append_overflow(current: str, overflow_tokens: list[str]) -> str:
     overflow_text = " ".join(token for token in overflow_tokens if token)
     if not current:
-        return overflow_text[:MAX_NAME_COLUMN_CHARS]
-    room = MAX_NAME_COLUMN_CHARS - len(current) - 1
-    if room <= 0:
-        return current[:MAX_NAME_COLUMN_CHARS]
-    return f"{current} {overflow_text[:room]}".strip()
+        return overflow_text
+    return f"{current} {overflow_text}".strip()
 
 
 def _full_name_source(value: str) -> str:

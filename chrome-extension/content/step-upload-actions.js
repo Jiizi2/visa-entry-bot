@@ -18,6 +18,7 @@
       appendLog("info", `Mencari field ${uploadKindLabel(step).toLowerCase()}...`);
       const fileInput = await upload.waitForFileInputForStep(step, selector, timeoutMs, runId);
       if (!fileInput) {
+        if (isPassportUploadStep(step)) throw root.identityGuard.identityError("kolom upload paspor tidak ditemukan; upload wajib tidak boleh dilewati");
         appendLog("warning", `Upload field tidak muncul, dilewati: ${selector}`);
         finishStep(step, selector);
         return;
@@ -42,6 +43,8 @@
           appendLog("warning", "File passport tidak ada di cache pilihan panel; memakai path JSON lewat Chrome debugger.");
           await handlePassportDebuggerUpload({
             step,
+            context,
+            requestedPath: rawValue,
             input,
             file: fileDescriptor,
             resolvedFilePath,
@@ -86,7 +89,7 @@
         throw new Error(message);
       }
       if (upload.isFileInputAlreadyUsing(input, uploadFile)) {
-        if (!isPassportUploadStep(step) || isPassportUploadAcceptedOnPage(uploadFile)) {
+        if (!isPassportUploadStep(step)) {
           appendLog("success", `File upload sudah sesuai: ${uploadFile.name}`);
           finishStep(step, selector);
           return;
@@ -96,6 +99,8 @@
       if (isPassportUploadStep(step)) {
         await handlePassportDebuggerUpload({
           step,
+          context,
+          requestedPath: rawValue,
           input,
           file: uploadFile,
           resolvedFilePath,
@@ -195,6 +200,8 @@
 
   async function handlePassportDebuggerUpload({
     step,
+    context,
+    requestedPath,
     input,
     file,
     resolvedFilePath,
@@ -216,6 +223,11 @@
     upload.notifyUploadWidget(input);
     await sleep(UPLOAD_SETTLE_DELAY_MS, runId);
 
+    const selected = input?.files?.[0]?.name;
+    if (selected && selected !== basenameFromPath(resolvedFilePath)) {
+      throw root.identityGuard.identityError(`file paspor terpilih (${selected}) berbeda dari file yang diminta (${basenameFromPath(resolvedFilePath)})`);
+    }
+
     const accepted = await waitForPassportUploadAccepted({
       input,
       file,
@@ -223,6 +235,7 @@
       runId,
     });
     if (accepted) {
+      root.identityGuard.recordPassportUpload(context, requestedPath, selected);
       appendLog("success", `${uploadKindLabel(step)} diproses oleh halaman: ${file.name}`);
       finishStep(step, selector);
       return;

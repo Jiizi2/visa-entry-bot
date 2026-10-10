@@ -1,6 +1,47 @@
-/* Brief state feedback; work surfaces remain still and immediately usable. */
+/* Short, directional arrivals connect the five workflow steps. */
+:root {
+  --page-travel: 12px;
+}
+
+:root[data-workflow-direction="backward"] {
+  --page-travel: -12px;
+}
+
+:root[data-workflow-direction="initial"] {
+  --page-travel: 0px;
+}
+
 .page-transition {
-  animation: page-enter var(--duration-slow) var(--ease-standard);
+  animation: page-enter var(--duration-page) var(--ease-page);
+}
+
+/* One continuous selection surface, rather than five backgrounds flashing. */
+.workflow-rail__nav {
+  position: relative;
+  isolation: isolate;
+}
+
+.workflow-nav-highlight {
+  position: absolute;
+  top: 0;
+  z-index: -1;
+  border-radius: var(--radius-md);
+  background: var(--chrome-active);
+  pointer-events: none;
+  transition: transform var(--duration-page) var(--ease-page);
+}
+
+.workflow-nav-item.is-active {
+  background: transparent;
+}
+
+.workflow-nav-item.is-active:hover,
+.workflow-nav-item.is-active:active {
+  background: var(--chrome-hover);
+}
+
+.page-opening-artwork .completion-overlay__dialog {
+  animation: page-enter var(--duration-page) var(--ease-page);
 }
 
 .modal-overlay, .completion-overlay {
@@ -61,8 +102,8 @@
 }
 
 @keyframes page-enter {
-  from { opacity: .84; }
-  to { opacity: 1; }
+  from { opacity: .65; transform: translateX(var(--page-travel)); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes dialog-enter {
@@ -91,6 +132,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .workflow-nav-highlight {
+    transition: none;
+  }
+
+  .page-opening-artwork .completion-overlay__dialog {
+    animation: none;
+  }
+
   .page-transition, .modal-overlay, .completion-overlay,
   .modal-card, .crop-dialog, .completion-overlay__dialog,
   .form-custom-select__menu, .review-member-select__menu, .date-picker__menu,

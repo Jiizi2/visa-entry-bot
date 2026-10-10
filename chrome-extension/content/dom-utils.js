@@ -142,6 +142,15 @@
     return true;
   }
 
+  function isFileInputAvailable(node) {
+    if (!(node instanceof HTMLInputElement) || node.type !== "file") return false;
+    if (isVisible(node)) return true;
+    // Custom upload controls hide the native input. Its visible wrapper still
+    // identifies the active control; a hidden previous form cannot do so.
+    const wrapper = node.closest(".passport-upload-section, .upload-container, .container__notes__upload, .upload-button, .upload-box, .upload, div[class*='upload' i]");
+    return Boolean(wrapper && isVisible(wrapper));
+  }
+
   root.domUtils = Object.freeze({
     cssEscape,
     clickElement,
@@ -152,5 +161,6 @@
     findByText,
     isVisible,
     isEnabled,
+    isFileInputAvailable,
   });
 })();

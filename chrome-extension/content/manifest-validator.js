@@ -75,8 +75,16 @@
     }
 
     const seenIds = new Set();
+    const seenPassports = new Set();
+    const seenImages = new Set();
     manifest.members.forEach((member, index) => {
       validateMember(member, index, seenIds, errors);
+      const passport = stringValue(member?.resolvedProfile?.passportNumber).toUpperCase().replace(/\s/g, "");
+      const image = stringValue(member?.passportImagePath || member?.fileName).replace(/\\/g, "/").toLowerCase();
+      if (passport && seenPassports.has(passport)) errors.push(`members[${index + 1}] nomor paspor duplikat: ${passport}.`);
+      if (image && seenImages.has(image)) errors.push(`members[${index + 1}] file paspor dipakai oleh lebih dari satu jamaah: ${image}.`);
+      if (passport) seenPassports.add(passport);
+      if (image) seenImages.add(image);
     });
 
     return {
@@ -125,6 +133,11 @@
     for (const [path, fieldLabel] of REQUIRED_PROFILE_FIELDS) {
       if (!stringValue(deepValue(profile, path))) {
         errors.push(`${memberLabel(member, label)} field ${fieldLabel} wajib diisi.`);
+      }
+    }
+    for (const field of ["firstName", "fatherName", "grandfatherName"]) {
+      if (stringValue(profile[field]).length > 15) {
+        errors.push(`${memberLabel(member, label)} kolom ${field} melebihi 15 karakter; nama tidak boleh dipotong otomatis.`);
       }
     }
 

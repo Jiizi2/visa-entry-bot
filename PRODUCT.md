@@ -23,6 +23,7 @@ Operator bekerja dengan folder dokumen passport, nilai bersama untuk satu rombon
 - Workflow utama: pilih folder, siapkan foto, jalankan OCR, review data, lalu entry Nusuk.
 - Halaman pertama harus mendukung pemilihan folder, opsi PDF multi-passport, default rombongan, riwayat folder, dan navigasi ke Prepare.
 - OCR berjalan lokal melalui satu pipeline otomatis; pengguna tidak memilih mode pemrosesan.
+- Kualitas hasil scan lebih diutamakan daripada kecepatan: foto sulit dapat memakai budget OCR hingga satu menit per passport, sedangkan foto yang sudah terbaca lengkap selesai lebih cepat.
 - Redesign halaman pertama tidak boleh mengubah fungsi, kontrak data, atau urutan workflow utama.
 
 ## Brand Commitments

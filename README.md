@@ -1,8 +1,8 @@
 # EntryMate By Ghaniya
 
-> Versi desktop: **1.0.24** | Extension manifest: **1.0.24** | Windows · macOS · Linux
+> Versi desktop: **1.0.25** | Extension manifest: **1.0.26** | Windows · macOS · Linux
 
-Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari aplikasi desktop, worker OCR lokal, dan browser extension. Desktop dan extension terhubung melalui WebSocket lokal; ekspor/upload file JSON tetap tersedia sebagai mode legacy.
+Sistem otomasi entry data visa Haji/Umrah ke platform [Nusuk (masar.nusuk.sa)](https://masar.nusuk.sa). Terdiri dari aplikasi desktop, worker OCR lokal, dan browser extension. Desktop membuat file JSON otomatis setelah semua passport direview. Seret file dari halaman Entry langsung ke panel extension untuk memuat batch.
 
 > **OCR Engine**: RapidOCR (ONNX Runtime) — ringan, cepat, dan tidak membutuhkan instalasi Tesseract di device target.
 
@@ -16,17 +16,15 @@ Folder Passport (foto .jpg / .png / .pdf)
 [1] Desktop App (Tauri + Rust + React)
     → Scan OCR via Python worker
     → Review & edit data
-    → Kirim batch melalui WebSocket lokal
-  ↓  (ws://127.0.0.1:9001-9005)
+    -> Buat nusuk-entry-batch.json otomatis pada halaman 5
+  (seret file JSON ke panel extension)
 [2] Chrome Extension (MV3)
-    → Terima batch dan perintah Start dari desktop
-    → Autofill form Nusuk otomatis
-
-Jalur fallback:
-Desktop → Export nusuk-entry-batch.json → upload manual ke extension (Legacy Mode)
+    -> Validasi dan simpan batch pada tab Nusuk tujuan
+    -> Mulai pengisian dari panel atau widget extension
+    -> Autofill form Nusuk otomatis
 ```
 
-WebSocket hanya dibuka pada loopback `127.0.0.1`, bukan pada jaringan eksternal. Payload yang dikirim tetap mengikuti kontrak data member yang sama dengan batch JSON. Extension juga membutuhkan akses ke file passport: melalui path lokal yang dikirim desktop saat mode WebSocket, atau melalui pilihan folder/file user pada mode JSON manual.
+File JSON menyertakan data jamaah yang sudah direview dan path gambar passport dari batch yang sama. Folder hasil scan harus tetap berada di lokasi yang sama selama entry. Panel juga menyediakan pemilih file JSON dan tindakan tambahan untuk memilih folder/file passport bila diperlukan.
 
 ---
 
@@ -50,27 +48,17 @@ WebSocket hanya dibuka pada loopback `127.0.0.1`, bukan pada jaringan eksternal.
 3. Halaman **Siapkan Foto** (opsional) → preview, crop, dan rotasi foto sebelum scan.
 4. Halaman **Scan Berjalan** → OCR otomatis berjalan, progress tampil real-time.
 5. Halaman **Review Data** → cek dan edit data tiap anggota.
-6. Halaman **Otomatisasi Entry Nusuk** → kirim batch melalui WebSocket dan jalankan automation.
-7. Bila WebSocket tidak digunakan, aktifkan **Legacy Mode** lalu export `nusuk-entry-batch.json`.
+6. Buka halaman **Entry ke Nusuk** (halaman 5). `nusuk-entry-batch.json` dibuat otomatis; area seret aktif setelah file selesai dibuat.
 
-### 2. Autofill Nusuk via WebSocket (Mode Utama)
+### 2. Autofill Nusuk melalui file JSON
 
-1. Buka Nusuk di browser, login seperti biasa.
-2. Klik ikon extension **EntryMate By Ghaniya**.
-3. Pastikan indikator extension pada halaman **Otomatisasi Entry Nusuk** di desktop berubah menjadi **Terhubung**.
-4. Klik **Load Batch** di desktop untuk mengirim jamaah yang sudah direview.
-5. Klik **Start** di desktop.
-6. Extension mengisi form Nusuk dan mengirim progress kembali ke desktop.
+1. Buka Nusuk di Chrome, login, lalu buka panel extension **EntryMate By Ghaniya**.
+2. Tahan dan seret file pada halaman Entry desktop ke area **Letakkan file JSON di sini** di panel extension.
+3. Tunggu konfirmasi jumlah jamaah dan periksa folder serta jamaah pertama.
+4. Pilih **Mulai pengisian** di panel atau widget extension. Dari Group List, extension membuka Mu'tamer List pada tab yang sama sebelum memulai.
+5. Pilih **Jeda**, **Lanjutkan**, atau **Ulangi yang gagal** sesuai status di extension.
 
-Desktop menjalankan WebSocket lokal pada port pertama yang tersedia di rentang `9001-9005`. Panel extension mencoba rentang port yang sama dan melakukan handshake protokol sebelum menerima batch.
-
-### 3. Autofill Nusuk via JSON (Legacy Mode)
-
-1. Pada halaman terakhir desktop, aktifkan **Legacy Mode (JSON Manual)**.
-2. Klik **Export to JSON** untuk membuat `nusuk-entry-batch.json`.
-3. Upload file tersebut melalui panel extension.
-4. Pilih folder/file passport agar extension dapat memetakan gambar berdasarkan `fileName` atau `passportImagePath`.
-5. Pilih jamaah awal lalu mulai automation dari panel extension.
+**Pilih file JSON** tetap tersedia sebagai alternatif. Di desktop, **Buka folder file** langsung menampilkan lokasi file sehingga operator tidak perlu mencari sendiri. File yang tidak valid ditolak sebelum batch diganti. Batch aktif, dijeda, atau memiliki hasil simpan yang belum terkonfirmasi harus diperiksa dan direset sebelum menerima file baru. Batch dan checkpoint disimpan per tab; tab lain tidak memulihkan batch tersebut.
 
 ---
 
@@ -148,7 +136,21 @@ powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -Incl
 
 Engine utama: **RapidOCR (ONNX Runtime)** — OCR berbasis deep learning yang berjalan lokal tanpa GPU.
 
-Pipeline berjalan otomatis tanpa pilihan mode. Fast path ringan membaca MRZ dan field lokasi terarah; adaptive recovery hanya berjalan ketika field identitas wajib belum lengkap. Budget pemrosesan adalah 20 detik per foto.
+Pipeline berjalan otomatis tanpa pilihan mode, dengan prioritas kualitas hasil. Foto yang sudah terbaca lengkap dapat selesai cepat; foto sulit mendapat budget OCR hingga 60 detik per foto. Fast path ringan membaca MRZ dan field visual; adaptive recovery berjalan ketika identitas belum lengkap, checksum per field gagal, atau bukti visual belum memadai. Fast path tetap memakai budget awal 15 detik dan dapat memakai sisa budget pemulihan. Pembacaan MRZ dibatasi 30 detik agar masih tersedia waktu untuk field visual dan pemeriksaan identitas. Inference dibatasi 15 detik per panggilan (dapat diatur melalui `OCR_TIMEOUT_SECONDS`), selalu mengikuti sisa budget tahap dan foto. Proses engine dihentikan ketika inference melewati batas waktu dan dibuat ulang pada panggilan berikutnya. Budget ini membatasi OCR; persiapan gambar, validasi, dan penyimpanan dapat menambah sedikit waktu proses. Semua hasil tetap memerlukan review manusia.
+
+Foto paspor terbuka dua halaman diproses dengan rotasi otomatis dan pemisahan halaman identitas dari halaman lain serta latar kosong. OCR mencari dua baris MRZ agar kode tetap terbaca saat terdapat bingkai atau footer besar. Orientasi lain tetap dicoba jika pembacaan MRZ belum terverifikasi.
+
+Deteksi halaman juga menangani foto dengan latar meja atau tangan, teks sedikit miring, dan gambar berukuran besar. Pencarian MRZ menyisakan waktu untuk membaca kolom visual. Jika MRZ terpotong atau tertutup, nama, nomor paspor, kewarganegaraan, jenis kelamin, dan tanggal dapat dipulihkan dari bukti yang terlihat. Nama tambahan pada halaman pengesahan tidak menggantikan nama halaman identitas. Nilai tempat lahir dan kantor perwakilan luar negeri yang terbaca jelas dipertahankan; MRZ yang tidak dapat diverifikasi dan perbedaan nama tetap memerlukan review.
+
+Build release menjalankan tes Python dan memvalidasi snapshot benchmark terhadap kode, fixture, versi engine, serta hash model saat ini. Setelah mengubah OCR, refresh bukti agregat menggunakan foto fixture lokal:
+
+```powershell
+cd python-ocr
+.\.venv\Scripts\python.exe scripts/verify_ocr_release.py --refresh
+.\.venv\Scripts\python.exe scripts/verify_ocr_release.py
+```
+
+Snapshot agregat disimpan di `python-ocr/benchmark/ocr_release_validation.json`. Hasil per orang tetap di direktori lokal yang diabaikan Git, `python-ocr/.review/ocr-release-full.json`. CI memvalidasi snapshot dan menjalankan tes; benchmark foto asli dijalankan lokal sebelum memperbarui snapshot.
 
 ---
 
@@ -156,9 +158,9 @@ Pipeline berjalan otomatis tanpa pilihan mode. Fast path ringan membaca MRZ dan 
 
 - **Data lokal**: Passport, manifest, dan review artifact **tidak diupload ke GitHub**. Simpan di device masing-masing.
 - **`chrome.debugger`**: Permission ini adalah dependency aktif extension, bukan legacy. Dibutuhkan sebagai fallback upload file passport di form Nusuk.
-- **Automation berada di extension**: Desktop tidak memakai Playwright atau memanipulasi DOM Nusuk. Desktop hanya membuka URL Nusuk bila diminta user, mengirim command/batch melalui WebSocket lokal, dan menerima event progress.
-- **Dua mode transport**: WebSocket lokal adalah mode utama; export/upload JSON manual dipertahankan sebagai Legacy Mode.
-- **Loopback saja**: server WebSocket bind ke `127.0.0.1` pada port `9001-9005`.
+- **Automation berada di extension**: Desktop membuat JSON dan dapat membuka Nusuk. Kontrol pengisian dan progress berada di extension.
+- **Pengiriman file lokal**: Tidak ada server atau koneksi WebSocket. Seret file native menyalin file hasil review, sehingga JSON asli tetap berada di folder hasil scan.
+- **Isolasi batch**: Data, checkpoint, dan cache foto pilihan manual dibatasi per tab dan batch.
 
 ---
 
@@ -173,9 +175,7 @@ visa-entry-bot/
 │   │   ├── store.ts         # Zustand global state
 │   │   └── utils/           # export, fields, helpers, members, transliterator
 │   └── src-tauri/           # Rust backend
-│       ├── src/lib.rs       # Tauri commands, OCR process, WebSocket orchestration
-│       ├── src/transport/   # WebSocket loopback transport
-│       └── src/protocol.rs  # Envelope dan tipe pesan automation
+│       ├── src/lib.rs       # Tauri commands, OCR process, JSON export, native file handoff
 ├── python-ocr/              # OCR worker (RapidOCR + OpenCV)
 │   ├── scan_worker.py       # Entry point (dipanggil Rust)
 │   ├── scan_session.py      # Session management
@@ -190,7 +190,7 @@ visa-entry-bot/
 │   └── popup.html/js        # Popup UI
 ├── scripts/
 │   └── package-local-release.ps1  # Packaging script
-├── shared-protocol/         # Kontrak pesan WebSocket desktop-extension
+├── shared-protocol/         # Arsip protokol lama (tidak digunakan)
 ├── data/                    # Folder data lokal (tidak di-git kecuali fixture)
 ├── .local-release/          # Output release lokal (tidak di-git)
 └── PROJECT_PLAN.md          # Status arsitektur dan prioritas lanjutan
@@ -204,4 +204,3 @@ visa-entry-bot/
 - [`chrome-extension/FEATURE_MATRIX.md`](chrome-extension/FEATURE_MATRIX.md) — Feature matrix dan checklist manual extension
 - [`python-ocr/OCR_BASELINE.md`](python-ocr/OCR_BASELINE.md) — Baseline akurasi OCR
 - [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — Status arsitektur aktif dan prioritas lanjutan
-- [`shared-protocol/`](shared-protocol/) — Registry pesan, state machine, sequence, dan retry WebSocket

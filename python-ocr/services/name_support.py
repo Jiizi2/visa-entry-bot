@@ -6,7 +6,6 @@ from services.models import ParsedPassportData
 
 MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
 COMMON_JOINED_GIVEN_NAMES = {"MUHAMMAD"}
-COMMON_GIVEN_ABBREVIATIONS = {"MUH": "MUHAMMAD"}
 
 
 def clean_existing_first_name(parsed: ParsedPassportData) -> ParsedPassportData:
@@ -57,10 +56,6 @@ def repair_single_word_name(parsed: ParsedPassportData) -> tuple[ParsedPassportD
 def repair_common_given_name_spacing(parsed: ParsedPassportData) -> tuple[ParsedPassportData, str]:
     updated = ParsedPassportData(**parsed)
     tokens = re.sub(r"[^A-Z\s]", " ", str(updated.get("firstName", "") or "").upper()).split()
-    if tokens and tokens[0] in COMMON_GIVEN_ABBREVIATIONS:
-        tokens[0] = COMMON_GIVEN_ABBREVIATIONS[tokens[0]]
-        updated["firstName"] = " ".join(tokens)
-        return updated, "GIVEN NAME ABBREVIATION REPAIRED FROM MRZ"
     joined = "".join(tokens)
     if len(tokens) == 2 and joined in COMMON_JOINED_GIVEN_NAMES:
         updated["firstName"] = joined
@@ -238,8 +233,6 @@ def _repair_given_token(token: str, *, index: int) -> list[str]:
     token = _strip_name_noise_suffix(token)
     if not token:
         return []
-    if token in COMMON_GIVEN_ABBREVIATIONS:
-        return [COMMON_GIVEN_ABBREVIATIONS[token]]
     if index > 0 and len(token) >= 5 and token.startswith("K") and token[1] not in "AEIOUY" and is_reasonable_token(token[1:]):
         return [token[1:]]
     if index > 0 and len(token) >= 5 and token.startswith("X") and is_reasonable_token(token[1:]):

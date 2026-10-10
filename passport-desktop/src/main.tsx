@@ -3,15 +3,14 @@ import ReactDOM from 'react-dom/client';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import App from './App';
 import { useStore } from './store';
-import { MessageType } from '../../shared-protocol/MessageType';
 import taskbarIconUrl from './assets/brand/entrymate-icon.png';
-console.log('Shared Protocol MessageType loaded in React:', MessageType.HELLO);
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
 import './styles/global.css';
 import './styles/components/Workstation.css';
 import './styles/components/Scan.css';
 import './styles/components/Motion.css';
+import './styles/components/EntryFile.css';
 
 async function applyTaskbarIcon() {
   try {

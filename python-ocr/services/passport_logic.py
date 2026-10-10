@@ -6,6 +6,7 @@ from typing import Any
 
 from services.models import ParsedPassportData, ExtractionEvidence
 from services.issue_date_extractor import infer_issue_date
+from services.mrz_validation import mrz_fields_needing_recovery
 from services.name_support import salvage_family_hints, score_name_fields, token_matches_simple, is_reasonable_token
 from services.data_repairs import (
     _has_indonesian_mrz_hint,
@@ -178,6 +179,7 @@ def _select_panel_field_names(parsed: ParsedPassportData, extraction: Extraction
         fields.append("issueDate")
     if not has_expiry or (not direct_mrz and not has_issue and not _has_valid_mrz_validation(extraction)):
         fields.append("expiryDate")
+    fields.extend(mrz_fields_needing_recovery(extraction.get("mrzValidation")))
     return tuple(dict.fromkeys(fields))
 
 def _is_direct_mrz_extraction(extraction: ExtractionEvidence) -> bool:
@@ -241,7 +243,7 @@ def _pick_preferred_full_name(
     file_name: str = "",
 ) -> str:
     family_hints = salvage_family_hints(parsed.get("familyName", ""))
-    for full_name in (panel_fields.get("fullName", ""), visual_fields.get("fullName", "")):
+    for full_name in (visual_fields.get("fullName", ""), panel_fields.get("fullName", "")):
         if not full_name:
             continue
         tokens = [token for token in full_name.upper().split() if token]

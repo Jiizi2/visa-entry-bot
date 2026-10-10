@@ -10,6 +10,11 @@ from services.review_flags import build_review_flags  # noqa: E402
 
 
 class ReviewFlagsTests(unittest.TestCase):
+    def test_oversized_name_requires_review_instead_of_silent_truncation(self) -> None:
+        flags = build_review_flags(_passport_values(), _resolved_values(firstName="ABCDEFGHIJKLMNOP"), _source_by_field(), _field_confidence(), "VALID", "")
+        self.assertIn("NAME_COLUMN_TOO_LONG", flags["record"])
+        self.assertIn("NAME_COLUMN_TOO_LONG", flags["resolvedProfile"]["firstName"])
+
     def test_mrz_validation_partial_flags_record_and_affected_fields(self) -> None:
         flags = build_review_flags(
             _passport_values(),

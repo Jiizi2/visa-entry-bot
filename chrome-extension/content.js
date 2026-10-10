@@ -91,8 +91,11 @@
     progressTotal: 0,
     logs: [],
     currentRunPayload: null,
+    pendingSubmission: null,
+    submissionResolutionInProgress: false,
     autofillFailures: [],
     autofillAttemptFailures: [],
+    autofillNameCorrections: [],
     autofillFailureScreenshots: [],
     resumeAvailableAfterReload: false,
     runToken: 0,
@@ -131,6 +134,8 @@
     attemptFillRequiredFieldsForCurrentPage,
   } = createNusukNavigation({
     state,
+    persistState: (options) => persistState(options),
+    checkpoint,
     waitUntil,
     sleep,
     markActiveElement,
@@ -279,6 +284,7 @@
     pauseAutofillFromPanel,
     resetAutofillFromPanel,
     restartFailedFromPanel,
+    resolvePendingSubmissionFromPanel,
   } = createAutofillSession({
     state,
     isControlError,
@@ -311,9 +317,14 @@
         pauseAutofillFromPanel,
         resetAutofillFromPanel,
         restartFailedFromPanel,
+        resolvePendingSubmissionFromPanel,
         runAutomation,
         setTabAutoDiscardable,
       });
+      const tabContext = await chrome.runtime.sendMessage({ type: 'NUSUK_CONTENT_READY' });
+      if (!tabContext?.ok || !tabContext.storageKey) throw new Error('Konteks tab Nusuk belum tersedia. Muat ulang halaman.');
+      state.storageKey = tabContext.storageKey;
+      state.browserSessionId = tabContext.browserSessionId;
       await hydrateState();
       ensureHighlightStyle();
       panelBridge.bindWindowBridge();
@@ -321,15 +332,7 @@
       bindVisibilityStatus();
       // Instansiasi widget melayang
       root.widgetInstance = createWidgetManager({ state });
-      // Only the tab selected by background may restore a desktop job.
-      const desktop = await chrome.runtime.sendMessage({ type: 'NUSUK_CONTENT_READY' }).catch(() => null);
-      if (desktop && (!desktop.isTarget || (state.activeSessionId && !desktop.payload?.activeSessionId))) {
-        state.manifest = null; state.currentRunPayload = null; state.activeSessionId = '';
-        state.executionState = 'idle'; state.resumeAvailableAfterReload = false;
-        state.completedMemberIds = []; state.autofillFailures = [];
-      } else if (desktop?.isTarget && !desktop.snapshot && !desktop.payload?.activeSessionId) {
-        resumeRunningAutofillAfterReload();
-      }
+      resumeRunningAutofillAfterReload();
       state.handoffReady = true;
 
       // Dengarkan perubahan status minimize di storage secara reaktif
@@ -451,10 +454,14 @@
 
   async function hydrateState() {
     const stored = await readStoredState();
-    const saved = stored?.[STORAGE_KEY];
+    state.pendingSubmission = stored?.[state.storageKey + ":pending"] || stored?.nusukPendingSubmission || null;
+    const saved = stored?.[state.storageKey];
     if (!saved || typeof saved !== "object") {
       return;
     }
+    // Keep any unresolved submission lock, but never recover a batch from a
+    // previous browser session even if Chrome reused its numeric tab ID.
+    if (saved.browserSessionId !== state.browserSessionId) return;
     state.manifest = saved.manifest && Array.isArray(saved.manifest.members) ? saved.manifest : null;
     state.selectedMemberId = String(saved.selectedMemberId || "");
     state.collapsed = Boolean(saved.collapsed);
@@ -468,8 +475,10 @@
     state.revision = Number(saved.revision || 0);
     state.completedMemberIds = saved.completedMemberIds || [];
     state.autofillAttemptFailures = Array.isArray(saved.autofillAttemptFailures) ? saved.autofillAttemptFailures.slice(-100) : [];
+    state.autofillNameCorrections = Array.isArray(saved.autofillNameCorrections) ? saved.autofillNameCorrections : [];
     state.autofillFailureScreenshots = Array.isArray(saved.autofillFailureScreenshots) ? saved.autofillFailureScreenshots.slice(-3) : [];
     state.currentRunPayload = isRunnablePayload(saved.currentRunPayload) ? saved.currentRunPayload : null;
+    if (!Object.prototype.hasOwnProperty.call(stored, state.storageKey + ':pending') && !Object.prototype.hasOwnProperty.call(stored, "nusukPendingSubmission")) state.pendingSubmission = saved.pendingSubmission || null;
     state.resumeAvailableAfterReload = String(saved.executionState || "").trim().toLowerCase() === "running" && isRunnablePayload(state.currentRunPayload);
     state.executionState = normalizeHydratedExecutionState(saved.executionState, state.currentRunPayload);
     if (state.executionState === "running") {
@@ -483,7 +492,7 @@
     if (!storage?.get) {
       return {};
     }
-    return storage.get(STORAGE_KEY);
+    return storage.get([state.storageKey, state.storageKey + ":pending", "nusukPendingSubmission"]);
   }
 
   function getStorageLocal() {
@@ -491,6 +500,13 @@
   }
 
   function resumeRunningAutofillAfterReload() {
+    if (state.pendingSubmission) {
+      state.resumeAvailableAfterReload = false;
+      state.executionState = "paused";
+      postPanelState();
+      postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: root.submissionGuard.submissionError("hasil simpan sebelum refresh belum terkonfirmasi; resume otomatis diblokir").message });
+      return;
+    }
     if (!state.resumeAvailableAfterReload || !isRunnablePayload(state.currentRunPayload)) {
       return;
     }

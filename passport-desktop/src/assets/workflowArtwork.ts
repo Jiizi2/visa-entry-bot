@@ -14,7 +14,7 @@ export const workflowArtwork = {
     alt: 'Import dan Prepare: menyiapkan berkas passport sebelum pemindaian.',
   },
   prepare: {
-    src: '/workflow/hd/prepare.png',
+    src: '/workflow/hd/prepare.webp',
     alt: 'Prepare: memotong dan memutar foto passport sebelum pemindaian.',
   },
   scan: {

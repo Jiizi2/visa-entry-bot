@@ -1,4 +1,9 @@
-const STORAGE_KEY = "nusukAutofillState";
+const STORAGE_KEY = "entrymatePanelPreferences";
+let currentTabId = null;
+let panelTargetReady = false;
+let panelWindowId = null;
+let panelConnectionError = null;
+let resolvingSubmission = false;
 
 const dom = {
   uploadBtn: document.getElementById("upload-btn"),
@@ -25,10 +30,6 @@ const dom = {
   failuresCard: document.getElementById("failures-card"),
   failuresList: document.getElementById("failures-list"),
   restartFailedBtn: document.getElementById("restart-failed-btn"),
-  wsIndicator: document.getElementById("ws-indicator"),
-  wsStatusTitle: document.getElementById("ws-status-title"),
-  wsStatusDesc: document.getElementById("ws-status-desc"),
-  wsNoticeBanner: document.getElementById("ws-notice-banner"),
   modeToggleBtn: document.getElementById("mode-toggle-btn"),
   activeMutamerName: document.getElementById("active-mutamer-name"),
   minimizeBtn: document.getElementById("minimize-btn"),
@@ -38,15 +39,18 @@ const dom = {
   clearLogsBtn: document.getElementById("clear-logs-btn"),
   copyLogsBtn: document.getElementById("copy-logs-btn"),
   failuresCountBadge: document.getElementById("failures-count-badge"),
-  wsLatencyWrapper: document.getElementById("ws-latency-wrapper"),
-  wsLatencyValue: document.getElementById("ws-latency-value"),
   metaPassport: document.getElementById("meta-passport"),
   metaNationality: document.getElementById("meta-nationality"),
   actionFeedbackWrap: document.getElementById("action-feedback-wrap"),
   actionStepTitle: document.getElementById("action-step-title"),
   actionStepSelector: document.getElementById("action-step-selector"),
-  retryConnectBtn: document.getElementById("retry-connect-btn"),
   completedResetBtn: document.getElementById("completed-reset-btn"),
+  batchRecovery: document.getElementById("batch-recovery"),
+  batchRecoverySummary: document.getElementById("batch-recovery-summary"),
+  pendingSubmissionReview: document.getElementById("pending-submission-review"),
+  pendingSubmissionDetail: document.getElementById("pending-submission-detail"),
+  submissionSavedBtn: document.getElementById("submission-saved-btn"),
+  submissionNotSavedBtn: document.getElementById("submission-not-saved-btn"),
 };
 
 const state = {
@@ -66,10 +70,13 @@ const state = {
   autofillFailures: [],
   viewMode: "compact",
   revision: 0,
-  connectionState: "disconnected",
   pageStatus: 'loading',
   canNavigateToEntry: false,
   completedMemberIds: [],
+  pendingSubmission: null,
+  remainingMemberCount: 0,
+  nextMemberId: "",
+  submissionResolutionInProgress: false,
   
   // STATS TRACKING FOR PREMIUM SUCCESS PAGE
   stats: {
@@ -87,112 +94,32 @@ const EXECUTION_LABELS = {
   completed: "Selesai",
 };
 
-// --- WebSocket Client State & Logic ---
-let readyRetryCount = 0;
-let resumeToken = "";
-let activeSessionId = "";
-let lastDesktopRevision = 0;
-
-const telemetry = {
-  reconnectCount: 0,
-  recoveryStartTime: 0,
-  recoveryTime: 0,
-  rttValues: [],
-  droppedSeq: 0,
-  duplicatePackets: 0,
-  heartbeatTimeout: 0,
-  recoverySuccess: 0,
-};
-
-function updateTelemetryUI() {
-  const reconnectEl = document.getElementById("telemetry-reconnect-count");
-  const recoveryEl = document.getElementById("telemetry-recovery-time");
-  const avgRttEl = document.getElementById("telemetry-avg-rtt");
-  const maxRttEl = document.getElementById("telemetry-max-rtt");
-  const droppedSeqEl = document.getElementById("telemetry-dropped-seq");
-  const duplicateEl = document.getElementById("telemetry-duplicate-packets");
-  const heartbeatEl = document.getElementById("telemetry-heartbeat-timeout");
-  const recoverySuccessEl = document.getElementById("telemetry-recovery-success");
-
-  if (reconnectEl) reconnectEl.innerText = telemetry.reconnectCount;
-  if (recoveryEl) recoveryEl.innerText = telemetry.recoveryTime ? `${telemetry.recoveryTime}ms` : "0ms";
-  if (droppedSeqEl) droppedSeqEl.innerText = telemetry.droppedSeq;
-  if (duplicateEl) duplicateEl.innerText = telemetry.duplicatePackets;
-  if (heartbeatEl) heartbeatEl.innerText = telemetry.heartbeatTimeout;
-  if (recoverySuccessEl) recoverySuccessEl.innerText = telemetry.recoverySuccess;
-
-  if (telemetry.rttValues.length > 0) {
-    const sum = telemetry.rttValues.reduce((a, b) => a + b, 0);
-    const avg = Math.round(sum / telemetry.rttValues.length);
-    const max = Math.max(...telemetry.rttValues);
-    if (avgRttEl) avgRttEl.innerText = `${avg}ms`;
-    if (maxRttEl) maxRttEl.innerText = `${max}ms`;
-  }
-}
-
-function applyDesktopState(payload) {
-  activeSessionId = payload.activeSessionId || '';
-  resumeToken = payload.resumeToken || '';
-  telemetry.reconnectCount = payload.reconnectCount || 0;
-  telemetry.heartbeatTimeout = payload.heartbeatTimeout || 0;
-  telemetry.rttValues = payload.rttValues || [];
-  telemetry.droppedSeq = payload.droppedSeq || 0;
-  telemetry.duplicatePackets = payload.duplicatePackets || 0;
-  telemetry.recoverySuccess = payload.recoverySuccess || 0;
-  telemetry.recoveryTime = payload.recoveryTime || 0;
-  updateTelemetryUI();
-  updateConnectionUI(payload.connectionState || 'disconnected');
-}
-
-function applyDesktopMessage(envelope) {
-  if (envelope.type === MessageType.SESSION_SNAPSHOT) {
-    const payload = envelope.payload;
-    if (activeSessionId === payload.sessionId && payload.revision < lastDesktopRevision) return;
-    activeSessionId = payload.sessionId;
-    resumeToken = payload.resumeToken;
-    state.revision = payload.revision;
-    lastDesktopRevision = payload.revision || 0;
-    state.progress = { current: payload.progressCurrent || 0, total: payload.progressTotal || 0 };
-    state.executionState = normalizeExecutionState(payload.status);
-    state.autofillFailures = payload.failures || [];
-    state.completedMemberIds = payload.completedMemberIds || [];
-    if (Array.isArray(payload.manifestMembers)) {
-      state.manifest = { manifestPath: payload.manifestPath || '', members: payload.manifestMembers };
-    }
-    state.selectedMemberId = payload.currentMemberId || state.manifest?.members[0]?.id || '';
-  } else if (envelope.type === MessageType.LOAD_BATCH) {
-    activeSessionId = envelope.sessionId || envelope.payload.sessionId || '';
-    resumeToken = envelope.payload.resumeToken || '';
-    state.manifest = { manifestPath: envelope.payload.manifestPath, members: envelope.payload.members || [] };
-    state.selectedMemberId = state.manifest.members[0]?.id || '';
-    state.progress = { current: 0, total: state.manifest.members.length };
-    state.revision = 0;
-    lastDesktopRevision = 0;
-    state.autofillFailures = [];
-    state.completedMemberIds = [];
-    state.executionState = 'idle';
-  } else if (envelope.type === MessageType.ERROR) {
-    setStatus(envelope.payload.message || 'Koneksi desktop mengalami kesalahan.', 'error');
-    return;
-  } else {
-    return;
-  }
-  renderManifestSection();
-  renderPreview();
-  renderProgress();
-  renderPassportFilesSummary();
-  renderFailures();
-  updateRunControls();
-}
-
-async function connectWebSocket() {
-  const response = await chrome.runtime.sendMessage({ type: 'NUSUK_DESKTOP_RECONNECT' });
-  if (response?.payload) applyDesktopState(response.payload);
-}
-
-function sendWebSocketEvent(payload) {
-  chrome.runtime.sendMessage({ type: 'NUSUK_WS_EVENT', payload }).catch(error => console.warn('[Transport]', error));
-}
+const dropZone = document.getElementById('json-drop-zone');
+const importStatus = document.getElementById('json-import-status');
+let importTargetTabId = null;
+const fileImporter = createBatchFileImporter({
+  validate: (...args) => window.NusukAutofill.manifestValidator.validateManifestForEntry(...args),
+  accept: manifest => {
+    if (currentTabId !== importTargetTabId) throw new Error('Tab tujuan berubah. Seret kembali file pada tab Nusuk yang ingin digunakan.');
+    return postToParent('NUSUK_PANEL_UPLOAD_MANIFEST', { manifest });
+  },
+  blocked: () => !panelTargetReady ? 'Buka Nusuk dan tunggu panel siap sebelum memuat file JSON.' : ['running', 'paused'].includes(state.executionState) || !!state.pendingSubmission,
+  notify: (message, tone) => {
+    importStatus.textContent = message;
+    importStatus.className = 'json-import-status ' + tone;
+    importStatus.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+  },
+  busy: value => {
+    if (value) importTargetTabId = currentTabId;
+    dropZone.setAttribute('aria-busy', String(value));
+    dropZone.classList.toggle('is-loading', value);
+    dom.uploadBtn.disabled = value;
+    document.getElementById('choose-json-btn').disabled = value;
+    updateRunControls();
+  },
+});
+fileImporter.bindDropTarget(document, dropZone);
+document.getElementById('choose-json-btn').addEventListener('click', () => dom.jsonInput.click());
 
 dom.uploadBtn.addEventListener("click", () => {
   dom.jsonInput.click();
@@ -209,42 +136,14 @@ dom.passportFilesBtn?.addEventListener("click", () => {
 dom.passportFolderInput?.addEventListener("change", handlePassportFileSelection);
 dom.passportFilesInput?.addEventListener("change", handlePassportFileSelection);
 
-dom.jsonInput.addEventListener("change", async (event) => {
-  const file = event.target.files && event.target.files[0];
-  if (!file) {
-    return;
-  }
-
-  try {
-    const raw = await file.text();
-    const manifest = JSON.parse(raw);
-    validateManifest(manifest);
-
-    state.manifest = manifest;
-    state.selectedMemberId = manifest.members[0]?.id || "";
-    await persistState();
-    renderManifestSection();
-    renderPreview();
-    renderPassportFilesSummary();
-    updateRunControls();
-    postToParent("NUSUK_PANEL_UPLOAD_MANIFEST", {
-      manifest,
-      selectedMemberId: state.selectedMemberId,
-    });
-  } catch (error) {
-    setStatus(error instanceof Error ? error.message : String(error), "error");
-  } finally {
-    dom.jsonInput.value = "";
-  }
+dom.jsonInput.addEventListener('change', async event => {
+  await fileImporter.importFiles(event.target.files);
+  dom.jsonInput.value = '';
 });
 
-dom.memberSelect.addEventListener("change", async (event) => {
-  state.selectedMemberId = String(event.target.value || "");
-  await persistState();
-  renderPreview();
-  renderPassportFilesSummary();
-  updateRunControls();
-  postToParent("NUSUK_PANEL_SELECT_MEMBER", { memberId: state.selectedMemberId });
+dom.memberSelect.addEventListener('change', async event => {
+  const response = await postToParent('NUSUK_PANEL_SELECT_MEMBER', { memberId: String(event.target.value || '') });
+  if (!response.ok) dom.memberSelect.value = state.selectedMemberId;
 });
 
 dom.modeToggleBtn?.addEventListener("click", () => {
@@ -288,35 +187,7 @@ dom.pauseBtn.addEventListener("click", () => {
   postToParent("NUSUK_PANEL_PAUSE_AUTOFILL");
 });
 
-function handleResetAutofill() {
-  // Send STOP message to desktop to close session
-  sendWebSocketEvent({ eventType: "STOP" });
-  
-  // Clear local variables
-  activeSessionId = "";
-  resumeToken = "";
-  state.manifest = null;
-  state.selectedMemberId = "";
-  state.progress = { current: 0, total: 0 };
-  state.revision = 0;
-  state.autofillFailures = [];
-  state.completedMemberIds = [];
-  state.logs = [];
-  
-  persistState().catch((e) => console.log("Failed to persist reset state:", e));
-  
-  // Re-render UI
-  renderManifestSection();
-  renderPreview();
-  renderProgress();
-  renderPassportFilesSummary();
-  renderFailures();
-  renderLogs();
-  updateRunControls();
-  
-  // Forward reset to content script
-  postToParent("NUSUK_PANEL_RESET_AUTOFILL");
-}
+function handleResetAutofill() { void postToParent('NUSUK_PANEL_RESET_AUTOFILL'); }
 
 dom.resetBtn.addEventListener("click", handleResetAutofill);
 dom.completedResetBtn?.addEventListener("click", handleResetAutofill);
@@ -325,6 +196,24 @@ dom.restartFailedBtn.addEventListener("click", () => {
   postToParent("NUSUK_PANEL_RESTART_FAILED");
 });
 document.getElementById('completed-retry-btn')?.addEventListener('click', () => postToParent('NUSUK_PANEL_RESTART_FAILED'));
+dom.submissionSavedBtn?.addEventListener('click', () => resolveSubmission('saved'));
+dom.submissionNotSavedBtn?.addEventListener('click', () => resolveSubmission('not_saved'));
+
+async function resolveSubmission(outcome) {
+  if (resolvingSubmission || !state.pendingSubmission) return;
+  const pending = state.pendingSubmission;
+  resolvingSubmission = true;
+  updateRunControls();
+  try {
+    const response = await postToParent('NUSUK_PANEL_RESOLVE_SUBMISSION', {
+      outcome, memberId: pending.memberId, passportNumber: pending.passportNumber, startedAt: pending.startedAt,
+    });
+    if (!response.ok) setStatus(response.error, 'error');
+  } finally {
+    resolvingSubmission = false;
+    updateRunControls();
+  }
+}
 
 dom.clearLogsBtn?.addEventListener("click", () => {
   state.logs = [];
@@ -350,10 +239,6 @@ dom.copyLogsBtn?.addEventListener("click", () => {
     });
 });
 
-dom.retryConnectBtn?.addEventListener("click", () => {
-  connectWebSocket();
-});
-
 dom.minimizeBtn?.addEventListener("click", async () => {
   console.log("[SidePanel] Tombol minimize diklik. Menyimpan status ke storage.");
   const storage = getStorageLocal();
@@ -368,14 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
 
-  if (message.type === "NUSUK_DESKTOP_STATE") {
-    applyDesktopState(message.payload);
-    return;
-  }
-  if (message.type === "NUSUK_DESKTOP_MESSAGE") {
-    applyDesktopMessage(message.payload);
-    return;
-  }
+  if (message.tabId == null || currentTabId == null || message.tabId !== currentTabId) return;
 
   if (message.type === "NUSUK_PANEL_STATE") {
     applyIncomingState(message.payload || {});
@@ -424,25 +302,13 @@ init().catch((error) => {
 });
 
 async function init() {
+  panelWindowId = (await chrome.windows.getCurrent()).id;
   const stored = await readStoredState();
   const saved = stored?.[STORAGE_KEY];
   if (saved) {
-    if (saved.manifest && Array.isArray(saved.manifest.members)) {
-      state.manifest = saved.manifest;
-      state.selectedMemberId = saved.selectedMemberId || saved.manifest.members[0]?.id || "";
-    }
     state.collapsed = Boolean(saved.collapsed);
     state.panelWidth = Number(saved.panelWidth || 420);
-    state.viewMode = saved.viewMode || "compact";
-    state.executionState = saved.executionState || "idle";
-    state.progress = {
-      current: Number(saved.progressCurrent || 0),
-      total: Number(saved.progressTotal || 0),
-    };
-    state.revision = Number(saved.revision || 0);
-    state.autofillFailures = Array.isArray(saved.autofillFailures) ? saved.autofillFailures : [];
-    activeSessionId = saved.activeSessionId || "";
-    resumeToken = saved.resumeToken || "";
+    state.viewMode = saved.viewMode || 'compact';
   }
 
   applyViewMode(state.viewMode);
@@ -452,7 +318,7 @@ async function init() {
   renderPassportFilesSummary();
   renderFailures();
   updateRunControls();
-  postToParent("NUSUK_PANEL_READY");
+  await postToParent("NUSUK_PANEL_READY");
 
   // Bind report view button to expand and scroll to logs details accordion
   const reportViewBtn = document.getElementById("report-view-btn");
@@ -466,72 +332,39 @@ async function init() {
     });
   }
 
-  const desktop = await chrome.runtime.sendMessage({ type: "NUSUK_DESKTOP_GET_STATE" });
-  if (desktop?.payload) applyDesktopState(desktop.payload);
-  if (desktop?.snapshot) applyDesktopMessage({ type: MessageType.SESSION_SNAPSHOT, payload: desktop.snapshot });
-}
-
-function updateConnectionUI(connState) {
-  state.connectionState = connState;
-  if (!dom.wsIndicator || !dom.wsStatusTitle || !dom.wsStatusDesc || !dom.wsNoticeBanner) return;
-
-  if (connState === "ready" || connState === "recovering") {
-    dom.wsIndicator.className = "ws-indicator connected";
-    dom.wsStatusTitle.innerText = connState === "recovering" ? "Desktop: Memulihkan" : "Desktop: Terhubung";
-    dom.wsStatusDesc.innerText = connState === "recovering"
-      ? "Sedang memulihkan sesi otomatisasi..."
-      : "Data dan progress tersinkron dengan aplikasi.";
-    dom.wsNoticeBanner.classList.remove("hidden");
-  } else if (connState === "connecting" || connState === "authenticating") {
-    dom.wsIndicator.className = "ws-indicator connected animate-pulse";
-    dom.wsStatusTitle.innerText = "Desktop: Menyambungkan";
-    dom.wsStatusDesc.innerText = connState === "authenticating"
-      ? "Sedang melakukan autentikasi..."
-      : "Sedang mencoba menghubungkan ke aplikasi desktop...";
-    dom.wsNoticeBanner.classList.add("hidden");
-    if (dom.wsLatencyWrapper) dom.wsLatencyWrapper.classList.add("hidden");
-  } else {
-    dom.wsIndicator.className = "ws-indicator disconnected";
-    dom.wsStatusTitle.innerText = "Desktop: Terputus";
-    dom.wsStatusDesc.innerText = "Hubungkan dengan membuka aplikasi desktop EntryMate.";
-    dom.wsNoticeBanner.classList.add("hidden");
-    if (dom.wsLatencyWrapper) dom.wsLatencyWrapper.classList.add("hidden");
-  }
-  
-  // Refresh layout classes
-  updateRunControls();
 }
 
 function applyIncomingState(payload) {
   const oldExecutionState = state.executionState;
   const oldSelectedMemberId = state.selectedMemberId;
 
-  state.manifest = payload.manifest && Array.isArray(payload.manifest.members) ? payload.manifest : state.manifest;
-  state.selectedMemberId = String(payload.selectedMemberId || state.selectedMemberId || "");
+  state.manifest = payload.manifest && Array.isArray(payload.manifest.members) ? payload.manifest : null;
+  state.selectedMemberId = String(payload.selectedMemberId || "");
+  state.pendingSubmission = payload.pendingSubmission || null;
   state.collapsed = Boolean(payload.collapsed);
   state.executionState = normalizeExecutionState(payload.executionState);
   state.pageStatus = payload.pageStatus || state.pageStatus;
   state.canNavigateToEntry = Boolean(payload.canNavigateToEntry);
-  state.completedMemberIds = payload.completedMemberIds || state.completedMemberIds;
+  state.completedMemberIds = payload.completedMemberIds || [];
+  state.remainingMemberCount = Number(payload.remainingMemberCount || 0);
+  state.nextMemberId = String(payload.nextMemberId || "");
+  state.submissionResolutionInProgress = Boolean(payload.submissionResolutionInProgress);
+  if (state.executionState === 'paused' && state.nextMemberId) state.selectedMemberId = state.nextMemberId;
   state.panelWidth = Number(payload.panelWidth || state.panelWidth || 420);
   state.progress = {
     current: Number(payload.progress?.current || 0),
     total: Number(payload.progress?.total || 0),
   };
-  state.logs = Array.isArray(payload.logs) ? payload.logs.slice(-50) : state.logs;
+  state.logs = Array.isArray(payload.logs) ? payload.logs.slice(-50) : [];
   state.uploadFileCount = Object.prototype.hasOwnProperty.call(payload, "uploadFileCount")
     ? Number(payload.uploadFileCount || 0)
-    : Number(state.uploadFileCount || 0);
+    : 0;
   state.uploadFileNames = Array.isArray(payload.uploadFileNames)
     ? payload.uploadFileNames.slice(0, 5)
-    : state.uploadFileNames;
+    : [];
   state.resumeAvailable = Boolean(payload.resumeAvailable);
-  state.autofillFailures = Array.isArray(payload.autofillFailures) ? payload.autofillFailures : state.autofillFailures;
-  state.revision = Number(payload.revision || state.revision || 0);
-  if (payload.activeSessionId) {
-    activeSessionId = payload.activeSessionId;
-  }
-
+  state.autofillFailures = Array.isArray(payload.autofillFailures) ? payload.autofillFailures : [];
+  state.revision = Number(payload.revision || 0);
   // === DYNAMIC STATS RESOLUTION & TIMING ===
   if (state.executionState === "running") {
     if (!state.stats.startTime) {
@@ -705,7 +538,7 @@ function renderProgress() {
   const current = Number(state.progress.current || 0);
   const total = Number(state.progress.total || 0);
   const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-  dom.progressText.textContent = `Passport ${current} / ${total}`;
+  dom.progressText.textContent = `Tersimpan ${current} / ${total}`;
   dom.progressBar.style.width = `${percent}%`;
 
   const etaContainer = document.getElementById("eta-container");
@@ -804,23 +637,40 @@ function updateRunControls() {
   const hasMember = Boolean(getSelectedMember());
   const hasPassportSource = hasPassportDebuggerPathSource();
   const stateName = normalizeExecutionState(state.executionState);
-  const connState = state.connectionState;
   const canResume = stateName === "paused" && state.resumeAvailable;
   const canStartHere = state.pageStatus === 'ready' || state.canNavigateToEntry;
+  const resolving = resolvingSubmission || state.submissionResolutionInProgress;
+  const needsReview = Boolean(state.pendingSubmission) && stateName !== 'running';
+  if (needsReview && !dom.statusBanner.classList.contains('error')) {
+    setStatus('Hasil simpan belum terkonfirmasi.', 'warning');
+  } else if (canResume && ['Siap.', 'Hasil simpan belum terkonfirmasi.'].includes(dom.statusBanner.textContent)) {
+    setStatus('Progres tersimpan. Siap dilanjutkan.', 'neutral');
+  }
   
   if (dom.statePill) {
-    dom.statePill.textContent = EXECUTION_LABELS[stateName] || EXECUTION_LABELS.idle;
+    dom.statePill.textContent = needsReview ? 'Perlu diperiksa' : EXECUTION_LABELS[stateName] || EXECUTION_LABELS.idle;
     dom.statePill.className = `state-pill-badge ${stateName}`;
   }
 
-  dom.startBtn.textContent = stateName === "paused" ? "Lanjutkan" : "Mulai pengisian";
-  dom.startBtn.disabled = stateName === "running" || !canStartHere || (!canResume && (!hasMember || !hasPassportSource));
+  dom.startBtn.textContent = canResume ? "Lanjutkan sisa" : "Mulai pengisian";
+  dom.startBtn.disabled = !panelTargetReady || resolving || fileImporter.isImporting() || Boolean(state.pendingSubmission) || stateName === "running" || stateName === "completed" || !canStartHere || (!canResume && (!hasMember || !hasPassportSource));
   dom.pauseBtn.disabled = stateName !== "running";
-  dom.resetBtn.disabled = stateName === "idle" && !hasMember;
+  dom.resetBtn.disabled = resolving || (stateName === "idle" && !hasMember && !state.pendingSubmission);
+  if (dom.completedResetBtn) dom.completedResetBtn.disabled = resolving;
+  const replacingBlocked = !panelTargetReady || resolving || ["running", "paused"].includes(stateName) || Boolean(state.pendingSubmission) || fileImporter.isImporting();
+  dom.uploadBtn.disabled = replacingBlocked;
+  document.getElementById('choose-json-btn').disabled = replacingBlocked;
+  dom.memberSelect.disabled = replacingBlocked || !hasMember;
+  if (dom.passportFolderBtn) dom.passportFolderBtn.disabled = replacingBlocked;
+  if (dom.passportFilesBtn) dom.passportFilesBtn.disabled = replacingBlocked;
+  renderBatchRecovery(resolving);
+  const intake = document.querySelector('.json-drop-section');
+  if (intake) intake.hidden = ["running", "paused"].includes(stateName) || Boolean(state.pendingSubmission);
   
   if (state.autofillFailures && state.autofillFailures.length > 0) {
     dom.failuresCard.style.display = "block";
-    dom.restartFailedBtn.disabled = stateName === "running" || !canStartHere;
+    dom.restartFailedBtn.textContent = canResume ? 'Lanjutkan sisa' : 'Ulangi yang gagal';
+    dom.restartFailedBtn.disabled = !panelTargetReady || resolving || Boolean(state.pendingSubmission) || stateName === "running" || !canStartHere;
     if (dom.failuresCountBadge) {
       dom.failuresCountBadge.textContent = state.autofillFailures.length;
     }
@@ -830,11 +680,7 @@ function updateRunControls() {
 
   // Resolve body state layout class
   let bodyState = "state-idle";
-  if (connState === "disconnected" && readyRetryCount >= 3) {
-    bodyState = "state-error";
-  } else if (connState === "recovering") {
-    bodyState = "state-recovering";
-  } else if (stateName === "completed") {
+  if (stateName === "completed") {
     bodyState = "state-completed";
 
     // Populate batch completion statistics
@@ -842,12 +688,11 @@ function updateRunControls() {
     const statsFailedCount = document.getElementById("stats-failed-count");
     const statsElapsedTime = document.getElementById("stats-elapsed-time");
     const statsAvgTime = document.getElementById("stats-avg-time");
-    const statsReconnects = document.getElementById("stats-reconnects");
 
     const totalFailed = state.autofillFailures ? state.autofillFailures.length : 0;
     const totalSuccess = state.completedMemberIds.length;
     const retry = document.getElementById('completed-retry-btn');
-    if (retry) { retry.hidden = totalFailed === 0; retry.disabled = !canStartHere; }
+    if (retry) { retry.hidden = totalFailed === 0; retry.disabled = !panelTargetReady || resolving || Boolean(state.pendingSubmission) || !canStartHere; }
 
     if (statsSuccessCount) statsSuccessCount.textContent = totalSuccess;
     if (statsFailedCount) statsFailedCount.textContent = totalFailed;
@@ -866,20 +711,18 @@ function updateRunControls() {
       statsAvgTime.textContent = avgTimeMs > 0 ? `${Math.round(avgTimeMs / 1000)}s` : "-";
     }
     
-    if (statsReconnects) {
-      statsReconnects.textContent = (typeof telemetry !== "undefined" && telemetry.reconnectCount) ? telemetry.reconnectCount : 0;
-    }
   } else if (stateName === "running" || stateName === "paused") {
     bodyState = `state-${stateName}`;
-  } else if (state.manifest && state.manifest.members && state.manifest.members.length > 0) {
+  } else if (state.pendingSubmission || (state.manifest && state.manifest.members && state.manifest.members.length > 0)) {
     bodyState = "state-paused"; // Shows running view in paused state so that controls & progress are visible
   }
   
   document.body.className = `${bodyState} ${state.viewMode}-mode`;
+  document.getElementById('file-target-status').textContent = panelTargetReady ? 'Tab Nusuk · File JSON' : 'Buka tab Nusuk';
   const folder = String(state.manifest?.manifestPath || '').split(/[\\/]/).slice(-2, -1)[0];
   document.getElementById('batch-context').textContent = `${getMembers().length} jamaah · ${folder || 'Batch dari aplikasi'}`;
   const guidance = { ready: 'Data siap. Pilih “Mulai pengisian” untuk mengisi Nusuk.', login_required: 'Login ke Nusuk terlebih dahulu. Data batch tetap tersimpan.', loading: 'Menunggu halaman Nusuk selesai dimuat.', navigate_required: state.canNavigateToEntry ? 'Pilih “Mulai pengisian”. Mu’tamer List akan dibuka otomatis pada tab ini sebelum pengisian.' : 'Buka Masar Nusuk untuk memulai pengisian.' };
-  document.getElementById('page-readiness').textContent = stateName === 'running' ? 'Pengisian berjalan. Anda dapat menjeda dari panel ini.' : stateName === 'paused' && state.pageStatus === 'ready' ? 'Pengisian dijeda. Pilih “Lanjutkan” untuk melanjutkan.' : guidance[state.pageStatus] || guidance.loading;
+  document.getElementById('page-readiness').textContent = stateName === 'running' ? 'Pengisian berjalan. Anda dapat menjeda dari panel ini.' : stateName === 'paused' && state.pageStatus === 'ready' ? state.pendingSubmission ? 'Periksa hasil simpan di bawah untuk melanjutkan batch.' : 'Progres tersimpan. Pilih “Lanjutkan sisa” untuk meneruskan pengisian.' : guidance[state.pageStatus] || guidance.loading;
   const passengerLabel = document.querySelector('.passenger-card .card-label');
   if (passengerLabel) passengerLabel.textContent = stateName === 'running' ? 'Jamaah sedang diproses' : 'Jamaah berikutnya';
   if (stateName === 'idle' && state.manifest) setStatus(state.pageStatus === 'ready' ? 'Data siap untuk pengisian.' : guidance[state.pageStatus] || guidance.loading, state.pageStatus === 'ready' ? 'success' : 'warning');
@@ -887,6 +730,21 @@ function updateRunControls() {
   if (stateName !== "running" && dom.actionFeedbackWrap) {
     dom.actionFeedbackWrap.classList.add("hidden");
   }
+}
+
+function renderBatchRecovery(resolving) {
+  if (!dom.batchRecovery) return;
+  dom.batchRecovery.hidden = state.executionState === 'running' || (!state.pendingSubmission && !(state.executionState === 'paused' && state.resumeAvailable));
+  const completed = new Set(state.completedMemberIds.map(String));
+  const savedCount = getMembers().filter(member => completed.has(String(member.id))).length;
+  dom.batchRecoverySummary.textContent = `${savedCount} paspor sudah tersimpan.${state.remainingMemberCount ? ` ${state.remainingMemberCount} paspor tersisa.` : ''} Paspor yang sudah tersimpan tidak akan diulang.`;
+  dom.pendingSubmissionReview.hidden = !state.pendingSubmission;
+  if (state.pendingSubmission) {
+    const member = getMembers().find(item => String(item.id) === state.pendingSubmission.memberId);
+    dom.pendingSubmissionDetail.textContent = `Hasil simpan belum terkonfirmasi: ${member ? memberDisplayName(member) + ' · ' : ''}${state.pendingSubmission.passportNumber}`;
+  }
+  dom.submissionSavedBtn.disabled = dom.submissionNotSavedBtn.disabled = !panelTargetReady || resolving || state.executionState === 'running' || !state.pendingSubmission || !state.manifest;
+  dom.submissionSavedBtn.textContent = resolving ? 'Mencatat hasil...' : 'Sudah tersimpan';
 }
 
 function renderFailures() {
@@ -1016,25 +874,7 @@ function getMembersToRunFromSelection() {
 }
 
 async function persistState() {
-  const stored = await readStoredState();
-  const previous = stored?.[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object" ? stored[STORAGE_KEY] : {};
-  await writeStoredState({
-    [STORAGE_KEY]: {
-      ...previous,
-      manifest: state.manifest,
-      selectedMemberId: state.selectedMemberId,
-      collapsed: state.collapsed,
-      panelWidth: state.panelWidth,
-      executionState: state.executionState,
-      viewMode: state.viewMode,
-      revision: state.revision || 0,
-      activeSessionId: activeSessionId || "",
-      resumeToken: resumeToken || "",
-      progressCurrent: state.progress.current,
-      progressTotal: state.progress.total,
-      autofillFailures: state.autofillFailures || [],
-    },
-  });
+  await writeStoredState({ [STORAGE_KEY]: { collapsed: state.collapsed, panelWidth: state.panelWidth, viewMode: state.viewMode } });
 }
 
 async function readStoredState() {
@@ -1057,20 +897,46 @@ function getStorageLocal() {
   return globalThis.chrome?.storage?.local || null;
 }
 
-function postToParent(type, payload = {}) {
-  return chrome.runtime.sendMessage({ type: 'NUSUK_PANEL_COMMAND', payload: { type, payload } })
-    .then(response => { if (response?.ok === false) setStatus(response.error || 'Periksa halaman Nusuk dan coba lagi.', 'error'); return response; })
-    .catch(error => console.warn('[SidePanel] Gagal mengirim perintah:', error));
+async function postToParent(type, payload = {}) {
+  const requestedTabId = currentTabId;
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'NUSUK_PANEL_COMMAND', payload: { type, payload, tabId: requestedTabId } });
+    if (response?.ok !== true) throw new Error(response?.error || 'Buka Nusuk dan muat ulang tab untuk mengaktifkan extension.');
+    if (currentTabId !== requestedTabId) throw new Error('Tab tujuan berubah. Seret kembali file pada tab Nusuk yang ingin digunakan.');
+    if (response.tabId != null) currentTabId = response.tabId;
+    if (type === 'NUSUK_PANEL_READY') {
+      panelTargetReady = true;
+      if (importStatus.textContent === panelConnectionError) {
+        importStatus.textContent = '';
+        importStatus.className = 'json-import-status';
+        importStatus.setAttribute('role', 'status');
+      }
+      panelConnectionError = null;
+    }
+    if (response.panelState) applyIncomingState(response.panelState);
+    updateRunControls();
+    return response;
+  } catch (error) {
+    const rawMessage = String(error?.message || error);
+    const message = /Receiving end does not exist|Extension context invalidated/i.test(rawMessage)
+      ? 'EntryMate belum aktif. Muat ulang extension di chrome://extensions/, lalu muat ulang tab Nusuk dan buka kembali panel.'
+      : rawMessage;
+    if (currentTabId !== requestedTabId) return { ok: false, error: message };
+    if (type === 'NUSUK_PANEL_READY') { panelTargetReady = false; panelConnectionError = message; updateRunControls(); }
+    importStatus.textContent = message;
+    importStatus.className = 'json-import-status error';
+    importStatus.setAttribute('role', 'alert');
+    return { ok: false, error: message };
+  }
 }
 
-// Sinkronisasi state saat tab berubah atau memuat ulang
-if (typeof chrome !== "undefined" && chrome.tabs) {
-  chrome.tabs.onActivated.addListener(() => {
-    postToParent("NUSUK_PANEL_READY");
-  });
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === "complete") {
-      postToParent("NUSUK_PANEL_READY");
-    }
-  });
-}
+chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
+  if (panelWindowId == null || windowId !== panelWindowId) return;
+  currentTabId = tabId;
+  panelTargetReady = false;
+  applyIncomingState({ executionState: 'idle', manifest: null, pageStatus: 'loading' });
+  await postToParent('NUSUK_PANEL_READY');
+});
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'complete' && tabId === currentTabId) void postToParent('NUSUK_PANEL_READY');
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, Suspense, lazy, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { useStore } from './store';
@@ -15,6 +15,8 @@ const ReviewPage = lazy(() => import('./pages/ReviewPage'));
 const EntryPage = lazy(() => import('./pages/EntryPage'));
 
 type Page = 'import' | 'prepare' | 'scan' | 'validation' | 'entry';
+
+const workflowOrder: Page[] = ['import', 'prepare', 'scan', 'validation', 'entry'];
 
 const pageOpeningMoments = {
   import: {
@@ -60,12 +62,22 @@ function PageOpeningArtwork() {
   const closeArtwork = useCallback(() => setIsOpen(false), []);
 
   if (!isOpen) return null;
-  return <CompletionOverlay key={currentPage} moment={pageOpeningMoments[currentPage]} onClose={closeArtwork} />;
+  return <CompletionOverlay key={currentPage} className="page-opening-artwork" moment={pageOpeningMoments[currentPage]} onClose={closeArtwork} />;
 }
 
 export default function App() {
   const currentPage = useStore((state) => state.currentPage);
   const updateState = useStore((state) => state.updateState);
+  const previousPage = useRef(currentPage);
+
+  useLayoutEffect(() => {
+    const previousIndex = workflowOrder.indexOf(previousPage.current);
+    const nextIndex = workflowOrder.indexOf(currentPage);
+    document.documentElement.dataset.workflowDirection = nextIndex === previousIndex
+      ? 'initial'
+      : nextIndex > previousIndex ? 'forward' : 'backward';
+    previousPage.current = currentPage;
+  }, [currentPage]);
 
   useEffect(() => {
     const syncMotionVisibility = () => {
@@ -77,6 +89,7 @@ export default function App() {
     return () => {
       document.removeEventListener('visibilitychange', syncMotionVisibility);
       document.documentElement.classList.remove('is-motion-paused');
+      delete document.documentElement.dataset.workflowDirection;
     };
   }, []);
 

@@ -1,5 +1,16 @@
 # EntryMate By Ghaniya: Status Arsitektur dan Rencana Lanjutan
 
+Arsitektur aktif telah diganti menjadi pengiriman file JSON lokal. Setelah semua passport direview, halaman 5 membuat `nusuk-entry-batch.json` otomatis. Operator menyeret file native ke panel extension dan memulai pengisian dari extension. Server dan client WebSocket sudah dihapus.
+
+Data batch, checkpoint, dan cache foto pilihan manual dibatasi per tab dan batch; pemulihan batch juga memeriksa identitas sesi browser. File yang invalid atau import selama pekerjaan aktif tidak mengganti batch. Detail aktif tersedia di [README](README.md), [Desktop README](passport-desktop/README.md), dan [Extension automation](chrome-extension/AUTOMATION_README.md).
+
+Verifikasi implementasi mencakup unit test desktop/extension/Rust dan browser fixture. Pengujian drag native antar aplikasi Windows dan DOM Nusuk asli tetap termasuk checklist manual sebelum release.
+
+## Arsip rancangan WebSocket terdahulu
+
+Bagian berikut disimpan sebagai catatan rancangan sebelumnya. Perintah, transport, checklist, dan prioritas WebSocket di dalam arsip ini tidak menggambarkan runtime aktif.
+
+
 Dokumen ini mencatat arsitektur yang benar-benar aktif pada runtime saat ini. Rencana lama yang menjadikan file JSON sebagai satu-satunya penghubung desktop dan extension sudah digantikan oleh integrasi WebSocket lokal. Export JSON manual tetap tersedia sebagai Legacy Mode.
 
 ## Tujuan Sistem

@@ -84,7 +84,7 @@ class FieldConfidenceTests(unittest.TestCase):
 
         self.assertGreater(confidence["passportExtracted"]["passportNumber"], 0.75)
 
-    def test_valid_mrz_checksum_boosts_names_above_review_threshold(self) -> None:
+    def test_valid_mrz_checksum_does_not_validate_names(self) -> None:
         confidence = build_field_confidence(
             {
                 "firstName": "YUNITA",
@@ -117,10 +117,10 @@ class FieldConfidenceTests(unittest.TestCase):
             {},
         )
 
-        self.assertGreaterEqual(confidence["passportExtracted"]["firstName"], 0.82)
-        self.assertGreaterEqual(confidence["passportExtracted"]["familyName"], 0.82)
+        self.assertLess(confidence["passportExtracted"]["firstName"], 0.75)
+        self.assertLess(confidence["passportExtracted"]["familyName"], 0.75)
 
-    def test_valid_mrz_checksum_boosts_known_visual_fields_above_review_threshold(self) -> None:
+    def test_valid_mrz_checksum_does_not_validate_visual_fields(self) -> None:
         confidence = build_field_confidence(
             {
                 "firstName": "MUHAMMAD FADIL",
@@ -153,9 +153,9 @@ class FieldConfidenceTests(unittest.TestCase):
             {},
         )
 
-        self.assertGreaterEqual(confidence["passportExtracted"]["issueDate"], 0.78)
-        self.assertGreaterEqual(confidence["passportExtracted"]["cityOfIssued"], 0.78)
-        self.assertGreaterEqual(confidence["passportExtracted"]["birthCity"], 0.78)
+        self.assertLess(confidence["passportExtracted"]["issueDate"], 0.75)
+        self.assertLess(confidence["passportExtracted"]["cityOfIssued"], 0.75)
+        self.assertLess(confidence["passportExtracted"]["birthCity"], 0.75)
 
 
 if __name__ == "__main__":

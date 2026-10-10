@@ -1,8 +1,9 @@
 {
   "name": "entrymate-by-ghaniya-extension",
-  "version": "1.0.24",
+  "version": "1.0.26",
   "private": true,
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "node scripts/check-identity-browser.js"
   }
 }

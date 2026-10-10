@@ -1,5 +1,5 @@
 import Button from './ui/Button';
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 
 export interface CropRect {
   x: number;
@@ -20,61 +20,100 @@ const PASSPORT_CROP_HANDLE_SIZE = 12;
 const PASSPORT_CROP_OUTPUT_TYPE = "image/jpeg";
 const PASSPORT_CROP_OUTPUT_QUALITY = 0.92;
 
+interface ImageFrame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+}
+
+const normalizeCropRect = (rect: Partial<CropRect>, imageWidth: number, imageHeight: number): CropRect => {
+  const minSize = Math.min(PASSPORT_CROP_MIN_IMAGE_SIZE, imageWidth, imageHeight);
+  const width = Math.max(minSize, Math.min(imageWidth, Number(rect?.width) || imageWidth));
+  const height = Math.max(minSize, Math.min(imageHeight, Number(rect?.height) || imageHeight));
+  const x = Math.min(Math.max(0, Number(rect?.x) || 0), Math.max(0, imageWidth - width));
+  const y = Math.min(Math.max(0, Number(rect?.y) || 0), Math.max(0, imageHeight - height));
+  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
+};
+
+const defaultPassportCropRect = (imageWidth: number, imageHeight: number): CropRect => {
+  const insetX = Math.round(imageWidth * 0.06);
+  const insetY = Math.round(imageHeight * 0.06);
+  return normalizeCropRect({
+    x: insetX,
+    y: insetY,
+    width: imageWidth - (insetX * 2),
+    height: imageHeight - (insetY * 2),
+  }, imageWidth, imageHeight);
+};
+
+const imageFrameForCanvas = (canvas: HTMLCanvasElement, sourceImage: HTMLImageElement, zoom: number): ImageFrame => {
+  const padding = 18;
+  const availableWidth = Math.max(1, canvas.width - (padding * 2));
+  const availableHeight = Math.max(1, canvas.height - (padding * 2));
+  const fitScale = Math.min(availableWidth / sourceImage.naturalWidth, availableHeight / sourceImage.naturalHeight);
+  const scale = fitScale * zoom;
+  const width = sourceImage.naturalWidth * scale;
+  const height = sourceImage.naturalHeight * scale;
+  return { x: (canvas.width - width) / 2, y: (canvas.height - height) / 2, width, height, scale };
+};
+
+const canvasRectFromCrop = (rect: CropRect, frame: ImageFrame): CropRect => ({
+  x: frame.x + (rect.x * frame.scale),
+  y: frame.y + (rect.y * frame.scale),
+  width: rect.width * frame.scale,
+  height: rect.height * frame.scale,
+});
+
+const cropHandlePoints = (rect: CropRect) => {
+  const x1 = rect.x, y1 = rect.y, x2 = rect.x + rect.width, y2 = rect.y + rect.height;
+  const midX = rect.x + (rect.width / 2), midY = rect.y + (rect.height / 2);
+  return [
+    { mode: "nw", x: x1, y: y1 }, { mode: "n", x: midX, y: y1 }, { mode: "ne", x: x2, y: y1 },
+    { mode: "e", x: x2, y: midY }, { mode: "se", x: x2, y: y2 }, { mode: "s", x: midX, y: y2 },
+    { mode: "sw", x: x1, y: y2 }, { mode: "w", x: x1, y: midY },
+  ];
+};
+
 export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: CropToolProps) {
+  const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [cropRect, setCropRect] = useState<CropRect | null>(null);
+  const zoomRef = useRef(zoom);
+  const cropRectRef = useRef<CropRect | null>(null);
+  const frameRef = useRef<ImageFrame | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const backgroundDirtyRef = useRef(true);
   
   // Interaction state
   const interactionRef = useRef<{ mode: string, pointerId: number, startPoint: {x:number, y:number}, startRect: CropRect } | null>(null);
 
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      setImage(img);
-      if (initialRect) {
-        setCropRect(normalizeCropRect(initialRect, img.naturalWidth, img.naturalHeight));
-      } else {
-        setCropRect(defaultPassportCropRect(img.naturalWidth, img.naturalHeight));
-      }
-    };
-    img.src = imageSrc;
-  }, [imageSrc]);
-
-  const defaultPassportCropRect = (imageWidth: number, imageHeight: number): CropRect => {
-    const insetX = Math.round(imageWidth * 0.06);
-    const insetY = Math.round(imageHeight * 0.06);
-    return normalizeCropRect({
-      x: insetX,
-      y: insetY,
-      width: imageWidth - (insetX * 2),
-      height: imageHeight - (insetY * 2),
-    }, imageWidth, imageHeight);
-  };
-
-  const normalizeCropRect = (rect: Partial<CropRect>, imageWidth: number, imageHeight: number): CropRect => {
-    const minSize = Math.min(PASSPORT_CROP_MIN_IMAGE_SIZE, imageWidth, imageHeight);
-    const width = Math.max(minSize, Math.min(imageWidth, Number(rect?.width) || imageWidth));
-    const height = Math.max(minSize, Math.min(imageHeight, Number(rect?.height) || imageHeight));
-    const x = Math.min(Math.max(0, Number(rect?.x) || 0), Math.max(0, imageWidth - width));
-    const y = Math.min(Math.max(0, Number(rect?.y) || 0), Math.max(0, imageHeight - height));
-    return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
-  };
-
-  const draw = () => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !image || !cropRect) return;
+    const background = backgroundCanvasRef.current;
+    const image = imageRef.current;
+    const cropRect = cropRectRef.current;
+    if (!canvas || !background || !image || !cropRect) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#111827";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // The full-resolution photo stays on its own canvas throughout a drag.
+    if (backgroundDirtyRef.current || !frameRef.current) {
+      const backgroundContext = background.getContext('2d', { alpha: false });
+      if (!backgroundContext) return;
+      const frame = imageFrameForCanvas(canvas, image, zoomRef.current);
+      backgroundContext.fillStyle = "#111827";
+      backgroundContext.fillRect(0, 0, background.width, background.height);
+      backgroundContext.drawImage(image, frame.x, frame.y, frame.width, frame.height);
+      frameRef.current = frame;
+      backgroundDirtyRef.current = false;
+    }
 
-    const frame = imageFrameForCanvas(canvas, image, zoom);
-    ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
+    const frame = frameRef.current;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw overlay
     const rect = canvasRectFromCrop(cropRect, frame);
@@ -110,64 +149,83 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
       ctx.fillRect(handle.x - 5, handle.y - 5, 10, 10);
     }
     ctx.restore();
-  };
+  }, []);
+
+  const scheduleDraw = useCallback((redrawBackground = false) => {
+    backgroundDirtyRef.current ||= redrawBackground;
+    if (animationFrameRef.current !== null) return;
+    animationFrameRef.current = requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+      draw();
+    });
+  }, [draw]);
 
   useEffect(() => {
-    draw();
-  }, [image, cropRect, zoom]);
+    const img = new Image();
+    img.onload = () => {
+      imageRef.current = img;
+      cropRectRef.current = initialRect
+        ? normalizeCropRect(initialRect, img.naturalWidth, img.naturalHeight)
+        : defaultPassportCropRect(img.naturalWidth, img.naturalHeight);
+      scheduleDraw(true);
+    };
+    img.src = imageSrc;
+    return () => {
+      img.onload = null;
+      imageRef.current = null;
+      cropRectRef.current = null;
+      frameRef.current = null;
+      interactionRef.current = null;
+    };
+  }, [imageSrc, initialRect, scheduleDraw]);
 
   useEffect(() => {
+    zoomRef.current = zoom;
+    scheduleDraw(true);
+  }, [zoom, scheduleDraw]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
     const handleResize = () => {
-      const container = containerRef.current;
       const canvas = canvasRef.current;
-      if (container && canvas) {
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-        draw();
+      const background = backgroundCanvasRef.current;
+      if (!canvas || !background) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = background.width = width;
+        canvas.height = background.height = height;
+        frameRef.current = null;
+        interactionRef.current = null;
+        scheduleDraw(true);
       }
     };
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [image]);
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [scheduleDraw]);
 
-  const imageFrameForCanvas = (canvas: HTMLCanvasElement, sourceImage: HTMLImageElement, z: number) => {
-    const padding = 18;
-    const availableWidth = Math.max(1, canvas.width - (padding * 2));
-    const availableHeight = Math.max(1, canvas.height - (padding * 2));
-    const fitScale = Math.min(availableWidth / sourceImage.naturalWidth, availableHeight / sourceImage.naturalHeight);
-    const scale = fitScale * z;
-    const width = sourceImage.naturalWidth * scale;
-    const height = sourceImage.naturalHeight * scale;
-    return { x: (canvas.width - width) / 2, y: (canvas.height - height) / 2, width, height, scale };
-  };
-
-  const canvasRectFromCrop = (rect: CropRect, frame: any) => ({
-    x: frame.x + (rect.x * frame.scale),
-    y: frame.y + (rect.y * frame.scale),
-    width: rect.width * frame.scale,
-    height: rect.height * frame.scale,
-  });
-
-  const cropHandlePoints = (rect: any) => {
-    const x1 = rect.x, y1 = rect.y, x2 = rect.x + rect.width, y2 = rect.y + rect.height;
-    const midX = rect.x + (rect.width / 2), midY = rect.y + (rect.height / 2);
-    return [
-      { mode: "nw", x: x1, y: y1 }, { mode: "n", x: midX, y: y1 }, { mode: "ne", x: x2, y: y1 },
-      { mode: "e", x: x2, y: midY }, { mode: "se", x: x2, y: y2 }, { mode: "s", x: midX, y: y2 },
-      { mode: "sw", x: x1, y: y2 }, { mode: "w", x: x1, y: midY },
-    ];
-  };
-
-  const getCanvasPoint = (e: React.PointerEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return {x:0, y:0};
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / Math.max(1, rect.width)),
+      y: (e.clientY - rect.top) * (canvas.height / Math.max(1, rect.height)),
+    };
   };
 
   const getImagePoint = (canvasPoint: {x:number, y:number}, clamp = false) => {
-    if (!image || !canvasRef.current) return null;
-    const frame = imageFrameForCanvas(canvasRef.current, image, zoom);
+    const image = imageRef.current;
+    const frame = frameRef.current;
+    if (!image || !frame) return null;
     const rawX = (canvasPoint.x - frame.x) / frame.scale;
     const rawY = (canvasPoint.y - frame.y) / frame.scale;
     if (!clamp && (rawX < 0 || rawY < 0 || rawX > image.naturalWidth || rawY > image.naturalHeight)) return null;
@@ -178,8 +236,9 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
   };
 
   const hitTest = (point: {x:number, y:number}) => {
-    if (!cropRect || !image || !canvasRef.current) return "";
-    const frame = imageFrameForCanvas(canvasRef.current, image, zoom);
+    const cropRect = cropRectRef.current;
+    const frame = frameRef.current;
+    if (!cropRect || !frame) return "";
     const rect = canvasRectFromCrop(cropRect, frame);
     for (const handle of cropHandlePoints(rect)) {
       if (Math.abs(point.x - handle.x) <= PASSPORT_CROP_HANDLE_SIZE && Math.abs(point.y - handle.y) <= PASSPORT_CROP_HANDLE_SIZE) {
@@ -192,8 +251,9 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
     return "";
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (!image || !cropRect) return;
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const cropRect = cropRectRef.current;
+    if (!imageRef.current || !cropRect || interactionRef.current || e.button !== 0) return;
     const point = getCanvasPoint(e);
     const imagePoint = getImagePoint(point);
     if (!imagePoint) return;
@@ -201,34 +261,29 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
     if (!mode) return;
 
     e.preventDefault();
-    (e.target as Element).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     interactionRef.current = { mode, pointerId: e.pointerId, startPoint: imagePoint, startRect: { ...cropRect } };
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
+  const updateCropFromPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const interaction = interactionRef.current;
+    const image = imageRef.current;
+    if (!interaction || interaction.pointerId !== e.pointerId || !image) return;
     const point = getCanvasPoint(e);
-    if (!interactionRef.current) {
-      const mode = hitTest(point);
-      const cursor = mode === "move" ? "move" : mode ? `${mode}-resize` : "default";
-      if (canvasRef.current) canvasRef.current.style.cursor = cursor;
-      return;
-    }
-    
-    e.preventDefault();
     const imagePoint = getImagePoint(point, true);
-    if (!imagePoint || !image) return;
+    if (!imagePoint) return;
 
-    const { mode, startPoint, startRect } = interactionRef.current;
+    const { mode, startPoint, startRect } = interaction;
     const dx = imagePoint.x - startPoint.x;
     const dy = imagePoint.y - startPoint.y;
 
     const minSize = Math.min(PASSPORT_CROP_MIN_IMAGE_SIZE, image.naturalWidth, image.naturalHeight);
     if (mode === "move") {
-      setCropRect(normalizeCropRect({
+      cropRectRef.current = normalizeCropRect({
         ...startRect,
         x: Math.min(Math.max(0, startRect.x + dx), image.naturalWidth - startRect.width),
         y: Math.min(Math.max(0, startRect.y + dy), image.naturalHeight - startRect.height),
-      }, image.naturalWidth, image.naturalHeight));
+      }, image.naturalWidth, image.naturalHeight);
     } else {
       let left = startRect.x, top = startRect.y, right = startRect.x + startRect.width, bottom = startRect.y + startRect.height;
       if (mode.includes("w")) left = Math.min(right - minSize, Math.max(0, startRect.x + dx));
@@ -236,17 +291,37 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
       if (mode.includes("n")) top = Math.min(bottom - minSize, Math.max(0, startRect.y + dy));
       if (mode.includes("s")) bottom = Math.max(top + minSize, Math.min(image.naturalHeight, startRect.y + startRect.height + dy));
       
-      setCropRect(normalizeCropRect({ x: left, y: top, width: right - left, height: bottom - top }, image.naturalWidth, image.naturalHeight));
+      cropRectRef.current = normalizeCropRect({ x: left, y: top, width: right - left, height: bottom - top }, image.naturalWidth, image.naturalHeight);
     }
+    // Keep the latest crop immediately available to Save; paint at most once per frame.
+    scheduleDraw();
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!interactionRef.current) {
+      const mode = hitTest(getCanvasPoint(e));
+      const cursor = mode === "move" ? "move" : mode ? `${mode}-resize` : "default";
+      if (e.currentTarget.style.cursor !== cursor) e.currentTarget.style.cursor = cursor;
+      return;
+    }
+    e.preventDefault();
+    updateCropFromPointer(e);
+  };
+
+  const endInteraction = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!interactionRef.current || interactionRef.current.pointerId !== e.pointerId) return;
-    (e.target as Element).releasePointerCapture(e.pointerId);
     interactionRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    updateCropFromPointer(e);
+    endInteraction(e);
   };
 
   const handleSave = () => {
+    const image = imageRef.current;
+    const cropRect = cropRectRef.current;
     if (!image || !cropRect) return;
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(cropRect.width));
@@ -276,12 +351,15 @@ export default function CropTool({ imageSrc, initialRect, onSave, onCancel }: Cr
           </div>
         </div>
         <div ref={containerRef} className="flex-1 w-full min-h-[400px] relative cursor-crosshair">
+          <canvas ref={backgroundCanvasRef} aria-hidden="true" className="absolute inset-0 w-full h-full block pointer-events-none" />
           <canvas
             ref={canvasRef}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            className="w-full h-full block"
+            onPointerCancel={endInteraction}
+            onLostPointerCapture={endInteraction}
+            className="absolute inset-0 w-full h-full block touch-none"
           />
         </div>
       </div>

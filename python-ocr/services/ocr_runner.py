@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import atexit
+import importlib.util
+import math
 import os
 import re
+from contextvars import ContextVar
+from contextlib import contextmanager
 from time import perf_counter
 
 from services.ocr_observation import OcrDetailedResult, build_observation
+from services.ocr_engine_process import OcrEngineTimeout, OcrEngineUnavailable, ProcessOcrEngine
+from services.ocr_constants import OCR_INFERENCE_TIMEOUT_SECONDS
+from services.log import logger
 
 max_threads = os.environ.get("PASSPORT_OCR_MAX_THREADS", "").strip()
 if max_threads:
@@ -14,16 +22,49 @@ if max_threads:
     os.environ["VECLIB_MAXIMUM_THREADS"] = max_threads
     os.environ["NUMEXPR_NUM_THREADS"] = max_threads
 
-try:
-    from rapidocr_onnxruntime import RapidOCR
-    RAPID_OCR_INSTANCE = RapidOCR()
-except ImportError:
-    RAPID_OCR_INSTANCE = None
+RAPID_OCR_INSTANCE = ProcessOcrEngine() if importlib.util.find_spec("rapidocr_onnxruntime") else None
+if RAPID_OCR_INSTANCE is not None:
+    atexit.register(RAPID_OCR_INSTANCE.close)
 
-DEFAULT_OCR_TIMEOUT_SECONDS = 8.0
+_SCAN_DEADLINE: ContextVar[float | None] = ContextVar("ocr_scan_deadline", default=None)
+
+
+def set_ocr_deadline(deadline: float):
+    return _SCAN_DEADLINE.set(deadline)
+
+
+def reset_ocr_deadline(token) -> None:
+    _SCAN_DEADLINE.reset(token)
+
+
+def ocr_time_remaining() -> float:
+    deadline = _SCAN_DEADLINE.get()
+    return max(0.0, deadline - perf_counter()) if deadline is not None else float("inf")
+
+
+@contextmanager
+def ocr_stage_budget(seconds: float):
+    deadline = perf_counter() + max(0.0, seconds)
+    current = _SCAN_DEADLINE.get()
+    token = set_ocr_deadline(min(current, deadline) if current is not None else deadline)
+    try:
+        yield
+    finally:
+        reset_ocr_deadline(token)
+
+
+def initialize_ocr_engine() -> None:
+    if RAPID_OCR_INSTANCE is None:
+        raise OcrEngineUnavailable("RapidOCR belum terpasang. Periksa instalasi OCR worker.")
+    if isinstance(RAPID_OCR_INSTANCE, ProcessOcrEngine):
+        RAPID_OCR_INSTANCE.warm_up()
+
+DEFAULT_OCR_TIMEOUT_SECONDS = OCR_INFERENCE_TIMEOUT_SECONDS
 _STATS = {
     "callCount": 0,
     "errorCount": 0,
+    "timeoutCount": 0,
+    "budgetSkipCount": 0,
     "totalMs": 0,
     "maxMs": 0,
     "detailedCallCount": 0,
@@ -80,8 +121,16 @@ def run_rapid_ocr_detailed(
     use_rec: bool = True,
     source: str = "det_rec",
 ) -> OcrDetailedResult:
-    if image is None or RAPID_OCR_INSTANCE is None:
+    if image is None:
         return OcrDetailedResult((), 0, use_det, use_cls, source)
+
+    timeout = _resolve_timeout(timeout_seconds)
+    deadline = _SCAN_DEADLINE.get()
+    if deadline is not None:
+        timeout = min(timeout, deadline - perf_counter())
+        if timeout <= 0:
+            _STATS["budgetSkipCount"] += 1
+            return OcrDetailedResult((), 0, use_det, use_cls, source)
 
     started = perf_counter()
     _STATS["callCount"] += 1
@@ -89,11 +138,14 @@ def run_rapid_ocr_detailed(
     call_type = _call_type(use_det=use_det, use_rec=use_rec)
     _STATS["callTypes"][call_type] += 1
     try:
+        if RAPID_OCR_INSTANCE is None:
+            raise OcrEngineUnavailable("RapidOCR engine is unavailable.")
         result, _ = RAPID_OCR_INSTANCE(
             image,
             use_det=use_det,
             use_cls=use_cls,
             use_rec=use_rec,
+            timeout_seconds=timeout,
         )
         if not result:
             return OcrDetailedResult((), _elapsed_since(started), use_det, use_cls, source)
@@ -116,8 +168,14 @@ def run_rapid_ocr_detailed(
             if observation.normalized_text:
                 observations.append(observation)
         return OcrDetailedResult(tuple(observations), _elapsed_since(started), use_det, use_cls, source)
-    except Exception:  # noqa: BLE001
+    except OcrEngineTimeout as exc:
         _STATS["errorCount"] += 1
+        _STATS["timeoutCount"] += 1
+        logger.warning("OCR timeout (%s): %s", source, exc)
+        return OcrDetailedResult((), _elapsed_since(started), use_det, use_cls, source)
+    except Exception as exc:  # noqa: BLE001
+        _STATS["errorCount"] += 1
+        logger.warning("OCR engine error (%s): %s", source, exc)
         return OcrDetailedResult((), _elapsed_since(started), use_det, use_cls, source)
     finally:
         elapsed_ms = _elapsed_since(started)
@@ -140,18 +198,17 @@ def get_ocr_stats() -> dict[str, object]:
     }
 
 def reset_ocr_stats() -> None:
-    for key in ("callCount", "errorCount", "totalMs", "maxMs", "detailedCallCount"):
+    for key in ("callCount", "errorCount", "timeoutCount", "budgetSkipCount", "totalMs", "maxMs", "detailedCallCount"):
         _STATS[key] = 0
     for key in _STATS["callTypes"]:
         _STATS["callTypes"][key] = 0
 
 def _resolve_timeout(timeout_seconds: float | None = None) -> float:
-    if timeout_seconds is not None:
-        return max(float(timeout_seconds), 0.1)
-    raw_timeout = os.environ.get("OCR_TIMEOUT_SECONDS", "")
+    raw_timeout = timeout_seconds if timeout_seconds is not None else os.environ.get("OCR_TIMEOUT_SECONDS", "")
     try:
-        return max(float(raw_timeout), 0.1) if raw_timeout else DEFAULT_OCR_TIMEOUT_SECONDS
-    except ValueError:
+        value = float(raw_timeout) if raw_timeout != "" else DEFAULT_OCR_TIMEOUT_SECONDS
+        return max(value, 0.1) if math.isfinite(value) else DEFAULT_OCR_TIMEOUT_SECONDS
+    except (TypeError, ValueError):
         return DEFAULT_OCR_TIMEOUT_SECONDS
 
 

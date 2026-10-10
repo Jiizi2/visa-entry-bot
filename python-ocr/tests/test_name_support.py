@@ -39,11 +39,13 @@ class NameSupportTests(unittest.TestCase):
 
         self.assertEqual(parsed["firstName"], "ABDULLAH KYAZID AL")
 
-    def test_expands_common_muhammad_abbreviation(self) -> None:
+    def test_preserves_passport_abbreviation_without_expanding_name(self) -> None:
         parsed, note = repair_common_given_name_spacing({"firstName": "MUH", "familyName": "IHSAN"})
 
-        self.assertEqual(parsed["firstName"], "MUHAMMAD")
-        self.assertEqual(note, "GIVEN NAME ABBREVIATION REPAIRED FROM MRZ")
+        self.assertEqual(parsed["firstName"], "MUH")
+        self.assertEqual(note, "")
+        parsed, _ = repair_common_name_noise(parsed)
+        self.assertEqual(parsed["firstName"], "MUH")
 
     def test_repairs_djumadi_prefix_confusion(self) -> None:
         parsed, _ = repair_common_name_noise({"firstName": "DIUMADI", "familyName": "YUSUF"})

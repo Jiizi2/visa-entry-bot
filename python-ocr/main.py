@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import time
+from copy import deepcopy
 from datetime import date
 from typing import Callable
 
@@ -24,7 +25,7 @@ from services.ocr_result_cache import (
     start_ocr_result_cache_session,
 )
 from services.passport_page import clear_passport_page_cache
-from services.ocr_runner import get_ocr_stats, reset_ocr_stats
+from services.ocr_runner import get_ocr_stats, reset_ocr_stats, set_ocr_deadline, reset_ocr_deadline
 from services.scan_context import ScanContext
 from services.ocr_constants import ROOT_DIR, DATA_DIR, SUPPORTED_EXTENSIONS, StepCallback
 from services.scan_budget import _ocr_budget_ms, _elapsed_ms, _budget_exceeded
@@ -143,8 +144,13 @@ def list_passport_files(passports_dir: str) -> list[str]:
 def execute_safe_stage(stage_func: Callable[[ScanContext], None], ctx: ScanContext) -> None:
     from services.scan_context import StageResult
     stage_started = time.perf_counter()
-    pre_metadata = dict(ctx.field_metadata)
-    pre_rejections = dict(ctx.field_metadata.get("rejections", {}))
+    # Keep image arrays by reference; copy mutable identity data before the stage.
+    previous_state = dict(vars(ctx))
+    for key in ("parsed", "extraction", "field_metadata", "mrz_name_fields", "visual_fields",
+                "merged_visual_fields", "panel_fields", "visual_identity_evidence"):
+        previous_state[key] = deepcopy(previous_state[key])
+    pre_metadata = previous_state["field_metadata"]
+    pre_rejections = pre_metadata.get("rejections", {})
     
     try:
         stage_func(ctx)
@@ -165,7 +171,7 @@ def execute_safe_stage(stage_func: Callable[[ScanContext], None], ctx: ScanConte
                 rejected.append(k)
                 
         result = StageResult(
-            stage_name=stage_func.__name__.lstrip("_stage_"),
+            stage_name=stage_func.__name__.removeprefix("_stage_"),
             duration_ms=elapsed_ms,
             fields_changed=changed,
             fields_rejected=rejected,
@@ -176,9 +182,11 @@ def execute_safe_stage(stage_func: Callable[[ScanContext], None], ctx: ScanConte
     except Exception as exc:
         elapsed_ms = int((time.perf_counter() - stage_started) * 1000)
         logger.error(f"Stage {stage_func.__name__} crashed: {exc}", exc_info=True)
+        # A failed stage must not leave a partially changed identity behind.
+        vars(ctx).update(previous_state)
         
         result = StageResult(
-            stage_name=stage_func.__name__.lstrip("_stage_"),
+            stage_name=stage_func.__name__.removeprefix("_stage_"),
             duration_ms=elapsed_ms,
             fields_changed=[],
             fields_rejected=[],
@@ -208,6 +216,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
     reset_ocr_stats()
     reset_image_preprocessor_stats()
     reset_fast_location_ocr_stats()
+    deadline_token = set_ocr_deadline(started_at + _ocr_budget_ms() / 1000.0)
 
     try:
         ctx = ScanContext(
@@ -249,6 +258,7 @@ def process_passport(file_path: str, step_callback: StepCallback | None = None) 
         }
         return record
     finally:
+        reset_ocr_deadline(deadline_token)
         clear_passport_page_cache()
         clear_image_preprocess_cache()
         end_ocr_result_cache_session()
@@ -357,6 +367,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    from multiprocessing import freeze_support
+    freeze_support()
     main()
 
 

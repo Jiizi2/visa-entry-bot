@@ -16,6 +16,7 @@ from services.name_support import repair_given_tokens, salvage_family_hints, sco
 from services.panel_name_support import normalize_name_candidate, pick_best_name_candidate, score_full_name
 from services.passport_page import collect_ocr_lines, crop_relative
 from services.mrz_validation import calculate_mrz_check_digit as _mrz_check_digit
+from services.mrz_validation import mrz_fields_needing_recovery
 
 
 LOW_CONFIDENCE_THRESHOLD = 0.6
@@ -128,8 +129,13 @@ def fuse_panel_fields(ctx: ScanContext, panel_fields: dict[str, str]) -> str:
     notes: list[str] = []
     current_passport = str(ctx.parsed.get("passportNumber", "") or "")
     repaired_passport = _repair_passport_number(current_passport, ctx.extraction, panel_fields.get("passportNumber", ""))
+    visual_passport = panel_fields.get("passportNumber", "")
+    if ("passportNumber" in mrz_fields_needing_recovery(ctx.extraction.get("mrzValidation"))
+            and re.fullmatch(r"[EXY]\d{7}", visual_passport)):
+        repaired_passport = visual_passport
     if repaired_passport and repaired_passport != current_passport:
-        if DecisionRules.evaluate_and_update(ctx, "passportNumber", repaired_passport, source="PANEL", confidence=0.70, tentative=True):
+        format_valid = bool(re.fullmatch(r"[EXY]\d{7}", repaired_passport))
+        if DecisionRules.evaluate_and_update(ctx, "passportNumber", repaired_passport, source="PANEL", confidence=0.70, tentative=True, validated=format_valid):
             notes.append("PASSPORT NUMBER RECOVERED FROM DOCUMENT PANEL")
     full_name = panel_fields.get("fullName", "")
     if full_name:

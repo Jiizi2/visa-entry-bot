@@ -50,6 +50,18 @@
 }
 
 /* GENERAL RESET & BASICS */
+.json-drop-section { flex: 0 0 auto; width: 100%; }
+.json-drop-zone { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 16px; border: 1px dashed var(--ink-secondary); border-radius: var(--radius-md); background: var(--bg-surface-soft); text-align: center; }
+.json-drop-zone > svg { color: var(--ink-secondary); flex: none; }
+.json-drop-zone h2 { font-size: 16px; font-weight: 600; color: var(--ink-primary); }
+.json-drop-zone p { max-width: 32ch; color: var(--ink-secondary); line-height: 1.5; }
+.json-drop-zone.is-drag-over { border-color: var(--dark-gold); background: var(--primary-soft); }
+.json-drop-zone.is-loading { opacity: 0.7; }
+.json-import-status { margin-top: 12px; font-size: var(--text-body); color: var(--ink-secondary); overflow-wrap: anywhere; line-height: 1.5; }
+.json-import-status.error { color: var(--danger); }
+.json-import-status.success { color: var(--success); }
+.json-import-status.warning { color: var(--warning); }
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -1637,10 +1649,10 @@ dd {
 .footer-left {
   min-width: 0;
   gap: 7px;
-  font-size: 10px;
+  font-size: 11px;
 }
 
-.footer-left > #ws-status-title {
+.footer-left > #file-target-status {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1738,4 +1750,46 @@ dd {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.batch-recovery {
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  overflow-wrap: anywhere;
+}
+
+.batch-recovery[hidden],
+#pending-submission-review[hidden] {
+  display: none;
+}
+
+.batch-recovery h2 {
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.batch-recovery p {
+  margin-top: 8px;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+}
+
+.batch-recovery .pending-submission-detail {
+  margin-top: 16px;
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.submission-review-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.submission-review-actions .btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  white-space: normal;
 }

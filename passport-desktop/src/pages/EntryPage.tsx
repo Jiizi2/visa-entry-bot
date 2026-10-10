@@ -1,282 +1,115 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import Button from '../components/ui/Button';
 import PageHeader from '../components/ui/PageHeader';
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import AppIcon from '../components/ui/AppIcon';
 import { useStore } from '../store';
-import {
-  buildExportPreviewState,
-  effectiveSelectedIdsForExport,
-  validateCompanionsForExport,
-  buildManifestForEntryExport,
-  enrichMemberForEntry,
-} from '../utils/export';
+import { buildExportPreviewState, effectiveSelectedIdsForExport } from '../utils/export';
+import { createEntryBatchExporter, prepareEntryBatch } from '../utils/entry-batch';
 import { memberReviewStatus } from '../utils/members';
 import EntryTable from './entry/EntryTable';
-import SimplifiedConsole from './entry/SimplifiedConsole';
-import AppIcon from '../components/ui/AppIcon';
+
+const exportBatch = createEntryBatchExporter(invoke);
 
 export default function EntryPage() {
   const state = useStore();
   const updateState = useStore(s => s.updateState);
-  const [exportPreview, setExportPreview] = useState<any>(null);
-  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
+  const prepared = useMemo(() => prepareEntryBatch(state), [state.manifest, state.manifestPath, state.selectedIds, state.reviewedMemberIds, state.isScanning]);
+  const request = prepared.request;
+  const currentRequest = useRef(request);
+  currentRequest.current = request;
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState({ signature: '', path: '', error: '', pending: false });
+  const [dragging, setDragging] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const signature = request?.signature || '';
+  const fileReady = Boolean(signature && result.signature === signature && result.path && !result.pending);
   const manifestMembers = state.manifest?.members || [];
-  const effectiveSelectedIds = effectiveSelectedIdsForExport(state.manifest, state.selectedIds);
-
-  const appendLog = (message: string, level: 'info' | 'warn' | 'error' | 'success' = 'info') => {
-    const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const line = `[${time}] [${level.toUpperCase()}] ${message}`;
-    updateState({ entryLogs: [...state.entryLogs, line].slice(-120) });
-  };
+  const folderName = state.manifestPath.replace(/\\/g, '/').split('/').slice(-2, -1)[0] || 'Batch passport';
+  const error = prepared.error || (result.signature === signature ? result.error : '') || actionError;
+  const preview = useMemo(() => {
+    const members = request?.manifestToSave.members || manifestMembers;
+    const reviewable = members.filter((member: any) => memberReviewStatus(member) !== 'ERROR');
+    const reviewed = reviewable.filter((member: any) => member.reviewConfirmed || state.reviewedMemberIds.has(member.id)).length;
+    return buildExportPreviewState({ members, selectedIds: effectiveSelectedIdsForExport(state.manifest, state.selectedIds), review: { total: reviewable.length, reviewed, remaining: reviewable.length - reviewed }, reviewedMemberIds: state.reviewedMemberIds, canExportReviewedJson: Boolean(request), isEntryRunning: false });
+  }, [request, state.manifest, state.selectedIds, state.reviewedMemberIds]);
 
   useEffect(() => {
-    const reviewable = manifestMembers.filter((member: any) => memberReviewStatus(member) !== 'ERROR');
-    const reviewed = reviewable.filter((member: any) => member.reviewConfirmed || state.reviewedMemberIds.has(member.id)).length;
-    const review = { total: reviewable.length, reviewed, remaining: Math.max(reviewable.length - reviewed, 0) };
-    const selectedIds = effectiveSelectedIdsForExport(state.manifest, state.selectedIds);
-    const canExportReviewedJson = state.manifestPath && reviewable.length > 0 && review.remaining === 0 && !state.isScanning;
-
-    setExportPreview(buildExportPreviewState({
-      members: manifestMembers,
-      selectedIds,
-      review,
-      reviewedMemberIds: state.reviewedMemberIds,
-      canExportReviewedJson,
-      isEntryRunning: state.isEntryRunning,
-    }));
-  }, [manifestMembers, state.selectedIds, state.reviewedMemberIds, state.isEntryRunning, state.manifestPath, state.isScanning]);
-
-  const handlePrepareEntry = async () => {
-    if (state.isEntryRunning) return;
-
-    appendLog('Tombol Export JSON diklik.', 'info');
-    updateState({ exportError: '' });
-
-    if (!state.manifestPath || !state.manifest) {
-      appendLog('Gagal export: manifest belum tersedia.', 'error');
-      showNotification('Gagal export: manifest belum tersedia.', 'error');
+    let active = true;
+    setActionError('');
+    updateState({ exportedBatchPath: '', exportError: '', isEntryRunning: Boolean(currentRequest.current) });
+    const snapshot = currentRequest.current;
+    if (!snapshot) {
+      setResult({ signature: '', path: '', error: '', pending: false });
       return;
     }
-
-    if (exportPreview?.review?.remaining > 0) {
-      appendLog(`Gagal export: review belum selesai (${exportPreview.review.remaining} data belum siap).`, 'warn');
-      showNotification(`Gagal export: review belum selesai (${exportPreview.review.remaining} data belum siap).`, 'error');
-      return;
-    }
-
-    const companionValidation = validateCompanionsForExport(state.manifest, state.selectedIds);
-    if (!companionValidation.ok) {
-      updateState({ exportError: companionValidation.message });
-      appendLog(`Gagal export: ${companionValidation.message}`, 'warn');
-      showNotification(companionValidation.message, 'error');
-      return;
-    }
-
-    if (!exportPreview?.canExport) {
-      const message = 'Tidak ada passport yang siap dimasukkan ke batch Nusuk.';
-      updateState({ exportError: message });
-      appendLog('Gagal export: Tidak ada data export', 'warn');
-      showNotification(message, 'error');
-      return;
-    }
-
-    updateState({ isEntryRunning: true, statusHeadline: 'Membuat JSON' });
-    appendLog('Membuat batch data Nusuk untuk extension...');
-
-    try {
-      const manifestToSave = JSON.parse(JSON.stringify(state.manifest));
-      if (Array.isArray(manifestToSave.members)) {
-        manifestToSave.members.forEach((member: any) => {
-          if (state.reviewedMemberIds.has(member.id)) {
-            member.reviewConfirmed = true;
-            if (member.reviewStatus === 'NEEDS_REVIEW') member.reviewStatus = 'VALID';
-          }
-        });
-      }
-
-      await invoke('save_manifest', { manifestPath: state.manifestPath, manifestData: manifestToSave });
-      const { manifest: exportManifest, selectedIds } = buildManifestForEntryExport(manifestToSave, state.selectedIds);
-      const batchPath: string = await invoke('create_nusuk_batch', {
-        manifestPath: state.manifestPath,
-        selectedIds: Array.from(selectedIds),
-        manifestData: exportManifest,
-      });
-
-      updateState({ manifest: manifestToSave, exportedBatchPath: batchPath, statusHeadline: 'JSON dibuat' });
-      appendLog(`JSON untuk extension dibuat: ${batchPath}`, 'success');
-      appendLog('Klik Buka Folder JSON untuk langsung melihat file.', 'info');
-      showNotification('JSON berhasil dibuat!', 'success');
-    } catch (error) {
-      const message = String(error);
-      updateState({ exportError: message, statusHeadline: 'Export JSON gagal' });
-      appendLog(`Export JSON gagal: ${message}`, 'error');
-      showNotification(`Export JSON gagal: ${message}`, 'error');
-    } finally {
-      updateState({ isEntryRunning: false });
-    }
-  };
-
-  const handleOpenJsonLocation = async () => {
-    if (!state.exportedBatchPath) return;
-    try {
-      await invoke('open_path_location', { path: state.exportedBatchPath });
-      appendLog(`Folder JSON dibuka: ${state.exportedBatchPath}`, 'success');
-    } catch (error) {
-      appendLog(`Gagal membuka folder JSON: ${String(error)}`, 'error');
-    }
-  };
-
-  if (!exportPreview) return null;
-
-  const reviewRemaining = exportPreview.review.remaining;
-  const readyCount = exportPreview.readyMembers.length;
-  const excludedCount = exportPreview.failedMembers.length + exportPreview.skippedMembers.length;
-  const batchReady = reviewRemaining === 0 && readyCount > 0 && !state.isScanning;
-  const hasMembers = manifestMembers.length > 0;
-  const exportStatusTitle = !hasMembers
-    ? 'Belum ada passport untuk diekspor'
-    : reviewRemaining > 0
-      ? `${reviewRemaining} passport masih perlu diperiksa`
-      : readyCount > 0
-        ? `${readyCount} passport siap ${state.legacyMode ? 'disimpan' : 'dikirim'}`
-        : 'Belum ada passport yang dapat diekspor';
-  const exportStatusDescription = !hasMembers
-    ? 'Pilih folder berisi hasil scan untuk memulai.'
-    : reviewRemaining > 0
-      ? 'Selesaikan Review agar data dapat dikirim ke Nusuk.'
-      : readyCount > 0
-        ? state.legacyMode
-          ? 'File JSON akan disimpan di folder hasil scan.'
-          : 'Data siap dikirim melalui extension EntryMate.'
-        : 'Periksa kembali data yang bermasalah atau tidak dipilih.';
-  const exportStatusTone = batchReady ? 'is-ready' : reviewRemaining > 0 ? 'is-warning' : 'is-empty';
-  const automationMembers = exportPreview.readyMembers
-    .filter((member: any) => effectiveSelectedIds.has(member.id) && (member.reviewConfirmed || state.reviewedMemberIds.has(member.id)))
-    .map((member: any) => {
-      const copy = JSON.parse(JSON.stringify(member));
-      copy.reviewConfirmed = true;
-      if (copy.reviewStatus === 'NEEDS_REVIEW') copy.reviewStatus = 'VALID';
-      return enrichMemberForEntry(copy, manifestMembers);
+    setResult({ signature, path: '', error: '', pending: true });
+    updateState({ statusHeadline: 'Menyiapkan file JSON' });
+    void exportBatch(snapshot).then(path => {
+      if (!active || currentRequest.current?.signature !== snapshot.signature) return;
+      setResult({ signature, path, error: '', pending: false });
+      updateState({ exportedBatchPath: path, isEntryRunning: false, statusHeadline: 'File JSON siap diseret' });
+    }).catch(failure => {
+      if (!active || currentRequest.current?.signature !== snapshot.signature) return;
+      const message = `File JSON belum dapat dibuat: ${String(failure)}`;
+      setResult({ signature, path: '', error: message, pending: false });
+      updateState({ exportedBatchPath: '', exportError: message, isEntryRunning: false, statusHeadline: 'Pembuatan JSON gagal' });
     });
+    return () => { active = false; updateState({ isEntryRunning: false }); };
+  }, [signature, retry, updateState]);
+
+  const startDrag = async () => {
+    if (!fileReady || dragging || currentRequest.current?.signature !== result.signature) return;
+    setDragging(true);
+    setActionError('');
+    try {
+      await invoke('drag_nusuk_batch', { batchPath: result.path });
+    } catch (failure) {
+      setActionError(`File belum dapat diseret. Pilih Buka folder file untuk menyeretnya dari Explorer. ${String(failure)}`);
+    } finally {
+      setDragging(false);
+    }
+  };
+  const openFolder = async () => {
+    if (!fileReady) return;
+    try { await invoke('open_path_location', { path: result.path }); }
+    catch (failure) { setActionError(`Folder belum dapat dibuka: ${String(failure)}`); }
+  };
 
   return (
     <section className="page-container entry-page">
       <div className="entry-scroll-region">
-        <PageHeader title="Entry ke Nusuk" actions={
-          <Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
-            <AppIcon name="arrow_back" size={16} />
-            Kembali ke Review
-          </Button>
-        } />
-
-        <section className="entry-export-workspace workstation-pane" aria-labelledby="entry-export-mode-title">
+        <PageHeader title="Entry ke Nusuk" actions={<Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}><AppIcon name="arrow_back" size={16} />Kembali ke Review</Button>} />
+        <section className="entry-export-workspace workstation-pane" aria-labelledby="entry-file-title">
           <header className="entry-export-workspace__header">
-            <div className="entry-export-workspace__heading">
-              <span><AppIcon name={state.legacyMode ? 'file' : 'rocket'} size={20} /></span>
-              <div>
-                <h2 id="entry-export-mode-title">{state.legacyMode ? 'Simpan file untuk Nusuk' : 'Kirim langsung ke Nusuk'}</h2>
-                <p>{state.legacyMode ? 'Buat file JSON dari data yang sudah direview.' : 'Lanjutkan dari data yang sudah direview ke browser Nusuk Anda.'}</p>
-              </div>
-            </div>
-            {state.legacyMode ? <Button variant="secondary" type="button" className="secondary-button" onClick={() => updateState({ legacyMode: false })}>Kembali ke extension</Button>
-              : <details className="entry-alternative"><summary>Cara lain</summary><Button variant="secondary" type="button" className="secondary-button" onClick={() => updateState({ legacyMode: true })}><AppIcon name="file" size={16} />Simpan file JSON</Button></details>}
+            <div className="entry-export-workspace__heading"><AppIcon name="export" size={20} /><div><h2 id="entry-file-title">Seret file ke extension</h2><p>JSON dibuat otomatis dari passport yang sudah selesai direview.</p></div></div>
           </header>
-
-          {!state.legacyMode ? (
-            <SimplifiedConsole
-              manifestPath={state.manifestPath}
-              members={automationMembers}
-              batchReady={batchReady}
-              readinessTitle={exportStatusTitle}
-              readinessDescription={exportStatusDescription}
-              readinessActionLabel={hasMembers ? 'Periksa di Review' : 'Pilih folder'}
-              readinessActionIcon={hasMembers ? 'review' : 'folder_open'}
-              onResolveReadiness={() => updateState({ currentPage: hasMembers ? 'validation' : 'import' })}
-              validateBatch={() => { const validation = validateCompanionsForExport(state.manifest, state.selectedIds); return validation.ok ? '' : validation.message; }}
-            />
-          ) : (
-            <div className="entry-manual-card">
-              <div className="entry-manual-card__body">
-                <div className={`entry-manual-status ${exportStatusTone}`}>
-                  <span className="entry-manual-status__icon">
-                    <AppIcon name={batchReady ? 'check_circle' : reviewRemaining > 0 ? 'review' : 'folder_open'} size={20} />
-                  </span>
-                  <div>
-                    <h3>{exportStatusTitle}</h3>
-                    <p>{exportStatusDescription}</p>
-                  </div>
-                </div>
-
-                {hasMembers && (
-                  <div className="entry-manual-metrics" aria-label="Ringkasan kesiapan export">
-                    <div><strong>{readyCount}</strong><span>siap</span></div>
-                    {reviewRemaining > 0 && <div><strong>{reviewRemaining}</strong><span>perlu review</span></div>}
-                    {excludedCount > 0 && <div><strong>{excludedCount}</strong><span>tidak ikut</span></div>}
-                  </div>
-                )}
-              </div>
-
-              {(state.exportError || state.exportedBatchPath) && (
-                <div className={`entry-result-banner ${state.exportError ? 'is-error' : 'is-success'}`} role={state.exportError ? 'alert' : 'status'}>
-                  {state.exportError ? <span>{state.exportError}</span> : (
-                    <div>
-                      <span>File JSON berhasil dibuat.</span>
-                      <Button variant="secondary" className="secondary-button" onClick={handleOpenJsonLocation}>Buka folder</Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <footer className="entry-manual-card__actions">
-                {excludedCount > 0 && (
-                  <span className="entry-manual-card__note"><AppIcon name="info" size={16} /> {excludedCount} passport tidak disertakan.</span>
-                )}
-                <div className="entry-manual-card__buttons">
-                  {!hasMembers ? (
-                    <Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'import' })}>
-                      <AppIcon name="folder_open" size={16} />
-                      Pilih folder
-                    </Button>
-                  ) : !batchReady ? (
-                    <Button variant="secondary" className="secondary-button" onClick={() => updateState({ currentPage: 'validation' })}>
-                      <AppIcon name="review" size={16} />
-                      Periksa di Review
-                    </Button>
-                  ) : (
-                    <Button variant="primary" className="primary-action" onClick={handlePrepareEntry} disabled={!exportPreview.canExport || state.isEntryRunning}>
-                      <AppIcon name="download" size={16} />
-                      {state.isEntryRunning ? 'Membuat file...' : 'Buat file JSON'}
-                    </Button>
-                  )}
-                </div>
-              </footer>
+          <div className="entry-file-handoff">
+            <button type="button" className={`entry-file-source ${fileReady ? 'is-ready' : ''}`} disabled={!fileReady || dragging}
+              aria-label={fileReady ? 'Seret nusuk-entry-batch.json ke extension EntryMate' : 'File JSON belum siap'}
+              aria-describedby="entry-file-instruction" onMouseDown={event => { if (event.button === 0) { event.preventDefault(); void startDrag(); } }}
+              onDragStart={event => event.preventDefault()} onClick={event => { if (event.detail === 0) void openFolder(); }}>
+              <AppIcon name={fileReady ? 'file' : prepared.error ? 'review' : 'hourglass'} size={32} />
+              <strong>{fileReady ? 'nusuk-entry-batch.json' : error ? 'File belum siap' : 'Menyiapkan file JSON…'}</strong>
+              <span>{fileReady ? `${request?.memberCount} jamaah · ${folderName}` : error ? 'Periksa pesan di bawah untuk melanjutkan.' : 'Tunggu sebentar, file sedang dibuat.'}</span>
+              {fileReady && <span className="entry-file-source__handle"><AppIcon name="send" size={16} />Tahan dan seret ke extension</span>}
+            </button>
+            <div className="entry-file-guide">
+              <h3>Siap dipindahkan ke Nusuk</h3>
+              <ol id="entry-file-instruction"><li>Buka Nusuk dan panel extension EntryMate.</li><li>Seret file di sebelah kiri ke area “Letakkan file JSON di sini”.</li><li>Periksa batch, lalu pilih “Mulai pengisian” di extension.</li></ol>
+              <p>Biarkan folder hasil scan tetap di lokasi yang sama selama pengisian.</p>
+              <div className="entry-file-actions"><Button variant="primary" className="primary-action" onClick={() => openUrl('https://masar.nusuk.sa/', 'chrome').catch(() => setActionError('Chrome belum dapat dibuka. Buka Nusuk di browser Anda.'))}><AppIcon name="external_link" size={16} />Buka Nusuk</Button><Button variant="secondary" className="secondary-button" disabled={!fileReady} onClick={openFolder}><AppIcon name="folder_open" size={16} />Buka folder file</Button></div>
             </div>
-          )}
-        </section>
-
-        {hasMembers && (
-          <div className="entry-batch-region">
-            <div className="entry-batch-region__header">
-              <h2>Passport yang akan diproses</h2>
-              <span className="status-chip neutral">{manifestMembers.length} passport</span>
-            </div>
-            <EntryTable exportPreview={exportPreview} reviewedMemberIds={state.reviewedMemberIds} />
           </div>
-        )}
+          <div className={`entry-file-status ${error ? 'is-error' : ''}`} role={error ? 'alert' : 'status'} aria-live="polite">
+            <AppIcon name={error ? 'alert' : fileReady ? 'check_circle' : 'hourglass'} size={18} />
+            <span>{error || (fileReady ? 'File siap. Seret ke extension untuk memuat batch ini.' : 'Membuat file dari data review terbaru…')}</span>
+            {error && (request ? <Button variant="secondary" compact onClick={() => setRetry(value => value + 1)}>Coba lagi</Button> : <Button variant="secondary" compact onClick={() => updateState({ currentPage: manifestMembers.length ? 'validation' : 'import' })}>{manifestMembers.length ? 'Periksa di Review' : 'Pilih folder'}</Button>)}
+          </div>
+        </section>
+        {manifestMembers.length > 0 && <div className="entry-batch-region"><div className="entry-batch-region__header"><h2>Passport dalam batch ini</h2><span className="status-chip neutral">{preview.readyMembers.length} siap</span></div><EntryTable exportPreview={preview} reviewedMemberIds={state.reviewedMemberIds} /></div>}
       </div>
-
-      {toast && (
-        <div className={`app-toast ${toast.type === 'error' ? 'is-error' : 'is-success'}`} role={toast.type === 'error' ? 'alert' : 'status'} aria-live={toast.type === 'error' ? 'assertive' : 'polite'}>
-          <AppIcon name={toast.type === 'error' ? 'alert' : 'check_circle'} size={18} />
-          <span>{toast.message}</span>
-        </div>
-      )}
     </section>
   );
 }

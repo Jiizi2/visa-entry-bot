@@ -21,6 +21,7 @@
     let previousTabAutoDiscardable = null;
 
     async function startAutofillFromPanel() {
+      if (!submissionReady()) return;
       if (!pageReady()) return;
       if (state.executionState === 'completed') {
         postToPanel('NUSUK_PANEL_STATUS', { tone: 'warning', message: 'Batch selesai. Gunakan “Ulangi yang gagal” jika masih ada jamaah gagal.' });
@@ -38,11 +39,19 @@
         if (!validatePayloadReadyForEntry(state.currentRunPayload)) {
           return;
         }
+        state.currentRunPayload = remainingPayload(state.currentRunPayload);
+        if (!state.currentRunPayload) {
+          state.executionState = "completed";
+          await persistState({ required: true });
+          postPanelState();
+          return;
+        }
         state.executionState = "running";
         await announceRun();
-        await persistState();
-        appendLog("success", "Autofill dilanjutkan.");
-        postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message: "Autofill dilanjutkan." });
+        await persistRunCheckpoint();
+        const remainingCount = countRunPayloadMembers(state.currentRunPayload);
+        appendLog("success", `Melanjutkan ${remainingCount} jamaah tersisa. Jamaah yang sudah tersimpan tidak diulang.`);
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message: `Melanjutkan ${remainingCount} jamaah tersisa.` });
         postPanelState();
         await lockTabForBackgroundRun();
         if (!activeRunPromise && isRunnablePayload(state.currentRunPayload)) {
@@ -79,22 +88,26 @@
       };
       state.runToken += 1;
       state.executionState = "running";
-      state.completedMemberIds = [];
-      state.autofillFailures = [];
       await announceRun();
-      resetProgress();
+      if (!(state.completedMemberIds || []).length) resetProgress();
       appendLog("info", `Memulai autofill ${membersToRun.length} jamaah mulai dari pilihan saat ini...`);
       if (SLOW_MODE_ENABLED) {
         appendLog("info", `Mode ${AUTOFILL_MODE_LABEL || "stabil"} aktif: jeda lebih ringkas dengan variasi natural.`);
       }
       await lockTabForBackgroundRun();
-      await persistState();
+      await persistRunCheckpoint();
       postPanelState();
 
       await runCurrentPayload(membersToRun.length);
     }
 
     async function resumeAutofillAfterReload() {
+      if (!submissionReady()) {
+        state.executionState = "paused";
+        await persistState();
+        postPanelState();
+        return false;
+      }
       if (!["running", "paused"].includes(state.executionState) || !isRunnablePayload(state.currentRunPayload) || activeRunPromise) {
         return false;
       }
@@ -108,7 +121,7 @@
       state.executionState = "running";
       appendLog("warning", `Halaman Nusuk refresh. Melanjutkan otomatis dari checkpoint: ${remainingCount} jamaah tersisa.`);
       postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: `Halaman refresh. Autofill lanjut otomatis dengan ${remainingCount} jamaah tersisa.` });
-      await persistState();
+      await persistRunCheckpoint();
       postPanelState();
       await lockTabForBackgroundRun();
       await runCurrentPayload(remainingCount);
@@ -116,10 +129,11 @@
     }
 
     async function runCurrentPayload(memberCount) {
-      const payload = state.currentRunPayload;
+      const payload = remainingPayload(state.currentRunPayload);
+      state.currentRunPayload = payload;
       if (!isRunnablePayload(payload)) {
         state.executionState = "completed";
-        await persistState();
+        await persistState({ required: true });
         postPanelState();
         return;
       }
@@ -132,8 +146,10 @@
           if (state.executionState === "running") {
             state.executionState = "completed";
             completedSuccessfully = true;
-            appendLog("success", `Autofill selesai untuk ${memberCount} jamaah.`);
-            postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message: `Autofill selesai untuk ${memberCount} jamaah.` });
+            const correctionCount = (state.autofillNameCorrections || []).filter(note => (state.completedMemberIds || []).map(String).includes(note.memberId)).length;
+            const message = `Autofill selesai untuk ${memberCount} jamaah.${correctionCount ? ` Nama OCR Nusuk pada ${correctionCount} jamaah dikoreksi mengikuti data review; rincian di log.` : ""}`;
+            appendLog("success", message);
+            postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message });
           }
         } catch (error) {
           if (isControlError(error, "reset")) {
@@ -144,7 +160,7 @@
             interruptedForResume = true;
             return;
           }
-          state.executionState = isRunnablePayload(state.currentRunPayload) ? 'paused' : 'idle';
+          state.executionState = isRunnablePayload(state.currentRunPayload) || state.pendingSubmission ? 'paused' : 'completed';
           postToPanel("NUSUK_PANEL_STATUS", {
             tone: "error",
             message: error instanceof Error ? error.message : String(error),
@@ -174,8 +190,27 @@
         return [];
       }
       const selectedIndex = getSelectedMemberIndex();
-      const rawSlice = selectedIndex >= 0 ? members.slice(selectedIndex) : members;
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const rawSlice = (selectedIndex >= 0 ? members.slice(selectedIndex) : members)
+        .filter(member => !completed.has(String(member.id)));
       return sortMembersByDependency(rawSlice);
+    }
+
+    function remainingPayload(payload) {
+      if (!isRunnablePayload(payload)) return null;
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const members = payload.members.filter(member => member && !completed.has(String(member.id)));
+      return members.length ? { ...payload, members, totalMembers: members.length } : null;
+    }
+
+    async function persistRunCheckpoint() {
+      try {
+        await persistState({ required: true });
+      } catch (error) {
+        state.executionState = "paused";
+        postPanelState();
+        throw error;
+      }
     }
 
     function sortMembersByDependency(membersList) {
@@ -298,22 +333,32 @@
     }
 
     async function resetAutofillFromPanel() {
+      if (state.submissionResolutionInProgress) throw new Error("Tunggu hasil pemeriksaan simpan selesai dicatat.");
+      if (state.pendingSubmission && !window.confirm(root.submissionGuard.submissionError(
+        `hasil simpan paspor ${state.pendingSubmission.passportNumber} belum terkonfirmasi. Reset membuka blokir pengiriman ulang. Lanjutkan hanya setelah memeriksa daftar Nusuk; jangan entry ulang jamaah yang sudah tersimpan. Apakah hasilnya sudah diperiksa?`
+      ).message)) return;
       state.runToken += 1;
+      const stoppingRun = activeRunPromise;
+      state.executionState = "idle";
+      if (stoppingRun) await stoppingRun;
+      // Clear checkpoints after the old run has unwound, including delayed failure reporting.
       state.currentRunPayload = null;
       state.executionState = "idle";
+      state.pendingSubmission = null;
       state.manifest = null;
       state.activeSessionId = '';
       state.completedMemberIds = [];
       state.selectedMemberId = "";
       state.autofillFailures = [];
       state.autofillAttemptFailures = [];
+      state.autofillNameCorrections = [];
       state.autofillFailureScreenshots = [];
       state.revision = 0;
       state.activeSessionId = "";
       await unlockTabAfterBackgroundRun();
       clearActiveHighlight();
       resetProgress();
-      await persistState();
+      await persistState({ required: true, submissionCheckpoint: true });
       postToPanel("NUSUK_PANEL_STATUS", { tone: "neutral", message: "Reset selesai." });
       postPanelState();
     }
@@ -347,9 +392,15 @@
     }
 
     async function restartFailedFromPanel() {
+      if (!submissionReady()) return;
       if (!pageReady()) return;
-      if (state.executionState === "running") {
+      if (state.executionState === "running" || activeRunPromise) {
         postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Autofill sedang berjalan." });
+        return;
+      }
+      // A stopped batch still includes members after the failure. Keep that queue intact.
+      if (state.executionState === "paused" && isRunnablePayload(state.currentRunPayload)) {
+        await startAutofillFromPanel();
         return;
       }
       const failures = state.autofillFailures || [];
@@ -359,7 +410,8 @@
       }
       const members = Array.isArray(state.manifest?.members) ? state.manifest.members : [];
       const failedMemberIds = new Set(failures.map((f) => String(f.memberId || "")));
-      const membersToRun = members.filter((member) => failedMemberIds.has(String(member.id || "")));
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const membersToRun = sortMembersByDependency(members.filter((member) => failedMemberIds.has(String(member.id || "")) && !completed.has(String(member.id))));
       
       if (!membersToRun.length) {
         postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: "Data jamaah gagal tidak ditemukan di manifest." });
@@ -372,6 +424,7 @@
         });
         return;
       }
+      if (!validatePayloadReadyForEntry({ members: membersToRun })) return;
 
       state.autofillAttemptFailures = [];
       state.currentRunPayload = {
@@ -383,13 +436,84 @@
       state.runToken += 1;
       state.executionState = "running";
       await announceRun(true);
-      resetProgress();
       appendLog("info", `Mengulang autofill untuk ${membersToRun.length} jamaah yang gagal...`);
       await lockTabForBackgroundRun();
-      await persistState();
+      await persistRunCheckpoint();
       postPanelState();
 
       await runCurrentPayload(membersToRun.length);
+    }
+
+    async function resolvePendingSubmissionFromPanel({ outcome, memberId, passportNumber, startedAt } = {}) {
+      if (state.submissionResolutionInProgress || state.executionState === "running") {
+        throw new Error("Jeda pengisian sebelum mencatat hasil pemeriksaan simpan.");
+      }
+      if (!["saved", "not_saved"].includes(outcome)) throw new Error("Pilih hasil pemeriksaan simpan di Nusuk.");
+      function assertCurrentSubmission() {
+        const pending = state.pendingSubmission;
+        if (!pending || !memberId || !passportNumber || !startedAt
+          || pending.memberId !== memberId || pending.passportNumber !== passportNumber || pending.startedAt !== startedAt) {
+          throw new Error("Pengiriman yang diperiksa sudah berubah. Periksa kembali paspor yang ditampilkan di panel.");
+        }
+      }
+      assertCurrentSubmission();
+      const member = state.manifest?.members?.find(item => String(item.id) === memberId);
+      if (!member) throw new Error("Data paspor yang diperiksa tidak ditemukan di batch aktif.");
+      root.submissionGuard.assertPendingMember(state, { member });
+
+      state.submissionResolutionInProgress = true;
+      postPanelState();
+      try {
+        // Cancel any paused attempt before changing its checkpoint or clearing the save lock.
+        state.runToken += 1;
+        if (activeRunPromise) await activeRunPromise;
+        assertCurrentSubmission();
+        root.submissionGuard.assertPendingMember(state, { member });
+        const previous = {
+          completedMemberIds: state.completedMemberIds,
+          currentRunPayload: state.currentRunPayload,
+          pendingSubmission: state.pendingSubmission,
+          selectedMemberId: state.selectedMemberId,
+          autofillFailures: state.autofillFailures,
+          executionState: state.executionState,
+          progressCurrent: state.progressCurrent,
+          progressTotal: state.progressTotal,
+          revision: state.revision,
+        };
+        const completed = new Set((state.completedMemberIds || []).map(String));
+        if (outcome === "saved") completed.add(memberId);
+        else completed.delete(memberId);
+        const payload = state.currentRunPayload || { members: [member], manifestPath: state.manifest.manifestPath || "" };
+        let remaining = payload.members.filter(item => !completed.has(String(item.id)) && String(item.id) !== memberId);
+        if (outcome === "not_saved") remaining = [member, ...remaining];
+        state.completedMemberIds = [...completed];
+        const nextOffset = payload.members.findIndex(item => String(item.id) === String(remaining[0]?.id));
+        state.currentRunPayload = remaining.length ? {
+          ...payload, members: remaining, totalMembers: remaining.length,
+          startMemberIndex: Number(payload.startMemberIndex || 0) + Math.max(0, nextOffset),
+        } : null;
+        state.pendingSubmission = null;
+        state.selectedMemberId = String(remaining[0]?.id || memberId);
+        if (outcome === "saved") state.autofillFailures = (state.autofillFailures || []).filter(item => String(item.memberId) !== memberId);
+        state.progressCurrent = state.manifest.members.filter(item => completed.has(String(item.id))).length;
+        state.progressTotal = state.manifest.members.length;
+        state.executionState = remaining.length ? "paused" : "completed";
+        state.revision = (state.revision || 0) + 1;
+        try {
+          await persistState({ required: true, submissionCheckpoint: true });
+        } catch (error) {
+          Object.assign(state, previous);
+          throw new Error(`Hasil pemeriksaan belum dapat disimpan. Progres sebelumnya tetap dipertahankan: ${error.message || error}`);
+        }
+        const message = outcome === "saved"
+          ? `Paspor ${passportNumber} ditandai sudah tersimpan setelah pemeriksaan Anda di Nusuk dan tidak akan diulang.`
+          : `Paspor ${passportNumber} ditandai belum tersimpan setelah pemeriksaan Anda di Nusuk dan akan dicoba lagi saat dilanjutkan.`;
+        appendLog("info", message);
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "success", message });
+      } finally {
+        state.submissionResolutionInProgress = false;
+        postPanelState();
+      }
     }
 
     function pageReady() {
@@ -398,9 +522,23 @@
       return false;
     }
 
+    function submissionReady() {
+      if (state.submissionResolutionInProgress) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "warning", message: "Tunggu hasil pemeriksaan simpan selesai dicatat." });
+        return false;
+      }
+      try {
+        root.submissionGuard.assertNoPending(state);
+        return true;
+      } catch (error) {
+        postToPanel("NUSUK_PANEL_STATUS", { tone: "error", message: error.message });
+        return false;
+      }
+    }
+
     async function announceRun(retryFailed = false) {
       if (state.activeSessionId) {
-        await chrome.runtime.sendMessage({ type: 'NUSUK_WS_EVENT', payload: { eventType: 'RUNNING', retryFailed } });
+        await chrome.runtime.sendMessage({ type: 'NUSUK_AUTOFILL_EVENT', payload: { eventType: 'RUNNING', retryFailed } });
       }
     }
 
@@ -410,6 +548,7 @@
       pauseAutofillFromPanel,
       resetAutofillFromPanel,
       restartFailedFromPanel,
+      resolvePendingSubmissionFromPanel,
     };
   }
 

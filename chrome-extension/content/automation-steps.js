@@ -10,6 +10,7 @@
   }
 
   function buildPerMemberSteps(nextButtonSelector) {
+    const { nameSelector } = root.identityGuard;
     return [
       {
         action: "wait_for_nusuk_page_ready",
@@ -37,6 +38,7 @@
         page: "passport_details",
         timeout_ms: 30000,
       },
+      { action: "verify_passport_identity" },
       {
         action: "select_primeng_dropdown",
         selector: "p-dropdown[formcontrolname='previousNationalityId'] .p-dropdown:not(.p-disabled)",
@@ -80,6 +82,7 @@
         selector: "div[formgroupname='firstName'] input[formcontrolname='ar'], input[placeholder*='Arabic'][placeholder*='First'], input[formcontrolname='profession'], input[placeholder='Profession']",
         timeout_ms: 120000,
       },
+      { action: "verify_passport_name" },
       {
         action: "fill_arabic_minimal",
         first_value: "{{member.resolvedProfile.arabic.firstName}}",
@@ -87,46 +90,46 @@
       },
       {
         action: "fill",
-        selector: "div[formgroupname='firstName'] input[formcontrolname='ar'], input[formcontrolname='firstName.ar'], input[name='firstName.ar'], input[placeholder='First Name (Arabic)'], input[placeholder='First name (Arabic)'], input[placeholder*='Arabic'][placeholder*='First']",
+        selector: nameSelector(0, "ar"),
         value: "{{member.resolvedProfile.arabic.firstName}}",
       },
       {
         action: "fill",
-        selector: "div[formgroupname='secondName'] input[formcontrolname='ar'], input[placeholder=\"Father's Name (Arabic)\"], input[placeholder='Father Name (Arabic)'], input[placeholder*='Arabic'][placeholder*='Father']",
+        selector: nameSelector(1, "ar"),
         value: "{{member.resolvedProfile.arabic.fatherName}}",
-        skip_when_empty: true,
+        clear_when_empty: true,
       },
       {
         action: "fill",
-        selector: "div[formgroupname='thirdName'] input[formcontrolname='ar'], input[placeholder='Grandfather Name (Arabic)'], input[placeholder*='Arabic'][placeholder*='Grand']",
+        selector: nameSelector(2, "ar"),
         value: "{{member.resolvedProfile.arabic.grandfatherName}}",
-        skip_when_empty: true,
+        clear_when_empty: true,
       },
       {
         action: "fill",
-        selector: "div[formgroupname='familyName'] input[formcontrolname='ar'], input[formcontrolname='familyName.ar'], input[name='familyName.ar'], input[placeholder='Family Name (Arabic)'], input[placeholder*='Arabic'][placeholder*='Family']",
+        selector: nameSelector(3, "ar"),
         value: "{{member.resolvedProfile.arabic.familyName}}",
       },
       {
         action: "fill",
-        selector: "div[formgroupname='firstName'] input[formcontrolname='en'], input[formcontrolname='firstName.en'], input[name='firstName.en'], input[placeholder='First name'], input[placeholder='First Name'], input[placeholder*='First'][placeholder]:not([placeholder*='Arabic'])",
+        selector: nameSelector(0, "en"),
         value: "{{member.resolvedProfile.firstName}}",
       },
       {
         action: "fill",
-        selector: "div[formgroupname='secondName'] input[formcontrolname='en'], input[placeholder='Father name'], input[placeholder='Father Name'], input[placeholder*='Father'][placeholder]:not([placeholder*='Arabic'])",
+        selector: nameSelector(1, "en"),
         value: "{{member.resolvedProfile.fatherName}}",
-        skip_when_empty: true,
+        clear_when_empty: true,
       },
       {
         action: "fill",
-        selector: "div[formgroupname='thirdName'] input[formcontrolname='en'], input[placeholder='Grand father'], input[placeholder='Grandfather Name'], input[placeholder*='Grand'][placeholder]:not([placeholder*='Arabic'])",
+        selector: nameSelector(2, "en"),
         value: "{{member.resolvedProfile.grandfatherName}}",
-        skip_when_empty: true,
+        clear_when_empty: true,
       },
       {
         action: "fill",
-        selector: "div[formgroupname='familyName'] input[formcontrolname='en'], input[formcontrolname='familyName.en'], input[name='familyName.en'], input[placeholder='Family Name'], input[placeholder*='Family'][placeholder]:not([placeholder*='Arabic'])",
+        selector: nameSelector(3, "en"),
         value: "{{member.resolvedProfile.familyName}}",
       },
       {

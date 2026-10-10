@@ -33,7 +33,7 @@
       try {
         if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
           chrome.runtime.sendMessage({
-            type: "NUSUK_WS_EVENT",
+            type: "NUSUK_AUTOFILL_EVENT",
             payload: {
               eventType: "PROGRESS",
               current: state.progressCurrent,
@@ -50,13 +50,18 @@
 
     function postPanelState() {
       const { uploadFileCount, uploadFileNames } = getUploadState();
-      postToPanel("NUSUK_PANEL_STATE", {
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const remaining = (state.currentRunPayload?.members || []).filter(member => member && !completed.has(String(member.id)));
+      const snapshot = {
         manifest: state.manifest,
         selectedMemberId: state.selectedMemberId,
         collapsed: state.collapsed,
         closed: state.closed,
         executionState: state.executionState,
-        resumeAvailable: isRunnablePayload(state.currentRunPayload),
+        resumeAvailable: remaining.length > 0,
+        remainingMemberCount: remaining.length,
+        nextMemberId: String(remaining[0]?.id || ""),
+        submissionResolutionInProgress: Boolean(state.submissionResolutionInProgress),
         panelWidth: state.panelWidth,
         uploadFileCount,
         uploadFileNames,
@@ -71,14 +76,13 @@
         pageStatus: root.pageContext?.readPageContext().pageStatus || 'loading',
         canNavigateToEntry: root.pageContext?.readPageContext().canNavigateToEntry || false,
         completedMemberIds: state.completedMemberIds || [],
-      });
+        pendingSubmission: state.pendingSubmission || null,
+      };
+      postToPanel("NUSUK_PANEL_STATE", snapshot);
       if (root.widgetInstance) {
         root.widgetInstance.updateWidgetUI();
       }
-    }
-
-    function isRunnablePayload(payload) {
-      return Array.isArray(payload?.members) && payload.members.some((member) => member && typeof member === "object");
+      return snapshot;
     }
 
     function postToPanel(type, payload) {
@@ -91,13 +95,17 @@
       }
     }
 
-    async function persistState() {
+    async function persistState({ required = false, submissionCheckpoint = false } = {}) {
       const storage = getStorageLocal();
       if (!storage?.set) {
+        if (required) throw new Error("Penyimpanan checkpoint extension tidak tersedia.");
         return;
       }
       await storage.set({
-        [STORAGE_KEY]: {
+        // Keep the irreversible-operation lock separate from panel/popup view-state writes.
+        ...(submissionCheckpoint ? { [state.storageKey ? state.storageKey + ":pending" : "nusukPendingSubmission"]: state.pendingSubmission || null, ...(state.storageKey ? { nusukPendingSubmission: null } : {}) } : {}),
+        [state.storageKey || STORAGE_KEY]: {
+          browserSessionId: state.browserSessionId,
           manifest: state.manifest,
           selectedMemberId: state.selectedMemberId,
           collapsed: state.collapsed,
@@ -109,11 +117,13 @@
           logs: state.logs,
           autofillFailures: Array.isArray(state.autofillFailures) ? state.autofillFailures.slice(-100) : [],
           autofillAttemptFailures: Array.isArray(state.autofillAttemptFailures) ? state.autofillAttemptFailures.slice(-100) : [],
+          autofillNameCorrections: state.autofillNameCorrections || [],
           autofillFailureScreenshots: Array.isArray(state.autofillFailureScreenshots) ? state.autofillFailureScreenshots.slice(-3) : [],
           currentRunPayload: state.currentRunPayload,
           revision: state.revision || 0,
           activeSessionId: state.activeSessionId || "",
           completedMemberIds: state.completedMemberIds || [],
+          pendingSubmission: state.pendingSubmission || null,
         },
       });
     }

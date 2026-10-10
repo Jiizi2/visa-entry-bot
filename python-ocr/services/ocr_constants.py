@@ -4,8 +4,11 @@ import os
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-OCR_BUDGET_MS = 20_000
+OCR_BUDGET_MS = 60_000
 OCR_FAST_PATH_BUDGET_MS = 15_000
+# Reserve half of the maximum scan time for visual fields and identity recovery.
+OCR_MRZ_BUDGET_MS = 30_000
+OCR_INFERENCE_TIMEOUT_SECONDS = 15.0
 OCR_FULL_PANEL_FIELD_SCOPE = (
     "fullName",
     "passportNumber",

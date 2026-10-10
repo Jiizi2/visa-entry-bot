@@ -9,7 +9,7 @@ from time import perf_counter
 
 import numpy as np
 
-from services.image_preprocessor import _load_image, build_processed_document_image, detect_passport_data_page_crop, resize_to_max_edge
+from services.image_preprocessor import _load_image, build_processed_document_image, detect_passport_data_page_crop, find_mrz_band_start, has_large_blank_margin, resize_to_max_edge
 from services.layout_profiles import load_indonesia_passport_layout_profile
 from services.location_normalizer import is_known_location_value, pick_best_location_value
 from services.parser import clean_gender
@@ -217,10 +217,10 @@ def extract_fast_location_fields(
                     value = _extract_fast_location_from_image(image, field_name)
                     if value:
                         extracted[field_name] = value
-                return extracted
+                missing_fields = tuple(field_name for field_name in requested_fields if not extracted.get(field_name))
 
-        missing_fields = list(requested_fields)
-        if image is not None:
+        missing_fields = [field_name for field_name in requested_fields if not extracted.get(field_name)]
+        if image is not None and strategy != "spatial":
             missing_fields = []
             for field_name in requested_fields:
                 value = _extract_fast_location_from_image(image, field_name)
@@ -234,7 +234,8 @@ def extract_fast_location_fields(
 
         _FAST_LOCATION_OCR_STATS["preprocessFallbackUsed"] = True
         processed_image = _orient_image(build_processed_document_image(file_path), rotation_degrees)
-        if processed_image is None or _same_image_shape(image, processed_image):
+        if (processed_image is None or (image is not None and image.shape == processed_image.shape
+                and np.array_equal(image, processed_image))):
             return extracted
 
         for field_name in missing_fields:
@@ -281,19 +282,28 @@ def merge_visual_fields(ctx: ScanContext, visual_fields: dict[str, str]) -> None
     from services.decision_rules import DecisionRules
     if not visual_fields:
         return
+    passport_number = visual_fields.get("passportNumber", "")
+    if re.fullmatch(r"[EXY]\d{7}", passport_number):
+        confidence = ctx.visual_identity_evidence.confidence.get("passportNumber", 0.65)
+        DecisionRules.evaluate_and_update(ctx, "passportNumber", passport_number,
+            source="VISUAL", confidence=confidence, tentative=True, validated=True)
     if visual_fields.get("nationality") == "INDONESIA" and getattr(ctx.parsed, "nationality", "") in {"", "ID", "DNI"}:
         DecisionRules.evaluate_and_update(ctx, "nationality", "INDONESIA", source="VISUAL", confidence=0.80, tentative=False, validated=True)
     for field_name in ("nationality", "dob", "gender", "issueDate", "expiryDate"):
         val = visual_fields.get(field_name, "")
         if val:
             is_valid = _is_iso_date(val) if field_name in ("dob", "issueDate", "expiryDate") else (val in ("MALE", "FEMALE"))
-            DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=0.80, tentative=True, validated=is_valid)
+            evidence = ctx.visual_identity_evidence
+            ocr_confidence = evidence.confidence.get(field_name, 0.65) if evidence.fields.get(field_name) == val else 0.65
+            DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=ocr_confidence, tentative=True, validated=is_valid)
     for field_name in ("placeOfBirth", "issuingOffice"):
         val = visual_fields.get(field_name, "")
         if val:
             from services.location_normalizer import is_known_location_value
             is_valid = is_known_location_value(field_name, val)
-            DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=0.80, tentative=True, validated=is_valid)
+            evidence = ctx.visual_identity_evidence
+            ocr_confidence = evidence.confidence.get(field_name, 0.65) if evidence.location_values.get(field_name) == val else 0.65
+            DecisionRules.evaluate_and_update(ctx, field_name, val, source="VISUAL", confidence=ocr_confidence, tentative=True, validated=is_valid)
 
 
 def build_visual_notes(visual_fields: dict[str, str]) -> str:
@@ -473,7 +483,13 @@ def _select_fast_location_image(original: object | None, detected_crop: object |
     if original_looks_like_passport_page and (
         crop_area_ratio < FAST_LOCATION_MIN_CROP_AREA_RATIO or crop_distorts_page_aspect
     ):
-        return original
+        # A paper scan can have the same aspect as a passport. Its blank margin
+        # permits a complete identity-page crop, but not a narrow internal slice.
+        crop_looks_like_passport_page = 1.20 <= crop_aspect <= 1.75
+        complete_mrz_page = (crop_looks_like_passport_page
+            and (band := find_mrz_band_start(detected_crop)) is not None and band >= 0.60)
+        if not crop_looks_like_passport_page or not (has_large_blank_margin(original) or complete_mrz_page):
+            return original
     return detected_crop
 
 

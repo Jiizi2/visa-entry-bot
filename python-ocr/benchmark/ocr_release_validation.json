@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "createdAtUtc": "2026-10-08T23:07:20.670179+00:00",
+  "sourceSha256": "1df697a1299a47b970d3b57d4e1e5d75003a866762008e46bc567290038001fc",
+  "fixtureSha256": {
+    "FirstTest": "4ccb3bbad66f933e3852ea72a7e8bc5d42c6467f826855d9244420bbc9c078dd",
+    "SecondTest": "11376889824edcaeb3805c8005b84bc0ab223b0beeff24a6a277f71030c9af42",
+    "thirdTest": "1008e99b1d065c944cc6d868c64015ed2a2aa8a41bb0c0a12d292d8fcc17395b",
+    "trainingData": "66242c9abc9f14436ff124b2f7276e01c501299a4c6aa63e1045f6b37710ff50"
+  },
+  "targetsSha256": "9ea4de575b1e880db5712c0774c48b56ca32a0b7eb1870cc48f928b133ee08fe",
+  "engine": {
+    "pythonMajorMinor": "3.12",
+    "packages": {
+      "rapidocr-onnxruntime": "1.4.4",
+      "onnxruntime": "1.27.0",
+      "opencv-python": "4.13.0.92",
+      "opencv-python-headless": "4.13.0.92",
+      "numpy": "2.4.4"
+    },
+    "modelSha256": {
+      "rapidocr_onnxruntime/config.yaml": "bf94a1da4cba828e67b1d61e27cee14d9e7da27c9f272e04048a17e41ae97332",
+      "rapidocr_onnxruntime/models/ch_PP-OCRv4_det_infer.onnx": "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9",
+      "rapidocr_onnxruntime/models/ch_PP-OCRv4_rec_infer.onnx": "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b",
+      "rapidocr_onnxruntime/models/ch_ppocr_mobile_v2.0_cls_infer.onnx": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c"
+    }
+  },
+  "dataset": {
+    "totalFiles": 84,
+    "uniqueImages": 82,
+    "suiteCounts": {
+      "FirstTest": 20,
+      "SecondTest": 45,
+      "thirdTest": 2,
+      "trainingData": 17
+    },
+    "contentSha256": "a6c6175dcd382017b4c106b921c0ef676be5524f6b0633e555f6430c5d65c86b"
+  },
+  "summary": {
+    "totalFiles": 84,
+    "validCount": 84,
+    "errorCount": 0,
+    "reviewStatusCounts": {
+      "VALID": 0,
+      "NEEDS_REVIEW": 84,
+      "ERROR": 0
+    },
+    "reviewCount": 84,
+    "mismatchCount": 0,
+    "stageCrashCount": 0,
+    "skippedStageCount": 0,
+    "budgetExceededCount": 0,
+    "ocrErrorCount": 0,
+    "ocrTimeoutCount": 0,
+    "ocrBudgetSkipCount": 0,
+    "avgTotalMs": 4886,
+    "p95TotalMs": 11864,
+    "maxTotalMs": 20089,
+    "stageTotalsMs": {
+      "dates": 0,
+      "mrz": 132601,
+      "names": 0,
+      "page_align": 1104,
+      "panel": 30190,
+      "validate": 0,
+      "visual": 220538,
+      "visual_recovery": 2157
+    },
+    "ocrCacheTotals": {
+      "hitCount": 86,
+      "missCount": 117,
+      "storeCount": 117
+    },
+    "rapidocrTotals": {
+      "callCount": 429,
+      "errorCount": 0,
+      "totalMs": 235914,
+      "avgMs": 2808,
+      "p95Ms": 8865,
+      "maxMs": 2063
+    },
+    "imagePreprocessorTotals": {
+      "requestCount": 0,
+      "cacheHitCount": 0,
+      "callCount": 0,
+      "errorCount": 0,
+      "totalMs": 0,
+      "avgMs": 0,
+      "p95Ms": 0,
+      "maxMs": 0,
+      "inputMegaPixels": 0.0,
+      "outputMegaPixels": 0.0,
+      "estimatedPeakMb": 0.0
+    },
+    "fieldAccuracy": {
+      "birthCity": {
+        "expectedCount": 82,
+        "matchCount": 82,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "cityOfIssued": {
+        "expectedCount": 81,
+        "matchCount": 81,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "dob": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "expiryDate": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "familyName": {
+        "expectedCount": 83,
+        "matchCount": 83,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "firstName": {
+        "expectedCount": 83,
+        "matchCount": 83,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "gender": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "issueDate": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "nationality": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "passportNumber": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      },
+      "status": {
+        "expectedCount": 84,
+        "matchCount": 84,
+        "mismatchCount": 0,
+        "accuracy": 1.0
+      }
+    },
+    "pipelinePathCounts": {
+      "RECOVERY": 84
+    },
+    "panelFallbackUsed": 4,
+    "visualOcrUsed": 84,
+    "mrzFallbackUsed": 0,
+    "imagePathMismatchCount": 0
+  }
+}

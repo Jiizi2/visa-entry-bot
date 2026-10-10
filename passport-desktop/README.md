@@ -10,11 +10,11 @@ Aplikasi desktop berbasis **Tauri 2 + Rust** dengan frontend **React 19 + TypeSc
 2. **Siapkan Foto** _(opsional)_ — Preview semua foto, crop area passport, rotasi jika perlu, sebelum scan dimulai.
 3. **Scan Berjalan** — Python OCR worker memproses setiap foto. Progress ditampilkan real-time via event Tauri.
 4. **Review Data** — Cek dan edit data hasil OCR untuk setiap anggota. Konfirmasi data yang sudah benar.
-5. **Otomatisasi Entry** — Kirim batch ke extension melalui WebSocket lokal, lalu jalankan automation dari desktop.
+5. **Entry ke Nusuk** — File `nusuk-entry-batch.json` dibuat otomatis setelah review selesai. Tahan dan seret file dari halaman 5 ke panel extension, lalu pilih **Mulai pengisian**.
 
-**Mode utama:** Backend Rust membuka WebSocket pada `127.0.0.1:9001-9005`. Extension melakukan handshake, menerima batch dan command dari desktop, lalu mengirim progress automation kembali.
+**Pengiriman file:** Desktop memakai native drag dengan operasi copy. Panel extension memvalidasi file dan menyimpan batch pada tab Nusuk tujuan sebelum menampilkan konfirmasi. Kontrol dan progress pengisian berada di extension.
 
-**Legacy Mode:** User dapat mengekspor `nusuk-entry-batch.json`, menguploadnya secara manual ke extension, dan memulai automation dari panel extension.
+**Pilihan tambahan:** **Buka folder file** menampilkan lokasi JSON tanpa perlu mencari folder. Panel extension juga menerima JSON melalui **Pilih file JSON**. Tidak ada koneksi WebSocket.
 
 ---
 
@@ -31,7 +31,7 @@ passport-desktop/
 │   │   ├── PreparePage.tsx     # Halaman 2: Preview & crop foto
 │   │   ├── ScanPage.tsx        # Halaman 3: Progress OCR real-time
 │   │   ├── ReviewPage.tsx      # Halaman 4: Validasi & edit data
-│   │   └── EntryPage.tsx       # Halaman 5: WebSocket automation / export JSON legacy
+│   │   └── EntryPage.tsx       # Halaman 5: JSON otomatis dan native drag
 │   ├── components/
 │   │   ├── TitleBar.tsx        # Custom title bar (minimize/maximize/close)
 │   │   ├── Sidebar.tsx         # Navigasi antar halaman
@@ -105,10 +105,7 @@ npm run dev
 | `save_prepared_passport_image` | `preparedManifestPath`, `itemId`, `dataUrl`, `crop`, `rotationDegrees?` | `Value` | Simpan foto edited ke `edited-images/` |
 | `remove_prepared_passport_image` | `preparedManifestPath`, `itemId` | `Value` | Hapus item prepared, pindah file ke `removed-images/` |
 | `create_nusuk_batch` | `manifestPath`, `selectedIds`, `manifestData?` | `String` (path) | Filter VALID+confirmed → tulis `nusuk-entry-batch.json` |
-| `is_automation_connected` | — | `bool` | Cek apakah extension sudah terhubung ke WebSocket lokal |
-| `send_automation_load_batch` | `members`, `manifestPath` | `Ok(())` | Kirim batch jamaah ke extension yang terhubung |
-| `send_automation_start` | — | `Ok(())` | Kirim command START ke extension |
-| `get_system_health` | — | `Value` | Ambil status transport, sesi, dan metrik protocol |
+| `drag_nusuk_batch` | `batchPath` | `Ok(())` | Seret file JSON melalui native drag dengan operasi copy |
 
 ---
 
@@ -130,16 +127,14 @@ Event dikirim dari Rust ke frontend saat scan berjalan:
 | `scan_log` | `message` | Log teks umum dari worker |
 | `scan_cancel_requested` | `message` | Konfirmasi stop diterima |
 
-## Transport Automation Desktop–Extension
+## Pengiriman File Desktop ke Extension
 
-- Server WebSocket dimulai otomatis bersama aplikasi desktop.
-- Server hanya bind ke loopback `127.0.0.1` dan memilih port pertama yang tersedia dari `9001` sampai `9005`.
-- Panel extension mencoba port dalam rentang yang sama, melakukan handshake `HELLO`/`READY`, dan dapat memulihkan snapshot sesi.
-- Desktop mengirim `LOAD_BATCH` dan `START`; extension mengirim current member, current step, progress, completion, dan error.
-- Kontrak envelope dan state machine didokumentasikan di `../shared-protocol/`.
-- WebSocket mengoordinasikan automation, tetapi interaksi DOM Nusuk tetap sepenuhnya dijalankan oleh extension.
-
-Event Tauri untuk console automation meliputi `transport-connected`, `transport-disconnected`, `automation-current-member`, `automation-current-step`, `automation-progress`, `automation-member-completed`, dan `automation-session-completed`.
+- Halaman Entry membuat JSON otomatis setelah semua passport yang dapat direview sudah dikonfirmasi.
+- File berada di folder hasil scan. Area seret aktif hanya setelah export berhasil dan tetap sesuai batch yang sedang ditampilkan.
+- `drag_nusuk_batch` memvalidasi file hasil export sebelum memulai native drag pada UI thread.
+- Extension memvalidasi dan menyimpan batch pada tab tujuan sebelum memberikan konfirmasi. Pekerjaan aktif tidak bisa tertimpa.
+- Data entry dan cache foto pilihan manual dibatasi per tab dan batch. Batch dari sesi browser sebelumnya tidak dipulihkan otomatis.
+- Tombol **Buka folder file** dan pemilih JSON di extension tersedia sebagai cara tambahan.
 
 ---
 
@@ -199,10 +194,10 @@ powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -Incl
 
 ## Catatan Fungsional
 
-- Tombol **Export JSON** membuat `nusuk-entry-batch.json` di folder hasil scan.
+- Halaman **Entry ke Nusuk** otomatis membuat `nusuk-entry-batch.json` di folder hasil scan.
 - Hanya member dengan `reviewStatus === "VALID"` dan `reviewConfirmed === true` yang masuk batch.
-- Desktop app tidak menjalankan Playwright dan tidak memanipulasi DOM Nusuk. Tombol **Buka Halaman Nusuk** hanya membuka URL melalui shell sistem.
-- Mode utama mengirim batch dan command ke extension melalui WebSocket lokal. Mode JSON manual tersedia melalui toggle **Legacy Mode (JSON Manual)**.
+- Desktop app tidak menjalankan Playwright dan tidak memanipulasi DOM Nusuk. Tombol **Buka Nusuk** hanya membuka URL melalui shell sistem.
+- Operator menyeret JSON ke extension dan memulai pengisian dari panel atau widget. Kontrol dan progress berada di extension.
 - Untuk release cepat/internal, extension tetap memakai permission `chrome.debugger` sebagai fallback upload file passport di halaman Nusuk.
 - Passport asli, manifest hasil scan, dan review artifact disimpan lokal per device dan tidak perlu diupload ke GitHub.
 
@@ -210,4 +205,4 @@ powershell -ExecutionPolicy Bypass -File scripts/package-local-release.ps1 -Incl
 
 ## Cleanup
 
-Flow lama berbasis Playwright/CDP dan native messaging host sudah dihapus. Pengganti aktifnya adalah WebSocket loopback antara desktop dan extension, sedangkan export/upload JSON tetap dipertahankan sebagai fallback legacy.
+Flow WebSocket, Playwright/CDP desktop, dan native messaging host sudah dihapus. Desktop menghasilkan file JSON lokal; extension menjalankan pengisian setelah operator menyeret atau memilih file tersebut.

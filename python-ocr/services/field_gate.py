@@ -18,7 +18,7 @@ def should_skip_field_recovery(
     if field_name == "passportNumber":
         return (
             mrz_validation_valid
-            and mrz_confidence >= 80.0
+            and mrz_confidence >= 0.80
             and bool(re.fullmatch(r"[EXY]\d{7}", current_value))
         )
     
@@ -27,15 +27,15 @@ def should_skip_field_recovery(
             return False
         try:
             date.fromisoformat(current_value)
-            return mrz_confidence >= 90.0
+            return mrz_confidence >= 0.90
         except ValueError:
             return False
     
     if field_name == "gender":
-        return current_value in {"MALE", "FEMALE"} and mrz_validation_valid and mrz_confidence >= 80.0
+        return current_value in {"MALE", "FEMALE"} and mrz_validation_valid and mrz_confidence >= 0.80
     
     if field_name == "nationality":
-        return bool(current_value) and mrz_validation_valid and mrz_confidence >= 80.0
+        return bool(current_value) and mrz_validation_valid and mrz_confidence >= 0.80
     
     # Field lain (nama, lokasi, tanggal issue) selalu perlu dicoba
     return False

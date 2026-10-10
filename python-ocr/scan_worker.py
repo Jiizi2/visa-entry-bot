@@ -3,11 +3,19 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import math
 import statistics
 import sys
 import threading
 
 LEGACY_OCR_MODE_ARGUMENTS = {"speed", "balanced", "balance", "heavy", "accuracy"}
+
+
+def configure_worker_streams() -> None:
+    """The desktop JSON protocol always uses UTF-8, including frozen Windows builds."""
+    for stream in (sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 
 def emit(event: str, **payload: object) -> None:
@@ -76,7 +84,7 @@ def summarize_scan_metrics(members: list[dict[str, object]]) -> dict[str, object
         }
 
     sorted_values = sorted(total_ms_values)
-    p95_index = min(len(sorted_values) - 1, max(0, int(len(sorted_values) * 0.95) - 1))
+    p95_index = min(len(sorted_values) - 1, max(0, math.ceil(len(sorted_values) * 0.95) - 1))
     return {
         "filesWithMetrics": len(total_ms_values),
         "avgTotalMs": int(statistics.fmean(total_ms_values)),
@@ -154,6 +162,7 @@ def prepare_main() -> int:
 
 
 def main() -> int:
+    configure_worker_streams()
     if len(sys.argv) > 1 and sys.argv[1] == "--prepare":
         return prepare_main()
 
@@ -169,6 +178,8 @@ def main() -> int:
 
     try:
         from scan_session import load_prepared_scan_inputs, prepare_scan_inputs, resolve_scan_target, scan_selected_directory
+        from services.ocr_runner import initialize_ocr_engine
+        initialize_ocr_engine()
     except Exception as exc:  # noqa: BLE001
         emit_error("OCR_BOOT_FAILURE", str(exc), stage="bootstrap", fatal=True)
         return 1
@@ -269,4 +280,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    from multiprocessing import freeze_support
+    freeze_support()
     raise SystemExit(main())

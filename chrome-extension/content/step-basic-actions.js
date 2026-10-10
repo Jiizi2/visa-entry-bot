@@ -19,6 +19,7 @@
   }
 
   function createStepBasicActions({
+    checkpoint,
     sleep,
     waitForInput,
     waitForEnabled,
@@ -187,12 +188,26 @@
         finishStep(step, selector);
         return;
       }
-      if (!value) {
+      if (!value && !step?.clear_when_empty) {
         throw new Error(`Missing fill value for selector: ${selector}`);
       }
-      const input = await waitForInput(selector, timeoutMs, runId);
-      markActiveElement(input);
-      setInputValue(input, value);
+      const input = !value && step?.clear_when_empty
+        ? findFirstVisible(selector)
+        : await waitForInput(selector, timeoutMs, runId);
+      if (!input && !value && step?.clear_when_empty) {
+        finishStep(step, selector);
+        return;
+      }
+      for (let attempt = 0; ; attempt++) {
+        await checkpoint(runId);
+        markActiveElement(input);
+        setInputValue(input, value);
+        if (String(input.value || "").trim() === value) break;
+        if (attempt >= 2) {
+          throw root.identityGuard.identityError(`nilai kolom ${selector} tidak tersimpan utuh setelah pengisian ulang`);
+        }
+        await sleep(200, runId);
+      }
       appendLog("success", `Filled ${selector} with ${value}`);
       finishStep(step, selector);
     }
@@ -237,6 +252,10 @@
       const button = await waitForSuccessPopupActionButton(action, timeoutMs, runId);
       markActiveElement(button);
       await clickElement(button);
+      // Closing the popup does not mean Angular has replaced the old Summary.
+      // Wait for the upload form or list before the next member can start.
+      await waitForNusukPageReady("next_member", Math.max(30000, timeoutMs), runId);
+      await waitForPageReady(Math.min(timeoutMs, 6000), runId);
       appendLog("success", action === "add_another" ? "Success popup confirmed: Add Another Mutamer." : "Success popup confirmed: Go To Mutamer List.");
       finishStep(step, selector);
     }
@@ -322,7 +341,7 @@
     }
 
     function findAttachedPassportInput(selector) {
-      return queryAll(selector).find((node) => node instanceof HTMLInputElement && node.type === "file") || null;
+      return queryAll(selector).find(root.domUtils.isFileInputAvailable) || null;
     }
 
     function findAddNewMutamerButton() {

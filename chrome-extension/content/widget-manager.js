@@ -204,6 +204,7 @@
       widgetEl.querySelector('.entrymate-widget-detail').addEventListener('click', restorePanel);
       widgetEl.querySelector('.entrymate-widget-action').addEventListener('click', async event => {
         event.stopPropagation();
+        if (state.pendingSubmission && state.executionState !== 'running') { restorePanel(); return; }
         const button = event.currentTarget; button.disabled = true;
         actionError = '';
         const command = state.executionState === 'running' ? 'NUSUK_PANEL_PAUSE_AUTOFILL' : state.executionState === 'completed' ? 'NUSUK_PANEL_RESTART_FAILED' : 'NUSUK_PANEL_START_AUTOFILL';
@@ -237,32 +238,35 @@
         }
       }
 
-      const finished = (state.completedMemberIds || []).length + (state.autofillFailures || []).length;
+      const completed = new Set((state.completedMemberIds || []).map(String));
+      const finished = members.filter(member => completed.has(String(member.id))).length;
       const percent = totalPassports > 0 ? Math.min(100, Math.round((finished / totalPassports) * 100)) : 0;
       const status = String(state.executionState || "idle").toLowerCase();
       const page = root.pageContext.readPageContext();
       const pageStatus = page.pageStatus;
       const canStartHere = pageStatus === 'ready' || page.canNavigateToEntry;
+      const needsReview = Boolean(state.pendingSubmission) && status !== 'running';
       const source = String(state.manifest?.manifestPath || '').split(/[\\/]/).slice(-2, -1)[0] || 'Batch dari aplikasi';
       widgetEl.querySelector('.entrymate-widget-source').textContent = source;
       const member = members.find(m => String(m.id) === String(state.selectedMemberId)) || members[0];
       const name = member?.name || [member?.resolvedProfile?.firstName, member?.resolvedProfile?.familyName].filter(Boolean).join(' ');
-      widgetEl.querySelector('.entrymate-widget-summary').textContent = actionError || (pageStatus === 'login_required' ? 'Login ke Nusuk untuk melanjutkan.'
+      widgetEl.querySelector('.entrymate-widget-summary').textContent = actionError || (needsReview ? `Periksa hasil simpan paspor ${state.pendingSubmission.passportNumber} di panel.`
+        : pageStatus === 'login_required' ? 'Login ke Nusuk untuk melanjutkan.'
         : page.canNavigateToEntry ? `${totalPassports} jamaah siap. Mu’tamer List akan dibuka otomatis saat mulai.`
         : pageStatus !== 'ready' ? 'Buka Masar Nusuk untuk memulai.'
         : status === 'completed' ? `${(state.completedMemberIds || []).length} berhasil, ${(state.autofillFailures || []).length} gagal.`
         : status === 'paused' ? 'Pengisian dijeda. Siap dilanjutkan.'
         : status === 'running' ? `Mengisi ${name || 'data jamaah'}` : `${totalPassports} jamaah siap. Pertama: ${name || '—'}`);
       const action = widgetEl.querySelector('.entrymate-widget-action');
-      action.textContent = status === 'running' ? 'Jeda' : status === 'paused' ? 'Lanjutkan' : status === 'completed' ? 'Ulangi yang gagal' : 'Mulai pengisian';
-      action.disabled = !totalPassports || (status !== 'running' && !canStartHere) || (status === 'completed' && !(state.autofillFailures || []).length);
+      action.textContent = needsReview ? 'Periksa hasil simpan' : status === 'running' ? 'Jeda' : status === 'paused' ? 'Lanjutkan sisa' : status === 'completed' ? 'Ulangi yang gagal' : 'Mulai pengisian';
+      action.disabled = Boolean(state.submissionResolutionInProgress) || (!needsReview && (!totalPassports || (status !== 'running' && !canStartHere) || (status === 'completed' && !(state.autofillFailures || []).length)));
 
       console.log(`[WidgetManager] updateWidgetUI: passport=${currentPassport}/${totalPassports} (${percent}%), status=${status}`);
 
       // Update text & progress bar
       const textEl = widgetEl.querySelector(".entrymate-widget-progress-text");
       if (textEl) {
-        textEl.textContent = `${finished}/${totalPassports} diproses`;
+        textEl.textContent = `${finished}/${totalPassports} tersimpan`;
       }
 
       const barEl = widgetEl.querySelector(".entrymate-widget-progress-bar");

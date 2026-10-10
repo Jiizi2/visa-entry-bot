@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from services.image_io import read_image
+
 import re
 from datetime import date, timedelta
 
@@ -183,7 +185,7 @@ def _collect_raw_candidates(file_path: str) -> list[str]:
 def _collect_legacy_candidates(file_path: str) -> list[str]:
     if cv2 is None:
         return []
-    image = cv2.imread(file_path)
+    image = read_image(file_path)
     if image is None:
         return []
     height, width = image.shape[:2]

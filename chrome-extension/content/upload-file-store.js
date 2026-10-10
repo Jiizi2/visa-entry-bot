@@ -13,6 +13,8 @@
     uploadKeysShareSuffix,
     fileLookupKeys,
     pathLookupKeys,
+    normalizeUploadKey,
+    basenameFromAnyPath,
   } = root.pathUtils || {};
   if (!isAbsoluteFilePath || !fileLookupKeys || !pathLookupKeys) {
     throw new Error("NusukAutofill upload file store dependencies were not loaded.");
@@ -27,13 +29,32 @@
     let uploadEntries = [];
     let uploadFileCount = 0;
     let uploadFileNames = [];
-    let cacheReady = hydrateCachedUploadFiles();
+    let cacheReady = Promise.resolve();
+    let uploadScope = '';
+    let uploadRevision = 0;
     let pendingCacheSaveTimer = 0;
 
     function registerUploadFiles(files) {
+      ensureBatchScope();
+      uploadRevision++;
       const entries = Array.from(files || []).filter(isUsableUploadFile).map(toUploadEntry);
       indexUploadEntries(entries);
-      scheduleSaveUploadEntriesToCache(entries);
+      scheduleSaveUploadEntriesToCache(entries, uploadScope);
+    }
+
+    function batchScope() {
+      return JSON.stringify([state.storageKey || 'legacy', state.manifest?.batchId || '', state.manifest?.manifestPath || '',
+        (state.manifest?.members || []).map(member => [member.id, member.passportImagePath, member.resolvedProfile?.passportNumber])]);
+    }
+
+    function ensureBatchScope() {
+      const scope = batchScope();
+      if (scope === uploadScope) return;
+      uploadScope = scope;
+      uploadRevision++;
+      if (pendingCacheSaveTimer) { window.clearTimeout(pendingCacheSaveTimer); pendingCacheSaveTimer = 0; }
+      indexUploadEntries([]);
+      cacheReady = hydrateCachedUploadFiles(scope, uploadRevision);
     }
 
     function indexUploadEntries(entries) {
@@ -106,50 +127,43 @@
     }
 
     async function resolveSelectedUploadFile(rawPath, context) {
+      ensureBatchScope();
       if (!uploadEntries.length) {
         await cacheReady.catch(() => {});
       }
-      const candidates = [
-        rawPath,
-        resolveUploadFilePath(rawPath, context),
-        context?.member?.fileName,
-        context?.member?.passportImagePath,
-        context?.member?.passportExtracted?.fileName,
-      ].filter(Boolean);
-
+      // The requested upload path is authoritative, including its extension.
+      // Original fileName can refer to a different image after cropping/export.
+      const candidates = [rawPath, resolveUploadFilePath(rawPath, context)].filter(Boolean).map(normalizeUploadKey);
       for (const candidate of candidates) {
-        for (const key of pathLookupKeys(candidate)) {
-          const file = uploadFilesByKey.get(key);
-          if (file) {
-            return file;
-          }
-        }
-        const suffixFile = findUploadFileBySuffix(candidate);
-        if (suffixFile) {
-          return suffixFile;
-        }
+        const exact = uploadEntries.filter(entry => normalizeUploadKey(entry.webkitRelativePath || entry.name) === candidate);
+        if (exact.length === 1) return exact[0].file;
+        if (exact.length > 1) throw ambiguousUploadError(rawPath);
+        const qualified = uploadEntries.filter(entry => entry.webkitRelativePath && uploadKeysShareSuffix(entry.webkitRelativePath, candidate));
+        if (qualified.length === 1) return qualified[0].file;
+        if (qualified.length > 1) throw ambiguousUploadError(rawPath);
       }
+      const name = normalizeUploadKey(basenameFromAnyPath(rawPath));
+      const matches = uploadEntries.filter(entry => normalizeUploadKey(entry.name) === name);
+      if (matches.length > 1) throw ambiguousUploadError(rawPath);
+      // A folder selection with a conflicting relative path must not fall back to its basename.
+      if (matches.length === 1 && (!matches[0].webkitRelativePath || !normalizeUploadKey(rawPath).includes("/"))) return matches[0].file;
       return null;
     }
 
-    function findUploadFileBySuffix(candidate) {
-      for (const candidateKey of pathLookupKeys(candidate)) {
-        const matches = uploadEntries.filter((entry) => uploadEntryLookupKeys(entry).some((fileKey) => uploadKeysShareSuffix(fileKey, candidateKey)));
-        if (matches.length === 1) {
-          return matches[0].file;
-        }
-      }
-      return null;
+    function ambiguousUploadError(path) {
+      const error = new Error(`Entry dihentikan: file paspor ambigu (${path}). Pilih folder paspor yang sesuai.`);
+      error.name = "NusukIdentityError";
+      return error;
     }
 
-    async function hydrateCachedUploadFiles() {
-      const records = await readCachedUploadEntries().catch(() => []);
-      if (!uploadEntries.length && records.length) {
+    async function hydrateCachedUploadFiles(scope, revision) {
+      const records = await readCachedUploadEntries(scope).catch(() => []);
+      if (uploadScope === scope && uploadRevision === revision && !uploadEntries.length && records.length) {
         indexUploadEntries(records);
       }
     }
 
-    async function saveUploadEntriesToCache(entries) {
+    async function saveUploadEntriesToCache(entries, scope) {
       cacheReady = (async () => {
         const db = await openUploadCacheDb();
         if (!db) {
@@ -160,6 +174,7 @@
           for (const entry of entries) {
             store.put({
               id: uploadEntryCacheId(entry),
+              batchKey: scope,
               name: entry.name,
               webkitRelativePath: entry.webkitRelativePath,
               size: entry.size,
@@ -172,25 +187,25 @@
       await cacheReady.catch(() => {});
     }
 
-    function scheduleSaveUploadEntriesToCache(entries) {
+    function scheduleSaveUploadEntriesToCache(entries, scope) {
       if (pendingCacheSaveTimer) {
         window.clearTimeout(pendingCacheSaveTimer);
       }
       cacheReady = Promise.resolve();
       pendingCacheSaveTimer = window.setTimeout(() => {
         pendingCacheSaveTimer = 0;
-        void saveUploadEntriesToCache(entries);
+        void saveUploadEntriesToCache(entries, scope);
       }, 3000);
     }
 
-    async function readCachedUploadEntries() {
+    async function readCachedUploadEntries(scope) {
       const db = await openUploadCacheDb();
       if (!db) {
         return [];
       }
       const records = await withStoreTransaction(db, "readonly", (store) => store.getAll());
       return Array.from(records || [])
-        .filter((record) => isUsableUploadFile(record?.file))
+        .filter((record) => record?.batchKey === scope && isUsableUploadFile(record?.file))
         .map((record) => toUploadEntry(record.file, record));
     }
 
@@ -203,7 +218,7 @@
         return Promise.resolve(null);
       }
       return new Promise((resolve, reject) => {
-        const request = window.indexedDB.open(UPLOAD_CACHE_DB, 1);
+        const request = window.indexedDB.open(UPLOAD_CACHE_DB + ':' + (state.storageKey || 'legacy'), 1);
         request.onupgradeneeded = () => {
           const db = request.result;
           if (!db.objectStoreNames.contains(UPLOAD_CACHE_STORE)) {
@@ -298,6 +313,7 @@
     }
 
     function getUploadState() {
+      ensureBatchScope();
       return { uploadFileCount, uploadFileNames };
     }
 

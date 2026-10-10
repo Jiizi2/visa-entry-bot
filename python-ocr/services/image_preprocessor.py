@@ -8,6 +8,7 @@ from functools import lru_cache
 from time import perf_counter
 
 import numpy as np
+from services.image_io import read_image, write_image
 
 try:
     import cv2
@@ -109,7 +110,7 @@ def temporary_mrz_variants(file_path: str):
     try:
         for index, (variant, note) in enumerate(_build_mrz_variants(image, document), start=1):
             temp_path = os.path.join(temp_root, f"mrz_variant_{uuid.uuid4().hex}_{index}.png")
-            if cv2.imwrite(temp_path, variant):
+            if write_image(temp_path, variant):
                 variants.append((temp_path, note))
                 temp_paths.append(temp_path)
         yield variants
@@ -172,6 +173,31 @@ def detect_passport_data_page_crop(image: object) -> object | None:
     document = detect_document_crop(image)
     if document is not None and not _is_plausible_passport_crop(document):
         document = None
+    if document is not None:
+        lower_page = _split_stacked_passport_data_page(document)
+        if lower_page is not None and _mrz_pair_bounds(lower_page) is not None:
+            return lower_page
+    # MRZ geometry can isolate a page inside a photograph of a hand or table,
+    # where the largest outer contour describes the background instead.
+    region = document if document is not None else image
+    data_page = _crop_page_around_mrz(region)
+    if data_page is not None:
+        return data_page
+    if _mrz_pair_bounds(region) is not None:
+        return region
+    # White paper shadows sometimes form a larger contour than the passport.
+    # Use security-paper colour only when it also contains a pair of MRZ rows.
+    colour_document = _colour_passport_candidate(image)
+    if colour_document is not None:
+        data_page = _crop_page_around_mrz(colour_document)
+        if data_page is not None:
+            return data_page
+        if _mrz_pair_bounds(colour_document) is not None:
+            return colour_document
+    if document is not None:
+        data_page = _split_stacked_passport_data_page(document)
+        if data_page is not None:
+            return data_page
     if cv2 is None or image is None or not _should_try_stacked_passport_crop(image):
         return document
 
@@ -190,6 +216,191 @@ def detect_passport_data_page_crop(image: object) -> object | None:
             best = candidate
             best_score = score
     return best
+
+
+def _split_stacked_passport_data_page(document: object) -> object | None:
+    """Split an upright two-page spread after removing the surrounding canvas.
+
+    Keep the complete lower page instead of maximizing MRZ density by cutting
+    away its header and name. Orientation is still verified by the MRZ reader.
+    """
+    height, width = document.shape[:2]
+    if height < 600 or width < 400 or height <= width * 1.15:
+        return None
+    lower_page = document[height // 2 :, :]
+    if not _has_full_passport_page_aspect(lower_page):
+        return None
+    if _mrz_band_score(lower_page) < 120.0:
+        return None
+    return lower_page
+
+
+def has_large_blank_margin(image: object) -> bool:
+    """Distinguish a passport-shaped scan canvas from a tightly framed page."""
+    if cv2 is None or image is None:
+        return False
+    small = _resize_to_max_edge(image, max_edge=1000)
+    gray = _to_gray(small)
+    height, width = gray.shape[:2]
+    margin_height = max(1, int(height * 0.18))
+    margin_width = max(1, int(width * 0.18))
+    margins = (
+        gray[:, :margin_width], gray[:, -margin_width:],
+        gray[:margin_height, :], gray[-margin_height:, :],
+    )
+    return any(
+        float(margin.mean()) >= 190.0
+        and float(cv2.Canny(margin, 40, 140).mean()) < 2.55
+        for margin in margins
+    )
+
+
+def find_mrz_band_start(image: object) -> float | None:
+    """Locate two wide, sparse text rows without treating a cover edge as MRZ."""
+    if cv2 is None or image is None:
+        return None
+    small = _resize_to_max_edge(image, max_edge=1000)
+    gray = _to_gray(small)
+    height, width = gray.shape[:2]
+    if height < 120 or width < 300 or height > width:
+        return None
+    top = int(height * 0.55)
+    band = gray[top:int(height * 0.96), int(width * 0.05):int(width * 0.95)]
+    dark = band < 110
+    strong_rows = dark.sum(axis=1) > dark.shape[1] * 0.04
+    lines: list[tuple[int, int]] = []
+    start = None
+    for row, strong in enumerate([*strong_rows, False]):
+        if strong and start is None:
+            start = row
+        if strong or start is None:
+            continue
+        ink = dark[start:row, :]
+        occupied = np.flatnonzero(ink.any(axis=0))
+        if (
+            3 <= row - start <= height * 0.07
+            and 0.04 <= float(ink.mean()) <= 0.45
+            and len(occupied) >= dark.shape[1] * 0.40
+            and occupied[-1] - occupied[0] >= dark.shape[1] * 0.75
+        ):
+            lines.append((top + start, top + row))
+        start = None
+    for first, second in zip(lines, lines[1:]):
+        gap = second[0] - first[1]
+        if height * 0.01 <= gap <= height * 0.10:
+            return max(0.0, first[0] / height - 0.03)
+    bounds = _mrz_pair_bounds(image)
+    if bounds is not None:
+        return max(0.0, bounds[1] / image.shape[0] - 0.035)
+    return None
+
+
+def _mrz_pair_bounds(image: object | None) -> tuple[int, int, int, int] | None:
+    """Locate paired text bands despite a slight tilt, shadow, or wide background.
+
+    These are geometry hints only; the MRZ reader still verifies the text and
+    check digits. A black cover strip is deliberately excluded.
+    """
+    if cv2 is None or image is None:
+        return None
+    original_height, original_width = image.shape[:2]
+    small = _resize_to_max_edge(image, max_edge=1000)
+    gray = _to_gray(small)
+    height, width = gray.shape[:2]
+    if min(height, width) < 120 or height > width * 1.6:
+        return None
+    blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (25, 9)))
+    _, ink = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    vertical_edges = cv2.morphologyEx(ink, cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(20, int(height * 0.10)))))
+    ink = cv2.subtract(ink, vertical_edges)
+    connected = cv2.morphologyEx(ink, cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (35, 5)))
+    contours, _ = cv2.findContours(connected, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    rows = []
+    for contour in contours:
+        x, y, row_width, row_height = cv2.boundingRect(contour)
+        if (row_width < width * 0.30 or row_width / max(row_height, 1) < 12
+                or y < height * 0.50 or row_height < 3):
+            continue
+        rect = cv2.minAreaRect(contour)
+        sides = rect[1]
+        if min(sides) <= 0 or max(sides) / min(sides) < 20:
+            continue
+        band = gray[y:y + row_height, x:x + row_width]
+        if float((band < 110).mean()) > 0.65:
+            continue
+        if len(image.shape) == 3:
+            colour = small[y:y + row_height, x:x + row_width]
+            neutral_ink = (colour.max(axis=2).astype(np.int16) - colour.min(axis=2) <= 40) & (band < 160)
+            if float(neutral_ink.mean()) < 0.04:
+                continue
+        rows.append((x, y, row_width, row_height))
+    pairs = []
+    rows.sort(key=lambda row: row[1])
+    for first, second in zip(rows, rows[1:]):
+        x1, y1, w1, h1 = first
+        x2, y2, w2, h2 = second
+        center_gap = y2 + h2 / 2 - y1 - h1 / 2
+        if (0.015 * height <= center_gap <= 0.12 * height
+                and min(w1, w2) / max(w1, w2) >= 0.80
+                and abs(x1 - x2) <= max(w1, w2) * 0.12):
+            pairs.append((min(w1, w2), min(x1, x2), y1, max(x1 + w1, x2 + w2), y2 + h2))
+    if not pairs:
+        return None
+    _, left, top, right, bottom = max(pairs)
+    return (round(left * original_width / width), round(top * original_height / height),
+            round(right * original_width / width), round(bottom * original_height / height))
+
+
+def _crop_page_around_mrz(image: object | None, *, width_margin: float = 1.25) -> object | None:
+    bounds = _mrz_pair_bounds(image)
+    if bounds is None:
+        return None
+    left, top, right, bottom = bounds
+    height, width = image.shape[:2]
+    # A complete page already fills the frame: retain its real boundary.
+    if right - left >= width * 0.80 and height <= width * 0.85:
+        return None
+    # MRZ may stop short of the page edge. Leave enough space above and beside
+    # it for the header and full name, instead of optimizing text density.
+    page_width = (right - left) * width_margin
+    page_height = page_width / 1.42
+    center = (left + right) / 2
+    page_bottom = bottom + page_height * 0.08
+    x1, x2 = max(0, round(center - page_width / 2)), min(width, round(center + page_width / 2))
+    y1, y2 = max(0, round(page_bottom - page_height)), min(height, round(page_bottom))
+    page = image[y1:y2, x1:x2]
+    return page if _is_plausible_passport_crop(page) else None
+
+
+def _colour_passport_candidate(image: object | None) -> object | None:
+    if cv2 is None or image is None or len(image.shape) != 3:
+        return None
+    small = _resize_to_max_edge(image, max_edge=1200)
+    hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, (60, 20, 100), (170, 255, 255))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (19, 19)))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:3]:
+        if cv2.contourArea(contour) < mask.size * 0.07:
+            continue
+        box = cv2.boxPoints(cv2.minAreaRect(contour))
+        box_width, box_height = _rect_size(box)
+        if min(box_width, box_height) < 150:
+            continue
+        # Expand past security-paper colour into the white MRZ/footer margin.
+        center = box.mean(axis=0)
+        box = center + (box - center) * 1.08
+        box *= image.shape[1] / small.shape[1]
+        candidate = _warp_box(image, box)
+        if candidate is not None and _mrz_pair_bounds(candidate) is not None:
+            return candidate
+    return None
 
 
 def _should_try_stacked_passport_crop(image: object) -> bool:
@@ -425,7 +636,7 @@ def _distance(point_a: object, point_b: object) -> float:
 def _load_image(file_path: str) -> object | None:
     if cv2 is None:
         return None
-    return cv2.imread(file_path)
+    return read_image(file_path)
 
 
 def _to_gray(image: object) -> object:

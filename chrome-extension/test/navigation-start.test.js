@@ -11,12 +11,10 @@ async function harness({ executionState = 'idle', hasManifest = true } = {}) {
   const navigationReady = new Promise(resolve => { finishNavigation = resolve; });
   const navigating = new Promise(resolve => { navigationStarted = resolve; });
   const current = { id: 10, windowId: 1, status: 'complete', url: 'https://masar.nusuk.sa/umrah/mutamer-group/group-list' };
-  const transport = { connect() {}, getState: () => ({ activeSessionId: 'session' }), getSnapshot: () => null };
   const chrome = {
     runtime: { getManifest: () => ({ version: 'test' }), sendMessage: async () => {}, onMessage: { addListener: fn => { listener = fn; } } },
-    storage: { local: { get: async () => ({ entrymateDesktopTransport: { targetTabId: 10, targetChosen: true } }) } },
+    storage: { local: { get: async () => ({ entrymateFileTarget: { tabId: 10 } }), set: async () => {}, remove: async () => {} }, session: { get: async () => ({ entrymateFileSession: 'test' }), set: async () => {} } },
     sidePanel: { setPanelBehavior: async () => {} },
-    alarms: { create: async () => {}, onAlarm: { addListener() {} } },
     tabs: {
       query: async () => [current], get: async () => current, onRemoved: { addListener() {} },
       update: async (id, options) => { navigations.push({ id, options }); current.url = options.url; navigationStarted(); return current; },
@@ -29,9 +27,8 @@ async function harness({ executionState = 'idle', hasManifest = true } = {}) {
       },
     },
   };
-  const context = vm.createContext({ chrome, console, setTimeout, WebSocket: class {} });
+  const context = vm.createContext({ chrome, console, setTimeout });
   context.importScripts = file => {
-    if (file === 'desktop-transport.js') { context.createDesktopTransport = () => transport; return; }
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context);
   };
   vm.runInContext(fs.readFileSync(path.join(root, 'background.js'), 'utf8'), context);

@@ -45,6 +45,10 @@ def build_review_flags(
         field_confidence.get("resolvedProfile", {}),
     )
     _apply_name_flags(passport_flags, resolved_flags, passport_extracted, resolved_profile, notes, mrz_validation)
+    for field_name in ("firstName", "fatherName", "grandfatherName"):
+        if len(str(resolved_profile.get(field_name, "") or "")) > 15:
+            resolved_flags[field_name].append("NAME_COLUMN_TOO_LONG")
+            record_flags.append("NAME_COLUMN_TOO_LONG")
     _apply_date_flags(passport_flags, resolved_flags, passport_extracted, resolved_profile)
     _apply_mrz_validation_flags(record_flags, passport_flags, mrz_validation)
     _apply_record_summary(record_flags, passport_flags, resolved_flags)
@@ -108,8 +112,18 @@ def _apply_status_flags(
     upper_notes = str(notes or "").upper()
     if status == "ERROR":
         record_flags.append("RECORD_ERROR")
+    if "OCR STAGE FAILED REQUIRES REVIEW" in upper_notes:
+        record_flags.append("OCR_STAGE_FAILED")
+    if "OCR ENGINE ERROR REQUIRES REVIEW" in upper_notes:
+        record_flags.append("OCR_ENGINE_ERROR")
+    if "OCR INFERENCE DEADLINE SKIPPED" in upper_notes:
+        record_flags.append("OCR_TIME_BUDGET_EXCEEDED")
+    if "PASSPORT NAME DISAGREEMENT REQUIRES REVIEW" in upper_notes:
+        record_flags.append("NAME_EVIDENCE_CONFLICT")
     if "FAST SCAN REVIEW REQUIRED" in upper_notes:
         record_flags.append("FAST_SCAN_REVIEW")
+    if "SINGLE PIPELINE REVIEW REQUIRED" in upper_notes:
+        record_flags.append("OCR_REVIEW_REQUIRED")
     if "LOW PASSPORTEYE CONFIDENCE" in upper_notes and not _has_valid_mrz(mrz_validation):
         record_flags.append("LOW_MRZ_CONFIDENCE")
     if (

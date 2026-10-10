@@ -16,14 +16,15 @@ from services.mrz_parser import (
     _score_direct_line2,
 )
 from services.image_preprocessor import (
-    _mrz_band_score,
+    _load_image,
     assess_document_quality,
     detect_passport_data_page_crop,
+    find_mrz_band_start,
     resize_to_max_edge,
     temporary_mrz_variants,
 )
 from services.mrz_validation import MrzValidationResult, validate_td3_line2
-from services.ocr_runner import build_ocr_config, run_rapid_ocr
+from services.ocr_runner import build_ocr_config, run_rapid_ocr, ocr_time_remaining
 from services.mrz_metrics import get_mrz_collector, time_stage
 
 try:
@@ -45,6 +46,7 @@ FIELD_NAMES = (
     "sex",
 )
 DIRECT_MRZ_MAX_EDGE = 2200
+DIRECT_MRZ_INPUT_MAX_EDGE = 4000
 
 
 def extract_mrz_data(file_path: str) -> dict[str, Any]:
@@ -135,11 +137,16 @@ def _read_best_mrz(file_path: str) -> tuple[Any, str]:
     best_mrz = direct_mrz
     best_note = _direct_mrz_note(direct_mrz) if direct_mrz is not None else ""
     best_score = getattr(direct_mrz, "valid_score", -1) if direct_mrz is not None else -1
+
+    if ocr_time_remaining() < 5.0:
+        return best_mrz, best_note
     
     with temporary_mrz_variants(file_path) as variants:
         if collector is not None:
             collector.fallback_used = True
         for variant_index, (variant_path, note) in enumerate(variants):
+            if ocr_time_remaining() < 2.0:
+                break
             mrz = None
             try:
                 mrz = _read_mrz(
@@ -180,7 +187,7 @@ def _read_image(file_path: str) -> Any:
     if cv2 is None:
         return None
     with time_stage("load_image"):
-        return cv2.imread(file_path)
+        return _load_image(file_path)
 
 
 def _read_mrz(file_path: str, *, prefer_otsu: bool = False) -> Any:
@@ -211,19 +218,17 @@ def _scan_document(
         if result and result.valid:
             return result
 
-    with time_stage("document_detection"):
-        document = detect_passport_data_page_crop(image)
-    if document is None:
-        document = image
-        
-    with time_stage("resize"):
-        document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
-
     best_result: DirectMrzResult | None = None
-    for candidate_document, rotation_degrees in _direct_mrz_orientation_candidates(document):
+    for candidate_document, rotation_degrees, band_start in _direct_mrz_page_candidates(image):
+        if ocr_time_remaining() < 2.0:
+            break
         if collector is not None:
             collector.current_orientation = rotation_degrees
-        for start_ratio in (0.82, 0.75):
+        # A cover or printed footer can put both rows above the fixed windows.
+        start_ratios = (band_start, 0.82, 0.75) if band_start is not None else (0.82, 0.75)
+        for start_ratio in start_ratios:
+            if ocr_time_remaining() < 2.0:
+                break
             height = candidate_document.shape[0]
             with time_stage("crop"):
                 region = candidate_document[int(height * start_ratio) :, :]
@@ -238,16 +243,50 @@ def _scan_document(
     return best_result
 
 
+def _direct_mrz_page_candidates(image: Any):
+    image = resize_to_max_edge(image, max_edge=DIRECT_MRZ_INPUT_MAX_EDGE)
+    def prepare(candidate_image: Any, rotation_degrees: int):
+        # Re-detect after rotating the original canvas so that the instruction
+        # page cannot become the source for subsequent orientation attempts.
+        with time_stage("document_detection"):
+            document = detect_passport_data_page_crop(candidate_image)
+        if document is None:
+            document = candidate_image
+        with time_stage("resize"):
+            document = resize_to_max_edge(document, max_edge=DIRECT_MRZ_MAX_EDGE)
+        return document, rotation_degrees, find_mrz_band_start(document)
+
+    orientations = _direct_mrz_orientation_candidates(image)
+    upright = prepare(*next(orientations))
+    upright_yielded = upright[2] is not None or max(image.shape[:2]) < 300
+    if upright_yielded:
+        yield upright
+        if ocr_time_remaining() < 2.0:
+            return
+    # Only prepare rotations after the upright read fails. Geometry chooses the
+    # first recovery attempt; all orientations remain available until MRZ verifies.
+    rotated_pages = [prepare(*candidate) for candidate in orientations]
+    if not upright_yielded:
+        rotated_pages.insert(0, upright)
+    rotated_pages.sort(key=lambda candidate: candidate[2] is None)
+    yield from rotated_pages
+
+
+def infer_passport_rotation(file_path: str) -> int:
+    """Retain a useful visual orientation when the MRZ is clipped or unreadable."""
+    image = _load_image(file_path)
+    if image is None:
+        return 0
+    for _, degrees, band in _direct_mrz_page_candidates(image):
+        if band is not None:
+            return degrees
+    return 0
+
+
 def _direct_mrz_orientation_candidates(document: Any):
     yield document, 0
-    # Rotation recovery runs only after the upright fast path fails:
-    # a tilted/portrait/upside-down passport photo has no readable MRZ at 0deg, so
-    # skipping rotations makes the whole passport fail (missing identity fields ->
-    # ERROR -> appears "skipped"). Cost stays low because these branches are only
-    # reached when the 0deg read did not already succeed, and _should_try_direct_mrz_rotations
-    # short-circuits for normal upright passports (landscape with a strong MRZ band).
-    if not _should_try_direct_mrz_rotations(document):
-        return
+    # The caller exits as soon as a verified MRZ is found. A dark lower band
+    # alone cannot establish orientation, especially on a two-page spread.
     with time_stage("rotation"):
         r180 = _rotate_image_180(document)
     yield r180, 180
@@ -257,13 +296,6 @@ def _direct_mrz_orientation_candidates(document: Any):
     with time_stage("rotation"):
         r270 = _rotate_image_270(document)
     yield r270, 270
-
-
-def _should_try_direct_mrz_rotations(document: Any) -> bool:
-    height, width = document.shape[:2]
-    if width >= height and _mrz_band_score(document) >= 120.0:
-        return False
-    return True
 
 
 def _rotate_image_180(image: Any) -> Any:
@@ -376,6 +408,8 @@ def _process_variants_for_width(
     if prefer_otsu and len(variants) >= 3:
         variant_indices = [2, 0, 1, *variant_indices[3:]]
     for idx in variant_indices:
+        if ocr_time_remaining() < 2.0:
+            break
         variant = variants[idx]
         if collector is not None:
             collector.current_variant = variant_names[idx]

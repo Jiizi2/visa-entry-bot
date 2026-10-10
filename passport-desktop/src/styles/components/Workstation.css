@@ -63,6 +63,7 @@ a { text-underline-offset: 3px; }
 .prepare-stage, .prepare-viewer { background: var(--surface-soft); }
 .prepare-footer { padding: var(--space-4); gap: var(--space-4); box-shadow: none; }
 .review-workspace { gap: var(--space-4); }
+.review-page ::selection { background: var(--gold); color: var(--graphite); }
 .review-inspector { padding: var(--panel-padding); }
 .review-member-select__trigger { background: var(--surface-soft); border-radius: var(--radius-md); box-shadow: none; }
 .review-member-select__trigger::before { content: none; }

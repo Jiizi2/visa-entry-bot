@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "EntryMate By Ghaniya",
-  "version": "1.0.24",
+  "version": "1.0.26",
   "minimum_chrome_version": "116",
-  "description": "Terima batch dari EntryMate otomatis dan lanjutkan pengisian data jamaah di Nusuk.",
+  "description": "Seret file JSON hasil review EntryMate untuk mengisi data jamaah di Nusuk.",
   "icons": {
     "16": "icons/16x16.png",
     "32": "icons/32x32.png",
@@ -11,7 +11,6 @@
     "128": "icons/128x128.png"
   },
   "permissions": [
-    "alarms",
     "activeTab",
     "debugger",
     "scripting",
@@ -46,12 +45,13 @@
       ],
       "js": [
         "content/namespace.js",
-        "content/protocol-types.js",
         "content/manifest-validator.js",
         "content/constants.js",
         "content/date-utils.js",
         "content/value-utils.js",
         "content/dom-utils.js",
+        "content/identity-guard.js",
+        "content/submission-guard.js",
         "content/automation-steps.js",
         "content/path-utils.js",
         "content/panel-bridge.js",
@@ -92,7 +92,7 @@
         "panel.css",
         "panel.js",
         "content/manifest-validator.js",
-        "content/protocol-types.js"
+        "batch-file-import.js"
       ],
       "matches": [
         "https://masar.nusuk.sa/*",

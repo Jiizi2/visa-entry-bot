@@ -26,6 +26,29 @@ def index_of(*items):
 
 
 class SpatialFieldResolverTests(unittest.TestCase):
+    def test_damaged_date_of_birth_label_is_not_a_birth_place_anchor(self):
+        result = resolve_location_fields(index_of(
+            observation("TGLLAHIN/OATEOFBIRTH", 300, 440, 560, 470),
+            observation("08MAR1977", 300, 485, 500, 515),
+            observation("EMPAYLAHIRPACEO", 700, 440, 980, 470, confidence=0.77),
+            observation("KARAWANG", 700, 485, 980, 515),
+        ), ("placeOfBirth",))
+        self.assertEqual(result["placeOfBirth"].value, "KARAWANG")
+
+    def test_faint_office_label_uses_only_a_corroborated_expiry_date_row(self):
+        items = (observation("INDONESIA", 300, 200, 500, 225),
+            observation("01JUL2026", 300, 490, 500, 515),
+            observation("01JUL2036", 750, 490, 950, 515),
+            observation("KARAWANG", 750, 600, 950, 625),
+            observation("P<IDNBUDI<<ALIF<<<<<<<<<<<<<<<<", 50, 700, 950, 730))
+        self.assertEqual(resolve_location_fields(index_of(*items))["issuingOffice"].value, "KARAWANG")
+        self.assertEqual(resolve_location_fields(index_of(*items[2:]))["issuingOffice"].value, "")
+
+    def test_overseas_office_is_preserved_under_its_own_label(self):
+        result = resolve_location_fields(index_of(observation("ISSUING OFFICE", 650, 600, 980, 630),
+            observation("KBRI ABU DHABI", 650, 650, 980, 685, confidence=0.99)), ("issuingOffice",))
+        self.assertEqual(result["issuingOffice"].value, "KBRI ABU DHABI")
+
     def test_resolves_locations_below_bilingual_labels(self) -> None:
         index = index_of(
             observation("TEMPAT LAHIR/PLACE OF BIRTH", 400, 300, 620, 320),
@@ -108,6 +131,37 @@ class SpatialFieldResolverTests(unittest.TestCase):
 
         self.assertEqual(result["placeOfBirth"].value, "BONTOTENGANGAE")
 
+    def test_preserves_confident_unlisted_birth_place_below_its_label(self) -> None:
+        result = resolve_location_fields(index_of(
+            observation("TEMPAT LAHIR/PLACE OF BIRTH", 700, 440, 980, 470),
+            observation("SUNGAI RANYAH", 700, 485, 980, 515, confidence=0.99),
+        ), ("placeOfBirth",))
+
+        self.assertEqual(result["placeOfBirth"].value, "SUNGAI RANYAH")
+        self.assertEqual(result["placeOfBirth"].reason, "VALID_NEAR_LABEL")
+
+    def test_numeric_noise_is_not_accepted_as_an_unlisted_birth_place(self) -> None:
+        result = resolve_location_fields(index_of(
+            observation("TEMPAT LAHIR/PLACE OF BIRTH", 700, 440, 980, 470),
+            observation("31 JUL 2031", 700, 485, 980, 515, confidence=0.99),
+        ), ("placeOfBirth",))
+
+        self.assertEqual(result["placeOfBirth"].value, "")
+
+    def test_damaged_english_birth_label_cannot_become_an_unlisted_place(self) -> None:
+        result = resolve_location_fields(index_of(
+            observation("TEMPAT LAHIR", 700, 440, 980, 470),
+            observation("PLACEOFBRTH", 740, 475, 980, 490, confidence=0.99),
+            observation("KALUMPANG", 700, 500, 980, 525, confidence=0.99),
+        ), ("placeOfBirth",))
+
+        self.assertEqual(result["placeOfBirth"].value, "KALUMPANG")
+        missing = resolve_location_fields(index_of(
+            observation("TEMPAT LAHIR", 700, 440, 980, 470),
+            observation("PLACEOFBRTH", 740, 475, 980, 490, confidence=0.99),
+        ), ("placeOfBirth",))
+        self.assertEqual(missing["placeOfBirth"].value, "")
+
     def test_resolves_issuing_office_from_damaged_english_label(self) -> None:
         index = index_of(
             observation("ISSUWNGOFFICE", 760, 660, 960, 690),
@@ -138,6 +192,23 @@ class SpatialFieldResolverTests(unittest.TestCase):
 
         self.assertEqual(result["placeOfBirth"].value, "BERAU")
         self.assertEqual(result["issuingOffice"].value, "TANJUNG REDEB")
+
+    def test_damaged_label_endings_cannot_become_issuing_cities(self) -> None:
+        for label in ("KANTORYANGMENGELUAROKAN", "KANTORYANGMENGELUARICAN?", "ISSUNMGOFFICE"):
+            with self.subTest(label=label):
+                label_item = observation(label, 650, 660, 950, 690)
+                missing = resolve_location_fields(index_of(label_item), ("issuingOffice",))
+                self.assertEqual(missing["issuingOffice"].value, "")
+                present = resolve_location_fields(index_of(
+                    label_item, observation("TANJUNGREDEB", 700, 710, 960, 745),
+                ), ("issuingOffice",))
+                self.assertEqual(present["issuingOffice"].value, "TANJUNG REDEB")
+
+    def test_short_issuing_city_glued_to_a_label_is_preserved(self) -> None:
+        result = resolve_location_fields(index_of(
+            observation("ISSUINGOFFICESOLO", 650, 680, 980, 720),
+        ), ("issuingOffice",))
+        self.assertEqual(result["issuingOffice"].value, "SOLO")
 
 
 if __name__ == "__main__":

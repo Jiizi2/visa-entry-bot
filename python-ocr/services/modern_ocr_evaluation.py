@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from services.image_io import read_image
+
 import importlib
 import importlib.metadata
 import re
@@ -171,7 +173,7 @@ def summarize_field_hits(records: list[dict[str, Any]]) -> dict[str, dict[str, A
 def _run_tesseract_full_image(file_path: str) -> str:
     if cv2 is None:
         raise RuntimeError("OpenCV is not installed.")
-    image = cv2.imread(file_path)
+    image = read_image(file_path)
     if image is None:
         raise RuntimeError(f"Cannot read image: {file_path}")
     pytesseract = importlib.import_module("pytesseract")

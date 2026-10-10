@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 
 from services.confidence_levels import build_confidence_levels, empty_confidence_levels
@@ -61,12 +62,18 @@ def build_member_record(
     status: str,
     confidence: float,
     notes: str,
+    *,
+    name_verification: dict[str, object] | None = None,
+    visual_field_confidence: dict[str, float] | None = None,
 ) -> dict[str, object]:
     record = _base_record(file_name, file_path)
     passport_extracted = _build_passport_extracted(parsed, visual_fields, extraction)
     resolved_profile = _build_resolved_profile(passport_extracted)
     source_by_field = _build_source_by_field(passport_extracted, resolved_profile)
-    field_confidence = build_field_confidence(passport_extracted, resolved_profile, source_by_field, extraction, visual_fields)
+    field_confidence = build_field_confidence(
+        passport_extracted, resolved_profile, source_by_field, extraction, visual_fields,
+        visual_field_confidence=visual_field_confidence,
+    )
     confidence_levels = build_confidence_levels(confidence, field_confidence)
     mrz_validation = _build_mrz_validation(extraction)
     review_flags = build_review_flags(
@@ -78,6 +85,21 @@ def build_member_record(
         notes,
         mrz_validation,
     )
+    observed_name = re.sub(r"[^A-Z]", "", visual_fields.get("fullName", "").upper())
+    extracted_names = [passport_extracted.get(field, "") for field in ("firstName", "familyName")]
+    extracted_name = re.sub(r"[^A-Z]", "", " ".join(dict.fromkeys(extracted_names)).upper())
+    if observed_name and observed_name != extracted_name:
+        review_flags["record"].append("NAME_EVIDENCE_CONFLICT")
+        for field in ("firstName", "familyName"):
+            review_flags["passportExtracted"][field].append("NAME_EVIDENCE_CONFLICT")
+    if name_verification is not None:
+        record["nameVerification"] = name_verification
+        verification_status = name_verification.get("status")
+        if verification_status != "VERIFIED":
+            flag = "NAME_EVIDENCE_CONFLICT" if verification_status == "CONFLICT" else "NAME_UNVERIFIED"
+            review_flags["record"].append(flag)
+            for field in ("firstName", "familyName"):
+                review_flags["passportExtracted"][field].append(flag)
     review_reasons = _record_review_reasons(review_flags)
     field_evidence = build_field_evidence(
         passport_extracted,

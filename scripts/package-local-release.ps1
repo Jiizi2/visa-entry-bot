@@ -77,17 +77,17 @@ function Ensure-PyInstaller {
   $PreviousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   try {
-    & $PythonOcrExecutable -c "import PyInstaller" 1>$null 2>$null
-    $HasPyInstaller = $LASTEXITCODE -eq 0
+    & $PythonOcrExecutable -c "import PyInstaller, pytest" 1>$null 2>$null
+    $HasBuildDependencies = $LASTEXITCODE -eq 0
   } finally {
     $ErrorActionPreference = $PreviousErrorActionPreference
   }
 
-  if ($HasPyInstaller) {
+  if ($HasBuildDependencies) {
     return
   }
 
-  Write-Host "Installing PyInstaller build dependency..."
+  Write-Host "Installing OCR test and build dependencies..."
   & $PythonOcrExecutable -m pip install -r (Join-Path $PythonOcrDir "requirements-dev.txt")
   if ($LASTEXITCODE -ne 0) {
     throw "Gagal install dependency build OCR worker."
@@ -107,6 +107,12 @@ function Build-OcrWorker {
 
   Push-Location $PythonOcrDir
   try {
+    Write-Host "Validating OCR tests and reviewed benchmark..."
+    & $PythonOcrExecutable -m pytest tests -q
+    if ($LASTEXITCODE -ne 0) { throw "OCR tests gagal. Build dihentikan." }
+    & $PythonOcrExecutable scripts/verify_ocr_release.py
+    if ($LASTEXITCODE -ne 0) { throw "OCR release gate gagal. Refresh benchmark lokal sebelum build." }
+
     Write-Host "Building OCR worker executable..."
     & $PythonOcrExecutable -m PyInstaller `
       --noconfirm `

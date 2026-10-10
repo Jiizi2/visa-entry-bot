@@ -21,6 +21,8 @@
 
   function createNusukNavigation({
     state,
+    persistState,
+    checkpoint,
     waitUntil,
     sleep,
     markActiveElement,
@@ -70,7 +72,7 @@
 
     function findAttachedPassportInput(selector) {
       return queryAll(selector)
-        .find((node) => node instanceof HTMLInputElement && node.type === "file")
+        .find(root.domUtils.isFileInputAvailable)
         || null;
     }
 
@@ -79,6 +81,10 @@
     }
 
     function findNusukPageReadySignal(pageKey) {
+      if (pageKey === "next_member") {
+        if (isPageBusy() || detectNusukStage() > 0) return null;
+        return findMutamerListReadySignal() || findPassportUploadReadySignal();
+      }
       if (pageKey === "upload" || pageKey === "passport_upload") {
         return findPassportUploadReadySignal() || findProceedButton() || null;
       }
@@ -204,7 +210,7 @@
     }
 
     function findSummaryReadySignal() {
-      if (findPassportUploadReadySignal() || findPassportDetailsReadySignal() || findMemberFormStageSignal() || findDisclosureReadySignal()) {
+      if (findPassportDetailsReadySignal() || findMemberFormStageSignal() || findDisclosureReadySignal()) {
         return null;
       }
       const marker = queryAll([
@@ -224,6 +230,7 @@
       if (marker) {
         return marker;
       }
+      if (findPassportUploadReadySignal()) return null;
       const submitLike = findByText("button, [role='button']", "Submit")
         || findByText("button, [role='button']", "Save")
         || findByText("button, [role='button']", "Confirm");
@@ -240,7 +247,7 @@
       return findFirstVisible([
         ".popup h3:has-text('Mutamer has been added successfully')",
         ".popup:has-text('Mutamer has been added successfully')",
-      ].join(", ")) || findMutamerListReadySignal();
+      ].join(", "));
     }
 
     function findMutamerListReadySignal() {
@@ -360,8 +367,36 @@
           await sleep(160, runId);
           continue;
         }
+        await checkpoint(runId);
+        const stage = detectNusukStage();
+        if (stage !== beforeStage) return true;
+        const guard = root.identityGuard;
+        const identityCheck = { 1: "verifyPassportIdentity", 2: "verifyMemberNames", 4: "verifySummaryIdentity" }[stage];
+        if (identityCheck) {
+          await guard.waitForIdentityCheck(identityCheck, context, {
+            checkpoint, sleep, runId, timeoutMs: Math.min(15000, Math.max(0, deadline - Date.now())),
+          });
+          if (detectNusukStage() !== stage || findUsableNextButton() !== button || !isEnabled(button)) continue;
+          guard[identityCheck](context);
+        } else if (stage !== 3) {
+          throw guard.identityError("tahap halaman Nusuk tidak dapat diverifikasi");
+        }
+        // Disclosure has no identity fields; the following Summary verifies the
+        // active passport, reviewed name and attachment before the final save.
         markActiveElement(button);
-        await clickElement(button);
+        if (stage === 4) {
+          await root.submissionGuard.submitOnce({
+            state, context, runId, persistState, checkpoint,
+            click: () => {
+              if (detectNusukStage() !== 4 || findUsableNextButton() !== button || !isEnabled(button)) {
+                throw guard.identityError("halaman ringkasan berubah sebelum simpan");
+              }
+              return clickElement(button);
+            },
+          });
+        } else {
+          await clickElement(button);
+        }
         await sleep(260, runId);
         const moved = await waitForNextPageAfterClick({
           beforeStage,
@@ -372,6 +407,9 @@
         });
         if (moved || beforeStage === 0) {
           return true;
+        }
+        if (stage === 4) {
+          throw root.submissionGuard.submissionError("Nusuk belum mengonfirmasi penyimpanan; tombol simpan tidak dicoba ulang");
         }
       }
 
@@ -402,7 +440,7 @@
         const urlChanged = String(location.href || "") !== beforeUrl;
         const currentButton = findUsableNextButton();
         const buttonMoved = currentButton !== clickedButton && (!currentButton || !isVisible(currentButton));
-        if (stable && (nextStage !== beforeStage || urlChanged || (sawBusy && buttonMoved))) {
+        if (beforeStage !== 4 && stable && (nextStage !== beforeStage || urlChanged || (sawBusy && buttonMoved))) {
           return true;
         }
 
@@ -854,34 +892,14 @@
       const rs = member.resolvedProfile || {};
       const pe = member.passportExtracted || {};
 
-      setFirstVisibleInputIfEmpty([
-        "div[formgroupname='firstName'] input[formcontrolname='ar']",
-        "input[formcontrolname='firstName.ar']",
-        "input[name='firstName.ar']",
-        "input[placeholder='First Name (Arabic)']",
-      ], pickFirstNonEmpty(rs?.arabic?.firstName, rs?.firstName, pe?.firstName));
-
-      setFirstVisibleInputIfEmpty([
-        "div[formgroupname='familyName'] input[formcontrolname='ar']",
-        "input[formcontrolname='familyName.ar']",
-        "input[name='familyName.ar']",
-        "input[placeholder='Family Name (Arabic)']",
-      ], pickFirstNonEmpty(rs?.arabic?.familyName, rs?.familyName, pe?.familyName));
-
-      setFirstVisibleInputIfEmpty([
-        "div[formgroupname='firstName'] input[formcontrolname='en']",
-        "input[formcontrolname='firstName.en']",
-        "input[name='firstName.en']",
-        "input[placeholder='First name']",
-        "input[placeholder='First Name']",
-      ], pickFirstNonEmpty(rs?.firstName, pe?.firstName));
-
-      setFirstVisibleInputIfEmpty([
-        "div[formgroupname='familyName'] input[formcontrolname='en']",
-        "input[formcontrolname='familyName.en']",
-        "input[name='familyName.en']",
-        "input[placeholder='Family Name']",
-      ], pickFirstNonEmpty(rs?.familyName, pe?.familyName));
+      // Only repair names after the reviewed-name step has checked this passport.
+      // Initial OCR differences are recorded there before any name is replaced.
+      if (context.identityEvidence?.passportName && root.identityGuard.hasVerifiedPassportIdentity(context)) {
+        await root.identityGuard.ensureMemberNames(context, {
+          checkpoint, sleep, runId: context.runId || state.runToken,
+          isCurrentForm: () => detectNusukStage() === 2,
+        });
+      }
 
       setFirstVisibleInputIfEmpty([
         "input[formcontrolname='profession']",

@@ -109,10 +109,13 @@ export default function ReviewPage() {
       }
 
       updatedMember.reviewStatus = 'NEEDS_REVIEW'; // mark modified
+      updatedMember.reviewConfirmed = false;
       newMembers[index] = updatedMember;
       
       const nextManifest = { ...state.manifest, members: newMembers };
-      updateState({ manifest: nextManifest });
+      const reviewedMemberIds = new Set(state.reviewedMemberIds);
+      reviewedMemberIds.delete(activeMember.id);
+      updateState({ manifest: nextManifest, reviewedMemberIds });
       saveManifestDisk(nextManifest);
     }
   };

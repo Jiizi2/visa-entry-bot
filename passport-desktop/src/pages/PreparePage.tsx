@@ -1,29 +1,40 @@
 import Button from '../components/ui/Button';
 import PageHeader from '../components/ui/PageHeader';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store';
 import { invoke } from '@tauri-apps/api/core';
 import CropTool, { CropRect } from '../components/CropTool';
 import { getEffectiveImagePath } from '../utils/paths';
+import { createPreparedImageLoader, createPassportThumbnail, passportImageRequestKey, type PassportImageData } from '../utils/prepared-images';
 import AppIcon from '../components/ui/AppIcon';
+
+const imageRequestForItem = (item: any) => ({
+  manifestPath: '',
+  imagePath: getEffectiveImagePath(item),
+  fileName: item.fileName || '',
+});
 
 export default function PreparePage() {
   const state = useStore();
   const updateState = useStore(s => s.updateState);
   const [error, setError] = useState('');
-  const [activeItem, setActiveItem] = useState<any>(null);
   const [activeImageData, setActiveImageData] = useState<{dataUrl?: string, path?: string}>({});
   const [isCropping, setIsCropping] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEndorseConfirm, setShowEndorseConfirm] = useState(false);
   const [thumbCache, setThumbCache] = useState<Record<string, string>>({});
+  const thumbCacheRef = useRef<Record<string, string>>({});
+  const [imageLoader] = useState(() => createPreparedImageLoader(request =>
+    invoke<PassportImageData | null>('load_passport_image_data', { ...request })));
   const [listPage, setListPage] = useState(0);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBatchEndorseConfirm, setShowBatchEndorseConfirm] = useState(false);
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
 
-  const items = state.preparedSession?.items || [];
+  const items = useMemo<any[]>(() => state.preparedSession?.items || [], [state.preparedSession]);
+  const activeItem = useMemo(() => items.find(item => String(item.id) === state.activePreparedItemId) || items[0] || null,
+    [items, state.activePreparedItemId]);
 
   useEffect(() => {
     if (!state.preparedSession && state.selectedDir && !state.isPreparingImages) {
@@ -32,21 +43,14 @@ export default function PreparePage() {
   }, [state.selectedDir, state.preparedSession]);
 
   useEffect(() => {
-    if (items.length > 0) {
-      if (!state.activePreparedItemId) {
-        updateState({ activePreparedItemId: String(items[0].id) });
-      } else {
-        const item = items.find((i: any) => String(i.id) === state.activePreparedItemId);
-        setActiveItem(item || items[0]);
-      }
-    } else {
-      setActiveItem(null);
+    if (activeItem && String(activeItem.id) !== state.activePreparedItemId) {
+      updateState({ activePreparedItemId: String(activeItem.id) });
     }
-  }, [items, state.activePreparedItemId]);
+  }, [activeItem, state.activePreparedItemId, updateState]);
 
   const pageSize = 8;
   const totalPages = Math.ceil(items.length / pageSize);
-  const currentItems = items.slice(listPage * pageSize, (listPage + 1) * pageSize);
+  const currentItems = useMemo(() => items.slice(listPage * pageSize, (listPage + 1) * pageSize), [items, listPage]);
 
   useEffect(() => {
     if (state.activePreparedItemId && items.length > 0) {
@@ -58,31 +62,55 @@ export default function PreparePage() {
   }, [state.activePreparedItemId, items, pageSize]);
 
   useEffect(() => {
+    let cancelled = false;
+    setActiveImageData({});
     if (activeItem) {
-      loadActiveImage(activeItem);
-    } else {
-      setActiveImageData({});
+      imageLoader.load(imageRequestForItem(activeItem)).then(result => {
+        if (!cancelled) setActiveImageData(result || {});
+      }).catch(error => {
+        if (!cancelled) console.error(error);
+      });
     }
-  }, [activeItem]);
+    return () => { cancelled = true; };
+  }, [activeItem, imageLoader]);
 
-  // Load thumbnails
+  // Read each visible photo once and decode thumbnails in sequence, avoiding a burst
+  // of full-resolution images and repeated IPC requests on every state update.
   useEffect(() => {
-    currentItems.forEach((item: any) => {
-      if (!thumbCache[item.id]) {
-        invoke('load_passport_image_data', {
-          manifestPath: '',
-          imagePath: getEffectiveImagePath(item),
-          fileName: item.fileName || '',
-        }).then((res: any) => {
-          if (res?.dataUrl) {
-            setThumbCache(prev => ({ ...prev, [item.id]: res.dataUrl }));
-          }
-        }).catch(console.error);
+    let cancelled = false;
+    const loadThumbnails = async () => {
+      for (const item of currentItems) {
+        if (cancelled) return;
+        const request = imageRequestForItem(item);
+        const key = passportImageRequestKey(request);
+        if (thumbCacheRef.current[key]) continue;
+        try {
+          const image = await imageLoader.load(request);
+          if (cancelled) return;
+          if (!image?.dataUrl) continue;
+          const thumbnail = await createPassportThumbnail(image.dataUrl);
+          if (cancelled) return;
+          thumbCacheRef.current[key] = thumbnail;
+          setThumbCache({ ...thumbCacheRef.current });
+        } catch (error) {
+          if (!cancelled) console.error(error);
+        }
       }
-    });
-  }, [currentItems]);
+    };
+    void loadThumbnails();
+    return () => { cancelled = true; };
+  }, [currentItems, imageLoader]);
+
+  const invalidateActiveImage = () => {
+    if (!activeItem) return;
+    const request = imageRequestForItem(activeItem);
+    imageLoader.invalidate(request);
+    delete thumbCacheRef.current[passportImageRequestKey(request)];
+    setThumbCache({ ...thumbCacheRef.current });
+  };
 
   const prepareImages = async () => {
+    if (useStore.getState().isPreparingImages) return;
     updateState({ isPreparingImages: true, statusHeadline: 'Menyiapkan foto' });
     try {
       const session = await invoke('prepare_passport_images', { 
@@ -93,20 +121,6 @@ export default function PreparePage() {
     } catch (e) {
       setError(String(e));
       updateState({ isPreparingImages: false });
-    }
-  };
-
-  const loadActiveImage = async (item: any) => {
-    try {
-      const res: any = await invoke('load_passport_image_data', {
-        manifestPath: '',
-        imagePath: getEffectiveImagePath(item),
-        fileName: item.fileName || '',
-      });
-      setActiveImageData(res || {});
-    } catch (e) {
-      console.error(e);
-      setActiveImageData({});
     }
   };
 
@@ -165,6 +179,7 @@ export default function PreparePage() {
         crop: { operation: 'rotate', rotationDeltaDegrees: delta, rotationDegrees: nextRotation, sourceImagePath: getEffectiveImagePath(activeItem) },
         rotationDegrees: nextRotation,
       });
+      invalidateActiveImage();
       updateState({ preparedSession: session, statusHeadline: 'Rotasi tersimpan' });
     } catch (e) {
       setError(String(e));
@@ -251,6 +266,7 @@ export default function PreparePage() {
         crop: { rect, operation: 'crop', sourceImagePath: getEffectiveImagePath(activeItem) },
         rotationDegrees: Number(activeItem.rotationDegrees || 0),
       });
+      invalidateActiveImage();
       updateState({ preparedSession: session, statusHeadline: 'Crop tersimpan' });
       setIsCropping(false);
     } catch (e) {
@@ -300,6 +316,7 @@ export default function PreparePage() {
         crop: { operation: 'compress', sourceImagePath: getEffectiveImagePath(activeItem) },
         rotationDegrees: Number(activeItem.rotationDegrees || 0),
       });
+      invalidateActiveImage();
       updateState({ preparedSession: session, statusHeadline: 'Kompresi berhasil' });
     } catch (e) {
       setError(String(e));
@@ -354,7 +371,8 @@ export default function PreparePage() {
                           ? (isSelected ? 'border-2 border-blue-700 shadow-md ring-2 ring-blue-100' : 'border border-slate-300 opacity-60 hover:opacity-100 hover:border-slate-400')
                           : (isActive ? 'border-2 border-blue-700 shadow-md' : 'border border-slate-300/50 group-hover:border-blue-700')
                       }`} 
-                      src={thumbCache[item.id] || ''} 
+                      src={thumbCache[passportImageRequestKey(imageRequestForItem(item))]}
+                      decoding="async"
                       alt={item.fileName || `Passport ${globalIdx + 1}`} 
                     />
                     {isSelectMode && (
@@ -444,6 +462,7 @@ export default function PreparePage() {
                   <img 
                     className="max-w-full max-h-full object-contain relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] rounded-lg transition-transform duration-300 hover:scale-[1.02]" 
                     src={activeImageData.dataUrl} 
+                    decoding="async"
                     alt="Large passport preview" 
                   />
                 </>

@@ -6,6 +6,7 @@ import hashlib
 import importlib.metadata
 import io
 import json
+import math
 import os
 import platform
 import statistics
@@ -259,6 +260,9 @@ def _summarize_record(record: dict[str, Any], expected: dict[str, str]) -> dict[
         "imagePreprocessor": _dict_value(metrics.get("imagePreprocessor", {})),
         "pipelinePath": str(metrics.get("pipelinePath", "")),
         "pipelineReasons": _list_values(metrics.get("pipelineReasons", [])),
+        "stageCrashCount": sum(bool(stage.get("exception")) for stage in record.get("stageReports", []) if isinstance(stage, dict)),
+        "skippedStageCount": len(_list_values(metrics.get("skippedStages", []))),
+        "budgetExceeded": bool(metrics.get("budgetExceeded")),
         "expectedFields": sorted(expected),
         "mismatches": mismatches,
     }
@@ -351,11 +355,18 @@ def _summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     image_preprocessor_totals["outputMegaPixels"] = round(float(image_preprocessor_totals["outputMegaPixels"]), 3)
     image_preprocessor_totals["estimatedPeakMb"] = round(float(image_preprocessor_totals["estimatedPeakMb"]), 2)
     return {
+        "totalFiles": len(records),
         "validCount": sum(1 for record in records if record.get("status") == "VALID"),
         "errorCount": sum(1 for record in records if record.get("status") != "VALID"),
         "reviewStatusCounts": _count_review_statuses(records),
         "reviewCount": sum(1 for record in records if record.get("requiresReview")),
         "mismatchCount": sum(len(record.get("mismatches", [])) for record in records),
+        "stageCrashCount": sum(int(record.get("stageCrashCount", 0)) for record in records),
+        "skippedStageCount": sum(int(record.get("skippedStageCount", 0)) for record in records),
+        "budgetExceededCount": sum(bool(record.get("budgetExceeded")) for record in records),
+        "ocrErrorCount": rapidocr_totals["errorCount"],
+        "ocrTimeoutCount": sum(int(_dict_value(record.get("rapidocr")).get("timeoutCount", 0)) for record in records),
+        "ocrBudgetSkipCount": sum(int(_dict_value(record.get("rapidocr")).get("budgetSkipCount", 0)) for record in records),
         "avgTotalMs": int(statistics.fmean(total_ms)) if total_ms else 0,
         "p95TotalMs": _percentile(total_ms, 0.95),
         "maxTotalMs": max(total_ms, default=0),
@@ -411,7 +422,7 @@ def _percentile(values: list[int], percentile: float) -> int:
     if not values:
         return 0
     sorted_values = sorted(values)
-    index = min(len(sorted_values) - 1, max(0, int(len(sorted_values) * percentile) - 1))
+    index = min(len(sorted_values) - 1, max(0, math.ceil(len(sorted_values) * percentile) - 1))
     return sorted_values[index]
 
 
@@ -422,6 +433,13 @@ def _evaluate_targets(summary: dict[str, Any], targets: dict[str, Any]) -> list[
     _check_max(summary, targets, failures, "avgTotalMs")
     _check_max(summary, targets, failures, "p95TotalMs")
     _check_max(summary, targets, failures, "maxTotalMs")
+    for metric in ("errorCount", "stageCrashCount", "skippedStageCount", "budgetExceededCount", "ocrErrorCount", "ocrTimeoutCount", "ocrBudgetSkipCount"):
+        _check_max(summary, targets, failures, metric)
+    if targets.get("requireManualReview"):
+        total = int(summary.get("totalFiles", 0))
+        if (not total or summary.get("reviewCount") != total
+                or _dict_value(summary.get("reviewStatusCounts")).get("NEEDS_REVIEW") != total):
+            failures.append({"metric": "requireManualReview", "target": total, "actual": summary.get("reviewCount")})
     _evaluate_assumed_hardware_targets(summary, targets, failures)
 
     field_targets = targets.get("fieldAccuracy", {})

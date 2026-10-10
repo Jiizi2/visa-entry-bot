@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import re
-from datetime import date
-
-from services.location_normalizer import is_known_location_value
 from services.models import ExtractionEvidence
 from services.name_support import is_reasonable_name_value
 
@@ -14,9 +11,15 @@ def build_field_confidence(
     source_by_field: dict[str, str],
     extraction: ExtractionEvidence,
     visual_fields: dict[str, str],
+    *,
+    visual_field_confidence: dict[str, float] | None = None,
 ) -> dict[str, object]:
     base = _clamp(float(extraction.get("confidence", 0.0) or 0.0))
     passport_confidence = _build_passport_confidence(passport_extracted, visual_fields, base, extraction)
+    if visual_field_confidence is not None:
+        for field_name, observed_confidence in visual_field_confidence.items():
+            if field_name in passport_confidence and passport_extracted.get(field_name):
+                passport_confidence[field_name] = _clamp(observed_confidence)
     resolved_confidence = _build_resolved_confidence(resolved_profile, source_by_field, passport_confidence)
     return {"passportExtracted": passport_confidence, "resolvedProfile": resolved_confidence}
 
@@ -205,15 +208,10 @@ def _apply_valid_mrz_boosts(
     if not isinstance(validation, dict) or validation.get("valid") is not True:
         return confidence
     boosted = dict(confidence)
-    for field_name in ("firstName", "familyName", "passportNumber", "nationality", "dob", "expiryDate", "gender", "countryOfIssued"):
+    # MRZ check digits do not cover names, nationality, gender, or visual fields.
+    for field_name in ("passportNumber", "dob", "expiryDate"):
         if passport_extracted.get(field_name):
             boosted[field_name] = max(boosted.get(field_name, 0.0), 0.82)
-    if _is_iso_date(passport_extracted.get("issueDate", "")):
-        boosted["issueDate"] = max(boosted.get("issueDate", 0.0), 0.78)
-    if is_known_location_value("issuingOffice", passport_extracted.get("cityOfIssued", "")):
-        boosted["cityOfIssued"] = max(boosted.get("cityOfIssued", 0.0), 0.78)
-    if is_known_location_value("placeOfBirth", passport_extracted.get("birthCity", "")):
-        boosted["birthCity"] = max(boosted.get("birthCity", 0.0), 0.78)
     return boosted
 
 
@@ -241,14 +239,6 @@ def _supports_name(value: str, visual_name: str) -> bool:
     if not visual_name or not is_reasonable_name_value(visual_name):
         return False
     return re.sub(r"[^A-Z]", "", value.upper()) in re.sub(r"[^A-Z]", "", visual_name.upper())
-
-
-def _is_iso_date(value: str) -> bool:
-    try:
-        date.fromisoformat(str(value or ""))
-        return True
-    except ValueError:
-        return False
 
 
 def _empty_passport_confidence() -> dict[str, float]:

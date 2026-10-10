@@ -12,9 +12,10 @@ export interface CompletionMoment {
 interface CompletionOverlayProps {
   moment: CompletionMoment;
   onClose: () => void;
+  className?: string;
 }
 
-export default function CompletionOverlay({ moment, onClose }: CompletionOverlayProps) {
+export default function CompletionOverlay({ moment, onClose, className = '' }: CompletionOverlayProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function CompletionOverlay({ moment, onClose }: CompletionOverlay
   }, [onClose]);
 
   return (
-    <div className="completion-overlay" role="presentation">
+    <div className={`completion-overlay ${className}`} role="presentation">
       <section
         aria-describedby="completion-moment-description"
         aria-labelledby="completion-moment-title"
@@ -47,7 +48,7 @@ export default function CompletionOverlay({ moment, onClose }: CompletionOverlay
         className="completion-overlay__dialog"
         role="dialog"
       >
-        <img className="completion-overlay__image" src={moment.image} alt={moment.alt} />
+        <img className="completion-overlay__image" src={moment.image} alt={moment.alt} decoding="async" />
         <footer className="completion-overlay__footer">
           <div className="completion-overlay__copy">
             <strong id="completion-moment-title">{moment.title}</strong>

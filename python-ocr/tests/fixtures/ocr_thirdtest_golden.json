@@ -3,7 +3,7 @@
     "fileName": "ABDULLAH.png",
     "expected": {
       "status": "VALID",
-      "firstName": "ABDULLAH KYAZID AL",
+      "firstName": "ABDULLAH YAZID AL",
       "familyName": "FATIH",
       "passportNumber": "X4980079",
       "nationality": "INDONESIA",
